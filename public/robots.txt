@@ -1,0 +1,13 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow dashboard and authentication pages
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://consently.app/sitemap.xml
