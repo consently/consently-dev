@@ -116,6 +116,38 @@ export const teamMemberSchema = z.object({
   lastName: z.string().min(2, 'Last name is required'),
 });
 
+// Banner Configuration Schema
+export const bannerConfigSchema = z.object({
+  name: z.string().min(1, 'Banner name is required'),
+  position: z.enum(['top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'center', 'center-modal']),
+  layout: z.enum(['bar', 'box', 'modal', 'popup', 'inline', 'floating']),
+  is_active: z.boolean().default(true),
+});
+
+// Compliance Check Schema
+export const complianceCheckRequestSchema = z.object({
+  regulations: z.array(z.enum(['gdpr', 'dpdpa', 'ccpa', 'lgpd', 'pipeda', 'all'])).default(['gdpr']),
+  include_cookies: z.boolean().default(true),
+  include_consents: z.boolean().default(true),
+  include_data_mapping: z.boolean().default(true),
+});
+
+// Translation Schema
+export const translationSchema = z.object({
+  language_code: z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/),
+  language_name: z.string().min(1),
+  is_rtl: z.boolean().default(false),
+  translations: z.record(z.any()),
+});
+
+// Analytics Query Schema
+export const analyticsQuerySchema = z.object({
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  granularity: z.enum(['hour', 'day', 'week', 'month']).default('day'),
+  category: z.string().optional(),
+});
+
 // Export Types
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
@@ -130,3 +162,7 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CookieScanInput = z.infer<typeof cookieScanSchema>;
 export type ProcessingActivityInput = z.infer<typeof processingActivitySchema>;
 export type TeamMemberInput = z.infer<typeof teamMemberSchema>;
+export type BannerConfigInput = z.infer<typeof bannerConfigSchema>;
+export type ComplianceCheckInput = z.infer<typeof complianceCheckRequestSchema>;
+export type TranslationInput = z.infer<typeof translationSchema>;
+export type AnalyticsQueryInput = z.infer<typeof analyticsQuerySchema>;

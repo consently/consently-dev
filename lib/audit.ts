@@ -18,6 +18,19 @@ export type AuditAction =
   | 'consent.record'
   | 'consent.revoke'
   | 'cookie.scan'
+  | 'cookie_created'
+  | 'cookie_updated'
+  | 'cookie_deleted'
+  | 'cookie_bulk_imported'
+  | 'category_created'
+  | 'category_updated'
+  | 'category_deleted'
+  | 'categories_bulk_created'
+  | 'banner_configured'
+  | 'translation_created'
+  | 'translation_updated'
+  | 'compliance_check_run'
+  | 'analytics_exported'
   | 'activity.create'
   | 'activity.update'
   | 'activity.delete'
@@ -132,5 +145,33 @@ export async function logFailure(
     userAgent,
     status: 'failure',
     errorMessage
+  });
+}
+
+/**
+ * General purpose audit logging function
+ * Used throughout the application for consistent audit logging
+ */
+export async function logAudit(params: {
+  user_id: string;
+  action: string;
+  resource_type: string;
+  resource_id?: string;
+  changes?: Record<string, any>;
+  ip_address?: string;
+  user_agent?: string;
+  status: 'success' | 'failure';
+  error_message?: string;
+}): Promise<void> {
+  await createAuditLog({
+    userId: params.user_id,
+    action: params.action as AuditAction,
+    resourceType: params.resource_type,
+    resourceId: params.resource_id,
+    changes: params.changes,
+    ipAddress: params.ip_address,
+    userAgent: params.user_agent,
+    status: params.status,
+    errorMessage: params.error_message,
   });
 }

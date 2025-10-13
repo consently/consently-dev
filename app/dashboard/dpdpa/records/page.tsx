@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,62 +8,87 @@ import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, Download, Filter, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface ConsentRecord {
   id: string;
-  email: string;
-  consentType: 'cookie' | 'dpdpa';
-  status: 'granted' | 'denied' | 'withdrawn';
-  timestamp: string;
-  ipAddress: string;
-  location: string;
+  visitor_email: string;
+  consent_type: 'cookie' | 'dpdpa';
+  status: 'accepted' | 'rejected' | 'partial' | 'revoked';
+  created_at: string;
+  ip_address?: string;
+  device_type?: string;
+  user_agent?: string;
 }
 
-// Mock data
-const mockRecords: ConsentRecord[] = [
-  { id: '1', email: 'user1@example.com', consentType: 'cookie', status: 'granted', timestamp: '2025-10-10T10:30:00Z', ipAddress: '192.168.1.1', location: 'Mumbai, India' },
-  { id: '2', email: 'user2@example.com', consentType: 'dpdpa', status: 'granted', timestamp: '2025-10-10T09:15:00Z', ipAddress: '192.168.1.2', location: 'Delhi, India' },
-  { id: '3', email: 'user3@example.com', consentType: 'cookie', status: 'denied', timestamp: '2025-10-10T08:45:00Z', ipAddress: '192.168.1.3', location: 'Bangalore, India' },
-  { id: '4', email: 'user4@example.com', consentType: 'dpdpa', status: 'withdrawn', timestamp: '2025-10-09T14:20:00Z', ipAddress: '192.168.1.4', location: 'Chennai, India' },
-  { id: '5', email: 'user5@example.com', consentType: 'cookie', status: 'granted', timestamp: '2025-10-09T11:00:00Z', ipAddress: '192.168.1.5', location: 'Pune, India' },
-];
-
 const statusIcons = {
-  granted: <CheckCircle2 className="h-4 w-4 text-green-500" />,
-  denied: <XCircle className="h-4 w-4 text-red-500" />,
-  withdrawn: <AlertCircle className="h-4 w-4 text-orange-500" />,
+  accepted: <CheckCircle2 className="h-4 w-4 text-green-500" />,
+  rejected: <XCircle className="h-4 w-4 text-red-500" />,
+  partial: <AlertCircle className="h-4 w-4 text-yellow-500" />,
+  revoked: <AlertCircle className="h-4 w-4 text-orange-500" />,
 };
 
 const statusColors = {
-  granted: 'bg-green-100 text-green-800',
-  denied: 'bg-red-100 text-red-800',
-  withdrawn: 'bg-orange-100 text-orange-800',
+  accepted: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-800',
+  partial: 'bg-yellow-100 text-yellow-800',
+  revoked: 'bg-orange-100 text-orange-800',
 };
 
 export default function ConsentRecordsPage() {
+  const [records, setRecords] = useState<ConsentRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const filteredRecords = mockRecords.filter((record) => {
-    const matchesSearch = record.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
-    const matchesType = typeFilter === 'all' || record.consentType === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  // Fetch records on mount and when filters change
+  useEffect(() => {
+    fetchRecords();
+  }, [searchQuery, statusFilter, typeFilter]);
+
+  const fetchRecords = async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        limit: '100',
+        page: '1',
+      });
+
+      if (searchQuery) params.append('search', searchQuery);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (typeFilter !== 'all') params.append('type', typeFilter);
+
+      const response = await fetch(`/api/consent/records?${params.toString()}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch records');
+      }
+
+      setRecords(result.data || []);
+      setTotalRecords(result.pagination?.total || 0);
+    } catch (error) {
+      console.error('Error fetching records:', error);
+      toast.error('Failed to load consent records');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleExport = () => {
     // Implement CSV export
     const csv = [
-      ['ID', 'Email', 'Type', 'Status', 'Timestamp', 'IP Address', 'Location'],
-      ...filteredRecords.map((r) => [
+      ['ID', 'Email', 'Type', 'Status', 'Timestamp', 'IP Address', 'Device'],
+      ...records.map((r) => [
         r.id,
-        r.email,
-        r.consentType,
+        r.visitor_email,
+        r.consent_type,
         r.status,
-        r.timestamp,
-        r.ipAddress,
-        r.location,
+        r.created_at,
+        r.ip_address || 'N/A',
+        r.device_type || 'N/A',
       ]),
     ]
       .map((row) => row.join(','))
@@ -94,7 +119,7 @@ export default function ConsentRecordsPage() {
             <CardTitle className="text-sm font-medium text-gray-600">Total Records</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockRecords.length}</div>
+            <div className="text-2xl font-bold">{totalRecords}</div>
           </CardContent>
         </Card>
 
@@ -104,7 +129,7 @@ export default function ConsentRecordsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {mockRecords.filter((r) => r.status === 'granted').length}
+              {records.filter((r) => r.status === 'accepted').length}
             </div>
           </CardContent>
         </Card>
@@ -115,7 +140,7 @@ export default function ConsentRecordsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {mockRecords.filter((r) => r.status === 'denied').length}
+              {records.filter((r) => r.status === 'rejected').length}
             </div>
           </CardContent>
         </Card>
@@ -143,9 +168,10 @@ export default function ConsentRecordsPage() {
               label="Status"
               options={[
                 { value: 'all', label: 'All Statuses' },
-                { value: 'granted', label: 'Granted' },
-                { value: 'denied', label: 'Denied' },
-                { value: 'withdrawn', label: 'Withdrawn' },
+                { value: 'accepted', label: 'Accepted' },
+                { value: 'rejected', label: 'Rejected' },
+                { value: 'partial', label: 'Partial' },
+                { value: 'revoked', label: 'Revoked' },
               ]}
             />
             <Select
@@ -168,7 +194,7 @@ export default function ConsentRecordsPage() {
           <div>
             <CardTitle>Consent Records</CardTitle>
             <CardDescription>
-              {filteredRecords.length} record{filteredRecords.length !== 1 ? 's' : ''} found
+              {records.length} record{records.length !== 1 ? 's' : ''} found
             </CardDescription>
           </div>
           <Button onClick={handleExport} variant="outline">
@@ -186,52 +212,59 @@ export default function ConsentRecordsPage() {
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Timestamp</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">IP Address</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Location</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Device</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRecords.map((record) => (
-                  <tr key={record.id} className="border-b transition-colors hover:bg-gray-50/50">
-                    <td className="p-4 align-middle font-medium">{record.email}</td>
-                    <td className="p-4 align-middle">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {record.consentType}
-                      </span>
-                    </td>
-                    <td className="p-4 align-middle">
-                      <div className="flex items-center gap-2">
-                        {statusIcons[record.status]}
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            statusColors[record.status]
-                          }`}
-                        >
-                          {record.status}
-                        </span>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center">
+                      <div className="flex justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
                     </td>
-                    <td className="p-4 align-middle text-gray-600">
-                      {format(new Date(record.timestamp), 'MMM d, yyyy HH:mm')}
-                    </td>
-                    <td className="p-4 align-middle text-gray-600 font-mono text-sm">
-                      {record.ipAddress}
-                    </td>
-                    <td className="p-4 align-middle text-gray-600">{record.location}</td>
                   </tr>
-                ))}
+                ) : records.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      No records found
+                    </td>
+                  </tr>
+                ) : (
+                  records.map((record) => (
+                    <tr key={record.id} className="border-b transition-colors hover:bg-gray-50/50">
+                      <td className="p-4 align-middle font-medium">{record.visitor_email}</td>
+                      <td className="p-4 align-middle">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {record.consent_type}
+                        </span>
+                      </td>
+                      <td className="p-4 align-middle">
+                        <div className="flex items-center gap-2">
+                          {statusIcons[record.status]}
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              statusColors[record.status]
+                            }`}
+                          >
+                            {record.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-gray-600">
+                        {format(new Date(record.created_at), 'MMM d, yyyy HH:mm')}
+                      </td>
+                      <td className="p-4 align-middle text-gray-600 font-mono text-sm">
+                        {record.ip_address || 'N/A'}
+                      </td>
+                      <td className="p-4 align-middle text-gray-600">{record.device_type || 'N/A'}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
-          {filteredRecords.length === 0 && (
-            <div className="py-12 text-center">
-              <Search className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No records found</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Try adjusting your search or filter criteria
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

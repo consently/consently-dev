@@ -6,60 +6,71 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  TrendingUp,
   Users,
-  Globe,
   ArrowUpRight,
-  ArrowDownRight,
 } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-// Mock data - will be replaced with real API calls
-const mockMetrics = {
-  totalConsents: 12543,
-  grantedConsents: 9821,
-  deniedConsents: 2122,
-  withdrawnConsents: 600,
-  consentRate: 78.3,
-  monthlyGrowth: 12.5,
-};
-
-const mockTrendData = [
-  { date: '2025-09-01', granted: 320, denied: 82 },
-  { date: '2025-09-08', granted: 385, denied: 95 },
-  { date: '2025-09-15', granted: 412, denied: 88 },
-  { date: '2025-09-22', granted: 445, denied: 102 },
-  { date: '2025-09-29', granted: 498, denied: 115 },
-  { date: '2025-10-06', granted: 523, denied: 98 },
-];
-
-const mockDeviceData = [
-  { name: 'Desktop', value: 6271 },
-  { name: 'Mobile', value: 5017 },
-  { name: 'Tablet', value: 1255 },
-];
-
-const mockRecentActivities = [
-  { id: 1, action: 'Cookie consent granted', user: 'user@example.com', time: '2 minutes ago' },
-  { id: 2, action: 'Data processing activity added', user: 'admin@company.com', time: '15 minutes ago' },
-  { id: 3, action: 'Consent withdrawn', user: 'test@test.com', time: '1 hour ago' },
-  { id: 4, action: 'Widget settings updated', user: 'admin@company.com', time: '3 hours ago' },
-  { id: 5, action: 'New banner template created', user: 'admin@company.com', time: '5 hours ago' },
-];
+import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { api } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b'];
 
+interface DashboardData {
+  metrics: {
+    totalConsents: number;
+    grantedConsents: number;
+    deniedConsents: number;
+    withdrawnConsents: number;
+    consentRate: number;
+    monthlyGrowth: number;
+  };
+  trendData: Array<{ date: string; granted: number; denied: number }>;
+  deviceData: Array<{ name: string; value: number }>;
+  recentActivities: Array<{ id: string; action: string; user: string; time: string }>;
+}
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
-    // Simulate data loading
-    setTimeout(() => setLoading(false), 800);
+    async function fetchDashboardData() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await api.analytics.getDashboard(30);
+        
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        
+        setData({
+          metrics: response.metrics,
+          trendData: response.trendData,
+          deviceData: response.deviceData,
+          recentActivities: response.recentActivities,
+        });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
   }, []);
 
   if (loading) {
     return (
       <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-2">Loading your consent management overview...</p>
+        </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="animate-pulse">
@@ -75,6 +86,34 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  if (error || !data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-2">Welcome back! Here's your consent management overview.</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load dashboard data</h3>
+              <p className="text-sm text-gray-600 mb-4">{error || 'Unknown error occurred'}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { metrics, trendData, deviceData, recentActivities } = data;
 
   return (
     <div className="space-y-6">
@@ -92,10 +131,10 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockMetrics.totalConsents.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{metrics.totalConsents.toLocaleString()}</div>
             <p className="text-xs text-green-600 flex items-center mt-1">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              +{mockMetrics.monthlyGrowth}% from last month
+              +{metrics.monthlyGrowth}% from last month
             </p>
           </CardContent>
         </Card>
@@ -106,9 +145,9 @@ export default function DashboardPage() {
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockMetrics.grantedConsents.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{metrics.grantedConsents.toLocaleString()}</div>
             <p className="text-xs text-gray-600 mt-1">
-              {mockMetrics.consentRate}% consent rate
+              {metrics.consentRate}% consent rate
             </p>
           </CardContent>
         </Card>
@@ -119,9 +158,9 @@ export default function DashboardPage() {
             <XCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockMetrics.deniedConsents.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{metrics.deniedConsents.toLocaleString()}</div>
             <p className="text-xs text-gray-600 mt-1">
-              {((mockMetrics.deniedConsents / mockMetrics.totalConsents) * 100).toFixed(1)}% of total
+              {metrics.totalConsents > 0 ? ((metrics.deniedConsents / metrics.totalConsents) * 100).toFixed(1) : '0.0'}% of total
             </p>
           </CardContent>
         </Card>
@@ -132,9 +171,9 @@ export default function DashboardPage() {
             <AlertCircle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockMetrics.withdrawnConsents.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{metrics.withdrawnConsents.toLocaleString()}</div>
             <p className="text-xs text-gray-600 mt-1">
-              {((mockMetrics.withdrawnConsents / mockMetrics.totalConsents) * 100).toFixed(1)}% of total
+              {metrics.totalConsents > 0 ? ((metrics.withdrawnConsents / metrics.totalConsents) * 100).toFixed(1) : '0.0'}% of total
             </p>
           </CardContent>
         </Card>
@@ -149,25 +188,31 @@ export default function DashboardPage() {
             <CardDescription>Granted vs Denied over the last 30 days</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={mockTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#888" 
-                  fontSize={12}
-                  tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                />
-                <YAxis stroke="#888" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}
-                  labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="granted" stroke="#10b981" strokeWidth={2} name="Granted" />
-                <Line type="monotone" dataKey="denied" stroke="#ef4444" strokeWidth={2} name="Denied" />
-              </LineChart>
-            </ResponsiveContainer>
+            {trendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#888" 
+                    fontSize={12}
+                    tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  />
+                  <YAxis stroke="#888" fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}
+                    labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="granted" stroke="#10b981" strokeWidth={2} name="Granted" />
+                  <Line type="monotone" dataKey="denied" stroke="#ef4444" strokeWidth={2} name="Denied" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                No trend data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -178,25 +223,31 @@ export default function DashboardPage() {
             <CardDescription>Consents by device type</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={mockDeviceData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {mockDeviceData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {deviceData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={deviceData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {deviceData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                No device data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -209,15 +260,21 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockRecentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                  <p className="text-xs text-gray-500">{activity.user}</p>
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                    <p className="text-xs text-gray-500">{activity.user}</p>
+                  </div>
+                  <p className="text-xs text-gray-400">{activity.time}</p>
                 </div>
-                <p className="text-xs text-gray-400">{activity.time}</p>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No recent activities
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

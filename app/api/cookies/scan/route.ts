@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { CookieScanner } from '@/lib/cookies/cookie-scanner';
 
-// Mock cookie scanner - In production, this would use a real scanning service
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { url, scanDepth } = body;
+    const { url, scanDepth = 'medium' } = body;
 
     if (!url) {
       return NextResponse.json(
@@ -13,78 +26,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Simulate scanning delay based on depth
-    const delay = scanDepth === 'deep' ? 3000 : scanDepth === 'medium' ? 2000 : 1000;
-    await new Promise(resolve => setTimeout(resolve, delay));
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (e) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid URL format' },
+        { status: 400 }
+      );
+    }
 
-    // Mock cookie data
-    const mockCookies = [
-      {
-        id: '1',
-        name: '_ga',
-        domain: new URL(url).hostname,
-        category: 'analytics',
-        expiry: '2 years',
-        description: 'Google Analytics tracking cookie',
-        purpose: 'Used to distinguish users',
-      },
-      {
-        id: '2',
-        name: '_gid',
-        domain: new URL(url).hostname,
-        category: 'analytics',
-        expiry: '24 hours',
-        description: 'Google Analytics session cookie',
-        purpose: 'Used to distinguish users',
-      },
-      {
-        id: '3',
-        name: 'session_id',
-        domain: new URL(url).hostname,
-        category: 'necessary',
-        expiry: 'Session',
-        description: 'Session identification cookie',
-        purpose: 'Maintains user session',
-      },
-      {
-        id: '4',
-        name: '_fbp',
-        domain: new URL(url).hostname,
-        category: 'advertising',
-        expiry: '3 months',
-        description: 'Facebook Pixel tracking cookie',
-        purpose: 'Used for ad targeting',
-      },
-      {
-        id: '5',
-        name: 'preferences',
-        domain: new URL(url).hostname,
-        category: 'functional',
-        expiry: '1 year',
-        description: 'User preferences cookie',
-        purpose: 'Stores user preferences',
-      },
-    ];
+    // Validate scanDepth
+    if (!['shallow', 'medium', 'deep'].includes(scanDepth)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid scan depth. Must be: shallow, medium, or deep' },
+        { status: 400 }
+      );
+    }
 
+    // Perform real cookie scan using CookieScanner service
+    const { scanId, cookies, summary } = await CookieScanner.scanWebsite({
+      url,
+      scanDepth,
+      userId: user.id,
+    });
+
+    // Format response
     const scanResult = {
-      scanId: Date.now().toString(),
+      scanId,
       url,
       scanDate: new Date().toISOString(),
-      cookies: mockCookies,
-      totalCookies: mockCookies.length,
-      categoryCounts: {
-        necessary: mockCookies.filter(c => c.category === 'necessary').length,
-        functional: mockCookies.filter(c => c.category === 'functional').length,
-        analytics: mockCookies.filter(c => c.category === 'analytics').length,
-        advertising: mockCookies.filter(c => c.category === 'advertising').length,
-      },
+      cookies: cookies.map((cookie) => ({
+        id: cookie.id || Math.random().toString(36).substring(7),
+        name: cookie.name,
+        domain: cookie.domain,
+        category: cookie.category,
+        expiry: cookie.expiry,
+        description: cookie.description || '',
+        purpose: cookie.purpose || '',
+        provider: cookie.provider,
+        is_third_party: cookie.is_third_party,
+      })),
+      totalCookies: cookies.length,
+      categoryCounts: summary.classification,
+      complianceScore: summary.compliance_score,
+      thirdPartyCount: summary.third_party_count,
+      firstPartyCount: summary.first_party_count,
+      pagesScanned: summary.pages_scanned,
     };
 
     return NextResponse.json({ success: true, data: scanResult });
   } catch (error) {
     console.error('Scan error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to scan website' },
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to scan website' 
+      },
       { status: 500 }
     );
   }

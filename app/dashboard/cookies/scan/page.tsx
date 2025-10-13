@@ -1,15 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cookieScanSchema, type CookieScanInput } from '@/lib/schemas';
-import { Search, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Loader2, CheckCircle, AlertCircle, Download, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ScannedCookie {
@@ -21,14 +22,6 @@ interface ScannedCookie {
   description: string;
 }
 
-// Mock cookie data
-const mockCookies: ScannedCookie[] = [
-  { id: '1', name: '_ga', domain: '.example.com', category: 'analytics', expiry: '2 years', description: 'Google Analytics tracking cookie' },
-  { id: '2', name: '_gid', domain: '.example.com', category: 'analytics', expiry: '24 hours', description: 'Google Analytics session cookie' },
-  { id: '3', name: 'session_id', domain: 'example.com', category: 'necessary', expiry: 'Session', description: 'Session identification cookie' },
-  { id: '4', name: '_fbp', domain: '.example.com', category: 'advertising', expiry: '3 months', description: 'Facebook Pixel tracking cookie' },
-  { id: '5', name: 'preferences', domain: 'example.com', category: 'functional', expiry: '1 year', description: 'User preferences cookie' },
-];
 
 const categoryColors = {
   necessary: 'bg-green-100 text-green-800',
@@ -38,9 +31,13 @@ const categoryColors = {
 };
 
 export default function CookieScanPage() {
+  const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedCookies, setScannedCookies] = useState<ScannedCookie[]>([]);
   const [scanComplete, setScanComplete] = useState(false);
+  const [scannedUrl, setScannedUrl] = useState<string>('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
 
   const {
     register,
@@ -56,15 +53,41 @@ export default function CookieScanPage() {
     setScanComplete(false);
 
     try {
-      // Simulate scanning delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Call the real API endpoint
+      const response = await fetch('/api/cookies/scan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: data.url,
+          scanDepth: data.scanDepth,
+        }),
+      });
 
-      // In production, this would call an API endpoint
-      setScannedCookies(mockCookies);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to scan website');
+      }
+
+      // Map API response to component state
+      const cookies: ScannedCookie[] = result.data.cookies.map((cookie: any) => ({
+        id: cookie.id,
+        name: cookie.name,
+        domain: cookie.domain,
+        category: cookie.category,
+        expiry: cookie.expiry,
+        description: cookie.description,
+      }));
+
+      setScannedCookies(cookies);
+      setScannedUrl(data.url);
       setScanComplete(true);
-      toast.success(`Found ${mockCookies.length} cookies on ${data.url}`);
+      toast.success(`Found ${cookies.length} cookies on ${data.url}`);
     } catch (error) {
-      toast.error('Failed to scan website');
+      console.error('Scan error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to scan website');
     } finally {
       setIsScanning(false);
     }
@@ -72,6 +95,161 @@ export default function CookieScanPage() {
 
   const getCategoryCount = (category: string) => {
     return scannedCookies.filter((cookie) => cookie.category === category).length;
+  };
+
+  /**
+   * Export scan results to multiple formats
+   */
+  const handleExport = async (format: 'csv' | 'json' | 'pdf' = 'csv') => {
+    setIsExporting(true);
+    try {
+      if (format === 'csv') {
+        exportToCSV();
+      } else if (format === 'json') {
+        exportToJSON();
+      } else if (format === 'pdf') {
+        await exportToPDF();
+      }
+      toast.success(`Exported ${scannedCookies.length} cookies to ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export results');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  /**
+   * Export to CSV format
+   */
+  const exportToCSV = () => {
+    const headers = ['Cookie Name', 'Domain', 'Category', 'Expiry', 'Description', 'Purpose', 'Provider'];
+    const rows = scannedCookies.map(cookie => [
+      cookie.name,
+      cookie.domain,
+      cookie.category,
+      cookie.expiry,
+      cookie.description || '',
+      (cookie as any).purpose || '',
+      (cookie as any).provider || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    downloadFile(csvContent, `cookie-scan-${scannedUrl}-${Date.now()}.csv`, 'text/csv');
+  };
+
+  /**
+   * Export to JSON format
+   */
+  const exportToJSON = () => {
+    const exportData = {
+      scan_date: new Date().toISOString(),
+      website_url: scannedUrl,
+      total_cookies: scannedCookies.length,
+      categories: {
+        necessary: getCategoryCount('necessary'),
+        functional: getCategoryCount('functional'),
+        analytics: getCategoryCount('analytics'),
+        advertising: getCategoryCount('advertising'),
+      },
+      cookies: scannedCookies,
+    };
+
+    const jsonContent = JSON.stringify(exportData, null, 2);
+    downloadFile(jsonContent, `cookie-scan-${scannedUrl}-${Date.now()}.json`, 'application/json');
+  };
+
+  /**
+   * Export to PDF format (placeholder - would need a PDF library)
+   */
+  const exportToPDF = async () => {
+    // For production, integrate with a PDF library like jsPDF or use a server-side solution
+    toast.info('PDF export coming soon! Using CSV for now.');
+    exportToCSV();
+  };
+
+  /**
+   * Helper to download file
+   */
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  /**
+   * Generate consent banner with detected cookies
+   */
+  const handleGenerateBanner = async () => {
+    setIsGeneratingBanner(true);
+    try {
+      // Prepare banner configuration based on scan results
+      const bannerConfig = {
+        website_url: scannedUrl,
+        template: 'modal', // Default template
+        position: 'bottom',
+        primaryColor: '#3b82f6',
+        textColor: '#1f2937',
+        backgroundColor: '#ffffff',
+        title: 'We value your privacy',
+        message: `This website uses cookies to enhance your experience. We have detected ${scannedCookies.length} cookies across ${Object.keys(getCategoriesUsed()).length} categories.`,
+        acceptText: 'Accept All',
+        rejectText: 'Reject All',
+        settingsText: 'Cookie Settings',
+        categories: getCategoriesUsed(),
+        cookies: scannedCookies.map(cookie => ({
+          name: cookie.name,
+          category: cookie.category,
+          description: cookie.description,
+        })),
+      };
+
+      // Save banner configuration
+      const response = await fetch('/api/cookies/banner-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bannerConfig),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate banner');
+      }
+
+      toast.success('Consent banner generated successfully!');
+      
+      // Navigate to widget settings page after a brief delay
+      setTimeout(() => {
+        router.push('/dashboard/cookies/widget');
+      }, 1500);
+
+    } catch (error) {
+      console.error('Banner generation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate banner');
+    } finally {
+      setIsGeneratingBanner(false);
+    }
+  };
+
+  /**
+   * Get unique categories used in scan
+   */
+  const getCategoriesUsed = () => {
+    const categories = new Set(scannedCookies.map(cookie => cookie.category));
+    return Array.from(categories);
   };
 
   return (
@@ -222,9 +400,51 @@ export default function CookieScanPage() {
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex gap-4">
-            <Button variant="outline">Export Results</Button>
-            <Button>Generate Consent Banner</Button>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => handleExport('csv')}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export CSV
+                  </>
+                )}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => handleExport('json')}
+                disabled={isExporting}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export JSON
+              </Button>
+            </div>
+            <Button 
+              onClick={handleGenerateBanner}
+              disabled={isGeneratingBanner}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              {isGeneratingBanner ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate Consent Banner
+                </>
+              )}
+            </Button>
           </div>
         </>
       )}

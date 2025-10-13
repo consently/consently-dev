@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,43 +15,15 @@ import { toast } from 'sonner';
 
 interface ProcessingActivity {
   id: string;
-  name: string;
-  description: string;
-  legalBasis: string;
-  dataCategories: string[];
-  retentionPeriod: string;
-  createdAt: string;
+  activity_name: string;
+  purpose: string;
+  industry: string;
+  data_attributes: string[];
+  retention_period: string;
+  data_processors?: any;
+  is_active: boolean;
+  created_at: string;
 }
-
-const mockActivities: ProcessingActivity[] = [
-  {
-    id: '1',
-    name: 'User Registration',
-    description: 'Processing of user registration data including email, name, and company information',
-    legalBasis: 'contract',
-    dataCategories: ['Email', 'Name', 'Company Name'],
-    retentionPeriod: '5 years',
-    createdAt: '2025-10-01',
-  },
-  {
-    id: '2',
-    name: 'Payment Processing',
-    description: 'Processing of payment and billing information for subscription management',
-    legalBasis: 'contract',
-    dataCategories: ['Payment Info', 'Billing Address'],
-    retentionPeriod: '7 years',
-    createdAt: '2025-10-01',
-  },
-  {
-    id: '3',
-    name: 'Analytics and Reporting',
-    description: 'Collection and analysis of usage data for improving service quality',
-    legalBasis: 'legitimate-interest',
-    dataCategories: ['Usage Data', 'Device Info', 'IP Address'],
-    retentionPeriod: '2 years',
-    createdAt: '2025-10-01',
-  },
-];
 
 const industryTemplates = [
   {
@@ -72,11 +44,12 @@ const industryTemplates = [
 ];
 
 export default function ProcessingActivitiesPage() {
-  const [activities, setActivities] = useState<ProcessingActivity[]>(mockActivities);
+  const [activities, setActivities] = useState<ProcessingActivity[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<ProcessingActivity | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
 
   const {
     register,
@@ -87,33 +60,88 @@ export default function ProcessingActivitiesPage() {
     resolver: zodResolver(processingActivitySchema),
   });
 
+  // Fetch activities on mount
+  useEffect(() => {
+    fetchActivities();
+  }, []);
+
+  const fetchActivities = async () => {
+    setIsFetching(true);
+    try {
+      const response = await fetch('/api/dpdpa/activities');
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch activities');
+      }
+      
+      setActivities(result.data || []);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      toast.error('Failed to load activities');
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
   const onSubmit = async (data: ProcessingActivityInput) => {
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Data is already in array format from the schema
+      const dataCategories = data.dataCategories;
+      const dataSources = data.dataSources || [];
+
+      const payload = {
+        activity_name: data.name,
+        purpose: data.description,
+        industry: data.legalBasis, // Using legalBasis as industry for now
+        data_attributes: dataCategories,
+        retention_period: data.retentionPeriod,
+        data_processors: { sources: dataSources },
+        is_active: true,
+      };
       
       if (editingActivity) {
-        setActivities(activities.map(a => 
-          a.id === editingActivity.id 
-            ? { ...a, ...data, dataCategories: data.dataCategories }
-            : a
-        ));
+        // Update existing activity
+        const response = await fetch('/api/dpdpa/activities', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingActivity.id, ...payload }),
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to update activity');
+        }
+        
         toast.success('Activity updated successfully');
       } else {
-        const newActivity: ProcessingActivity = {
-          id: Date.now().toString(),
-          ...data,
-          createdAt: new Date().toISOString(),
-        };
-        setActivities([...activities, newActivity]);
+        // Create new activity
+        const response = await fetch('/api/dpdpa/activities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to create activity');
+        }
+        
         toast.success('Activity created successfully');
       }
+      
+      // Refresh activities list
+      await fetchActivities();
       
       setModalOpen(false);
       setEditingActivity(null);
       reset();
     } catch (error) {
-      toast.error('Failed to save activity');
+      console.error('Error saving activity:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save activity');
     } finally {
       setIsLoading(false);
     }
@@ -126,8 +154,23 @@ export default function ProcessingActivitiesPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this activity?')) {
-      setActivities(activities.filter(a => a.id !== id));
-      toast.success('Activity deleted successfully');
+      try {
+        const response = await fetch(`/api/dpdpa/activities?id=${id}`, {
+          method: 'DELETE',
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to delete activity');
+        }
+        
+        toast.success('Activity deleted successfully');
+        await fetchActivities();
+      } catch (error) {
+        console.error('Error deleting activity:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to delete activity');
+      }
     }
   };
 
@@ -142,7 +185,21 @@ export default function ProcessingActivitiesPage() {
     contract: 'Contract',
     'legal-obligation': 'Legal Obligation',
     'legitimate-interest': 'Legitimate Interest',
+    'e-commerce': 'E-commerce',
+    'banking': 'Banking',
+    'healthcare': 'Healthcare',
   };
+
+  if (isFetching) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading activities...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -179,22 +236,22 @@ export default function ProcessingActivitiesPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Consent-Based</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">E-commerce</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {activities.filter(a => a.legalBasis === 'consent').length}
+              {activities.filter(a => a.industry === 'e-commerce').length}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Contract-Based</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Active</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {activities.filter(a => a.legalBasis === 'contract').length}
+              {activities.filter(a => a.is_active).length}
             </div>
           </CardContent>
         </Card>
@@ -209,29 +266,29 @@ export default function ProcessingActivitiesPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <FileText className="h-5 w-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">{activity.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{activity.activity_name}</h3>
                   </div>
-                  <p className="text-gray-600 mb-4">{activity.description}</p>
+                  <p className="text-gray-600 mb-4">{activity.purpose}</p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Legal Basis</p>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Industry</p>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {legalBasisLabels[activity.legalBasis]}
+                        {legalBasisLabels[activity.industry] || activity.industry}
                       </span>
                     </div>
                     
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Data Categories</p>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Data Attributes</p>
                       <div className="flex flex-wrap gap-1">
-                        {activity.dataCategories.slice(0, 2).map((cat, i) => (
+                        {activity.data_attributes.slice(0, 2).map((cat, i) => (
                           <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
                             {cat}
                           </span>
                         ))}
-                        {activity.dataCategories.length > 2 && (
+                        {activity.data_attributes.length > 2 && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                            +{activity.dataCategories.length - 2} more
+                            +{activity.data_attributes.length - 2} more
                           </span>
                         )}
                       </div>
@@ -239,7 +296,7 @@ export default function ProcessingActivitiesPage() {
                     
                     <div>
                       <p className="text-xs font-medium text-gray-500 mb-1">Retention Period</p>
-                      <p className="text-sm font-medium text-gray-900">{activity.retentionPeriod}</p>
+                      <p className="text-sm font-medium text-gray-900">{activity.retention_period}</p>
                     </div>
                   </div>
                 </div>
@@ -275,7 +332,7 @@ export default function ProcessingActivitiesPage() {
             label="Activity Name"
             placeholder="e.g., User Registration"
             error={errors.name?.message}
-            defaultValue={editingActivity?.name}
+            defaultValue={editingActivity?.activity_name}
             required
           />
 
@@ -284,7 +341,7 @@ export default function ProcessingActivitiesPage() {
             label="Description"
             placeholder="Describe the data processing activity..."
             error={errors.description?.message}
-            defaultValue={editingActivity?.description}
+            defaultValue={editingActivity?.purpose}
             rows={3}
             required
           />
@@ -299,7 +356,7 @@ export default function ProcessingActivitiesPage() {
               { value: 'legitimate-interest', label: 'Legitimate Interest' },
             ]}
             error={errors.legalBasis?.message}
-            defaultValue={editingActivity?.legalBasis}
+            defaultValue={editingActivity?.industry}
             required
           />
 
@@ -309,7 +366,7 @@ export default function ProcessingActivitiesPage() {
             placeholder="Email, Name, Phone (comma separated)"
             helperText="Enter data categories separated by commas"
             error={errors.dataCategories?.message}
-            defaultValue={editingActivity?.dataCategories.join(', ')}
+            defaultValue={editingActivity?.data_attributes.join(', ')}
             required
           />
 
@@ -318,7 +375,7 @@ export default function ProcessingActivitiesPage() {
             label="Retention Period"
             placeholder="e.g., 2 years, 90 days"
             error={errors.retentionPeriod?.message}
-            defaultValue={editingActivity?.retentionPeriod}
+            defaultValue={editingActivity?.retention_period}
             required
           />
 
