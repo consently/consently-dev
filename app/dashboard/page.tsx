@@ -46,11 +46,21 @@ export default function DashboardPage() {
           throw new Error(response.error);
         }
         
+        // Handle response data - it could be directly the data or wrapped in response.data
+        const responseData = response.data || response;
+        
         setData({
-          metrics: response.metrics,
-          trendData: response.trendData,
-          deviceData: response.deviceData,
-          recentActivities: response.recentActivities,
+          metrics: responseData.metrics || {
+            totalConsents: 0,
+            grantedConsents: 0,
+            deniedConsents: 0,
+            withdrawnConsents: 0,
+            consentRate: 0,
+            monthlyGrowth: 0
+          },
+          trendData: responseData.trendData || [],
+          deviceData: responseData.deviceData || [],
+          recentActivities: responseData.recentActivities || [],
         });
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';

@@ -137,7 +137,7 @@ export const translationSchema = z.object({
   language_code: z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/),
   language_name: z.string().min(1),
   is_rtl: z.boolean().default(false),
-  translations: z.record(z.any()),
+  translations: z.record(z.string(), z.any()),
 });
 
 // Analytics Query Schema

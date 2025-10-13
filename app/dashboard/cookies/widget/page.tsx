@@ -1,19 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { 
   Settings, 
   Code, 
   Copy, 
-  Download,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Info,
+  Loader2,
+  Save,
+  Eye,
+  Shield,
+  Globe,
+  Timer,
+  Zap,
+  Lock,
+  Cookie
 } from 'lucide-react';
 
 const COOKIE_CATEGORIES = [
@@ -69,10 +77,14 @@ type WidgetConfig = {
 };
 
 export default function CookieWidgetPage() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const [config, setConfig] = useState<WidgetConfig>({
-    widgetId: 'cnsty_' + Math.random().toString(36).substr(2, 9),
+    widgetId: '',
     domain: '',
     categories: ['necessary'],
     behavior: 'explicit',
@@ -90,13 +102,25 @@ export default function CookieWidgetPage() {
 
   const fetchConfig = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await fetch('/api/cookies/widget-config');
+      
       if (response.ok) {
         const data = await response.json();
         setConfig(data);
+      } else if (response.status === 404) {
+        // No config exists yet, generate a new widget ID
+        const newWidgetId = 'cnsty_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+        setConfig(prev => ({ ...prev, widgetId: newWidgetId }));
+      } else {
+        setError('Failed to load configuration');
       }
     } catch (error) {
       console.error('Error fetching config:', error);
+      setError('Network error while loading configuration');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -105,8 +129,39 @@ export default function CookieWidgetPage() {
     setSaved(false);
   };
 
+  const validateConfig = () => {
+    const errors: string[] = [];
+    
+    if (!config.domain?.trim()) {
+      errors.push('Domain is required');
+    }
+    
+    if (config.domain && !/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(config.domain)) {
+      errors.push('Please enter a valid domain (e.g., example.com)');
+    }
+    
+    if (config.consentDuration < 1 || config.consentDuration > 365) {
+      errors.push('Consent duration must be between 1 and 365 days');
+    }
+    
+    if (config.categories.length === 0) {
+      errors.push('At least one category must be selected');
+    }
+    
+    return errors;
+  };
+
   const handleSave = async () => {
-    setLoading(true);
+    // Validate configuration
+    const validationErrors = validateConfig();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(', '));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    
     try {
       const response = await fetch('/api/cookies/widget-config', {
         method: 'POST',
@@ -114,15 +169,25 @@ export default function CookieWidgetPage() {
         body: JSON.stringify(config)
       });
 
-      if (!response.ok) throw new Error('Failed to save');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save configuration');
+      }
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setError(null);
+      
+      // Show success message for longer
+      setTimeout(() => setSaved(false), 5000);
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Failed to save configuration');
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to save configuration';
+      setError(errorMessage);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -142,9 +207,15 @@ export default function CookieWidgetPage() {
 <script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js" async></script>`;
   };
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(getEmbedCode());
-    alert('Embed code copied to clipboard!');
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(getEmbedCode());
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy code:', error);
+      setError('Failed to copy code to clipboard');
+    }
   };
 
   const handleDownloadConfig = () => {
@@ -157,297 +228,647 @@ export default function CookieWidgetPage() {
     link.click();
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Cookie Widget Settings</h1>
-          <p className="mt-1 text-gray-600">
-            Configure your cookie consent widget behavior and appearance
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleDownloadConfig}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Config
-          </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            {saved ? (
-              <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Saved!
-              </>
-            ) : (
-              <>
-                <Settings className="mr-2 h-4 w-4" />
-                {loading ? 'Saving...' : 'Save Settings'}
-              </>
-            )}
-          </Button>
+  if (loading && !config.widgetId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading widget configuration...</p>
+          <p className="text-sm text-gray-500 mt-2">Setting up your cookie consent widget</p>
         </div>
       </div>
+    );
+  }
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* General Settings */}
-        <Card className="p-6">
-          <h2 className="mb-6 text-lg font-semibold text-gray-900">
-            General Settings
-          </h2>
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto p-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Cookie Widget Configuration</h1>
+        <p className="text-gray-600 mt-2">Configure your cookie consent widget for GDPR & DPDPA compliance</p>
+      </div>
 
-          <div className="space-y-4">
+      {/* Status Messages */}
+      {error && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-900">Configuration Error</h3>
+              <p className="mt-1 text-sm text-red-700">{error}</p>
+            </div>
+            <button 
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-600 transition-colors"
+            >
+              <span className="sr-only">Close</span>
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {saved && (
+        <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+          <div className="flex items-start gap-3">
+            <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-green-900">Configuration Saved!</h3>
+              <p className="mt-1 text-sm text-green-700">Your widget settings have been updated successfully.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <Button 
+          onClick={handleSave} 
+          disabled={saving || loading}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : saved ? (
+            <>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Saved!
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              Save Configuration
+            </>
+          )}
+        </Button>
+        <Button 
+          variant="outline"
+          onClick={() => setPreviewMode(!previewMode)}
+        >
+          <Eye className="mr-2 h-4 w-4" />
+          {previewMode ? 'Hide' : 'Show'} Preview
+        </Button>
+      </div>
+
+      {/* General Configuration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Globe className="h-5 w-5 text-blue-600" />
+            </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <CardTitle>General Configuration</CardTitle>
+              <CardDescription>Basic widget settings and identification</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Widget ID
               </label>
-              <Input
-                type="text"
-                value={config.widgetId}
-                readOnly
-                className="font-mono text-sm"
-              />
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={config.widgetId}
+                  readOnly
+                  className="font-mono bg-gray-50 pr-10"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <Shield className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
               <p className="mt-1 text-xs text-gray-500">
-                Unique identifier for your widget
+                Unique identifier for your widget (auto-generated)
               </p>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Domain *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Domain <span className="text-red-500">*</span>
               </label>
-              <Input
-                type="text"
-                value={config.domain}
-                onChange={(e) => updateConfig({ domain: e.target.value })}
-                placeholder="example.com"
-              />
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={config.domain}
+                  onChange={(e) => {
+                    updateConfig({ domain: e.target.value.toLowerCase().trim() });
+                    if (error && error.includes('Domain')) {
+                      setError(null);
+                    }
+                  }}
+                  placeholder="example.com"
+                  className={config.domain && !/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(config.domain) 
+                    ? 'border-red-300' 
+                    : config.domain 
+                    ? 'border-green-300' 
+                    : ''}
+                />
+                {config.domain && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    {/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(config.domain) ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-red-500" />
+                    )}
+                  </div>
+                )}
+              </div>
               <p className="mt-1 text-xs text-gray-500">
-                Domain where the widget will be used
+                Your website domain (without http/https)
               </p>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Consent Duration (days)
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-gray-500" />
+                  Consent Duration (days)
+                </div>
               </label>
               <Input
                 type="number"
                 value={config.consentDuration}
-                onChange={(e) => updateConfig({ consentDuration: parseInt(e.target.value) })}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  updateConfig({ consentDuration: isNaN(value) ? 365 : value });
+                }}
                 min="1"
                 max="365"
+                className={config.consentDuration < 1 || config.consentDuration > 365 
+                  ? 'border-red-300' 
+                  : 'border-green-300'}
               />
               <p className="mt-1 text-xs text-gray-500">
-                How long to remember user's consent choice
+                How long to remember consent ({config.consentDuration} days)
               </p>
             </div>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-blue-100 text-blue-800">
+                  {config.categories.length}
+                </Badge>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Cookie Categories</p>
+                  <p className="text-xs text-gray-500">Categories selected</p>
+                </div>
+              </div>
+              <Cookie className="h-5 w-5 text-blue-600" />
+            </div>
           </div>
-        </Card>
+        </CardContent>
+      </Card>
 
-        {/* Behavior Settings */}
-        <Card className="p-6">
-          <h2 className="mb-6 text-lg font-semibold text-gray-900">
-            Behavior Settings
-          </h2>
-
-          <div className="space-y-4">
+      {/* Consent Behavior */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Zap className="h-5 w-5 text-purple-600" />
+            </div>
             <div>
-              <label className="mb-3 block text-sm font-medium text-gray-700">
-                Consent Mode
-              </label>
-              {BEHAVIOR_OPTIONS.map((option) => (
-                <div
-                  key={option.id}
-                  className="mb-3 flex items-start gap-3 rounded-lg border border-gray-200 p-3"
-                >
-                  <input
-                    type="radio"
-                    id={option.id}
-                    name="behavior"
-                    checked={config.behavior === option.id}
-                    onChange={() => updateConfig({ behavior: option.id })}
-                    className="mt-1"
+              <CardTitle>Consent Behavior</CardTitle>
+              <CardDescription>Configure how consent is collected from users</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-3">
+              Consent Mode
+            </label>
+            <div className="space-y-3">
+              {BEHAVIOR_OPTIONS.map((option) => {
+                const isSelected = config.behavior === option.id;
+                return (
+                  <div
+                    key={option.id}
+                    onClick={() => updateConfig({ behavior: option.id })}
+                    className={`relative rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="radio"
+                        id={option.id}
+                        name="behavior"
+                        checked={isSelected}
+                        onChange={() => updateConfig({ behavior: option.id })}
+                        className="mt-1 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <label
+                            htmlFor={option.id}
+                            className="text-sm font-semibold text-gray-900 cursor-pointer"
+                          >
+                            {option.name}
+                          </label>
+                          {isSelected && (
+                            <Badge className="bg-blue-600 text-white">Active</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          {option.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-3">
+              Compliance & Privacy Options
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div
+                onClick={() => updateConfig({ blockScripts: !config.blockScripts })}
+                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                  config.blockScripts
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="blockScripts"
+                    checked={config.blockScripts}
+                    onChange={(e) => updateConfig({ blockScripts: e.target.checked })}
+                    onClick={(e) => e.stopPropagation()}
                   />
                   <div className="flex-1">
-                    <label
-                      htmlFor={option.id}
-                      className="block cursor-pointer font-medium text-gray-900"
-                    >
-                      {option.name}
-                    </label>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {option.description}
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="h-4 w-4 text-blue-600" />
+                      <label
+                        htmlFor="blockScripts"
+                        className="text-sm font-medium text-gray-900 cursor-pointer"
+                      >
+                        Auto-block Scripts
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Block tracking scripts until consent is given
                     </p>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="blockScripts"
-                  checked={config.blockScripts}
-                  onChange={(e) => updateConfig({ blockScripts: e.target.checked })}
-                />
-                <div className="flex-1">
-                  <label
-                    htmlFor="blockScripts"
-                    className="block cursor-pointer font-medium text-gray-900"
-                  >
-                    Auto-block Scripts
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Automatically block tracking scripts until consent
-                  </p>
+              <div
+                onClick={() => updateConfig({ respectDNT: !config.respectDNT })}
+                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                  config.respectDNT
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-gray-200 hover:border-purple-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="respectDNT"
+                    checked={config.respectDNT}
+                    onChange={(e) => updateConfig({ respectDNT: e.target.checked })}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Eye className="h-4 w-4 text-purple-600" />
+                      <label
+                        htmlFor="respectDNT"
+                        className="text-sm font-medium text-gray-900 cursor-pointer"
+                      >
+                        Respect Do Not Track
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Honor browser DNT header settings
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="respectDNT"
-                  checked={config.respectDNT}
-                  onChange={(e) => updateConfig({ respectDNT: e.target.checked })}
-                />
-                <div className="flex-1">
-                  <label
-                    htmlFor="respectDNT"
-                    className="block cursor-pointer font-medium text-gray-900"
-                  >
-                    Respect Do Not Track
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Honor browser's DNT setting
-                  </p>
+              <div
+                onClick={() => updateConfig({ gdprApplies: !config.gdprApplies })}
+                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                  config.gdprApplies
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-green-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="gdprApplies"
+                    checked={config.gdprApplies}
+                    onChange={(e) => updateConfig({ gdprApplies: e.target.checked })}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Lock className="h-4 w-4 text-green-600" />
+                      <label
+                        htmlFor="gdprApplies"
+                        className="text-sm font-medium text-gray-900 cursor-pointer"
+                      >
+                        GDPR/DPDPA Compliance
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Strict compliance with GDPR & DPDPA
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="gdprApplies"
-                  checked={config.gdprApplies}
-                  onChange={(e) => updateConfig({ gdprApplies: e.target.checked })}
-                />
-                <div className="flex-1">
-                  <label
-                    htmlFor="gdprApplies"
-                    className="block cursor-pointer font-medium text-gray-900"
-                  >
-                    GDPR/DPDPA Compliance Mode
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Enable strict compliance features
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="showBranding"
-                  checked={config.showBrandingLink}
-                  onChange={(e) => updateConfig({ showBrandingLink: e.target.checked })}
-                />
-                <div className="flex-1">
-                  <label
-                    htmlFor="showBranding"
-                    className="block cursor-pointer font-medium text-gray-900"
-                  >
-                    Show Consently Branding
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Display "Powered by Consently" link
-                  </p>
+              <div
+                onClick={() => updateConfig({ showBrandingLink: !config.showBrandingLink })}
+                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                  config.showBrandingLink
+                    ? 'border-gray-400 bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="showBranding"
+                    checked={config.showBrandingLink}
+                    onChange={(e) => updateConfig({ showBrandingLink: e.target.checked })}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Info className="h-4 w-4 text-gray-600" />
+                      <label
+                        htmlFor="showBranding"
+                        className="text-sm font-medium text-gray-900 cursor-pointer"
+                      >
+                        Show Branding
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Display "Powered by Consently" link
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </Card>
-      </div>
-
-      {/* Cookie Categories */}
-      <Card className="p-6">
-        <h2 className="mb-6 text-lg font-semibold text-gray-900">
-          Cookie Categories
-        </h2>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {COOKIE_CATEGORIES.map((category) => (
-            <div
-              key={category.id}
-              className={`rounded-lg border-2 p-4 ${
-                config.categories.includes(category.id)
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  id={`cat-${category.id}`}
-                  checked={config.categories.includes(category.id)}
-                  disabled={category.required}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    updateConfig({
-                      categories: checked
-                        ? [...config.categories, category.id]
-                        : config.categories.filter((c) => c !== category.id)
-                    });
-                  }}
-                />
-                <div className="flex-1">
-                  <label
-                    htmlFor={`cat-${category.id}`}
-                    className="block cursor-pointer font-medium text-gray-900"
-                  >
-                    {category.name}
-                    {category.required && (
-                      <span className="ml-2 text-xs text-blue-600">(Required)</span>
-                    )}
-                  </label>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {category.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        </CardContent>
       </Card>
 
-      {/* Embed Code */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Code className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              Installation Code
-            </h2>
+      {/* Cookie Categories */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Cookie className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <CardTitle>Cookie Categories</CardTitle>
+                <CardDescription>Select the cookie types your website uses</CardDescription>
+              </div>
+            </div>
+            <Badge className="bg-blue-100 text-blue-800">
+              {config.categories.length} Selected
+            </Badge>
           </div>
-          <Button variant="outline" onClick={handleCopyCode}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copy Code
-          </Button>
-        </div>
-
-        <div className="rounded-lg bg-gray-900 p-4">
-          <pre className="overflow-x-auto text-xs text-green-400">
-            <code>{getEmbedCode()}</code>
-          </pre>
-        </div>
-
-        <div className="mt-4 rounded-lg bg-blue-50 p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
-            <div className="flex-1">
-              <h3 className="font-medium text-blue-900">Installation Instructions</h3>
-              <ol className="mt-2 space-y-1 text-sm text-blue-700">
-                <li>1. Copy the code snippet above</li>
-                <li>2. Paste it in the &lt;head&gt; section of your website</li>
-                <li>3. The widget will automatically load and display</li>
-                <li>4. Test it by visiting your website in an incognito window</li>
-              </ol>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {COOKIE_CATEGORIES.map((category) => {
+              const isSelected = config.categories.includes(category.id);
+              const isRequired = category.required;
+              
+              return (
+                <div
+                  key={category.id}
+                  className={`relative rounded-lg border-2 p-4 transition-all ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  } ${isRequired ? 'opacity-100' : 'cursor-pointer hover:shadow-md'}`}
+                  onClick={() => {
+                    if (!isRequired) {
+                      const checked = !isSelected;
+                      updateConfig({
+                        categories: checked
+                          ? [...config.categories, category.id]
+                          : config.categories.filter((c) => c !== category.id)
+                      });
+                    }
+                  }}
+                >
+                  {isRequired && (
+                    <div className="absolute -top-2 -right-2">
+                      <Badge className="bg-blue-600 text-white text-xs">Required</Badge>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id={`cat-${category.id}`}
+                      checked={isSelected}
+                      disabled={isRequired}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        updateConfig({
+                          categories: checked
+                            ? [...config.categories, category.id]
+                            : config.categories.filter((c) => c !== category.id)
+                        });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="flex-1">
+                      <label
+                        htmlFor={`cat-${category.id}`}
+                        className="block text-sm font-semibold text-gray-900 mb-1 cursor-pointer"
+                      >
+                        {category.name}
+                      </label>
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        {category.description}
+                      </p>
+                      {isSelected && !isRequired && (
+                        <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-200">
+                          Active
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex gap-3">
+              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 mb-1">About Cookie Categories</h4>
+                <p className="text-sm text-blue-800">
+                  Select all cookie types that your website uses. "Necessary" cookies are always required and cannot be disabled as they are essential for basic website functionality.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
+
+      {/* Installation Code */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Code className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <CardTitle>Installation Code</CardTitle>
+                <CardDescription>Copy and paste this code into your website</CardDescription>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleCopyCode}
+              className={copySuccess ? 'border-green-500 text-green-600 bg-green-50' : ''}
+            >
+              {copySuccess ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy Code
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="relative">
+            <div className="rounded-lg bg-gray-900 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <span className="text-sm text-gray-400 font-mono">widget-embed.html</span>
+                </div>
+                <Badge className="bg-green-800 text-green-200">
+                  Ready to Deploy
+                </Badge>
+              </div>
+              <pre className="overflow-x-auto text-sm text-green-400 font-mono leading-relaxed">
+                <code>{getEmbedCode()}</code>
+              </pre>
+            </div>
+          </div>
+
+          <div className="mt-6 grid md:grid-cols-2 gap-6">
+            {/* Installation Steps */}
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-600 rounded-lg">
+                  <Info className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-blue-900 mb-3">Installation Steps</h3>
+                  <ol className="space-y-3">
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                      <span className="text-sm text-blue-900">Copy the code snippet above</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                      <span className="text-sm text-blue-900">Paste in your website's <code className="bg-white px-2 py-0.5 rounded text-xs font-mono">&lt;head&gt;</code> section</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                      <span className="text-sm text-blue-900">Widget loads automatically on page visit</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                      <span className="text-sm text-blue-900">Test in incognito mode</span>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            
+            {/* Features */}
+            <div className="rounded-lg bg-green-50 border border-green-200 p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-green-600 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-900 mb-3">Features Included</h3>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span className="text-sm text-green-900">Automatic script blocking</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span className="text-sm text-green-900">GDPR & DPDPA compliance</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span className="text-sm text-green-900">Responsive design</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span className="text-sm text-green-900">Real-time tracking</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Configuration Summary */}
+          <div className="mt-6 rounded-lg bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 p-5">
+            <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-600" />
+              Current Configuration
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">Domain</p>
+                <p className="font-mono text-sm font-medium text-gray-900">{config.domain || 'Not set'}</p>
+              </div>
+              <div className="bg-white rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">Behavior</p>
+                <p className="text-sm font-medium text-gray-900 capitalize">{config.behavior}</p>
+              </div>
+              <div className="bg-white rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">Duration</p>
+                <p className="text-sm font-medium text-gray-900">{config.consentDuration} days</p>
+              </div>
+              <div className="bg-white rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">Categories</p>
+                <p className="text-sm font-medium text-gray-900">{config.categories.length} selected</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

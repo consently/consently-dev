@@ -226,8 +226,7 @@ export async function POST(request: NextRequest) {
           error: 'Invalid request data',
           details: validationResult.error.issues.map(issue => ({
             field: issue.path.join('.'),
-            message: issue.message,
-            received: issue.received
+            message: issue.message
           }))
         },
         { status: 400 }
@@ -347,8 +346,7 @@ export async function PUT(request: NextRequest) {
           error: 'Invalid request data',
           details: validationResult.error.issues.map(issue => ({
             field: issue.path.join('.'),
-            message: issue.message,
-            received: issue.received
+            message: issue.message
           }))
         },
         { status: 400 }

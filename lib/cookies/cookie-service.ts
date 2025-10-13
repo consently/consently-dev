@@ -311,10 +311,12 @@ export class CookieService {
     supabase.rpc('aggregate_consent_analytics', {
       p_user_id: log.user_id,
       p_date: today,
-    }).then(() => {
-      console.log('Analytics aggregated for', today);
-    }).catch((err) => {
-      console.error('Failed to aggregate analytics:', err);
+    }).then((result) => {
+      if (!result.error) {
+        console.log('Analytics aggregated for', today);
+      } else {
+        console.error('Failed to aggregate analytics:', result.error);
+      }
     });
 
     return data;

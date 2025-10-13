@@ -29,7 +29,8 @@
   };
 
   // Merge user config with defaults
-  const config = Object.assign({}, defaultConfig, window.consentlyConfig || {});
+  let config = Object.assign({}, defaultConfig, window.consentlyConfig || {});
+  let configLoaded = false;
 
   // Cookie helper functions
   const CookieManager = {
@@ -362,6 +363,37 @@
     window.dispatchEvent(new CustomEvent('consentlyConsent', { detail: consentData }));
   }
 
+  // Fetch configuration from server
+  async function fetchConfigFromServer() {
+    if (!config.widgetId) {
+      console.error('[Consently] No widget ID provided');
+      return false;
+    }
+
+    try {
+      const response = await fetch(
+        window.location.origin + '/api/cookies/widget-public/' + config.widgetId
+      );
+      
+      if (!response.ok) {
+        console.error('[Consently] Failed to fetch config:', response.status);
+        return false;
+      }
+
+      const serverConfig = await response.json();
+      
+      // Merge server config with local config (local takes precedence)
+      config = Object.assign({}, defaultConfig, serverConfig, window.consentlyConfig || {});
+      configLoaded = true;
+      
+      console.log('[Consently] Configuration loaded from server');
+      return true;
+    } catch (error) {
+      console.error('[Consently] Error fetching config:', error);
+      return false;
+    }
+  }
+
   // Send consent to server for logging
   function sendConsentToServer(consentData) {
     const data = {
@@ -369,7 +401,8 @@
       widgetId: consentData.widgetId,
       status: consentData.status,
       categories: consentData.categories,
-      deviceType: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+      deviceType: /Mobile|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent) ? 
+                  (/Tablet|iPad/i.test(navigator.userAgent) ? 'Tablet' : 'Mobile') : 'Desktop',
       userAgent: navigator.userAgent,
       language: navigator.language || 'en'
     };
@@ -421,7 +454,12 @@
   }
 
   // Initialize widget
-  function init() {
+  async function init() {
+    // Fetch config from server if widget ID is provided
+    if (config.widgetId) {
+      await fetchConfigFromServer();
+    }
+
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', showConsentBanner);

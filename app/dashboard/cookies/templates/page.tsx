@@ -249,7 +249,7 @@ export default function CookieTemplatesPage() {
 
   const updateButton = (
     buttonType: 'acceptButton' | 'rejectButton' | 'settingsButton',
-    updates: Partial<BannerConfig['acceptButton']>
+    updates: Partial<BannerConfig['acceptButton'] & { borderColor?: string }>
   ) => {
     setConfig(prev => ({
       ...prev,

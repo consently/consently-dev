@@ -193,29 +193,77 @@ export default function CookieScanPage() {
   const handleGenerateBanner = async () => {
     setIsGeneratingBanner(true);
     try {
-      // Prepare banner configuration based on scan results
+      // Prepare banner configuration based on scan results using new API format
+      const categoriesFound = getCategoriesUsed();
       const bannerConfig = {
-        website_url: scannedUrl,
-        template: 'modal', // Default template
+        name: `Cookie Banner for ${new URL(scannedUrl).hostname}`,
+        description: `Generated from cookie scan of ${scannedUrl}`,
+        layout: 'modal',
         position: 'bottom',
-        primaryColor: '#3b82f6',
-        textColor: '#1f2937',
-        backgroundColor: '#ffffff',
+        
+        // Theme configuration
+        theme: {
+          primaryColor: '#3b82f6',
+          secondaryColor: '#1e40af',
+          backgroundColor: '#ffffff',
+          textColor: '#1f2937',
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: 14,
+          borderRadius: 8,
+          boxShadow: true
+        },
+        
+        // Content
         title: 'We value your privacy',
-        message: `This website uses cookies to enhance your experience. We have detected ${scannedCookies.length} cookies across ${Object.keys(getCategoriesUsed()).length} categories.`,
-        acceptText: 'Accept All',
-        rejectText: 'Reject All',
-        settingsText: 'Cookie Settings',
-        categories: getCategoriesUsed(),
-        cookies: scannedCookies.map(cookie => ({
-          name: cookie.name,
-          category: cookie.category,
-          description: cookie.description,
-        })),
+        message: `This website uses cookies to enhance your experience. We have detected ${scannedCookies.length} cookies across ${categoriesFound.length} categories. Please review and customize your preferences.`,
+        privacyPolicyUrl: '',
+        privacyPolicyText: 'Privacy Policy',
+        
+        // Button configurations
+        acceptButton: {
+          text: 'Accept All',
+          backgroundColor: '#3b82f6',
+          textColor: '#ffffff',
+          borderRadius: 6,
+          fontSize: 14,
+          fontWeight: 'semibold'
+        },
+        rejectButton: {
+          text: 'Reject All',
+          backgroundColor: '#ffffff',
+          textColor: '#3b82f6',
+          borderColor: '#3b82f6',
+          borderRadius: 6,
+          fontSize: 14,
+          fontWeight: 'medium'
+        },
+        settingsButton: {
+          text: 'Cookie Settings',
+          backgroundColor: '#f3f4f6',
+          textColor: '#1f2937',
+          borderRadius: 6,
+          fontSize: 14,
+          fontWeight: 'normal'
+        },
+        
+        // Behavior settings
+        showRejectButton: true,
+        showSettingsButton: true,
+        autoShow: true,
+        showAfterDelay: 0,
+        respectDNT: false,
+        blockContent: false,
+        zIndex: 9999,
+        
+        // Status
+        is_active: true,
+        is_default: false
       };
 
-      // Save banner configuration
-      const response = await fetch('/api/cookies/banner-config', {
+      console.log('Sending banner configuration:', bannerConfig);
+
+      // Save banner configuration using the new API
+      const response = await fetch('/api/cookies/banner', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,14 +274,30 @@ export default function CookieScanPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to generate banner');
+        console.error('Banner API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          result: result
+        });
+        
+        // Show detailed error message if available
+        let errorMessage = 'Failed to create banner configuration';
+        if (result.error) {
+          errorMessage = result.error;
+        }
+        if (result.details && Array.isArray(result.details)) {
+          const detailsText = result.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+          errorMessage += `. Details: ${detailsText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       toast.success('Consent banner generated successfully!');
       
-      // Navigate to widget settings page after a brief delay
+      // Navigate to templates page to view/edit the banner
       setTimeout(() => {
-        router.push('/dashboard/cookies/widget');
+        router.push('/dashboard/cookies/templates');
       }, 1500);
 
     } catch (error) {
