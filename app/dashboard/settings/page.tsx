@@ -1,23 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { User, Lock, Bell, CreditCard, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { profileSchema, changePasswordSchema, type ProfileInput, type ChangePasswordInput } from '@/lib/schemas';
-import { useUserStore } from '@/lib/stores/useUserStore';
-import { toast } from 'sonner';
-import { User, Lock, Bell, CreditCard, Shield, Save, Loader2 } from 'lucide-react';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { usePasswordUpdate } from '@/hooks/usePasswordUpdate';
+import { ProfileTab } from '@/components/settings/ProfileTab';
+import { SecurityTab } from '@/components/settings/SecurityTab';
+import { NotificationsTab } from '@/components/settings/NotificationsTab';
+import { BillingTab } from '@/components/settings/BillingTab';
+import type { SettingsTab } from '@/types/settings';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [isLoading, setIsLoading] = useState(false);
-  const { user } = useUserStore();
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+  
+  // Fetch user profile data
+  const { data: profileData, loading, error, refetch, updateProfile, updating } = useUserProfile();
+  
+  // Password update hook
+  const { updatePassword, updating: updatingPassword } = usePasswordUpdate();
 
-  const tabs = [
+  const tabs: Array<{ id: SettingsTab; label: string; icon: typeof User }> = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Lock },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -57,316 +61,55 @@ export default function SettingsPage() {
         </nav>
       </div>
 
-      {/* Tab Content */}
-      <div>
-        {activeTab === 'profile' && <ProfileTab user={user} isLoading={isLoading} setIsLoading={setIsLoading} />}
-        {activeTab === 'security' && <SecurityTab isLoading={isLoading} setIsLoading={setIsLoading} />}
-        {activeTab === 'notifications' && <NotificationsTab />}
-        {activeTab === 'billing' && <BillingTab />}
-      </div>
-    </div>
-  );
-}
-
-function ProfileTab({ user, isLoading, setIsLoading }: any) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ProfileInput>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      fullName: user?.fullName || '',
-      email: user?.email || '',
-      companyName: user?.companyName || '',
-      phone: user?.phone || '',
-      website: user?.website || '',
-    },
-  });
-
-  const onSubmit = async (data: ProfileInput) => {
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success('Profile updated successfully');
-    } catch (error) {
-      toast.error('Failed to update profile');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-          <CardDescription>Update your personal and company information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                {...register('fullName')}
-                label="Full Name"
-                placeholder="John Doe"
-                error={errors.fullName?.message}
-                disabled={isLoading}
-                required
-              />
-              <Input
-                {...register('email')}
-                type="email"
-                label="Email Address"
-                placeholder="john@company.com"
-                error={errors.email?.message}
-                disabled={isLoading}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                {...register('companyName')}
-                label="Company Name"
-                placeholder="Your Company Inc."
-                error={errors.companyName?.message}
-                disabled={isLoading}
-                required
-              />
-              <Input
-                {...register('phone')}
-                type="tel"
-                label="Phone Number"
-                placeholder="+91 98765 43210"
-                error={errors.phone?.message}
-                disabled={isLoading}
-              />
-            </div>
-
-            <Input
-              {...register('website')}
-              type="url"
-              label="Website"
-              placeholder="https://yourcompany.com"
-              error={errors.website?.message}
-              disabled={isLoading}
-            />
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function SecurityTab({ isLoading, setIsLoading }: any) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<ChangePasswordInput>({
-    resolver: zodResolver(changePasswordSchema),
-  });
-
-  const onSubmit = async (data: ChangePasswordInput) => {
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success('Password changed successfully');
-      reset();
-    } catch (error) {
-      toast.error('Failed to change password');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>Update your password to keep your account secure</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              {...register('currentPassword')}
-              type="password"
-              label="Current Password"
-              placeholder="••••••••"
-              error={errors.currentPassword?.message}
-              disabled={isLoading}
-              required
-            />
-
-            <Input
-              {...register('newPassword')}
-              type="password"
-              label="New Password"
-              placeholder="••••••••"
-              helperText="Minimum 8 characters"
-              error={errors.newPassword?.message}
-              disabled={isLoading}
-              required
-            />
-
-            <Input
-              {...register('confirmPassword')}
-              type="password"
-              label="Confirm New Password"
-              placeholder="••••••••"
-              error={errors.confirmPassword?.message}
-              disabled={isLoading}
-              required
-            />
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  'Update Password'
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Two-Factor Authentication</CardTitle>
-          <CardDescription>Add an extra layer of security to your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">2FA Status</p>
-              <p className="text-sm text-gray-600">Currently disabled</p>
-            </div>
-            <Button variant="outline">Enable 2FA</Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function NotificationsTab() {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Notifications</CardTitle>
-          <CardDescription>Choose what emails you want to receive</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {[
-            { id: 'consent-granted', label: 'New consent granted', description: 'Receive notifications when users grant consent' },
-            { id: 'consent-withdrawn', label: 'Consent withdrawn', description: 'Get notified when users withdraw their consent' },
-            { id: 'weekly-report', label: 'Weekly summary report', description: 'Receive a weekly summary of consent activities' },
-            { id: 'security-alerts', label: 'Security alerts', description: 'Important security updates and alerts' },
-          ].map((item) => (
-            <div key={item.id} className="flex items-start justify-between py-3 border-b last:border-0">
+      {/* Error State */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600" />
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{item.label}</p>
-                <p className="text-sm text-gray-600">{item.description}</p>
+                <h3 className="font-semibold text-red-900">Failed to load settings data</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
               </div>
-              <input
-                type="checkbox"
-                defaultChecked
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
-              />
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
             </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+          </CardContent>
+        </Card>
+      )}
 
-function BillingTab() {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Plan</CardTitle>
-          <CardDescription>Manage your subscription and billing</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-              <div>
-                <p className="font-semibold text-lg text-gray-900">Medium Plan</p>
-                <p className="text-gray-600">Up to 100,000 consents/month</p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-gray-900">₹2,499</p>
-                <p className="text-sm text-gray-600">/month</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <Button variant="outline">Change Plan</Button>
-              <Button variant="outline">Cancel Subscription</Button>
-            </div>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading settings...</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Billing History</CardTitle>
-          <CardDescription>Your recent invoices and payments</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[
-              { date: '2025-10-01', amount: '₹2,499', status: 'Paid' },
-              { date: '2025-09-01', amount: '₹2,499', status: 'Paid' },
-              { date: '2025-08-01', amount: '₹2,499', status: 'Paid' },
-            ].map((invoice, i) => (
-              <div key={i} className="flex items-center justify-between py-3 border-b last:border-0">
-                <div>
-                  <p className="font-medium text-gray-900">{invoice.date}</p>
-                  <p className="text-sm text-gray-600">{invoice.amount}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {invoice.status}
-                  </span>
-                  <Button variant="ghost" size="sm">
-                    Download
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tab Content */}
+      {!loading && !error && profileData && (
+        <div>
+          {activeTab === 'profile' && (
+            <ProfileTab 
+              data={profileData} 
+              onUpdate={updateProfile} 
+              updating={updating} 
+            />
+          )}
+          {activeTab === 'security' && (
+            <SecurityTab 
+              onPasswordUpdate={updatePassword} 
+              updating={updatingPassword} 
+            />
+          )}
+          {activeTab === 'notifications' && <NotificationsTab />}
+          {activeTab === 'billing' && <BillingTab subscription={profileData.subscription} />}
+        </div>
+      )}
     </div>
   );
 }

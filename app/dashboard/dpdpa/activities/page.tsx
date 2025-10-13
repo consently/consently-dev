@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,30 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Modal } from '@/components/ui/modal';
 import { processingActivitySchema, type ProcessingActivityInput } from '@/lib/schemas';
-import { Plus, Edit, Trash2, FileText, Building2 } from 'lucide-react';
+import { 
+  industryTemplates, 
+  getLegalBasisLabel, 
+  getIndustryLabel, 
+  getIndustryIcon,
+  type ActivityTemplate,
+  type IndustryTemplate 
+} from '@/lib/industry-templates';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  FileText, 
+  Building2, 
+  Search, 
+  Filter, 
+  Download, 
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  X,
+  Loader2
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ProcessingActivity {
@@ -20,55 +43,67 @@ interface ProcessingActivity {
   industry: string;
   data_attributes: string[];
   retention_period: string;
-  data_processors?: any;
+  data_processors?: {
+    sources?: string[];
+  };
   is_active: boolean;
   created_at: string;
 }
-
-const industryTemplates = [
-  {
-    industry: 'e-commerce',
-    name: 'E-commerce Template',
-    activities: ['Customer Registration', 'Order Processing', 'Payment Processing', 'Marketing Communications'],
-  },
-  {
-    industry: 'banking',
-    name: 'Banking Template',
-    activities: ['Account Opening', 'KYC Verification', 'Transaction Processing', 'Credit Assessment'],
-  },
-  {
-    industry: 'healthcare',
-    name: 'Healthcare Template',
-    activities: ['Patient Registration', 'Medical Records', 'Appointment Management', 'Prescription Management'],
-  },
-];
 
 export default function ProcessingActivitiesPage() {
   const [activities, setActivities] = useState<ProcessingActivity[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateDetailModal, setTemplateDetailModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<IndustryTemplate | null>(null);
+  const [selectedActivities, setSelectedActivities] = useState<Set<number>>(new Set());
   const [editingActivity, setEditingActivity] = useState<ProcessingActivity | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterIndustry, setFilterIndustry] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 10;
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
+    watch,
   } = useForm<ProcessingActivityInput>({
     resolver: zodResolver(processingActivitySchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      industry: 'e-commerce',
+      legalBasis: 'consent',
+      dataCategories: '',
+      retentionPeriod: '',
+      dataSources: '',
+      dataRecipients: '',
+    },
   });
 
-  // Fetch activities on mount
+  // Fetch activities with pagination and filters
   useEffect(() => {
     fetchActivities();
-  }, []);
+  }, [currentPage, filterIndustry]);
 
   const fetchActivities = async () => {
     setIsFetching(true);
     try {
-      const response = await fetch('/api/dpdpa/activities');
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        industry: filterIndustry,
+        status: 'all',
+      });
+
+      const response = await fetch(`/api/dpdpa/activities?${params}`);
       const result = await response.json();
       
       if (!response.ok) {
@@ -76,6 +111,10 @@ export default function ProcessingActivitiesPage() {
       }
       
       setActivities(result.data || []);
+      if (result.pagination) {
+        setTotalPages(result.pagination.totalPages || 1);
+        setTotalCount(result.pagination.total || 0);
+      }
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast.error('Failed to load activities');
@@ -87,17 +126,13 @@ export default function ProcessingActivitiesPage() {
   const onSubmit = async (data: ProcessingActivityInput) => {
     setIsLoading(true);
     try {
-      // Data is already in array format from the schema
-      const dataCategories = data.dataCategories;
-      const dataSources = data.dataSources || [];
-
       const payload = {
         activity_name: data.name,
         purpose: data.description,
-        industry: data.legalBasis, // Using legalBasis as industry for now
-        data_attributes: dataCategories,
+        industry: data.industry,
+        data_attributes: data.dataCategories,
         retention_period: data.retentionPeriod,
-        data_processors: { sources: dataSources },
+        data_processors: { sources: data.dataSources },
         is_active: true,
       };
       
@@ -149,6 +184,12 @@ export default function ProcessingActivitiesPage() {
 
   const handleEdit = (activity: ProcessingActivity) => {
     setEditingActivity(activity);
+    setValue('name', activity.activity_name);
+    setValue('description', activity.purpose);
+    setValue('industry', activity.industry as any);
+    setValue('dataCategories', activity.data_attributes.join(', '));
+    setValue('retentionPeriod', activity.retention_period);
+    setValue('dataSources', activity.data_processors?.sources?.join(', ') || '');
     setModalOpen(true);
   };
 
@@ -180,21 +221,124 @@ export default function ProcessingActivitiesPage() {
     setModalOpen(true);
   };
 
-  const legalBasisLabels: Record<string, string> = {
-    consent: 'Consent',
-    contract: 'Contract',
-    'legal-obligation': 'Legal Obligation',
-    'legitimate-interest': 'Legitimate Interest',
-    'e-commerce': 'E-commerce',
-    'banking': 'Banking',
-    'healthcare': 'Healthcare',
+  const handleSelectTemplate = (template: IndustryTemplate) => {
+    setSelectedTemplate(template);
+    setSelectedActivities(new Set());
+    setTemplateDetailModal(true);
   };
 
-  if (isFetching) {
+  const toggleActivitySelection = (index: number) => {
+    const newSelection = new Set(selectedActivities);
+    if (newSelection.has(index)) {
+      newSelection.delete(index);
+    } else {
+      newSelection.add(index);
+    }
+    setSelectedActivities(newSelection);
+  };
+
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplate || selectedActivities.size === 0) {
+      toast.error('Please select at least one activity');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const activitiesToCreate = Array.from(selectedActivities).map(index => {
+        const activity = selectedTemplate.activities[index];
+        return {
+          activity_name: activity.activity_name,
+          purpose: activity.purpose,
+          industry: selectedTemplate.industry,
+          data_attributes: activity.data_attributes,
+          retention_period: activity.retention_period,
+          data_processors: activity.data_processors,
+          is_active: true,
+        };
+      });
+
+      // Create activities in sequence
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const activity of activitiesToCreate) {
+        try {
+          const response = await fetch('/api/dpdpa/activities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(activity),
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully created ${successCount} ${successCount === 1 ? 'activity' : 'activities'}`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to create ${failCount} ${failCount === 1 ? 'activity' : 'activities'}`);
+      }
+
+      // Refresh activities list
+      await fetchActivities();
+
+      setTemplateDetailModal(false);
+      setTemplateModalOpen(false);
+      setSelectedTemplate(null);
+      setSelectedActivities(new Set());
+    } catch (error) {
+      console.error('Error applying template:', error);
+      toast.error('Failed to apply template');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExportActivities = () => {
+    const dataStr = JSON.stringify(activities, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dpdpa-activities-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Activities exported successfully');
+  };
+
+  // Filter activities based on search query
+  const filteredActivities = useMemo(() => {
+    if (!searchQuery) return activities;
+    const query = searchQuery.toLowerCase();
+    return activities.filter(activity => 
+      activity.activity_name.toLowerCase().includes(query) ||
+      activity.purpose.toLowerCase().includes(query) ||
+      activity.data_attributes.some(attr => attr.toLowerCase().includes(query))
+    );
+  }, [activities, searchQuery]);
+
+  // Industry statistics
+  const industryStats = useMemo(() => {
+    const stats = new Map<string, number>();
+    activities.forEach(activity => {
+      stats.set(activity.industry, (stats.get(activity.industry) || 0) + 1);
+    });
+    return stats;
+  }, [activities]);
+
+  if (isFetching && activities.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <Loader2 className="animate-spin h-12 w-12 text-blue-600 mx-auto" />
           <p className="mt-4 text-gray-600">Loading activities...</p>
         </div>
       </div>
@@ -211,7 +355,11 @@ export default function ProcessingActivitiesPage() {
             Manage your DPDPA 2023 compliant data processing activities
           </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handleExportActivities}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
           <Button variant="outline" onClick={() => setTemplateModalOpen(true)}>
             <Building2 className="mr-2 h-4 w-4" />
             Industry Templates
@@ -223,25 +371,41 @@ export default function ProcessingActivitiesPage() {
         </div>
       </div>
 
+      {/* Search and Filters */}
+      <div className="flex gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search activities..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select
+          value={filterIndustry}
+          onChange={(e) => {
+            setFilterIndustry(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="all">All Industries</option>
+          {industryTemplates.map(template => (
+            <option key={template.industry} value={template.industry}>
+              {template.icon} {template.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Total Activities</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activities.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">E-commerce</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {activities.filter(a => a.industry === 'e-commerce').length}
-            </div>
+            <div className="text-2xl font-bold">{totalCount}</div>
           </CardContent>
         </Card>
 
@@ -250,70 +414,171 @@ export default function ProcessingActivitiesPage() {
             <CardTitle className="text-sm font-medium text-gray-600">Active</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-green-600">
               {activities.filter(a => a.is_active).length}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Industries</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{industryStats.size}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">This Page</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{filteredActivities.length}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Activities List */}
-      <div className="grid gap-4">
-        {activities.map((activity) => (
-          <Card key={activity.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">{activity.activity_name}</h3>
-                  </div>
-                  <p className="text-gray-600 mb-4">{activity.purpose}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Industry</p>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {legalBasisLabels[activity.industry] || activity.industry}
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Data Attributes</p>
-                      <div className="flex flex-wrap gap-1">
-                        {activity.data_attributes.slice(0, 2).map((cat, i) => (
-                          <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                            {cat}
-                          </span>
-                        ))}
-                        {activity.data_attributes.length > 2 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                            +{activity.data_attributes.length - 2} more
-                          </span>
-                        )}
+      {filteredActivities.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No activities found</h3>
+            <p className="text-gray-600 mb-4">
+              {searchQuery ? 'Try adjusting your search query' : 'Get started by creating your first activity or using an industry template'}
+            </p>
+            {!searchQuery && (
+              <div className="flex gap-3 justify-center">
+                <Button onClick={() => setTemplateModalOpen(true)} variant="outline">
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Use Template
+                </Button>
+                <Button onClick={handleAddNew}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Activity
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {filteredActivities.map((activity) => (
+            <Card key={activity.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">{getIndustryIcon(activity.industry)}</span>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{activity.activity_name}</h3>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {getIndustryLabel(activity.industry)}
+                        </span>
                       </div>
                     </div>
+                    <p className="text-gray-600 mb-4 line-clamp-2">{activity.purpose}</p>
                     
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Retention Period</p>
-                      <p className="text-sm font-medium text-gray-900">{activity.retention_period}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Data Attributes</p>
+                        <div className="flex flex-wrap gap-1">
+                          {activity.data_attributes.slice(0, 3).map((cat, i) => (
+                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
+                              {cat}
+                            </span>
+                          ))}
+                          {activity.data_attributes.length > 3 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
+                              +{activity.data_attributes.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Retention Period</p>
+                        <p className="text-sm font-medium text-gray-900">{activity.retention_period}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Data Sources</p>
+                        <p className="text-sm text-gray-700">
+                          {activity.data_processors?.sources?.length || 0} source{activity.data_processors?.sources?.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
                     </div>
                   </div>
+                  
+                  <div className="flex gap-2 ml-4">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(activity)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(activity.id)}>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} activities
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
                 
-                <div className="flex gap-2 ml-4">
-                  <Button variant="ghost" size="sm" onClick={() => handleEdit(activity)}>
-                    <Edit className="h-4 w-4" />
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(activity.id)}>
-                    <Trash2 className="h-4 w-4 text-red-600" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       <Modal
@@ -330,65 +595,83 @@ export default function ProcessingActivitiesPage() {
           <Input
             {...register('name')}
             label="Activity Name"
-            placeholder="e.g., User Registration"
+            placeholder="e.g., User Registration, Order Processing"
             error={errors.name?.message}
-            defaultValue={editingActivity?.activity_name}
             required
           />
 
           <Textarea
             {...register('description')}
-            label="Description"
-            placeholder="Describe the data processing activity..."
+            label="Purpose & Description"
+            placeholder="Describe the purpose and scope of this data processing activity..."
             error={errors.description?.message}
-            defaultValue={editingActivity?.purpose}
-            rows={3}
+            rows={4}
             required
           />
 
-          <Select
-            {...register('legalBasis')}
-            label="Legal Basis"
-            options={[
-              { value: 'consent', label: 'Consent' },
-              { value: 'contract', label: 'Contract' },
-              { value: 'legal-obligation', label: 'Legal Obligation' },
-              { value: 'legitimate-interest', label: 'Legitimate Interest' },
-            ]}
-            error={errors.legalBasis?.message}
-            defaultValue={editingActivity?.industry}
-            required
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              {...register('industry')}
+              label="Industry"
+              error={errors.industry?.message}
+              required
+            >
+              {industryTemplates.map(template => (
+                <option key={template.industry} value={template.industry}>
+                  {template.icon} {template.name}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              {...register('legalBasis')}
+              label="Legal Basis"
+              options={[
+                { value: 'consent', label: 'Consent' },
+                { value: 'contract', label: 'Contract' },
+                { value: 'legal-obligation', label: 'Legal Obligation' },
+                { value: 'legitimate-interest', label: 'Legitimate Interest' },
+              ]}
+              error={errors.legalBasis?.message}
+              required
+            />
+          </div>
 
           <Input
             {...register('dataCategories')}
             label="Data Categories"
-            placeholder="Email, Name, Phone (comma separated)"
+            placeholder="Email, Name, Phone Number, Address (comma separated)"
             helperText="Enter data categories separated by commas"
             error={errors.dataCategories?.message}
-            defaultValue={editingActivity?.data_attributes.join(', ')}
             required
           />
 
           <Input
             {...register('retentionPeriod')}
             label="Retention Period"
-            placeholder="e.g., 2 years, 90 days"
+            placeholder="e.g., 3 years, 90 days, Until account deletion"
             error={errors.retentionPeriod?.message}
-            defaultValue={editingActivity?.retention_period}
             required
           />
 
           <Input
             {...register('dataSources')}
             label="Data Sources"
-            placeholder="Website forms, API, Mobile app (comma separated)"
+            placeholder="Website forms, API, Mobile app, Third-party providers (comma separated)"
             helperText="Enter data sources separated by commas"
             error={errors.dataSources?.message}
             required
           />
 
-          <div className="flex justify-end gap-4 pt-4">
+          <Input
+            {...register('dataRecipients')}
+            label="Data Recipients (Optional)"
+            placeholder="Analytics providers, Marketing platforms (comma separated)"
+            helperText="Enter data recipients separated by commas"
+            error={errors.dataRecipients?.message}
+          />
+
+          <div className="flex justify-end gap-4 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
@@ -401,7 +684,14 @@ export default function ProcessingActivitiesPage() {
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : editingActivity ? 'Update' : 'Create'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                editingActivity ? 'Update Activity' : 'Create Activity'
+              )}
             </Button>
           </div>
         </form>
@@ -415,23 +705,153 @@ export default function ProcessingActivitiesPage() {
         description="Pre-configured processing activities for your industry"
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
           {industryTemplates.map((template) => (
-            <Card key={template.industry} className="hover:shadow-md transition-shadow cursor-pointer">
+            <Card 
+              key={template.industry} 
+              className="hover:shadow-md transition-all cursor-pointer hover:border-blue-500"
+              onClick={() => handleSelectTemplate(template)}
+            >
               <CardContent className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">{template.name}</h3>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  {template.activities.map((activity, i) => (
-                    <li key={i}>{activity}</li>
-                  ))}
-                </ul>
-                <Button variant="outline" size="sm" className="mt-4 w-full">
-                  Use Template
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-3xl">{template.icon}</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 mb-1">{template.name}</h3>
+                    <p className="text-sm text-gray-600">{template.description}</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                  <p className="text-xs font-medium text-gray-500 mb-2">{template.activities.length} Activities Included:</p>
+                  <ul className="space-y-1">
+                    {template.activities.slice(0, 3).map((activity, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex items-center">
+                        <Check className="h-3 w-3 text-green-600 mr-2 flex-shrink-0" />
+                        {activity.activity_name}
+                      </li>
+                    ))}
+                    {template.activities.length > 3 && (
+                      <li className="text-sm text-gray-500 italic">
+                        +{template.activities.length - 3} more activities...
+                      </li>
+                    )}
+                  </ul>
+                </div>
+                <Button variant="outline" size="sm" className="w-full">
+                  View & Select Activities
                 </Button>
               </CardContent>
             </Card>
           ))}
         </div>
+      </Modal>
+
+      {/* Template Detail Modal */}
+      <Modal
+        open={templateDetailModal}
+        onClose={() => {
+          setTemplateDetailModal(false);
+          setSelectedTemplate(null);
+          setSelectedActivities(new Set());
+        }}
+        title={selectedTemplate ? `${selectedTemplate.icon} ${selectedTemplate.name}` : 'Template Details'}
+        description="Select the activities you want to add to your compliance program"
+        size="xl"
+      >
+        {selectedTemplate && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Tip:</strong> Select multiple activities to bulk import them into your system. Each activity can be edited later.
+              </p>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {selectedTemplate.activities.map((activity, index) => (
+                <Card 
+                  key={index}
+                  className={`cursor-pointer transition-all ${
+                    selectedActivities.has(index) ? 'border-blue-500 bg-blue-50' : 'hover:border-gray-400'
+                  }`}
+                  onClick={() => toggleActivitySelection(index)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        {selectedActivities.has(index) ? (
+                          <div className="h-5 w-5 rounded bg-blue-600 flex items-center justify-center">
+                            <Check className="h-3 w-3 text-white" />
+                          </div>
+                        ) : (
+                          <div className="h-5 w-5 rounded border-2 border-gray-300" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-2">{activity.activity_name}</h4>
+                        <p className="text-sm text-gray-600 mb-3">{activity.purpose}</p>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="font-medium text-gray-700 mb-1">Data Attributes:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {activity.data_attributes.slice(0, 4).map((attr, i) => (
+                                <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                  {attr}
+                                </span>
+                              ))}
+                              {activity.data_attributes.length > 4 && (
+                                <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                  +{activity.data_attributes.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-700 mb-1">Retention Period:</p>
+                            <p className="text-gray-600">{activity.retention_period}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t">
+              <p className="text-sm text-gray-600">
+                {selectedActivities.size} of {selectedTemplate.activities.length} activities selected
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTemplateDetailModal(false);
+                    setSelectedTemplate(null);
+                    setSelectedActivities(new Set());
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleApplyTemplate}
+                  disabled={selectedActivities.size === 0 || isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add {selectedActivities.size} {selectedActivities.size === 1 ? 'Activity' : 'Activities'}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

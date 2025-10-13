@@ -31,13 +31,62 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    if (error) {
+    // If profile doesn't exist, create a default one
+    if (error && error.code === 'PGRST116') {
+      // No rows returned - create a default profile
+      // Determine auth provider from user metadata
+      const authProvider = user.app_metadata?.provider || 'email';
+      
+      const { data: newProfile, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || null,
+          auth_provider: authProvider,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        console.error('Create error details:', { code: createError.code, message: createError.message, details: createError.details });
+        await logFailure(user.id, 'user.register', 'users', createError.message, request);
+        return NextResponse.json({ 
+          error: 'Failed to create profile', 
+          details: createError.message 
+        }, { status: 500 });
+      }
+
+      // Use the newly created profile
+      const profileToReturn = newProfile;
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return NextResponse.json({
+        profile: profileToReturn,
+        subscription: subscription || null,
+        auth: {
+          email: user.email,
+          emailVerified: user.email_confirmed_at !== null,
+          lastSignIn: user.last_sign_in_at,
+        },
+      });
+    } else if (error) {
       console.error('Error fetching profile:', error);
       await logFailure(user.id, 'user.update', 'users', error.message, request);
       return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
     }
 
-    // Also fetch subscription details
+    // Also fetch subscription details (use maybeSingle to avoid error if no subscription)
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('*')
@@ -45,7 +94,7 @@ export async function GET(request: NextRequest) {
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     return NextResponse.json({
       profile,

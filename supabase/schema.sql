@@ -134,6 +134,9 @@ CREATE POLICY "Users can view own data" ON users
 CREATE POLICY "Users can update own data" ON users
   FOR UPDATE USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert own data" ON users
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- RLS Policies for consent_records table
 CREATE POLICY "Users can view own consent records" ON consent_records
   FOR SELECT USING (auth.uid() = user_id);
