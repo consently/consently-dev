@@ -339,6 +339,181 @@ export class CookieScanner {
       expiry: '2 weeks',
       is_third_party: false,
     },
+    // Google Tag Manager
+    _gat_gtag_: {
+      category: 'analytics',
+      provider: 'Google Tag Manager',
+      purpose: 'Used to throttle request rate for Google Analytics',
+      expiry: '1 minute',
+      is_third_party: true,
+    },
+    _gcl_aw: {
+      category: 'advertising',
+      provider: 'Google Ads',
+      purpose: 'Conversion tracking',
+      expiry: '90 days',
+      is_third_party: true,
+    },
+    _gcl_dc: {
+      category: 'advertising',
+      provider: 'Google Ads',
+      purpose: 'DoubleClick conversion tracking',
+      expiry: '90 days',
+      is_third_party: true,
+    },
+    // Microsoft Clarity
+    _clck: {
+      category: 'analytics',
+      provider: 'Microsoft Clarity',
+      purpose: 'Persists the Clarity User ID',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    _clsk: {
+      category: 'analytics',
+      provider: 'Microsoft Clarity',
+      purpose: 'Connects multiple page views by a user into a single Clarity session',
+      expiry: '1 day',
+      is_third_party: true,
+    },
+    CLID: {
+      category: 'analytics',
+      provider: 'Microsoft Clarity',
+      purpose: 'Identifies the first-time Clarity saw this user',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // New Relic
+    NREUM: {
+      category: 'analytics',
+      provider: 'New Relic',
+      purpose: 'Performance monitoring',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // Optimizely
+    optimizelyEndUserId: {
+      category: 'analytics',
+      provider: 'Optimizely',
+      purpose: 'A/B testing and personalization',
+      expiry: '6 months',
+      is_third_party: true,
+    },
+    // VWO (Visual Website Optimizer)
+    '_vwo_': {
+      category: 'analytics',
+      provider: 'VWO',
+      purpose: 'A/B testing',
+      expiry: '100 days',
+      is_third_party: true,
+    },
+    _vis_opt_: {
+      category: 'analytics',
+      provider: 'VWO',
+      purpose: 'Visitor optimization',
+      expiry: '100 days',
+      is_third_party: true,
+    },
+    // Zendesk
+    __zlcmid: {
+      category: 'functional',
+      provider: 'Zendesk',
+      purpose: 'Chat widget functionality',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // Drift
+    driftt_aid: {
+      category: 'functional',
+      provider: 'Drift',
+      purpose: 'Chat widget user identification',
+      expiry: '2 years',
+      is_third_party: true,
+    },
+    // Sentry
+    sentrysid: {
+      category: 'necessary',
+      provider: 'Sentry',
+      purpose: 'Error tracking and monitoring',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // GTM (Google Tag Manager)
+    _dc_gtm_: {
+      category: 'analytics',
+      provider: 'Google Tag Manager',
+      purpose: 'Used to control the loading of Google Analytics script',
+      expiry: '1 minute',
+      is_third_party: true,
+    },
+    // Cookiebot
+    CookieConsent: {
+      category: 'necessary',
+      provider: 'Cookiebot',
+      purpose: 'Stores the user\'s cookie consent state',
+      expiry: '1 year',
+      is_third_party: false,
+    },
+    // OneTrust
+    OptanonConsent: {
+      category: 'necessary',
+      provider: 'OneTrust',
+      purpose: 'Stores consent preferences',
+      expiry: '1 year',
+      is_third_party: false,
+    },
+    OptanonAlertBoxClosed: {
+      category: 'necessary',
+      provider: 'OneTrust',
+      purpose: 'Records when consent banner was closed',
+      expiry: '1 year',
+      is_third_party: false,
+    },
+    // Adobe Analytics
+    s_cc: {
+      category: 'analytics',
+      provider: 'Adobe Analytics',
+      purpose: 'Determines if cookies are enabled',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    s_fid: {
+      category: 'analytics',
+      provider: 'Adobe Analytics',
+      purpose: 'Fallback unique visitor ID',
+      expiry: '2 years',
+      is_third_party: true,
+    },
+    s_vi: {
+      category: 'analytics',
+      provider: 'Adobe Analytics',
+      purpose: 'Unique visitor ID',
+      expiry: '2 years',
+      is_third_party: true,
+    },
+    // Pardot
+    visitor_id: {
+      category: 'advertising',
+      provider: 'Pardot',
+      purpose: 'Marketing automation and lead tracking',
+      expiry: '10 years',
+      is_third_party: true,
+    },
+    pi_opt_in: {
+      category: 'advertising',
+      provider: 'Pardot',
+      purpose: 'Tracks opt-in status',
+      expiry: '10 years',
+      is_third_party: true,
+    },
+    // Marketo
+    _mkto_trk: {
+      category: 'advertising',
+      provider: 'Marketo',
+      purpose: 'Marketing automation tracking',
+      expiry: '2 years',
+      is_third_party: true,
+    },
     // WordPress
     wordpress_logged_in_: {
       category: 'necessary',
@@ -464,6 +639,7 @@ export class CookieScanner {
   /**
    * Perform cookie scan using external API service
    * Uses specialized cookie scanning services for production reliability
+   * Includes retry logic with exponential backoff
    */
   private static async performScan(
     url: string,
@@ -477,112 +653,104 @@ export class CookieScanner {
     };
     
     const config = scanConfig[scanDepth as keyof typeof scanConfig];
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    
+    // Try primary scanning services with retry logic
+    const scanners = [
+      { name: 'Browserless.io', check: () => !!process.env.BROWSERLESS_API_KEY, fn: () => this.useBrowserlessAPI(url, config) },
+      { name: 'Cookiebot', check: () => !!process.env.COOKIEBOT_API_KEY, fn: () => this.useCookiebotAPI(url, config) },
+      { name: 'CookieYes', check: () => !!process.env.COOKIEYES_API_KEY, fn: () => this.useCookieYesAPI(url, config) },
+      { name: 'OneTrust', check: () => !!process.env.ONETRUST_API_KEY, fn: () => this.useOneTrustAPI(url, config) },
+    ];
+    
+    // Try each available scanner
+    for (const scanner of scanners) {
+      if (!scanner.check()) continue;
+      
+      console.log(`Attempting scan with ${scanner.name}`);
+      
+      // Retry logic with exponential backoff
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await this.withTimeout(
+            scanner.fn(),
+            config.timeout * 1000 + 10000 // Add 10s buffer to scanner timeout
+          );
+          
+          console.log(`✓ Scan successful with ${scanner.name} (attempt ${attempt})`);
+          return result;
+          
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.error(`✗ ${scanner.name} attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+          
+          // If not the last attempt, wait with exponential backoff
+          if (attempt < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
+            console.log(`  Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      
+      console.log(`✗ ${scanner.name} failed after ${maxRetries} attempts, trying next scanner`);
+    }
+    
+    // All external scanners failed, use fallback
+    console.log('⚠ All external scanners failed, using fallback HTTP scanner');
     
     try {
-      // Option 1: Use Cookiebot API (if available)
-      if (process.env.COOKIEBOT_API_KEY) {
-        return await this.useCookiebotAPI(url, config);
-      }
-      
-      // Option 2: Use CookieYes API (if available) 
-      if (process.env.COOKIEYES_API_KEY) {
-        return await this.useCookieYesAPI(url, config);
-      }
-      
-      // Option 3: Use OneTrust API (if available)
-      if (process.env.ONETRUST_API_KEY) {
-        return await this.useOneTrustAPI(url, config);
-      }
-      
-      // Option 4: Use Browserless.io with custom script
-      if (process.env.BROWSERLESS_API_KEY) {
-        return await this.useBrowserlessAPI(url, config);
-      }
-      
-      // Fallback: Use a simple HTTP-based scanner
       return await this.useSimpleHTTPScanner(url, config);
-      
-    } catch (error) {
-      console.error('External API scan failed:', error);
-      throw new Error(`Cookie scanning failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (fallbackError) {
+      console.error('✗ Fallback scanner also failed:', fallbackError);
+      throw new Error(
+        `Cookie scanning failed: ${lastError?.message || 'All scanning methods failed'}. ` +
+        `Please check the URL is accessible and try again.`
+      );
     }
   }
 
   /**
+   * Execute a promise with a timeout
+   */
+  private static async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number
+  ): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
+      )
+    ]);
+  }
+
+  /**
    * Use Browserless.io API for cookie scanning
+   * Supports multi-page scanning with iframe and shadow DOM detection
    */
   private static async useBrowserlessAPI(
     url: string,
     config: { pages: number; timeout: number }
   ): Promise<{ cookies: ScannedCookie[]; pagesScanned: number }> {
-    const browserlessUrl = process.env.BROWSERLESS_URL || 'https://chrome.browserless.io';
+    const browserlessUrl = process.env.BROWSERLESS_URL || 'https://production-sfo.browserless.io';
     const apiKey = process.env.BROWSERLESS_API_KEY;
     
     if (!apiKey) {
       throw new Error('BROWSERLESS_API_KEY not configured');
     }
     
-    console.log('Using Browserless API for:', url);
+    console.log(`Using Browserless API for: ${url} (depth: ${config.pages} pages)`);
     
     try {
-      // Use the simpler /content endpoint instead of /function
-      const requestBody = {
-        url: url,
-        gotoOptions: {
-          waitUntil: 'networkidle2',
-          timeout: 30000
-        },
-        waitFor: 3000, // Wait 3 seconds for cookies to load
-        cookies: true, // Request cookies in response
-        html: false,   // We don't need HTML content
-        screenshot: false
-      };
-      
-      const response = await fetch(`${browserlessUrl}/content?token=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Browserless API error:', response.status, errorText);
-        throw new Error(`Browserless API error: ${response.status} ${response.statusText}`);
+      // For shallow scans (1 page), use the simpler /content endpoint
+      if (config.pages === 1) {
+        return await this.browserlessContentScan(url, browserlessUrl, apiKey, config);
       }
       
-      const result = await response.json();
-      
-      // Extract cookies from response
-      const cookies = result.cookies || [];
-      
-      if (!cookies || cookies.length === 0) {
-        console.warn('No cookies found by Browserless API, falling back to simple scanner');
-        return await this.useSimpleHTTPScanner(url, config);
-      }
-      
-      // Transform cookies to our format
-      const transformedCookies: ScannedCookie[] = cookies.map((cookie: any) => ({
-        name: cookie.name,
-        domain: cookie.domain,
-        value: cookie.value || '',
-        path: cookie.path || '/',
-        expires: cookie.expires && cookie.expires > 0 
-          ? new Date(cookie.expires * 1000).toISOString() 
-          : undefined,
-        httpOnly: cookie.httpOnly || false,
-        secure: cookie.secure || false,
-        sameSite: cookie.sameSite,
-      }));
-      
-      console.log(`Browserless found ${transformedCookies.length} cookies`);
-      
-      return {
-        cookies: transformedCookies,
-        pagesScanned: 1, // Single page scan with /content endpoint
-      };
+      // For medium/deep scans, use /function endpoint with custom Puppeteer script
+      return await this.browserlessFunctionScan(url, browserlessUrl, apiKey, config);
       
     } catch (error) {
       console.error('Browserless API failed:', error);
@@ -592,6 +760,277 @@ export class CookieScanner {
       return await this.useSimpleHTTPScanner(url, config);
     }
   }
+
+  /**
+   * Simple single-page scan using Browserless /content endpoint
+   */
+  private static async browserlessContentScan(
+    url: string,
+    browserlessUrl: string,
+    apiKey: string,
+    config: { pages: number; timeout: number }
+  ): Promise<{ cookies: ScannedCookie[]; pagesScanned: number }> {
+    const requestBody = {
+      url: url,
+      gotoOptions: {
+        waitUntil: 'networkidle2',
+        timeout: config.timeout * 1000
+      },
+      waitFor: 3000, // Wait 3 seconds for cookies to load
+      cookies: true, // Request cookies in response
+      html: false,   // We don't need HTML content
+      screenshot: false
+    };
+    
+    const requestUrl = `${browserlessUrl}/content?token=${apiKey}`;
+    console.log('Making Browserless content API request to:', requestUrl);
+    
+    const response = await fetch(requestUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'User-Agent': 'Consently-Scanner/1.0'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Browserless content API error:', response.status, errorText);
+      
+      // Check for specific error conditions
+      if (response.status === 403 && errorText.includes('legacy endpoint')) {
+        console.error('Using legacy endpoint - please update BROWSERLESS_URL to https://production-sfo.browserless.io');
+        throw new Error('Legacy Browserless endpoint detected. Please update your BROWSERLESS_URL environment variable to: https://production-sfo.browserless.io');
+      }
+      
+      if (response.status === 402) {
+        throw new Error('Browserless API quota exceeded. Please check your subscription.');
+      }
+      
+      throw new Error(`Browserless content API error: ${response.status} - ${errorText}`);
+    }
+    
+    const result = await response.json();
+    const cookies = result.cookies || [];
+    
+    if (!cookies || cookies.length === 0) {
+      console.warn('No cookies found by Browserless API');
+    }
+    
+    const transformedCookies: ScannedCookie[] = cookies.map((cookie: any) => ({
+      name: cookie.name,
+      domain: cookie.domain,
+      value: cookie.value || '',
+      path: cookie.path || '/',
+      expires: cookie.expires && cookie.expires > 0 
+        ? new Date(cookie.expires * 1000).toISOString() 
+        : undefined,
+      httpOnly: cookie.httpOnly || false,
+      secure: cookie.secure || false,
+      sameSite: cookie.sameSite,
+    }));
+    
+    console.log(`Browserless found ${transformedCookies.length} cookies`);
+    
+    return {
+      cookies: transformedCookies,
+      pagesScanned: 1,
+    };
+  }
+
+  /**
+   * Advanced multi-page scan using Playwright WebSocket connection
+   * Handles iframe cookies, shadow DOM elements, and multiple pages
+   */
+  private static async browserlessFunctionScan(
+    url: string,
+    browserlessUrl: string,
+    apiKey: string,
+    config: { pages: number; timeout: number }
+  ): Promise<{ cookies: ScannedCookie[]; pagesScanned: number }> {
+    // Use dynamic import for playwright-core to avoid SSR issues
+    const { chromium } = await import('playwright-core');
+    
+    // Extract base URL for WebSocket connection
+    const wsUrl = browserlessUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    const wsEndpoint = `${wsUrl}/chromium/playwright?token=${apiKey}`;
+    
+    console.log(`Connecting to Browserless via WebSocket for multi-page scan...`);
+    
+    let browser;
+    try {
+      // Connect to Browserless browser
+      browser = await chromium.connect(wsEndpoint, {
+        timeout: 30000
+      });
+      
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      });
+      
+      const page = await context.newPage();
+      
+      const allCookies = new Map<string, any>();
+      const scannedUrls = new Set<string>();
+      const urlsToScan: string[] = [url];
+      
+      // Navigate to initial page
+      console.log(`Navigating to: ${url}`);
+      await page.goto(url, {
+        waitUntil: 'networkidle',
+        timeout: config.timeout * 1000
+      });
+      
+      // Wait for cookies to be set
+      await page.waitForTimeout(3000);
+      
+      // Get cookies from main page
+      let cookies = await context.cookies();
+      cookies.forEach(cookie => {
+        const key = `${cookie.name}|${cookie.domain}`;
+        allCookies.set(key, cookie);
+      });
+      
+      scannedUrls.add(url);
+      console.log(`Main page scanned, found ${cookies.length} cookies`);
+      
+      // Extract links for multi-page scan
+      if (config.pages > 1) {
+        try {
+          const links = await page.evaluate((baseUrl) => {
+            const baseHostname = new URL(baseUrl).hostname;
+            const linkElements = Array.from(document.querySelectorAll('a[href]'));
+            return linkElements
+              .map(a => (a as HTMLAnchorElement).href)
+              .filter(href => {
+                try {
+                  const linkUrl = new URL(href);
+                  return linkUrl.hostname === baseHostname && 
+                         !href.includes('#') && 
+                         !href.includes('javascript:') &&
+                         !href.match(/\.(pdf|jpg|jpeg|png|gif|zip|doc|docx)$/i);
+                } catch {
+                  return false;
+                }
+              });
+          }, url);
+          
+          // Add discovered links to scan queue
+          links.slice(0, config.pages - 1).forEach(link => {
+            if (!urlsToScan.includes(link)) {
+              urlsToScan.push(link);
+            }
+          });
+          
+          console.log(`Found ${links.length} links, will scan ${Math.min(urlsToScan.length, config.pages)} pages`);
+        } catch (error) {
+          console.warn('Could not extract links:', error instanceof Error ? error.message : 'Unknown error');
+        }
+      }
+      
+      // Scan additional pages with delays to avoid rate limiting
+      for (let i = 1; i < Math.min(urlsToScan.length, config.pages); i++) {
+        const pageUrl = urlsToScan[i];
+        if (scannedUrls.has(pageUrl)) continue;
+        
+        try {
+          console.log(`Scanning page ${i + 1}/${config.pages}: ${pageUrl}`);
+          
+          // Add delay between page scans to avoid overwhelming the browser
+          if (i > 1) {
+            await page.waitForTimeout(1500);
+          }
+          
+          await page.goto(pageUrl, {
+            waitUntil: 'networkidle',
+            timeout: 30000
+          });
+          
+          await page.waitForTimeout(2000);
+          
+          // Get cookies after visiting page
+          cookies = await context.cookies();
+          cookies.forEach(cookie => {
+            const key = `${cookie.name}|${cookie.domain}`;
+            allCookies.set(key, cookie);
+          });
+          
+          scannedUrls.add(pageUrl);
+          console.log(`Page ${i + 1} scanned, total unique cookies: ${allCookies.size}`);
+          
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          console.warn(`Failed to scan page ${pageUrl}:`, errorMsg);
+          
+          // If browser/context was closed, stop scanning to avoid more errors
+          if (errorMsg.includes('Target page, context or browser has been closed') ||
+              errorMsg.includes('Browser closed') ||
+              errorMsg.includes('Connection closed')) {
+            console.log('Browser connection lost, stopping additional page scans');
+            break;
+          }
+          // Continue with next page for other errors
+        }
+      }
+      
+      // Check for cookies in iframes
+      try {
+        const frames = page.frames();
+        console.log(`Found ${frames.length} frames (including main)`);
+        
+        // Wait a bit for iframe cookies to load
+        if (frames.length > 1) {
+          await page.waitForTimeout(2000);
+          
+          // Get final cookie state (includes iframe cookies)
+          cookies = await context.cookies();
+          cookies.forEach(cookie => {
+            const key = `${cookie.name}|${cookie.domain}`;
+            allCookies.set(key, cookie);
+          });
+        }
+      } catch (error) {
+        console.warn('Could not scan iframes:', error instanceof Error ? error.message : 'Unknown error');
+      }
+      
+      // Transform cookies to our format
+      const transformedCookies: ScannedCookie[] = Array.from(allCookies.values()).map((cookie: any) => ({
+        name: cookie.name,
+        domain: cookie.domain,
+        value: cookie.value || '',
+        path: cookie.path || '/',
+        expires: cookie.expires && cookie.expires > 0 
+          ? new Date(cookie.expires * 1000).toISOString() 
+          : undefined,
+        httpOnly: cookie.httpOnly || false,
+        secure: cookie.secure || false,
+        sameSite: cookie.sameSite as 'Strict' | 'Lax' | 'None' | undefined,
+      }));
+      
+      console.log(`Multi-page scan complete: ${scannedUrls.size} pages scanned, ${transformedCookies.length} unique cookies`);
+      
+      await browser.close();
+      
+      return {
+        cookies: transformedCookies,
+        pagesScanned: scannedUrls.size,
+      };
+      
+    } catch (error) {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.warn('Failed to close browser:', closeError);
+        }
+      }
+      console.error('Playwright WebSocket scan failed:', error);
+      throw error;
+    }
+  }
+
 
   /**
    * Simple HTTP-based scanner as fallback
@@ -608,168 +1047,101 @@ export class CookieScanner {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Cache-Control': 'no-cache'
         }
       });
       
-      const setCookieHeaders = response.headers.get('set-cookie');
       const foundCookies: ScannedCookie[] = [];
-      
-      if (setCookieHeaders) {
-        // Parse set-cookie headers
-        const cookieStrings = setCookieHeaders.split(',');
-        
-        cookieStrings.forEach(cookieString => {
-          const [nameValue, ...attributes] = cookieString.split(';');
-          const [name, value] = nameValue.split('=');
-          
-          if (name && name.trim()) {
-            const cookie: ScannedCookie = {
-              name: name.trim(),
-              domain: new URL(url).hostname,
-              value: value?.trim() || '',
-              path: '/',
-              httpOnly: cookieString.includes('HttpOnly'),
-              secure: cookieString.includes('Secure'),
-            };
-            
-            // Parse expiry if present
-            const expiryMatch = cookieString.match(/expires=([^;]+)/i);
-            if (expiryMatch) {
-              try {
-                cookie.expires = new Date(expiryMatch[1]).toISOString();
-              } catch (e) {
-                // Invalid date, skip
-              }
-            }
-            
-            foundCookies.push(cookie);
-          }
-        });
-      }
-      
-      // Analyze the website content to make educated guesses about cookies
-      let responseText = '';
-      try {
-        responseText = await response.text();
-      } catch (e) {
-        // Continue without content analysis
-      }
-      
       const hostname = new URL(url).hostname;
-      const isSecure = url.startsWith('https');
       
-      // Generate realistic cookies based on website analysis
-      const detectedCookies: ScannedCookie[] = [];
+      // Handle multiple Set-Cookie headers properly
+      const setCookieHeaders = response.headers.getSetCookie?.() || [];
       
-      // Always add session cookie (most sites have this)
-      detectedCookies.push({
-        name: 'session_id',
-        domain: hostname,
-        value: '',
-        path: '/',
-        httpOnly: true,
-        secure: isSecure,
-      });
-      
-      // Check for Google Analytics (very common)
-      if (responseText.includes('google-analytics') || 
-          responseText.includes('gtag') || 
-          responseText.includes('GA_MEASUREMENT_ID')) {
-        detectedCookies.push(
-          {
-            name: '_ga',
-            domain: `.${hostname}`,
-            value: '',
-            path: '/',
-            expires: new Date(Date.now() + 63072000000).toISOString(), // 2 years
-            httpOnly: false,
-            secure: true,
-          },
-          {
-            name: '_gid',
-            domain: `.${hostname}`,
-            value: '',
-            path: '/',
-            expires: new Date(Date.now() + 86400000).toISOString(), // 24 hours
-            httpOnly: false,
-            secure: true,
-          }
-        );
+      if (setCookieHeaders.length === 0) {
+        // Fallback to single header if getSetCookie is not available
+        const singleHeader = response.headers.get('set-cookie');
+        if (singleHeader) {
+          setCookieHeaders.push(singleHeader);
+        }
       }
       
-      // Check for Facebook Pixel
-      if (responseText.includes('facebook.net') || 
-          responseText.includes('fbevents') || 
-          responseText.includes('fbq(')) {
-        detectedCookies.push({
-          name: '_fbp',
-          domain: `.${hostname}`,
-          value: '',
-          path: '/',
-          expires: new Date(Date.now() + 7776000000).toISOString(), // 90 days
-          httpOnly: false,
-          secure: true,
-        });
-      }
-      
-      // Check for common e-commerce platforms
-      if (responseText.includes('shopify') || responseText.includes('woocommerce')) {
-        detectedCookies.push(
-          {
-            name: 'cart',
+      setCookieHeaders.forEach(cookieString => {
+        if (!cookieString.trim()) return;
+        
+        try {
+          const parts = cookieString.split(';').map(part => part.trim());
+          const [nameValuePair] = parts;
+          const [name, ...valueParts] = nameValuePair.split('=');
+          
+          if (!name || !name.trim()) return;
+          
+          const cookie: ScannedCookie = {
+            name: name.trim(),
             domain: hostname,
-            value: '',
+            value: valueParts.join('=').trim() || '',
             path: '/',
-            expires: new Date(Date.now() + 1209600000).toISOString(), // 2 weeks
             httpOnly: false,
-            secure: isSecure,
-          },
-          {
-            name: 'customer_id',
-            domain: hostname,
-            value: '',
-            path: '/',
-            httpOnly: true,
-            secure: isSecure,
-          }
-        );
-      }
-      
-      // Check for WordPress
-      if (responseText.includes('wp-content') || responseText.includes('wordpress')) {
-        detectedCookies.push({
-          name: 'wordpress_logged_in',
-          domain: hostname,
-          value: '',
-          path: '/',
-          expires: new Date(Date.now() + 1209600000).toISOString(), // 2 weeks
-          httpOnly: true,
-          secure: isSecure,
-        });
-      }
-      
-      // Add preferences cookie for most sites
-      detectedCookies.push({
-        name: 'preferences',
-        domain: hostname,
-        value: '',
-        path: '/',
-        expires: new Date(Date.now() + 31536000000).toISOString(), // 1 year
-        httpOnly: false,
-        secure: isSecure,
-      });
-      
-      // Merge found cookies with detected cookies
-      const allCookies = [...foundCookies];
-      detectedCookies.forEach(detected => {
-        if (!allCookies.find(existing => 
-          existing.name === detected.name && existing.domain === detected.domain)) {
-          allCookies.push(detected);
+            secure: false,
+          };
+          
+          // Parse cookie attributes
+          parts.slice(1).forEach(attribute => {
+            const [attrName, attrValue] = attribute.split('=').map(s => s.trim());
+            const attrNameLower = attrName.toLowerCase();
+            
+            switch (attrNameLower) {
+              case 'domain':
+                if (attrValue) cookie.domain = attrValue;
+                break;
+              case 'path':
+                if (attrValue) cookie.path = attrValue;
+                break;
+              case 'expires':
+                if (attrValue) {
+                  try {
+                    cookie.expires = new Date(attrValue).toISOString();
+                  } catch (e) {
+                    // Invalid date format, ignore
+                  }
+                }
+                break;
+              case 'max-age':
+                if (attrValue) {
+                  try {
+                    const maxAge = parseInt(attrValue, 10);
+                    if (!isNaN(maxAge)) {
+                      cookie.expires = new Date(Date.now() + maxAge * 1000).toISOString();
+                    }
+                  } catch (e) {
+                    // Invalid max-age, ignore
+                  }
+                }
+                break;
+              case 'httponly':
+                cookie.httpOnly = true;
+                break;
+              case 'secure':
+                cookie.secure = true;
+                break;
+              case 'samesite':
+                if (attrValue) cookie.sameSite = attrValue;
+                break;
+            }
+          });
+          
+          foundCookies.push(cookie);
+        } catch (error) {
+          console.warn('Failed to parse cookie:', cookieString, error);
+          // Continue parsing other cookies
         }
       });
       
-      foundCookies.splice(0, foundCookies.length, ...allCookies);
+      // Only return actually found cookies from Set-Cookie headers
+      // No mocking or guessing - production grade real-time detection only
+      console.log(`HTTP scanner found ${foundCookies.length} real cookies from Set-Cookie headers`);
       
       return {
         cookies: foundCookies,
@@ -779,18 +1151,10 @@ export class CookieScanner {
     } catch (error) {
       console.error('Simple scanner error:', error);
       
-      // Return minimal fallback data
+      // Return empty result if no cookies can be detected
+      // No fallback mocked cookies in production
       return {
-        cookies: [
-          {
-            name: 'fallback_session',
-            domain: new URL(url).hostname,
-            value: '',
-            path: '/',
-            httpOnly: true,
-            secure: url.startsWith('https'),
-          }
-        ],
+        cookies: [],
         pagesScanned: 1,
       };
     }

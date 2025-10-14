@@ -107,12 +107,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Generate scan ID first
+    const scanId = `scan_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    
     // Perform immediate scan asynchronously
     // In production, this should be moved to a background job queue
-    const scanPromise = performScan(user.id, url, scanDepth, autoImport, webhookUrl);
-
+    const scanPromise = performScan(user.id, url, scanDepth, autoImport, webhookUrl, scanId);
+    
     // Don't await - return immediately with scan ID
-    const scanId = `scan_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     // Log audit
     await logAudit({
@@ -296,7 +298,8 @@ async function performScan(
   url: string,
   scanDepth: 'shallow' | 'medium' | 'deep',
   autoImport: boolean,
-  webhookUrl?: string
+  webhookUrl?: string,
+  scanId?: string
 ) {
   try {
     // Perform the scan

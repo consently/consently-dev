@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cookieScanSchema, type CookieScanInput } from '@/lib/schemas';
 import { Search, Loader2, CheckCircle, AlertCircle, Download, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ScannedCookie {
   id: string;
@@ -33,11 +35,20 @@ const categoryColors = {
 export default function CookieScanPage() {
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState<string>('');
   const [scannedCookies, setScannedCookies] = useState<ScannedCookie[]>([]);
   const [scanComplete, setScanComplete] = useState(false);
   const [scannedUrl, setScannedUrl] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
+  const [scanHistory, setScanHistory] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [scanMetrics, setScanMetrics] = useState<{
+    pagesScanned: number;
+    complianceScore: number;
+    thirdPartyCount: number;
+    firstPartyCount: number;
+  } | null>(null);
 
   const {
     register,
@@ -48,11 +59,34 @@ export default function CookieScanPage() {
     defaultValues: { scanDepth: 'medium' },
   });
 
+  // Load scan history on mount
+  useEffect(() => {
+    loadScanHistory();
+  }, []);
+
+  const loadScanHistory = async () => {
+    try {
+      const response = await fetch('/api/cookies/scan-enhanced?limit=5');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.scans) {
+          setScanHistory(result.scans);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load scan history:', error);
+    }
+  };
+
   const onSubmit = async (data: CookieScanInput) => {
     setIsScanning(true);
     setScanComplete(false);
+    setScanProgress('Initializing scan...');
+    setScanMetrics(null);
 
     try {
+      setScanProgress(`Scanning ${data.url} with ${data.scanDepth} depth...`);
+      
       // Call the real API endpoint
       const response = await fetch('/api/cookies/scan', {
         method: 'POST',
@@ -71,6 +105,8 @@ export default function CookieScanPage() {
         throw new Error(result.error || 'Failed to scan website');
       }
 
+      setScanProgress('Processing results...');
+
       // Map API response to component state
       const cookies: ScannedCookie[] = result.data.cookies.map((cookie: any) => ({
         id: cookie.id,
@@ -83,10 +119,24 @@ export default function CookieScanPage() {
 
       setScannedCookies(cookies);
       setScannedUrl(data.url);
+      
+      // Set metrics from API response
+      setScanMetrics({
+        pagesScanned: result.data.pagesScanned || 1,
+        complianceScore: result.data.complianceScore || 0,
+        thirdPartyCount: result.data.thirdPartyCount || 0,
+        firstPartyCount: result.data.firstPartyCount || 0,
+      });
+      
       setScanComplete(true);
-      toast.success(`Found ${cookies.length} cookies on ${data.url}`);
+      setScanProgress('');
+      toast.success(`Found ${cookies.length} cookies across ${result.data.pagesScanned || 1} page(s)`);
+      
+      // Reload scan history
+      loadScanHistory();
     } catch (error) {
       console.error('Scan error:', error);
+      setScanProgress('');
       toast.error(error instanceof Error ? error.message : 'Failed to scan website');
     } finally {
       setIsScanning(false);
@@ -164,12 +214,111 @@ export default function CookieScanPage() {
   };
 
   /**
-   * Export to PDF format (placeholder - would need a PDF library)
+   * Export to PDF format with proper formatting
    */
   const exportToPDF = async () => {
-    // For production, integrate with a PDF library like jsPDF or use a server-side solution
-    toast.info('PDF export coming soon! Using CSV for now.');
-    exportToCSV();
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.setTextColor(31, 41, 55); // gray-900
+      doc.text('Cookie Scan Report', pageWidth / 2, 20, { align: 'center' });
+      
+      // Add scan details
+      doc.setFontSize(10);
+      doc.setTextColor(75, 85, 99); // gray-600
+      doc.text(`Website: ${scannedUrl}`, 14, 35);
+      doc.text(`Scan Date: ${new Date().toLocaleString()}`, 14, 42);
+      doc.text(`Total Cookies: ${scannedCookies.length}`, 14, 49);
+      
+      if (scanMetrics) {
+        doc.text(`Pages Scanned: ${scanMetrics.pagesScanned}`, 14, 56);
+        doc.text(`Compliance Score: ${scanMetrics.complianceScore}%`, 14, 63);
+      }
+      
+      // Add category summary
+      doc.setFontSize(14);
+      doc.setTextColor(31, 41, 55);
+      doc.text('Cookie Categories', 14, 75);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(75, 85, 99);
+      const categorySummary = [
+        `Necessary: ${getCategoryCount('necessary')}`,
+        `Functional: ${getCategoryCount('functional')}`,
+        `Analytics: ${getCategoryCount('analytics')}`,
+        `Advertising: ${getCategoryCount('advertising')}`
+      ];
+      categorySummary.forEach((text, index) => {
+        doc.text(text, 14, 85 + (index * 7));
+      });
+      
+      // Add cookies table
+      const tableData = scannedCookies.map(cookie => [
+        cookie.name,
+        cookie.domain,
+        cookie.category,
+        cookie.expiry,
+        cookie.description.substring(0, 50) + (cookie.description.length > 50 ? '...' : '')
+      ]);
+      
+      autoTable(doc, {
+        startY: 115,
+        head: [['Cookie Name', 'Domain', 'Category', 'Expiry', 'Description']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [59, 130, 246], // blue-600
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: [31, 41, 55] // gray-900
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251] // gray-50
+        },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 60 }
+        },
+        margin: { top: 10, left: 14, right: 14 },
+      });
+      
+      // Add footer with compliance note
+      const finalY = (doc as any).lastAutoTable.finalY || 200;
+      if (finalY < doc.internal.pageSize.getHeight() - 40) {
+        doc.setFontSize(8);
+        doc.setTextColor(107, 114, 128); // gray-500
+        doc.text(
+          'This report was generated by Consently - DPDPA 2023 Consent Manager',
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 20,
+          { align: 'center' }
+        );
+        doc.text(
+          `Generated on ${new Date().toLocaleString()}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 15,
+          { align: 'center' }
+        );
+      }
+      
+      // Save the PDF
+      const filename = `cookie-scan-${scannedUrl.replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.pdf`;
+      doc.save(filename);
+      
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      throw error;
+    }
   };
 
   /**
@@ -329,10 +478,57 @@ export default function CookieScanPage() {
       {/* Scan Form */}
       <Card>
         <CardHeader>
-          <CardTitle>Scan Website</CardTitle>
-          <CardDescription>Enter your website URL to begin scanning for cookies</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Scan Website</CardTitle>
+              <CardDescription>Enter your website URL to begin scanning for cookies</CardDescription>
+            </div>
+            {scanHistory.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                {showHistory ? 'Hide' : 'Show'} History ({scanHistory.length})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
+          {/* Scan History */}
+          {showHistory && scanHistory.length > 0 && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Recent Scans</h4>
+              <div className="space-y-2">
+                {scanHistory.slice(0, 5).map((scan) => (
+                  <div 
+                    key={scan.scanId} 
+                    className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 text-sm"
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{scan.url}</div>
+                      <div className="text-xs text-gray-500">
+                        {scan.cookiesFound || 0} cookies • {scan.depth} • 
+                        {new Date(scan.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="text-xs">
+                      {scan.status === 'completed' && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded">✓ Complete</span>
+                      )}
+                      {scan.status === 'running' && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">⟳ Running</span>
+                      )}
+                      {scan.status === 'failed' && (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded">✗ Failed</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
@@ -362,6 +558,19 @@ export default function CookieScanPage() {
               </div>
             </div>
 
+            {/* Scan Progress Indicator */}
+            {isScanning && scanProgress && (
+              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">{scanProgress}</p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    This may take a few moments depending on the website size...
+                  </p>
+                </div>
+              </div>
+            )}
+
             <Button type="submit" disabled={isScanning} size="lg">
               {isScanning ? (
                 <>
@@ -383,13 +592,16 @@ export default function CookieScanPage() {
       {scanComplete && (
         <>
           {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">Total Cookies</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{scannedCookies.length}</div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {scanMetrics?.pagesScanned || 1} page(s) scanned
+                </p>
               </CardContent>
             </Card>
 
@@ -399,6 +611,7 @@ export default function CookieScanPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{getCategoryCount('necessary')}</div>
+                <p className="text-xs text-gray-500 mt-1">Required cookies</p>
               </CardContent>
             </Card>
 
@@ -408,6 +621,7 @@ export default function CookieScanPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{getCategoryCount('analytics')}</div>
+                <p className="text-xs text-gray-500 mt-1">Tracking cookies</p>
               </CardContent>
             </Card>
 
@@ -417,9 +631,54 @@ export default function CookieScanPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{getCategoryCount('advertising')}</div>
+                <p className="text-xs text-gray-500 mt-1">Marketing cookies</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-blue-600">Compliance Score</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {scanMetrics?.complianceScore || 0}%
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {scanMetrics && scanMetrics.complianceScore >= 80 ? 'Good' : 
+                   scanMetrics && scanMetrics.complianceScore >= 60 ? 'Fair' : 'Needs work'}
+                </p>
               </CardContent>
             </Card>
           </div>
+
+          {/* Additional Metrics */}
+          {scanMetrics && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Scan Metrics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">First-party cookies:</span>
+                    <span className="ml-2 font-semibold">{scanMetrics.firstPartyCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Third-party cookies:</span>
+                    <span className="ml-2 font-semibold">{scanMetrics.thirdPartyCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Pages scanned:</span>
+                    <span className="ml-2 font-semibold">{scanMetrics.pagesScanned}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Scanned URL:</span>
+                    <span className="ml-2 font-semibold text-blue-600 truncate">{scannedUrl}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Cookies Table */}
           <Card>
@@ -490,6 +749,23 @@ export default function CookieScanPage() {
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export JSON
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => handleExport('pdf')}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export PDF
+                  </>
+                )}
               </Button>
             </div>
             <Button 
