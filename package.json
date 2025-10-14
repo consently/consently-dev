@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start"
+    "start": "next start",
+    "build:widget": "node scripts/build-widget.js",
+    "test:widget": "npm run dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

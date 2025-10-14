@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consently Widget Test Page</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      font-size: 18px;
+      opacity: 0.95;
+    }
+    
+    .content {
+      padding: 40px;
+    }
+    
+    .section {
+      margin-bottom: 40px;
+    }
+    
+    .section h2 {
+      color: #667eea;
+      font-size: 24px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    
+    .info-box {
+      background: #f8f9fa;
+      border-left: 4px solid #667eea;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+    
+    .info-box h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    
+    .info-box p {
+      color: #495057;
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    
+    .info-box code {
+      background: #e9ecef;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      color: #d63384;
+      font-size: 14px;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+    
+    .btn-secondary:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #c82333;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+    }
+    
+    .status-box {
+      background: #e7f3ff;
+      border: 1px solid #b3d9ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    
+    .status-box h3 {
+      color: #0056b3;
+      margin-bottom: 12px;
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #b3d9ff;
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .status-label {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .status-value {
+      color: #667eea;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .code-block {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .code-block .comment {
+      color: #6a9955;
+    }
+    
+    .code-block .tag {
+      color: #569cd6;
+    }
+    
+    .code-block .attr {
+      color: #9cdcfe;
+    }
+    
+    .code-block .string {
+      color: #ce9178;
+    }
+    
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 28px;
+      }
+      
+      .content {
+        padding: 20px;
+      }
+      
+      .button-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🍪 Consently Widget Test</h1>
+      <p>Test your cookie consent banner configuration</p>
+    </div>
+    
+    <div class="content">
+      <div class="section">
+        <h2>📋 Instructions</h2>
+        <div class="info-box">
+          <h3>Step 1: Get Your Banner ID</h3>
+          <p>Go to your Consently dashboard → Cookie Consent → Widget Settings and copy your Banner ID.</p>
+          <p>It should look like: <code>cnsty_mgqef753_fsj38tzev</code> or similar</p>
+        </div>
+        
+        <div class="info-box">
+          <h3>Step 2: Update the Script Tag</h3>
+          <p>Replace <code>YOUR_BANNER_ID_HERE</code> in the script tag at the bottom of this HTML file with your actual banner ID.</p>
+        </div>
+        
+        <div class="info-box">
+          <h3>Step 3: Run Your Dev Server</h3>
+          <p>Make sure your Next.js dev server is running:</p>
+          <code>npm run dev</code>
+        </div>
+        
+        <div class="info-box">
+          <h3>Step 4: Open This Page</h3>
+          <p>Navigate to: <code>http://localhost:3000/test-widget.html</code></p>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>🎮 Controls</h2>
+        <p>Use these buttons to test different widget behaviors:</p>
+        
+        <div class="button-group">
+          <button class="btn btn-primary" onclick="showBanner()">
+            🎨 Show Banner
+          </button>
+          <button class="btn btn-secondary" onclick="checkConsent()">
+            🔍 Check Consent Status
+          </button>
+          <button class="btn btn-danger" onclick="revokeConsent()">
+            🗑️ Clear Consent (Reset)
+          </button>
+        </div>
+        
+        <div id="status" class="status-box" style="display: none;">
+          <h3>Current Consent Status</h3>
+          <div id="statusContent"></div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>📝 Implementation Code</h2>
+        <p>Add this script tag to your website's HTML (in the <code>&lt;head&gt;</code> or before <code>&lt;/body&gt;</code>):</p>
+        
+        <div class="code-block">
+<span class="comment">&lt;!-- Consently Cookie Consent Widget --&gt;</span>
+<span class="tag">&lt;script</span> 
+  <span class="attr">src</span>=<span class="string">"https://your-domain.com/widget.js"</span>
+  <span class="attr">data-consently-id</span>=<span class="string">"YOUR_BANNER_ID"</span>
+  <span class="attr">async</span>
+<span class="tag">&gt;&lt;/script&gt;</span>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>🔧 API Endpoints Used</h2>
+        <div class="info-box">
+          <h3>Configuration API</h3>
+          <p><code>GET /api/cookies/widget-public/{bannerId}</code></p>
+          <p>Fetches the banner configuration (theme, text, buttons, behavior)</p>
+        </div>
+        
+        <div class="info-box">
+          <h3>Consent Recording API</h3>
+          <p><code>POST /api/consent/record</code></p>
+          <p>Records user consent decisions with device type, IP, user agent, etc.</p>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>📊 Console Logs</h2>
+        <p>Open your browser's Developer Console (F12) to see detailed logs:</p>
+        <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+          <li>Widget initialization</li>
+          <li>Configuration loading</li>
+          <li>User consent actions</li>
+          <li>API requests and responses</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replace YOUR_BANNER_ID_HERE with your actual banner ID -->
+  <script src="http://localhost:3000/widget.js" data-consently-id="YOUR_BANNER_ID_HERE"></script>
+  
+  <script>
+    function showBanner() {
+      if (window.Consently && window.Consently.showBanner) {
+        window.Consently.showBanner();
+      } else {
+        alert('Widget not loaded yet. Please wait a moment and try again.');
+      }
+    }
+    
+    function checkConsent() {
+      if (window.Consently && window.Consently.getConsent) {
+        const consent = window.Consently.getConsent();
+        const statusDiv = document.getElementById('status');
+        const statusContent = document.getElementById('statusContent');
+        
+        if (consent) {
+          statusContent.innerHTML = `
+            <div class="status-item">
+              <span class="status-label">Status:</span>
+              <span class="status-value">${consent.status}</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Categories:</span>
+              <span class="status-value">${consent.categories.join(', ')}</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Timestamp:</span>
+              <span class="status-value">${new Date(consent.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Widget ID:</span>
+              <span class="status-value">${consent.widgetId || 'N/A'}</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Domain:</span>
+              <span class="status-value">${consent.domain || 'N/A'}</span>
+            </div>
+          `;
+          statusDiv.style.display = 'block';
+        } else {
+          statusContent.innerHTML = '<p style="color: #6c757d; font-style: italic;">No consent recorded yet.</p>';
+          statusDiv.style.display = 'block';
+        }
+      } else {
+        alert('Widget not loaded yet. Please wait a moment and try again.');
+      }
+    }
+    
+    function revokeConsent() {
+      if (window.Consently && window.Consently.revokeConsent) {
+        if (confirm('This will clear your consent and show the banner again. Continue?')) {
+          window.Consently.revokeConsent();
+          document.getElementById('status').style.display = 'none';
+        }
+      } else {
+        alert('Widget not loaded yet. Please wait a moment and try again.');
+      }
+    }
+    
+    // Listen for consent events
+    window.addEventListener('consentlyConsent', function(event) {
+      console.log('Consent event received:', event.detail);
+      
+      // Show a notification
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 999999;
+        font-weight: 600;
+        animation: slideIn 0.3s ease-out;
+      `;
+      notification.textContent = `✓ Consent ${event.detail.status}!`;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
+    });
+    
+    // Add animations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

@@ -1,35 +1,68 @@
 /**
- * Consently Cookie Consent Widget
- * Standalone embeddable widget (no dependencies)
+ * Consently Cookie Consent Widget v3.0
+ * Production-ready embeddable widget (no dependencies)
  * DPDPA 2023 & GDPR Compliant
+ * 
+ * Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_BANNER_ID"></script>
  */
 
 (function() {
   'use strict';
 
-  // Default configuration
+  // Get banner ID from script tag
+  const currentScript = document.currentScript || document.querySelector('script[data-consently-id]');
+  const bannerId = currentScript ? currentScript.getAttribute('data-consently-id') : null;
+  
+  if (!bannerId) {
+    console.error('[Consently] Error: data-consently-id attribute is required');
+    console.error('[Consently] Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_BANNER_ID"></script>');
+    return;
+  }
+
+  console.log('[Consently] Initializing widget with banner ID:', bannerId);
+
+  // Default configuration (will be overridden by API)
   const defaultConfig = {
-    widgetId: '',
-    domain: '',
-    categories: ['necessary'],
-    behavior: 'explicit',
-    consentDuration: 365,
-    blockScripts: true,
-    respectDNT: false,
-    apiEndpoint: '/api/consent/record',
     position: 'bottom',
-    primaryColor: '#3b82f6',
-    textColor: '#1f2937',
-    backgroundColor: '#ffffff',
+    layout: 'bar',
+    theme: {
+      primaryColor: '#3b82f6',
+      secondaryColor: '#1e40af',
+      backgroundColor: '#ffffff',
+      textColor: '#1f2937',
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: 14,
+      borderRadius: 8,
+      boxShadow: true
+    },
     title: 'We value your privacy',
-    message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
-    acceptText: 'Accept All',
-    rejectText: 'Reject All',
-    settingsText: 'Cookie Settings'
+    message: 'We use cookies to enhance your browsing experience.',
+    acceptButton: {
+      text: 'Accept All',
+      backgroundColor: '#3b82f6',
+      textColor: '#ffffff'
+    },
+    rejectButton: {
+      text: 'Reject All',
+      backgroundColor: '#ffffff',
+      textColor: '#3b82f6',
+      borderColor: '#3b82f6'
+    },
+    settingsButton: {
+      text: 'Cookie Settings',
+      backgroundColor: '#f3f4f6',
+      textColor: '#1f2937'
+    },
+    showRejectButton: true,
+    showSettingsButton: true,
+    autoShow: true,
+    showAfterDelay: 0,
+    respectDNT: false,
+    blockContent: false,
+    zIndex: 9999
   };
 
-  // Merge user config with defaults
-  let config = Object.assign({}, defaultConfig, window.consentlyConfig || {});
+  let config = Object.assign({}, defaultConfig);
   let configLoaded = false;
 
   // Cookie helper functions
@@ -63,22 +96,94 @@
     }
   };
 
-  // Check if consent already exists
-  const existingConsent = CookieManager.get('consently_consent');
-  
-  // Check DNT if configured
-  if (config.respectDNT && navigator.doNotTrack === '1') {
-    console.log('[Consently] DNT enabled, respecting user preference');
-    return;
+  // Fetch configuration from API
+  async function fetchBannerConfig() {
+    try {
+      // Determine the API base URL
+      const scriptSrc = currentScript.src;
+      let apiBase;
+      
+      if (scriptSrc && scriptSrc.includes('http')) {
+        // Extract base URL from script source
+        const url = new URL(scriptSrc);
+        apiBase = url.origin;
+      } else {
+        // Fallback to current page origin
+        apiBase = window.location.origin;
+      }
+      
+      const apiUrl = `${apiBase}/api/cookies/widget-public/${bannerId}`;
+      
+      console.log('[Consently] Fetching configuration from:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        cache: 'default' // Use browser cache for 5 minutes
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && (data.id || data.config)) {
+        // API returns config directly, not nested
+        config = Object.assign({}, defaultConfig, data);
+        config.widgetId = bannerId;
+        config.apiEndpoint = '/api/consent/record';
+        config.apiBase = apiBase;
+        configLoaded = true;
+        console.log('[Consently] Configuration loaded successfully:', config.name || 'Unnamed Banner');
+        return true;
+      } else {
+        throw new Error('Invalid configuration response');
+      }
+    } catch (error) {
+      console.error('[Consently] Failed to load configuration:', error);
+      console.log('[Consently] Using default configuration');
+      config.widgetId = bannerId;
+      config.apiEndpoint = '/api/consent/record';
+      config.apiBase = window.location.origin;
+      return false;
+    }
   }
 
-  // If consent exists and is still valid, don't show banner
-  if (existingConsent && existingConsent.timestamp) {
-    const consentAge = (Date.now() - existingConsent.timestamp) / (1000 * 60 * 60 * 24);
-    if (consentAge < config.consentDuration) {
-      console.log('[Consently] Valid consent found');
-      applyConsent(existingConsent);
+  // Initialize widget
+  async function init() {
+    // Fetch configuration from API
+    await fetchBannerConfig();
+
+    // Check if consent already exists
+    const existingConsent = CookieManager.get('consently_consent');
+    
+    // Check DNT if configured
+    if (config.respectDNT && navigator.doNotTrack === '1') {
+      console.log('[Consently] DNT enabled, respecting user preference');
       return;
+    }
+
+    // If consent exists and is still valid, don't show banner
+    if (existingConsent && existingConsent.timestamp) {
+      const consentAge = (Date.now() - existingConsent.timestamp) / (1000 * 60 * 60 * 24);
+      const consentDuration = 365; // Default 1 year
+      if (consentAge < consentDuration) {
+        console.log('[Consently] Valid consent found');
+        applyConsent(existingConsent);
+        return;
+      }
+    }
+
+    // Show banner based on configuration
+    if (config.autoShow) {
+      if (config.showAfterDelay > 0) {
+        setTimeout(showConsentBanner, config.showAfterDelay);
+      } else {
+        showConsentBanner();
+      }
     }
   }
 
@@ -89,6 +194,16 @@
       return;
     }
 
+    // Extract theme values
+    const theme = config.theme || {};
+    const primaryColor = theme.primaryColor || '#3b82f6';
+    const backgroundColor = theme.backgroundColor || '#ffffff';
+    const textColor = theme.textColor || '#1f2937';
+    const fontFamily = theme.fontFamily || 'system-ui, sans-serif';
+    const fontSize = theme.fontSize || 14;
+    const borderRadius = theme.borderRadius || 8;
+    const zIndex = config.zIndex || 9999;
+
     // Create banner container
     const banner = document.createElement('div');
     banner.id = 'consently-banner';
@@ -97,13 +212,13 @@
       ${config.position === 'top' ? 'top: 0;' : 'bottom: 0;'}
       left: 0;
       right: 0;
-      background-color: ${config.backgroundColor};
-      color: ${config.textColor};
+      background-color: ${backgroundColor};
+      color: ${textColor};
       padding: 24px;
       box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      font-size: 14px;
+      z-index: ${zIndex};
+      font-family: ${fontFamily};
+      font-size: ${fontSize}px;
       line-height: 1.5;
       animation: slideUp 0.3s ease-out;
     `;
@@ -139,17 +254,17 @@
           transform: translateY(-1px);
         }
         .consently-btn-primary {
-          background-color: ${config.primaryColor};
+          background-color: ${primaryColor};
           color: white;
         }
         .consently-btn-secondary {
           background-color: transparent;
-          color: ${config.primaryColor};
-          border: 2px solid ${config.primaryColor};
+          color: ${primaryColor};
+          border: 2px solid ${primaryColor};
         }
         .consently-btn-text {
           background-color: transparent;
-          color: ${config.textColor};
+          color: ${textColor};
           text-decoration: underline;
         }
         .consently-container {
@@ -200,14 +315,18 @@
         </div>
         <div class="consently-actions">
           <button id="consently-accept" class="consently-btn consently-btn-primary">
-            ${config.acceptText}
+            ${config.acceptButton?.text || 'Accept All'}
           </button>
-          <button id="consently-reject" class="consently-btn consently-btn-secondary">
-            ${config.rejectText}
-          </button>
-          <button id="consently-settings" class="consently-btn consently-btn-text">
-            ${config.settingsText}
-          </button>
+          ${config.showRejectButton ? `
+            <button id="consently-reject" class="consently-btn consently-btn-secondary">
+              ${config.rejectButton?.text || 'Reject All'}
+            </button>
+          ` : ''}
+          ${config.showSettingsButton ? `
+            <button id="consently-settings" class="consently-btn consently-btn-text">
+              ${config.settingsButton?.text || 'Cookie Settings'}
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -215,17 +334,26 @@
     document.body.appendChild(banner);
 
     // Add event listeners
-    document.getElementById('consently-accept').addEventListener('click', function() {
-      handleConsent('accepted', config.categories);
-    });
+    const acceptBtn = document.getElementById('consently-accept');
+    if (acceptBtn) {
+      acceptBtn.addEventListener('click', function() {
+        handleConsent('accepted', ['necessary', 'analytics', 'marketing', 'preferences']);
+      });
+    }
 
-    document.getElementById('consently-reject').addEventListener('click', function() {
-      handleConsent('rejected', ['necessary']);
-    });
+    const rejectBtn = document.getElementById('consently-reject');
+    if (rejectBtn) {
+      rejectBtn.addEventListener('click', function() {
+        handleConsent('rejected', ['necessary']);
+      });
+    }
 
-    document.getElementById('consently-settings').addEventListener('click', function() {
-      showSettingsModal();
-    });
+    const settingsBtn = document.getElementById('consently-settings');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', function() {
+        showSettingsModal();
+      });
+    }
   }
 
   // Show detailed settings modal
@@ -261,8 +389,10 @@
     ];
 
     let categoriesHTML = '';
+    const availableCategories = config.categories || ['necessary', 'analytics', 'marketing', 'preferences'];
+    
     categories.forEach(cat => {
-      if (config.categories.includes(cat.id) || cat.required) {
+      if (availableCategories.includes(cat.id) || cat.required) {
         categoriesHTML += `
           <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
             <label style="display: flex; align-items: start; gap: 12px; cursor: ${cat.required ? 'not-allowed' : 'pointer'};">
@@ -339,12 +469,13 @@
       status: status,
       categories: categories,
       timestamp: Date.now(),
-      widgetId: config.widgetId,
+      widgetId: bannerId,
       domain: window.location.hostname
     };
 
     // Save consent to cookie
-    CookieManager.set('consently_consent', consentData, config.consentDuration);
+    const consentDuration = config.consentDuration || 365;
+    CookieManager.set('consently_consent', consentData, consentDuration);
 
     // Send consent to server
     sendConsentToServer(consentData);
@@ -361,44 +492,20 @@
 
     // Trigger custom event
     window.dispatchEvent(new CustomEvent('consentlyConsent', { detail: consentData }));
+    
+    console.log('[Consently] Consent recorded:', status, categories);
   }
 
-  // Fetch configuration from server
-  async function fetchConfigFromServer() {
-    if (!config.widgetId) {
-      console.error('[Consently] No widget ID provided');
-      return false;
-    }
-
-    try {
-      const response = await fetch(
-        window.location.origin + '/api/cookies/widget-public/' + config.widgetId
-      );
-      
-      if (!response.ok) {
-        console.error('[Consently] Failed to fetch config:', response.status);
-        return false;
-      }
-
-      const serverConfig = await response.json();
-      
-      // Merge server config with local config (local takes precedence)
-      config = Object.assign({}, defaultConfig, serverConfig, window.consentlyConfig || {});
-      configLoaded = true;
-      
-      console.log('[Consently] Configuration loaded from server');
-      return true;
-    } catch (error) {
-      console.error('[Consently] Error fetching config:', error);
-      return false;
-    }
-  }
 
   // Send consent to server for logging
   function sendConsentToServer(consentData) {
+    const apiBase = config.apiBase || window.location.origin;
+    const apiEndpoint = config.apiEndpoint || '/api/consent/record';
+    const apiUrl = apiBase + apiEndpoint;
+    
     const data = {
       consentId: 'cns_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-      widgetId: consentData.widgetId,
+      widgetId: bannerId,
       status: consentData.status,
       categories: consentData.categories,
       deviceType: /Mobile|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent) ? 
@@ -407,17 +514,33 @@
       language: navigator.language || 'en'
     };
 
-    // Use sendBeacon if available
+    console.log('[Consently] Sending consent to:', apiUrl);
+
+    // Use sendBeacon if available (more reliable for page unload)
     if (navigator.sendBeacon) {
       const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-      navigator.sendBeacon(window.location.origin + config.apiEndpoint, blob);
+      const sent = navigator.sendBeacon(apiUrl, blob);
+      console.log('[Consently] Consent sent via beacon:', sent);
     } else {
       // Fallback to fetch
-      fetch(window.location.origin + config.apiEndpoint, {
+      fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).catch(function(err) {
+        body: JSON.stringify(data),
+        keepalive: true // Important for page unload scenarios
+      })
+      .then(function(response) {
+        if (response.ok) {
+          console.log('[Consently] Consent recorded successfully');
+        } else {
+          console.error('[Consently] Server returned error:', response.status);
+        }
+        return response.json();
+      })
+      .then(function(result) {
+        console.log('[Consently] Server response:', result);
+      })
+      .catch(function(err) {
         console.error('[Consently] Failed to record consent:', err);
       });
     }
@@ -427,7 +550,9 @@
   function applyConsent(consentData) {
     console.log('[Consently] Applying consent:', consentData);
 
-    if (config.blockScripts) {
+    const blockScripts = config.blockScripts !== undefined ? config.blockScripts : false;
+    
+    if (blockScripts) {
       // Enable Google Analytics if analytics consent given
       if (consentData.categories.includes('analytics') && window.gtag) {
         window.gtag('consent', 'update', {
@@ -453,21 +578,6 @@
     }
   }
 
-  // Initialize widget
-  async function init() {
-    // Fetch config from server if widget ID is provided
-    if (config.widgetId) {
-      await fetchConfigFromServer();
-    }
-
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', showConsentBanner);
-    } else {
-      showConsentBanner();
-    }
-  }
-
   // Expose public API
   window.Consently = {
     showBanner: showConsentBanner,
@@ -476,7 +586,9 @@
     },
     revokeConsent: function() {
       CookieManager.delete('consently_consent');
-      localStorage.removeItem('consently_consent');
+      try {
+        localStorage.removeItem('consently_consent');
+      } catch (e) {}
       showConsentBanner();
     },
     updateConsent: function(categories) {
@@ -484,7 +596,11 @@
     }
   };
 
-  // Initialize
-  init();
+  // Initialize widget when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
 })();

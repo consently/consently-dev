@@ -315,6 +315,108 @@ export default function CookieWidgetPage() {
         </Button>
       </div>
 
+      {/* Live Preview */}
+      {previewMode && (
+        <Card className="border-2 border-blue-500">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Eye className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle>Live Preview</CardTitle>
+                  <CardDescription>See how your cookie banner will appear to visitors</CardDescription>
+                </div>
+              </div>
+              <Badge className="bg-blue-100 text-blue-800">Preview Mode</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8">
+              {/* Mock Browser Window */}
+              <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+                {/* Browser Chrome */}
+                <div className="bg-gray-100 px-4 py-2 flex items-center gap-2 border-b">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="flex-1 bg-white rounded px-3 py-1 text-xs text-gray-600">
+                    https://{config.domain || 'your-website.com'}
+                  </div>
+                </div>
+                
+                {/* Website Content (Mock) */}
+                <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                  <div className="text-center text-gray-400">
+                    <Globe className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Your Website Content</p>
+                  </div>
+                </div>
+                
+                {/* Cookie Banner Preview */}
+                <div className="relative">
+                  <div className="bg-white border-t-2 border-gray-200 p-6 shadow-lg">
+                    <div className="max-w-4xl mx-auto">
+                      <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            🍪 We value your privacy
+                          </h3>
+                          <p className="text-sm text-gray-700">
+                            We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
+                            By clicking "Accept All", you consent to our use of cookies.
+                          </p>
+                          {config.categories.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {config.categories.map((cat) => (
+                                <Badge key={cat} variant="outline" className="text-xs">
+                                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                            Accept All
+                          </button>
+                          <button className="px-4 py-2 bg-white text-blue-600 border-2 border-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">
+                            Reject All
+                          </button>
+                          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+                            Cookie Settings
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Preview Info */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900 mb-1">Preview Information</h4>
+                    <div className="space-y-1 text-sm text-blue-800">
+                      <p>• <strong>Domain:</strong> {config.domain || 'Not set'}</p>
+                      <p>• <strong>Behavior:</strong> {config.behavior === 'explicit' ? 'Explicit Consent' : config.behavior === 'implicit' ? 'Implicit Consent' : 'Opt-Out'}</p>
+                      <p>• <strong>Consent Duration:</strong> {config.consentDuration} days</p>
+                      <p>• <strong>Categories:</strong> {config.categories.join(', ')}</p>
+                      <p className="mt-2 text-xs">💡 This is a visual preview. The actual widget will use your banner template design from the Templates page.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* General Configuration */}
       <Card>
         <CardHeader>
@@ -781,15 +883,17 @@ export default function CookieWidgetPage() {
             </div>
           </div>
 
+
           <div className="mt-6 grid md:grid-cols-2 gap-6">
-            {/* Installation Steps */}
+            {/* Manual Installation Steps */}
             <div className="rounded-lg bg-blue-50 border border-blue-200 p-5">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-blue-600 rounded-lg">
-                  <Info className="h-5 w-5 text-white" />
+                  <Code className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-blue-900 mb-3">Installation Steps</h3>
+                  <h3 className="font-semibold text-blue-900 mb-3">Manual Installation</h3>
+                  <p className="text-xs text-blue-800 mb-3">For custom websites with code access:</p>
                   <ol className="space-y-3">
                     <li className="flex gap-3">
                       <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>

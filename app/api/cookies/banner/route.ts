@@ -244,13 +244,38 @@ export async function POST(request: NextRequest) {
         .eq('is_default', true);
     }
 
+    // Transform camelCase to snake_case for database
+    const dbConfig = {
+      name: config.name,
+      description: config.description,
+      position: config.position,
+      layout: config.layout,
+      theme: config.theme,
+      title: config.title,
+      message: config.message,
+      privacy_policy_url: config.privacyPolicyUrl,
+      privacy_policy_text: config.privacyPolicyText,
+      accept_button: config.acceptButton,
+      reject_button: config.rejectButton,
+      settings_button: config.settingsButton,
+      show_reject_button: config.showRejectButton,
+      show_settings_button: config.showSettingsButton,
+      auto_show: config.autoShow,
+      show_after_delay: config.showAfterDelay,
+      respect_dnt: config.respectDNT,
+      block_content: config.blockContent,
+      custom_css: config.customCSS,
+      custom_js: config.customJS,
+      z_index: config.zIndex,
+      is_active: config.is_active,
+      is_default: config.is_default,
+      user_id: user.id,
+    };
+
     // Create banner config
     const { data: banner, error } = await supabase
       .from('banner_configs')
-      .insert({
-        ...config,
-        user_id: user.id,
-      })
+      .insert(dbConfig)
       .select()
       .single();
 
@@ -363,10 +388,38 @@ export async function PUT(request: NextRequest) {
         .neq('id', id);
     }
 
+    // Transform camelCase to snake_case for database (only fields that are present)
+    const config = validationResult.data;
+    const dbUpdates: any = {};
+    
+    if (config.name !== undefined) dbUpdates.name = config.name;
+    if (config.description !== undefined) dbUpdates.description = config.description;
+    if (config.position !== undefined) dbUpdates.position = config.position;
+    if (config.layout !== undefined) dbUpdates.layout = config.layout;
+    if (config.theme !== undefined) dbUpdates.theme = config.theme;
+    if (config.title !== undefined) dbUpdates.title = config.title;
+    if (config.message !== undefined) dbUpdates.message = config.message;
+    if (config.privacyPolicyUrl !== undefined) dbUpdates.privacy_policy_url = config.privacyPolicyUrl;
+    if (config.privacyPolicyText !== undefined) dbUpdates.privacy_policy_text = config.privacyPolicyText;
+    if (config.acceptButton !== undefined) dbUpdates.accept_button = config.acceptButton;
+    if (config.rejectButton !== undefined) dbUpdates.reject_button = config.rejectButton;
+    if (config.settingsButton !== undefined) dbUpdates.settings_button = config.settingsButton;
+    if (config.showRejectButton !== undefined) dbUpdates.show_reject_button = config.showRejectButton;
+    if (config.showSettingsButton !== undefined) dbUpdates.show_settings_button = config.showSettingsButton;
+    if (config.autoShow !== undefined) dbUpdates.auto_show = config.autoShow;
+    if (config.showAfterDelay !== undefined) dbUpdates.show_after_delay = config.showAfterDelay;
+    if (config.respectDNT !== undefined) dbUpdates.respect_dnt = config.respectDNT;
+    if (config.blockContent !== undefined) dbUpdates.block_content = config.blockContent;
+    if (config.customCSS !== undefined) dbUpdates.custom_css = config.customCSS;
+    if (config.customJS !== undefined) dbUpdates.custom_js = config.customJS;
+    if (config.zIndex !== undefined) dbUpdates.z_index = config.zIndex;
+    if (config.is_active !== undefined) dbUpdates.is_active = config.is_active;
+    if (config.is_default !== undefined) dbUpdates.is_default = config.is_default;
+
     // Update banner
     const { data: updatedBanner, error } = await supabase
       .from('banner_configs')
-      .update(validationResult.data)
+      .update(dbUpdates)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

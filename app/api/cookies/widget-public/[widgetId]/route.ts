@@ -35,52 +35,55 @@ export async function GET(
       }
     );
 
-    // Fetch widget config
-    const { data: widgetConfig, error: widgetError } = await supabase
-      .from('widget_configs')
+    // Fetch banner configuration directly using widgetId as banner ID
+    const { data: banner, error: bannerError } = await supabase
+      .from('banner_configs')
       .select('*')
-      .eq('widget_id', widgetId)
+      .eq('id', widgetId)
+      .eq('is_active', true)
       .single();
 
-    if (widgetError || !widgetConfig) {
-      console.error('Widget config error:', widgetError);
+    if (bannerError || !banner) {
+      console.error('Banner config error:', bannerError);
       return NextResponse.json(
-        { error: 'Widget configuration not found' },
+        { error: 'Banner configuration not found or inactive' },
         { status: 404 }
       );
     }
 
-    // Fetch banner config for the same user
-    const { data: bannerConfig, error: bannerError } = await supabase
-      .from('cookie_banners')
-      .select('*')
-      .eq('user_id', widgetConfig.user_id)
-      .eq('is_active', true)
-      .single();
-
-    // Prepare response combining widget and banner configs
+    // Transform snake_case database fields to camelCase for JavaScript
     const config = {
-      widgetId: widgetConfig.widget_id,
-      domain: widgetConfig.domain,
-      categories: widgetConfig.categories,
-      behavior: widgetConfig.behavior,
-      consentDuration: widgetConfig.consent_duration,
-      blockScripts: widgetConfig.block_scripts,
-      respectDNT: widgetConfig.respect_dnt,
-      gdprApplies: widgetConfig.gdpr_applies,
-      autoBlock: widgetConfig.auto_block || [],
+      id: banner.id,
+      name: banner.name,
+      layout: banner.layout,
+      position: banner.position,
       
-      // Banner configuration (if available)
-      position: bannerConfig?.position || 'bottom',
-      primaryColor: bannerConfig?.primary_color || '#3b82f6',
-      textColor: bannerConfig?.text_color || '#1f2937',
-      backgroundColor: bannerConfig?.background_color || '#ffffff',
-      title: bannerConfig?.title || 'We value your privacy',
-      message: bannerConfig?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
-      acceptText: bannerConfig?.accept_text || 'Accept All',
-      rejectText: bannerConfig?.reject_text || 'Reject All',
-      settingsText: bannerConfig?.settings_text || 'Cookie Settings',
-      language: bannerConfig?.language || 'en',
+      // Theme configuration
+      theme: banner.theme,
+      
+      // Content
+      title: banner.title,
+      message: banner.message,
+      privacyPolicyUrl: banner.privacy_policy_url,
+      privacyPolicyText: banner.privacy_policy_text,
+      
+      // Button configurations
+      acceptButton: banner.accept_button,
+      rejectButton: banner.reject_button,
+      settingsButton: banner.settings_button,
+      
+      // Behavior settings
+      showRejectButton: banner.show_reject_button,
+      showSettingsButton: banner.show_settings_button,
+      autoShow: banner.auto_show,
+      showAfterDelay: banner.show_after_delay,
+      respectDNT: banner.respect_dnt,
+      blockContent: banner.block_content,
+      zIndex: banner.z_index,
+      
+      // Additional metadata
+      createdAt: banner.created_at,
+      updatedAt: banner.updated_at,
     };
 
     // Set cache headers for better performance (cache for 5 minutes)

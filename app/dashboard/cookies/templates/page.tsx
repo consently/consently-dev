@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,8 @@ import {
   Loader2,
   Plus,
   Trash2,
-  Clock
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 
 // Template definitions mapped to database layout types
@@ -138,6 +139,8 @@ export default function CookieTemplatesPage() {
   const [saving, setSaving] = useState(false);
   const [existingBanners, setExistingBanners] = useState<BannerConfig[]>([]);
   const [currentBannerId, setCurrentBannerId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('https://example.com');
+  const previewRef = useRef<HTMLDivElement>(null);
   
   const [config, setConfig] = useState<BannerConfig>({
     name: 'My Cookie Banner',
@@ -391,7 +394,8 @@ export default function CookieTemplatesPage() {
   };
 
   const handleCopyCode = () => {
-    const embedCode = `<script src="${window.location.origin}/widget.js" data-consently-id="${currentBannerId || 'YOUR_BANNER_ID'}"></script>`;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    const embedCode = `<script src="${siteUrl}/widget.js" data-consently-id="${currentBannerId || 'YOUR_BANNER_ID'}"></script>`;
     navigator.clipboard.writeText(embedCode);
     toast.success('Embed code copied to clipboard!');
   };
@@ -423,7 +427,19 @@ export default function CookieTemplatesPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => setShowPreview(!showPreview)}
+            onClick={() => {
+              const newState = !showPreview;
+              setShowPreview(newState);
+              if (newState) {
+                // Scroll to preview after a short delay to ensure it's rendered
+                setTimeout(() => {
+                  previewRef.current?.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                  });
+                }, 100);
+              }
+            }}
           >
             <Eye className="mr-2 h-4 w-4" />
             {showPreview ? 'Hide' : 'Show'} Preview
@@ -990,7 +1006,7 @@ export default function CookieTemplatesPage() {
                 <div className="flex gap-2">
                   <Input
                     type="text"
-                    value={`<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js" data-consently-id="${currentBannerId || 'BANNER_ID_WILL_BE_GENERATED'}"></script>`}
+                    value={`<script src="${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com')}/widget.js" data-consently-id="${currentBannerId || 'SAVE_TO_GENERATE_ID'}"></script>`}
                     readOnly
                     className="flex-1 font-mono text-sm bg-gray-50"
                   />
@@ -1012,29 +1028,63 @@ export default function CookieTemplatesPage() {
 
       {/* Live Preview */}
       {showPreview && (
-        <Card className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Live Preview</h2>
-            <span className="text-sm text-gray-500">
-              This is how your banner will appear to visitors
-            </span>
-          </div>
-
-          <div className="relative min-h-[500px] rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8">
-            {/* Preview Area */}
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center text-gray-400">
-                <Maximize className="mx-auto mb-2 h-12 w-12" />
-                <p className="text-lg font-medium">Website Content Preview</p>
-                <p className="mt-1 text-sm">Your cookie banner will overlay this content</p>
-                <div className="mt-4 text-xs">
-                  <span className="inline-flex items-center gap-1">
-                    <Layout className="h-3 w-3" />
-                    {config.layout} • {config.position}
-                  </span>
-                </div>
+        <Card className="p-6" ref={previewRef}>
+          <div className="mb-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Live Preview</h2>
+              <span className="text-sm text-gray-500">
+                This is how your banner will appear to visitors
+              </span>
+            </div>
+            
+            {/* Preview URL Input */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                Preview URL:
+              </label>
+              <div className="flex flex-1 gap-2">
+                <Input
+                  type="url"
+                  value={previewUrl}
+                  onChange={(e) => setPreviewUrl(e.target.value)}
+                  placeholder="https://your-website.com"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (previewUrl) {
+                      window.open(previewUrl, '_blank');
+                    }
+                  }}
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
               </div>
             </div>
+          </div>
+
+          <div className="relative min-h-[600px] rounded-lg border-2 border-gray-300 bg-white overflow-hidden">
+            {/* Preview Area - Iframe */}
+            {previewUrl && previewUrl.trim() !== '' ? (
+              <iframe
+                src={previewUrl}
+                className="absolute inset-0 w-full h-full border-0"
+                style={{ minHeight: '600px' }}
+                title="Website Preview"
+                sandbox="allow-scripts allow-same-origin allow-forms"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                <div className="text-center text-gray-400">
+                  <Maximize className="mx-auto mb-2 h-12 w-12" />
+                  <p className="text-lg font-medium">Enter a URL to preview</p>
+                  <p className="mt-1 text-sm">Your cookie banner will overlay the website content</p>
+                </div>
+              </div>
+            )}
 
             {/* Banner Preview */}
             <div
