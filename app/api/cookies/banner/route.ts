@@ -107,6 +107,38 @@ const bannerConfigSchema = z.object({
 
 type BannerConfig = z.infer<typeof bannerConfigSchema>;
 
+// Helper function to transform snake_case database fields to camelCase
+function transformBannerToCamelCase(banner: any) {
+  return {
+    id: banner.id,
+    name: banner.name,
+    description: banner.description,
+    position: banner.position,
+    layout: banner.layout,
+    theme: banner.theme,
+    title: banner.title,
+    message: banner.message,
+    privacyPolicyUrl: banner.privacy_policy_url,
+    privacyPolicyText: banner.privacy_policy_text,
+    acceptButton: banner.accept_button,
+    rejectButton: banner.reject_button,
+    settingsButton: banner.settings_button,
+    showRejectButton: banner.show_reject_button,
+    showSettingsButton: banner.show_settings_button,
+    autoShow: banner.auto_show,
+    showAfterDelay: banner.show_after_delay,
+    respectDNT: banner.respect_dnt,
+    blockContent: banner.block_content,
+    customCSS: banner.custom_css,
+    customJS: banner.custom_js,
+    zIndex: banner.z_index,
+    is_active: banner.is_active,
+    is_default: banner.is_default,
+    created_at: banner.created_at,
+    updated_at: banner.updated_at,
+  };
+}
+
 /**
  * GET /api/cookies/banner
  * Get banner configurations for the authenticated user
@@ -147,6 +179,9 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Transform snake_case to camelCase
+      const transformedBanner = transformBannerToCamelCase(banner);
+
       // Get version history if requested
       let versions = null;
       if (includeVersions) {
@@ -162,7 +197,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        data: banner,
+        data: transformedBanner,
         versions: versions,
       });
     }
@@ -182,10 +217,13 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    // Transform all banners from snake_case to camelCase
+    const transformedBanners = banners?.map(transformBannerToCamelCase) || [];
+
     return NextResponse.json({
       success: true,
-      data: banners,
-      total: banners?.length || 0,
+      data: transformedBanners,
+      total: transformedBanners.length,
     });
 
   } catch (error) {
@@ -304,9 +342,12 @@ export async function POST(request: NextRequest) {
       status: 'success',
     });
 
+    // Transform to camelCase for response
+    const transformedBanner = transformBannerToCamelCase(banner);
+
     return NextResponse.json({
       success: true,
-      data: banner,
+      data: transformedBanner,
       message: 'Banner configuration created successfully',
     });
 
@@ -463,9 +504,12 @@ export async function PUT(request: NextRequest) {
       status: 'success',
     });
 
+    // Transform to camelCase for response
+    const transformedBanner = transformBannerToCamelCase(updatedBanner);
+
     return NextResponse.json({
       success: true,
-      data: updatedBanner,
+      data: transformedBanner,
       version: newVersion,
       message: 'Banner configuration updated successfully',
     });
