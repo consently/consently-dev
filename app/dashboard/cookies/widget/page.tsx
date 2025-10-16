@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -73,6 +74,7 @@ type WidgetConfig = {
   respectDNT: boolean;
   gdprApplies: boolean;
   autoBlock: string[];
+  language: string;
 };
 
 export default function CookieWidgetPage() {
@@ -92,7 +94,8 @@ export default function CookieWidgetPage() {
     blockScripts: true,
     respectDNT: false,
     gdprApplies: true,
-    autoBlock: []
+    autoBlock: [],
+    language: 'en'
   });
 
   useEffect(() => {
@@ -499,6 +502,30 @@ export default function CookieWidgetPage() {
               />
               <p className="mt-1 text-xs text-gray-500">
                 How long to remember consent ({config.consentDuration} days)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-gray-500" />
+                  Widget Language
+                </div>
+              </label>
+              <Select
+                value={config.language}
+                onChange={(e) => updateConfig({ language: e.target.value })}
+                options={[
+                  { value: 'en', label: 'English' },
+                  { value: 'hi', label: 'हिन्दी (Hindi)' },
+                  { value: 'bn', label: 'বাংলা (Bengali)' },
+                  { value: 'ta', label: 'தமிழ் (Tamil)' },
+                  { value: 'te', label: 'తెలుగు (Telugu)' },
+                  { value: 'mr', label: 'मराठी (Marathi)' },
+                ]}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Display language for consent banner text
               </p>
             </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,7 @@ interface WidgetConfig {
   showDataSubjectsRights: boolean;
   showBranding: boolean;
   isActive: boolean;
+  language: string;
 }
 
 export default function DPDPAWidgetPage() {
@@ -89,7 +91,8 @@ export default function DPDPAWidgetPage() {
     requireExplicitConsent: true,
     showDataSubjectsRights: true,
     showBranding: true,
-    isActive: true
+    isActive: true,
+    language: 'en'
   });
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -306,6 +309,30 @@ export default function DPDPAWidgetPage() {
                   placeholder="We process your personal data..."
                   rows={3}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-gray-500" />
+                    Widget Language
+                  </div>
+                </label>
+                <Select
+                  value={config.language}
+                  onChange={(e) => setConfig({ ...config, language: e.target.value })}
+                  options={[
+                    { value: 'en', label: 'English' },
+                    { value: 'hi', label: 'हिन्दी (Hindi)' },
+                    { value: 'bn', label: 'বাংলা (Bengali)' },
+                    { value: 'ta', label: 'தமிழ் (Tamil)' },
+                    { value: 'te', label: 'తెలుగు (Telugu)' },
+                    { value: 'mr', label: 'मराठी (Marathi)' },
+                  ]}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Display language for consent widget text
+                </p>
               </div>
             </CardContent>
           </Card>
