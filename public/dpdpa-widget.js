@@ -25,6 +25,7 @@
   let config = null;
   let activities = [];
   let activityConsents = {};
+  let visitorEmail = (currentScript && currentScript.getAttribute('data-dpdpa-email')) || null;
 
   // LocalStorage manager for consent persistence
   const ConsentStorage = {
@@ -332,10 +333,13 @@
         ${config.showDataSubjectsRights ? `
           <div style="background: #f9fafb; border-left: 4px solid ${primaryColor}; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
             <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; color: ${textColor};">Your Data Rights</h4>
-            <p style="font-size: 12px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0;">
+            <p style="font-size: 12px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0 8px 0 0;">
               Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.
-              Contact us to exercise these rights.
             </p>
+            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="dpdpa-withdraw-btn" style="padding:6px 10px; background:#f59e0b; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">Withdraw/Modify Consent</button>
+              <button id="dpdpa-grievance-btn" style="padding:6px 10px; background:#374151; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">Raise Grievance</button>
+            </div>
           </div>
         ` : ''}
       </div>
@@ -398,6 +402,21 @@
     acceptAllBtn.addEventListener('click', () => {
       handleAcceptAll(overlay);
     });
+
+    // Withdraw/Modify button
+    const withdrawBtn = widget.querySelector('#dpdpa-withdraw-btn');
+    if (withdrawBtn) {
+      withdrawBtn.addEventListener('click', () => {
+        ConsentStorage.delete(`consently_dpdpa_consent_${widgetId}`);
+        // keep widget open for modifications
+      });
+    }
+
+    // Grievance button
+    const grievanceBtn = widget.querySelector('#dpdpa-grievance-btn');
+    if (grievanceBtn) {
+      grievanceBtn.addEventListener('click', () => openGrievanceForm());
+    }
 
     // Reject all button
     const rejectAllBtn = widget.querySelector('#dpdpa-reject-all-btn');
@@ -480,6 +499,7 @@
     const consentData = {
       widgetId: widgetId,
       visitorId: getVisitorId(),
+      visitorEmail: visitorEmail || undefined,
       consentStatus: finalStatus,
       acceptedActivities: acceptedActivities,
       rejectedActivities: rejectedActivities,
@@ -513,6 +533,9 @@
       // Apply consent
       applyConsent(storageData);
 
+      // Offer receipt options
+      try { showReceiptOptions(storageData); } catch (e) { /* noop */ }
+
       // Hide widget
       hideWidget(overlay);
 
@@ -542,6 +565,85 @@
     return div.innerHTML;
   }
 
+  function downloadConsentReceipt(consent) {
+    const blob = new Blob([JSON.stringify({ widgetId, ...consent }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dpdpa-consent-${widgetId}-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function openGrievanceForm() {
+    // Simple modal form
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000000;display:flex;align-items:center;justify-content:center;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:12px;max-width:480px;width:92%;padding:16px;font-family:system-ui,sans-serif;';
+    modal.innerHTML = `
+      <h3 style="margin:0 0 8px 0;font-size:16px;color:#111827;font-weight:700;">Raise a Grievance</h3>
+      <p style="margin:0 0 12px 0;color:#374151;font-size:13px;">Describe your issue or request. We will review it within 72 hours.</p>
+      <input id="g-email" type="email" placeholder="Email (optional)" value="${visitorEmail || ''}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;font-size:13px;" />
+      <textarea id="g-message" rows="4" placeholder="Your message" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+        <button id="g-cancel" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer;">Cancel</button>
+        <button id="g-submit" style="padding:8px 12px;border:none;border-radius:8px;background:#3b82f6;color:#fff;cursor:pointer;font-weight:600;">Submit</button>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    modal.querySelector('#g-cancel').addEventListener('click', () => document.body.removeChild(overlay));
+    modal.querySelector('#g-submit').addEventListener('click', async () => {
+      const email = (modal.querySelector('#g-email')).value || null;
+      const message = (modal.querySelector('#g-message')).value?.trim();
+      if (!message) { alert('Please enter a message.'); return; }
+      try {
+        const scriptSrc = currentScript.src;
+        const apiBase = scriptSrc && scriptSrc.includes('http') ? new URL(scriptSrc).origin : window.location.origin;
+        const res = await fetch(`${apiBase}/api/dpdpa/grievances`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ widgetId, email, message })
+        });
+        if (!res.ok) throw new Error('Failed');
+        alert('Your request has been captured and we will take action within 72 hours.');
+        document.body.removeChild(overlay);
+      } catch (e) {
+        alert('Failed to submit. Please try again later.');
+      }
+    });
+  }
+
+  function showReceiptOptions(consent) {
+    const bar = document.createElement('div');
+    bar.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:999999;background:#111827;color:#fff;padding:10px 14px;border-radius:9999px;display:flex;gap:8px;align-items:center;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);font-family:system-ui,sans-serif;font-size:13px;`;
+    bar.innerHTML = `
+      <span style="opacity:.9">Consent saved.</span>
+      <button id="dpdpa-download-receipt" style="background:#10b981;border:none;color:#fff;padding:6px 10px;border-radius:9999px;cursor:pointer;font-weight:600;">Download receipt</button>
+      ${visitorEmail ? `<button id="dpdpa-email-receipt" style="background:#3b82f6;border:none;color:#fff;padding:6px 10px;border-radius:9999px;cursor:pointer;font-weight:600;">Email me a copy</button>` : ''}
+      <button id="dpdpa-receipt-close" style="background:transparent;border:none;color:#fff;opacity:.7;margin-left:4px;cursor:pointer;">✕</button>
+    `;
+    document.body.appendChild(bar);
+    bar.querySelector('#dpdpa-download-receipt').addEventListener('click', () => {
+      downloadConsentReceipt(consent);
+    });
+    const emailBtn = bar.querySelector('#dpdpa-email-receipt');
+    if (emailBtn) {
+      emailBtn.addEventListener('click', () => {
+        const body = encodeURIComponent(JSON.stringify({ widgetId, ...consent }, null, 2));
+        window.location.href = `mailto:${visitorEmail}?subject=Your DPDPA Consent Receipt&body=${body}`;
+      });
+    }
+    bar.querySelector('#dpdpa-receipt-close').addEventListener('click', () => {
+      document.body.removeChild(bar);
+    });
+    setTimeout(() => {
+      if (document.body.contains(bar)) document.body.removeChild(bar);
+    }, 10000);
+  }
+
   // Public API
   window.consentlyDPDPA = {
     show: function() {
@@ -560,6 +662,15 @@
     withdraw: function() {
       this.clearConsent();
       this.show();
+    },
+    
+    setUserEmail: function(email) {
+      visitorEmail = email || null;
+    },
+    
+    downloadReceipt: function() {
+      const consent = this.getConsent();
+      if (consent) downloadConsentReceipt(consent);
     }
   };
 

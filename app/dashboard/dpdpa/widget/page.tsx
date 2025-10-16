@@ -21,7 +21,13 @@ import {
   Plus,
   ExternalLink,
   Globe,
-  Palette
+  Palette,
+  Sparkles,
+  Info,
+  Play,
+  FileCode,
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -66,6 +72,7 @@ interface WidgetConfig {
 export default function DPDPAWidgetPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [activities, setActivities] = useState<ProcessingActivity[]>([]);
   const [config, setConfig] = useState<WidgetConfig>({
     name: 'My DPDPA Widget',
@@ -95,6 +102,14 @@ export default function DPDPAWidgetPage() {
     language: 'en'
   });
   const [copySuccess, setCopySuccess] = useState(false);
+
+  const themePresets = [
+    { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
+    { name: 'Professional Dark', primaryColor: '#6366f1', backgroundColor: '#1f2937', textColor: '#f9fafb' },
+    { name: 'Modern Purple', primaryColor: '#8b5cf6', backgroundColor: '#faf5ff', textColor: '#581c87' },
+    { name: 'Fresh Green', primaryColor: '#10b981', backgroundColor: '#ffffff', textColor: '#064e3b' },
+    { name: 'Elegant Rose', primaryColor: '#f43f5e', backgroundColor: '#fff1f2', textColor: '#881337' },
+  ];
 
   useEffect(() => {
     fetchData();
@@ -138,7 +153,8 @@ export default function DPDPAWidgetPage() {
             requireExplicitConsent: existingConfig.require_explicit_consent,
             showDataSubjectsRights: existingConfig.show_data_subjects_rights,
             showBranding: existingConfig.show_branding,
-            isActive: existingConfig.is_active
+            isActive: existingConfig.is_active,
+            language: existingConfig.language || 'en'
           });
         }
       }
@@ -217,145 +233,237 @@ export default function DPDPAWidgetPage() {
     setTimeout(() => setCopySuccess(false), 3000);
   };
 
+  const applyThemePreset = (preset: typeof themePresets[0]) => {
+    setConfig({
+      ...config,
+      theme: {
+        ...config.theme,
+        primaryColor: preset.primaryColor,
+        backgroundColor: preset.backgroundColor,
+        textColor: preset.textColor
+      }
+    });
+    toast.success(`Applied ${preset.name} theme`);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-xl opacity-20 animate-pulse"></div>
+          <Loader2 className="relative animate-spin h-12 w-12 text-blue-600" />
+        </div>
+        <p className="text-sm text-gray-500 animate-pulse">Loading your consent configuration...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">DPDPA Consent Widget</h1>
-          <p className="text-gray-600 mt-2">
-            Configure your DPDPA 2023 compliant consent widget to collect granular user consent
-          </p>
+    <div className="space-y-8 pb-12">
+      {/* Enhanced Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border border-blue-100/50">
+        <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] opacity-30"></div>
+        <div className="relative px-8 py-8">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+                    DPDPA Consent Widget
+                  </h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant={config.isActive ? 'default' : 'secondary'} className="shadow-sm">
+                      <span className={`w-2 h-2 rounded-full mr-1.5 ${config.isActive ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></span>
+                      {config.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {config.widgetId && (
+                      <Badge variant="outline" className="shadow-sm">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Configured
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-600 max-w-2xl leading-relaxed">
+                Configure your DPDPA 2023 compliant consent widget to collect granular user consent.
+                Customize appearance, behavior, and processing activities to match your requirements.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {config.widgetId && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowPreview(!showPreview)}
+                  className="shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  {showPreview ? 'Hide' : 'Preview'}
+                </Button>
+              )}
+              <Button 
+                onClick={handleSave} 
+                disabled={saving}
+                size="lg"
+                className="shadow-lg hover:shadow-xl transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Configuration
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              Save Configuration
-            </>
-          )}
-        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      {/* Configuration Grid */}
+      <div className="grid gap-8 lg:grid-cols-3">
         {/* Configuration Form */}
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Settings */}
-          <Card>
-            <CardHeader>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
+            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
               <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Settings className="h-5 w-5 text-blue-600" />
+                </div>
                 Basic Settings
               </CardTitle>
-              <CardDescription>Configure basic widget settings</CardDescription>
+              <CardDescription>Configure basic widget settings and metadata</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            <CardContent className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Widget Name
                 </label>
                 <Input
                   value={config.name}
                   onChange={(e) => setConfig({ ...config, name: e.target.value })}
                   placeholder="My DPDPA Widget"
+                  className="transition-all focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Internal name for identification
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Domain <span className="text-red-500">*</span>
                 </label>
                 <Input
                   value={config.domain}
                   onChange={(e) => setConfig({ ...config, domain: e.target.value })}
                   placeholder="example.com"
+                  className="transition-all focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  The domain where this widget will be deployed
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Globe className="h-3 w-3" />
+                  The domain where this widget will be deployed (without https://)
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title
-                </label>
-                <Input
-                  value={config.title}
-                  onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                  placeholder="Your Data Privacy Rights"
-                />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    Title
+                  </label>
+                  <Input
+                    value={config.title}
+                    onChange={(e) => setConfig({ ...config, title: e.target.value })}
+                    placeholder="Your Data Privacy Rights"
+                    className="transition-all focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Globe className="h-4 w-4 text-gray-500" />
+                    Language
+                  </label>
+                  <Select
+                    value={config.language}
+                    onChange={(e) => setConfig({ ...config, language: e.target.value })}
+                    options={[
+                      { value: 'en', label: '🇬🇧 English' },
+                      { value: 'hi', label: '🇮🇳 हिन्दी' },
+                      { value: 'bn', label: '🇧🇩 বাংলা' },
+                      { value: 'ta', label: '🇮🇳 தமிழ்' },
+                      { value: 'te', label: '🇮🇳 తెలుగు' },
+                      { value: 'mr', label: '🇮🇳 मराठी' },
+                    ]}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Message
                 </label>
                 <Textarea
                   value={config.message}
                   onChange={(e) => setConfig({ ...config, message: e.target.value })}
-                  placeholder="We process your personal data..."
-                  rows={3}
+                  placeholder="We process your personal data with your consent. Please review the activities below..."
+                  rows={4}
+                  className="transition-all focus:ring-2 focus:ring-blue-500 resize-none"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-gray-500" />
-                    Widget Language
-                  </div>
-                </label>
-                <Select
-                  value={config.language}
-                  onChange={(e) => setConfig({ ...config, language: e.target.value })}
-                  options={[
-                    { value: 'en', label: 'English' },
-                    { value: 'hi', label: 'हिन्दी (Hindi)' },
-                    { value: 'bn', label: 'বাংলা (Bengali)' },
-                    { value: 'ta', label: 'தமிழ் (Tamil)' },
-                    { value: 'te', label: 'తెలుగు (Telugu)' },
-                    { value: 'mr', label: 'मराठी (Marathi)' },
-                  ]}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Display language for consent widget text
+                <p className="text-xs text-gray-500">
+                  {config.message.length} characters
                 </p>
               </div>
+
             </CardContent>
           </Card>
 
           {/* Processing Activities Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Select Processing Activities
-              </CardTitle>
-              <CardDescription>
-                Choose which processing activities to display in the widget
-              </CardDescription>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
+            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <Shield className="h-5 w-5 text-indigo-600" />
+                    </div>
+                    Select Processing Activities
+                  </CardTitle>
+                  <CardDescription className="mt-2">
+                    Choose which processing activities to display in the widget
+                  </CardDescription>
+                </div>
+                {config.selectedActivities.length > 0 && (
+                  <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
+                    {config.selectedActivities.length} selected
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {activities.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">No processing activities found</p>
-                  <Button variant="outline" asChild>
+                <div className="text-center py-12">
+                  <div className="flex justify-center mb-4">
+                    <div className="p-4 bg-gray-100 rounded-full">
+                      <Shield className="h-10 w-10 text-gray-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Processing Activities</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                    Create processing activities to start collecting consent from your users
+                  </p>
+                  <Button variant="default" asChild className="shadow-lg">
                     <a href="/dashboard/dpdpa/activities">
                       <Plus className="mr-2 h-4 w-4" />
-                      Create Activities
+                      Create Your First Activity
                     </a>
                   </Button>
                 </div>
@@ -364,38 +472,48 @@ export default function DPDPAWidgetPage() {
                   {activities.map((activity) => (
                     <div
                       key={activity.id}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      className={`group relative border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 ${
                         config.selectedActivities.includes(activity.id)
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-blue-50 shadow-md scale-[1.02]'
+                          : 'border-gray-200 hover:border-indigo-300 hover:shadow-sm hover:scale-[1.01]'
                       }`}
                       onClick={() => handleActivityToggle(activity.id)}
                     >
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={config.selectedActivities.includes(activity.id)}
-                          onChange={() => handleActivityToggle(activity.id)}
-                        />
+                      {config.selectedActivities.includes(activity.id) && (
+                        <div className="absolute top-3 right-3">
+                          <CheckCircle className="h-5 w-5 text-indigo-600" />
+                        </div>
+                      )}
+                      <div className="flex items-start gap-4">
+                        <div className="mt-0.5">
+                          <Checkbox
+                            checked={config.selectedActivities.includes(activity.id)}
+                            onChange={() => handleActivityToggle(activity.id)}
+                            className="h-5 w-5"
+                          />
+                        </div>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-gray-900">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-semibold text-gray-900 text-base">
                               {activity.activity_name}
                             </h4>
-                            <Badge variant="secondary">{activity.industry}</Badge>
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                              {activity.industry}
+                            </Badge>
                           </div>
-                          <p className="text-sm text-gray-600 mb-2">{activity.purpose}</p>
-                          <div className="flex flex-wrap gap-1">
-                            {activity.data_attributes.slice(0, 3).map((attr, i) => (
+                          <p className="text-sm text-gray-600 mb-3 leading-relaxed">{activity.purpose}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {activity.data_attributes.slice(0, 4).map((attr, i) => (
                               <span
                                 key={i}
-                                className="text-xs px-2 py-1 bg-gray-100 rounded"
+                                className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md font-medium text-gray-700"
                               >
                                 {attr}
                               </span>
                             ))}
-                            {activity.data_attributes.length > 3 && (
-                              <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                                +{activity.data_attributes.length - 3} more
+                            {activity.data_attributes.length > 4 && (
+                              <span className="text-xs px-2.5 py-1 bg-gradient-to-r from-gray-100 to-gray-200 rounded-md font-medium text-gray-700">
+                                +{activity.data_attributes.length - 4} more
                               </span>
                             )}
                           </div>
@@ -409,176 +527,336 @@ export default function DPDPAWidgetPage() {
           </Card>
 
           {/* Appearance */}
-          <Card>
-            <CardHeader>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
+            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
               <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Appearance
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Palette className="h-5 w-5 text-purple-600" />
+                </div>
+                Appearance & Theme
               </CardTitle>
-              <CardDescription>Customize the widget appearance</CardDescription>
+              <CardDescription>Customize colors, text, and visual styling</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Primary Color
-                  </label>
-                  <Input
-                    type="color"
-                    value={config.theme.primaryColor}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        theme: { ...config.theme, primaryColor: e.target.value }
-                      })
-                    }
-                  />
+            <CardContent className="space-y-6 pt-6">
+              {/* Theme Presets */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Quick Themes
+                  </div>
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {themePresets.map((preset) => (
+                    <button
+                      key={preset.name}
+                      onClick={() => applyThemePreset(preset)}
+                      className="group relative p-3 border-2 border-gray-200 rounded-xl hover:border-indigo-300 transition-all hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div 
+                          className="w-6 h-6 rounded-full shadow-sm" 
+                          style={{ backgroundColor: preset.primaryColor }}
+                        ></div>
+                        <div 
+                          className="w-4 h-4 rounded border" 
+                          style={{ backgroundColor: preset.backgroundColor }}
+                        ></div>
+                        <div 
+                          className="w-4 h-4 rounded" 
+                          style={{ backgroundColor: preset.textColor }}
+                        ></div>
+                      </div>
+                      <p className="text-xs font-medium text-gray-700 text-left group-hover:text-indigo-600 transition-colors">
+                        {preset.name}
+                      </p>
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Background
-                  </label>
-                  <Input
-                    type="color"
-                    value={config.theme.backgroundColor}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        theme: { ...config.theme, backgroundColor: e.target.value }
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Text Color
-                  </label>
-                  <Input
-                    type="color"
-                    value={config.theme.textColor}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        theme: { ...config.theme, textColor: e.target.value }
-                      })
-                    }
-                  />
+              </div>
+              {/* Color Customization */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Custom Colors
+                </label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-600 font-medium">Primary Color</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="color"
+                        value={config.theme.primaryColor}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            theme: { ...config.theme, primaryColor: e.target.value }
+                          })
+                        }
+                        className="h-12 cursor-pointer"
+                      />
+                      <Input
+                        type="text"
+                        value={config.theme.primaryColor}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            theme: { ...config.theme, primaryColor: e.target.value }
+                          })
+                        }
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-600 font-medium">Background</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="color"
+                        value={config.theme.backgroundColor}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            theme: { ...config.theme, backgroundColor: e.target.value }
+                          })
+                        }
+                        className="h-12 cursor-pointer"
+                      />
+                      <Input
+                        type="text"
+                        value={config.theme.backgroundColor}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            theme: { ...config.theme, backgroundColor: e.target.value }
+                          })
+                        }
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-600 font-medium">Text Color</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="color"
+                        value={config.theme.textColor}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            theme: { ...config.theme, textColor: e.target.value }
+                          })
+                        }
+                        className="h-12 cursor-pointer"
+                      />
+                      <Input
+                        type="text"
+                        value={config.theme.textColor}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            theme: { ...config.theme, textColor: e.target.value }
+                          })
+                        }
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Accept Button Text
-                  </label>
+              {/* Button Text & Styling */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Accept Button Text</label>
                   <Input
                     value={config.acceptButtonText}
                     onChange={(e) =>
                       setConfig({ ...config, acceptButtonText: e.target.value })
                     }
+                    className="transition-all focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reject Button Text
-                  </label>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Reject Button Text</label>
                   <Input
                     value={config.rejectButtonText}
                     onChange={(e) =>
                       setConfig({ ...config, rejectButtonText: e.target.value })
                     }
+                    className="transition-all focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Border Radius
-                  </label>
-                  <Input
-                    type="number"
-                    value={config.theme.borderRadius}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        theme: { ...config.theme, borderRadius: parseInt(e.target.value) || 12 }
-                      })
-                    }
-                  />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Border Radius: {config.theme.borderRadius}px
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="24"
+                  value={config.theme.borderRadius}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      theme: { ...config.theme, borderRadius: parseInt(e.target.value) }
+                    })
+                  }
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Sharp</span>
+                  <span>Rounded</span>
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                <p className="text-xs font-medium text-gray-500 mb-3">PREVIEW</p>
+                <div 
+                  className="p-4 shadow-lg"
+                  style={{
+                    backgroundColor: config.theme.backgroundColor,
+                    color: config.theme.textColor,
+                    borderRadius: `${config.theme.borderRadius}px`
+                  }}
+                >
+                  <h3 className="font-semibold mb-2">{config.title}</h3>
+                  <p className="text-sm opacity-80 mb-3">{config.message.substring(0, 60)}...</p>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-4 py-2 rounded text-sm font-medium text-white"
+                      style={{ 
+                        backgroundColor: config.theme.primaryColor,
+                        borderRadius: `${config.theme.borderRadius}px`
+                      }}
+                    >
+                      {config.acceptButtonText}
+                    </button>
+                    <button
+                      className="px-4 py-2 rounded text-sm font-medium border"
+                      style={{ 
+                        borderColor: config.theme.primaryColor,
+                        color: config.theme.primaryColor,
+                        borderRadius: `${config.theme.borderRadius}px`
+                      }}
+                    >
+                      {config.rejectButtonText}
+                    </button>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Behavior Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Behavior Settings</CardTitle>
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
+            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Zap className="h-5 w-5 text-green-600" />
+                </div>
+                Behavior Settings
+              </CardTitle>
+              <CardDescription>Configure how the widget behaves and appears to users</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Auto Show Widget</p>
-                  <p className="text-sm text-gray-500">Show widget automatically on page load</p>
+            <CardContent className="space-y-6 pt-6">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-start gap-3">
+                  <Play className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-gray-900">Auto Show Widget</p>
+                    <p className="text-sm text-gray-600">Automatically display widget when users visit</p>
+                  </div>
                 </div>
                 <Checkbox
                   checked={config.autoShow}
                   onChange={(e) =>
                     setConfig({ ...config, autoShow: e.target.checked })
                   }
+                  className="h-5 w-5"
                 />
               </div>
 
               {config.autoShow && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Show After Delay (ms)
+                <div className="space-y-2 pl-4 border-l-2 border-green-300">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Show After Delay: {config.showAfterDelay}ms
                   </label>
-                  <Input
-                    type="number"
+                  <input
+                    type="range"
+                    min="0"
+                    max="5000"
+                    step="100"
                     value={config.showAfterDelay}
                     onChange={(e) =>
-                      setConfig({ ...config, showAfterDelay: parseInt(e.target.value) || 0 })
+                      setConfig({ ...config, showAfterDelay: parseInt(e.target.value) })
                     }
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                   />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Instant</span>
+                    <span>5 seconds</span>
+                  </div>
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Consent Duration (days)
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Consent Duration: {config.consentDuration} days
                 </label>
-                <Input
-                  type="number"
+                <input
+                  type="range"
+                  min="30"
+                  max="730"
+                  step="30"
                   value={config.consentDuration}
                   onChange={(e) =>
-                    setConfig({ ...config, consentDuration: parseInt(e.target.value) || 365 })
+                    setConfig({ ...config, consentDuration: parseInt(e.target.value) })
                   }
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>1 month</span>
+                  <span>2 years</span>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Show Data Subject Rights</p>
-                  <p className="text-sm text-gray-500">Display DPDPA rights information</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-gray-900">Show Data Subject Rights</p>
+                      <p className="text-sm text-gray-600">Display DPDPA 2023 rights information</p>
+                    </div>
+                  </div>
+                  <Checkbox
+                    checked={config.showDataSubjectsRights}
+                    onChange={(e) =>
+                      setConfig({ ...config, showDataSubjectsRights: e.target.checked })
+                    }
+                    className="h-5 w-5"
+                  />
                 </div>
-                <Checkbox
-                  checked={config.showDataSubjectsRights}
-                  onChange={(e) =>
-                    setConfig({ ...config, showDataSubjectsRights: e.target.checked })
-                  }
-                />
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Respect Do Not Track</p>
-                  <p className="text-sm text-gray-500">Honor browser DNT settings</p>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-start gap-3">
+                    <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-gray-900">Respect Do Not Track</p>
+                      <p className="text-sm text-gray-600">Honor browser DNT settings</p>
+                    </div>
+                  </div>
+                  <Checkbox
+                    checked={config.respectDNT}
+                    onChange={(e) =>
+                      setConfig({ ...config, respectDNT: e.target.checked })
+                    }
+                    className="h-5 w-5"
+                  />
                 </div>
-                <Checkbox
-                  checked={config.respectDNT}
-                  onChange={(e) =>
-                    setConfig({ ...config, respectDNT: e.target.checked })
-                  }
-                />
               </div>
             </CardContent>
           </Card>
@@ -587,94 +865,159 @@ export default function DPDPAWidgetPage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Integration Code */}
-          <Card>
-            <CardHeader>
+          <Card className="shadow-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+            <CardHeader className="border-b border-blue-200">
               <CardTitle className="flex items-center gap-2">
-                <Code className="h-5 w-5" />
-                Integration Code
+                <div className="p-2 bg-blue-600 rounded-lg">
+                  <FileCode className="h-5 w-5 text-white" />
+                </div>
+                <span>Integration Code</span>
               </CardTitle>
+              <CardDescription className="text-blue-900/70">
+                Add this to your website
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               {config.widgetId ? (
                 <>
-                  <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
-                    <pre>{getEmbedCode()}</pre>
+                  <div className="relative group">
+                    <div className="bg-gray-900 text-gray-100 p-5 rounded-xl text-xs font-mono overflow-x-auto border border-gray-700 shadow-inner">
+                      <pre className="leading-relaxed">{getEmbedCode()}</pre>
+                    </div>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Badge variant="secondary" className="text-xs bg-gray-800 text-gray-300">
+                        HTML
+                      </Badge>
+                    </div>
                   </div>
-                  <Button onClick={copyEmbedCode} className="w-full" variant="outline">
+                  <Button 
+                    onClick={copyEmbedCode} 
+                    className="w-full shadow-md hover:shadow-lg transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    size="lg"
+                  >
                     {copySuccess ? (
                       <>
-                        <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
-                        Copied!
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Copied to Clipboard!
                       </>
                     ) : (
                       <>
                         <Copy className="mr-2 h-4 w-4" />
-                        Copy Code
+                        Copy Embed Code
                       </>
                     )}
                   </Button>
-                  <p className="text-xs text-gray-500">
-                    Add this code just before the closing &lt;/body&gt; tag on your website
-                  </p>
+                  <div className="bg-blue-100 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs text-blue-900 flex items-start gap-2">
+                      <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>Paste this code just before the closing <code className="bg-white px-1 rounded">&lt;/body&gt;</code> tag on your website to activate the widget.</span>
+                    </p>
+                  </div>
                 </>
               ) : (
-                <div className="text-center py-4">
-                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">
-                    Save your configuration to get the embed code
+                <div className="text-center py-8">
+                  <div className="flex justify-center mb-3">
+                    <div className="p-3 bg-gray-200 rounded-full">
+                      <AlertCircle className="h-8 w-8 text-gray-400" />
+                    </div>
+                  </div>
+                  <h4 className="font-semibold text-gray-900 mb-1">No Widget ID Yet</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Save your configuration first to generate the embed code
                   </p>
+                  <Button onClick={handleSave} variant="default" size="sm">
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Now
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Status</CardTitle>
+          {/* Status & Info */}
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5 text-gray-600" />
+                Status & Info
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Active</span>
-                <Badge variant={config.isActive ? 'default' : 'secondary'}>
-                  {config.isActive ? 'Active' : 'Inactive'}
+            <CardContent className="space-y-4 pt-6">
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${config.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                  <span className="text-sm font-semibold text-gray-900">Status</span>
+                </div>
+                <Badge variant={config.isActive ? 'default' : 'secondary'} className="shadow-sm">
+                  {config.isActive ? '✓ Active' : 'Inactive'}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Selected Activities</span>
-                <Badge>{config.selectedActivities.length}</Badge>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-gray-900">Activities</span>
+                </div>
+                <Badge className="bg-blue-600 shadow-sm">{config.selectedActivities.length}</Badge>
               </div>
               {config.widgetId && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Widget ID</span>
-                  <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {config.widgetId.slice(0, 12)}...
+                <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-900">Widget ID</span>
+                    <Badge variant="outline" className="text-xs">UUID</Badge>
+                  </div>
+                  <code className="text-xs bg-white px-2 py-1 rounded border border-purple-200 block overflow-x-auto">
+                    {config.widgetId}
                   </code>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Resources */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Resources</CardTitle>
+          {/* Quick Links */}
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-gray-600" />
+                Quick Links
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-3 pt-6">
               <a
                 href="/docs/dpdpa-widget"
                 target="_blank"
-                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all group"
               >
-                <ExternalLink className="h-4 w-4" />
-                Documentation
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                    <ExternalLink className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">Documentation</span>
+                </div>
+                <Badge variant="secondary" className="text-xs">Guide</Badge>
               </a>
               <a
                 href="/dashboard/dpdpa/activities"
-                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
               >
-                <Settings className="h-4 w-4" />
-                Manage Activities
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                    <Settings className="h-4 w-4 text-indigo-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">Manage Activities</span>
+                </div>
+                <Badge variant="secondary" className="text-xs">Settings</Badge>
+              </a>
+              <a
+                href="/dashboard/dpdpa/records"
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                    <FileCode className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">Consent Records</span>
+                </div>
+                <Badge variant="secondary" className="text-xs">View</Badge>
               </a>
             </CardContent>
           </Card>

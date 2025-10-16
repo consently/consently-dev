@@ -85,6 +85,88 @@ function extractOSInfo(userAgent: string): string {
   return 'Unknown';
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+
+    // Auth required
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const search = searchParams.get('search')?.trim() || '';
+    const status = searchParams.get('status') || 'all';
+    const widgetId = searchParams.get('widgetId') || undefined;
+
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('dpdpa_consent_records')
+      .select('*', { count: 'exact' })
+      .order('consent_timestamp', { ascending: false });
+
+    // Filter by widgets owned by the user
+    const { data: widgets } = await supabase
+      .from('dpdpa_widget_configs')
+      .select('widget_id')
+      .eq('user_id', user.id);
+
+    const widgetIds = (widgets || []).map((w: any) => w.widget_id);
+    if (widgetId) {
+      if (!widgetIds.includes(widgetId)) {
+        return NextResponse.json({ error: 'Widget not found or access denied' }, { status: 404 });
+      }
+      query = query.eq('widget_id', widgetId);
+    } else if (widgetIds.length > 0) {
+      query = query.in('widget_id', widgetIds);
+    } else {
+      return NextResponse.json({ data: [], pagination: { page, limit, total: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false } });
+    }
+
+    if (search) {
+      // search by email or consent id
+      query = query.or(`visitor_email.ilike.%${search}%,id.eq.${search}`);
+    }
+
+    if (status !== 'all') {
+      query = query.eq('consent_status', status);
+    }
+
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+    if (error) {
+      console.error('Error fetching DPDPA consent records:', error);
+      return NextResponse.json({ error: 'Failed to fetch records' }, { status: 500 });
+    }
+
+    const totalPages = Math.ceil((count || 0) / limit);
+
+    return NextResponse.json({
+      data: data || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching DPDPA consent records:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: ConsentRecordRequest = await request.json();
@@ -260,7 +342,7 @@ export async function OPTIONS() {
   return NextResponse.json({}, {
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     }
   });

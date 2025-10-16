@@ -35,6 +35,7 @@ interface ConsentRecord {
   device_type: string;
   country: string;
   consent_timestamp: string;
+  ip_address?: string;
 }
 
 interface ActivityStat {

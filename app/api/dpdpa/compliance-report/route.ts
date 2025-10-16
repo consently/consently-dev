@@ -239,6 +239,30 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (format === 'pdf') {
+      // Generate PDF using generator
+      const { DPDPAReportGenerator } = await import('@/lib/pdf/dpdpa-report-generator');
+      const generator = new DPDPAReportGenerator();
+      const doc = generator.generateReport({
+        reportMetadata: reportData.reportMetadata,
+        summary: reportData.summary,
+        activities: reportData.activities.map((a: any) => ({
+          name: a.name,
+          purpose: a.purpose,
+          acceptanceRate: a.acceptanceRate,
+          totalResponses: a.totalResponses,
+        })),
+        recentConsents: reportData.recentConsents,
+      } as any);
+      const pdf = doc.output('arraybuffer');
+      return new NextResponse(Buffer.from(pdf), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="dpdpa-compliance-report-${widgetId}-${new Date().toISOString().split('T')[0]}.pdf"`,
+        },
+      });
+    }
+
     // Return JSON (default)
     return NextResponse.json(reportData);
 

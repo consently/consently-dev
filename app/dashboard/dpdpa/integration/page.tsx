@@ -67,9 +67,10 @@ export default function IntegrationPage() {
 
   const getEmbedCode = (widgetId: string) => {
     const origin = window.location.origin;
-    return `<!-- Consently DPDPA Widget -->
+return `<!-- Consently DPDPA Widget -->
 <script src="${origin}/dpdpa-widget.js" 
-        data-dpdpa-widget-id="${widgetId}">
+        data-dpdpa-widget-id="${widgetId}"
+        data-dpdpa-email="{{user_email}}"><!-- optional: pass the logged-in user's email -->
 </script>`;
   };
 

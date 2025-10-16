@@ -11,14 +11,13 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 interface ConsentRecord {
-  id: string;
-  visitor_email: string;
-  consent_type: 'cookie' | 'dpdpa';
-  status: 'accepted' | 'rejected' | 'partial' | 'revoked';
-  created_at: string;
-  ip_address?: string;
-  device_type?: string;
-  user_agent?: string;
+  id: string; // unique consent ID
+  visitor_email: string | null;
+  consent_status: 'accepted' | 'rejected' | 'partial' | 'revoked';
+  consent_timestamp: string;
+  ip_address?: string | null;
+  device_type?: string | null;
+  user_agent?: string | null;
 }
 
 const statusIcons = {
@@ -49,7 +48,7 @@ export default function ConsentRecordsPage() {
     fetchRecords();
   }, [searchQuery, statusFilter, typeFilter, dateRange]);
 
-  const fetchRecords = async () => {
+const fetchRecords = async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
@@ -59,10 +58,9 @@ export default function ConsentRecordsPage() {
 
       if (searchQuery) params.append('search', searchQuery);
       if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (typeFilter !== 'all') params.append('type', typeFilter);
-      if (dateRange !== 'all') params.append('range', dateRange);
+      // dateRange and type are not supported yet in this endpoint
 
-      const response = await fetch(`/api/consent/records?${params.toString()}`);
+      const response = await fetch(`/api/dpdpa/consent-record?${params.toString()}`);
       const result = await response.json();
 
       if (!response.ok) {
@@ -82,13 +80,12 @@ export default function ConsentRecordsPage() {
   const handleExport = () => {
     // Implement CSV export
     const csv = [
-      ['ID', 'Email', 'Type', 'Status', 'Timestamp', 'IP Address', 'Device'],
+      ['ID', 'Email', 'Status', 'Timestamp', 'IP Address', 'Device'],
       ...records.map((r) => [
         r.id,
         r.visitor_email,
-        r.consent_type,
-        r.status,
-        r.created_at,
+        r.consent_status,
+        r.consent_timestamp,
         r.ip_address || 'N/A',
         r.device_type || 'N/A',
       ]),
@@ -131,7 +128,7 @@ export default function ConsentRecordsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {records.filter((r) => r.status === 'accepted').length}
+              {records.filter((r) => r.consent_status === 'accepted').length}
             </div>
           </CardContent>
         </Card>
@@ -142,7 +139,7 @@ export default function ConsentRecordsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {records.filter((r) => r.status === 'rejected').length}
+              {records.filter((r) => r.consent_status === 'rejected').length}
             </div>
           </CardContent>
         </Card>
@@ -158,7 +155,7 @@ export default function ConsentRecordsPage() {
             <div className="md:col-span-2">
               <Input
                 type="text"
-                placeholder="Search by email..."
+placeholder="Search by email or consent ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 label="Search"
@@ -205,7 +202,7 @@ export default function ConsentRecordsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Consent Records</CardTitle>
+<CardTitle>DPDPA Consent Records</CardTitle>
             <CardDescription>
               {records.length} record{records.length !== 1 ? 's' : ''} found
             </CardDescription>
@@ -220,8 +217,8 @@ export default function ConsentRecordsPage() {
             <table className="w-full">
               <thead className="border-b bg-gray-50/50">
                 <tr>
+<th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Consent ID</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Email</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Type</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Timestamp</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">IP Address</th>
@@ -244,28 +241,24 @@ export default function ConsentRecordsPage() {
                     </td>
                   </tr>
                 ) : (
-                  records.map((record) => (
+records.map((record) => (
                     <tr key={record.id} className="border-b transition-colors hover:bg-gray-50/50">
-                      <td className="p-4 align-middle font-medium">{record.visitor_email}</td>
-                      <td className="p-4 align-middle">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {record.consent_type}
-                        </span>
-                      </td>
+                      <td className="p-4 align-middle font-mono text-sm">{record.id}</td>
+                      <td className="p-4 align-middle font-medium">{record.visitor_email || 'N/A'}</td>
                       <td className="p-4 align-middle">
                         <div className="flex items-center gap-2">
-                          {statusIcons[record.status]}
+                          {statusIcons[record.consent_status]}
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              statusColors[record.status]
+                              statusColors[record.consent_status]
                             }`}
                           >
-                            {record.status}
+                            {record.consent_status}
                           </span>
                         </div>
                       </td>
                       <td className="p-4 align-middle text-gray-600">
-                        {format(new Date(record.created_at), 'MMM d, yyyy HH:mm')}
+                        {format(new Date(record.consent_timestamp), 'MMM d, yyyy HH:mm')}
                       </td>
                       <td className="p-4 align-middle text-gray-600 font-mono text-sm">
                         {record.ip_address || 'N/A'}
