@@ -19,7 +19,11 @@ import {
   Monitor,
   Tablet,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  FileText,
+  FileJson,
+  Table as TableIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -58,6 +62,8 @@ export default function AnalyticsPage() {
   const [activityStats, setActivityStats] = useState<ActivityStat[]>([]);
   const [recentConsents, setRecentConsents] = useState<ConsentRecord[]>([]);
   const [dateRange, setDateRange] = useState('7d'); // 7d, 30d, 90d, all
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchWidgets();
@@ -109,21 +115,60 @@ export default function AnalyticsPage() {
     }
   };
 
-  const exportData = () => {
-    const dataStr = JSON.stringify({
-      stats,
-      activityStats,
-      recentConsents,
-      exportedAt: new Date().toISOString()
-    }, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `consent-analytics-${widgetId}-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success('Analytics data exported successfully');
+  const exportData = async (format: 'json' | 'csv' | 'pdf' = 'json') => {
+    try {
+      setExporting(true);
+      setShowExportMenu(false);
+      if (format === 'json') {
+        const dataStr = JSON.stringify({
+          stats,
+          activityStats,
+          recentConsents,
+          exportedAt: new Date().toISOString()
+        }, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `consent-analytics-${widgetId}-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success('Analytics data exported successfully');
+      } else if (format === 'csv' || format === 'pdf') {
+        // Fetch comprehensive report from API
+        const response = await fetch(`/api/dpdpa/compliance-report?widgetId=${widgetId}&range=${dateRange}&format=${format}`);
+        
+        if (!response.ok) {
+          throw new Error('Export failed');
+        }
+
+        if (format === 'csv') {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `dpdpa-compliance-report-${widgetId}-${new Date().toISOString().split('T')[0]}.csv`;
+          link.click();
+          URL.revokeObjectURL(url);
+          toast.success('CSV report exported successfully');
+        } else if (format === 'pdf') {
+          // For PDF, we need to import the generator client-side
+          const reportData = await response.json();
+          
+          // Dynamically import PDF generator
+          const { DPDPAReportGenerator } = await import('@/lib/pdf/dpdpa-report-generator');
+          const generator = new DPDPAReportGenerator();
+          generator.generateReport(reportData);
+          generator.save(`dpdpa-compliance-report-${widgetId}-${new Date().toISOString().split('T')[0]}.pdf`);
+          toast.success('PDF report generated successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export data');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getDeviceIcon = (deviceType: string) => {
@@ -192,10 +237,46 @@ export default function AnalyticsPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline" onClick={exportData}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={exporting}
+            >
+              {exporting ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Export
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </Button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <button
+                  onClick={() => exportData('json')}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <FileJson className="h-4 w-4 mr-3 text-blue-600" />
+                  Export as JSON
+                </button>
+                <button
+                  onClick={() => exportData('csv')}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <TableIcon className="h-4 w-4 mr-3 text-green-600" />
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => exportData('pdf')}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <FileText className="h-4 w-4 mr-3 text-red-600" />
+                  Export as PDF
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -391,35 +472,43 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="space-y-3">
                   {recentConsents.map((consent) => (
-                    <div key={consent.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="flex items-center gap-2">
-                          {getDeviceIcon(consent.device_type)}
-                          <span className="text-xs text-gray-500">{consent.device_type || 'Unknown'}</span>
-                        </div>
-                        
-                        <Badge className={`${getStatusColor(consent.consent_status)} border`}>
-                          {consent.consent_status}
-                        </Badge>
-                        
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          {consent.accepted_activities.length} accepted
-                          <XCircle className="h-4 w-4 text-red-600 ml-2" />
-                          {consent.rejected_activities.length} rejected
-                        </div>
-
-                        {consent.country && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Globe className="h-3 w-3" />
-                            {consent.country}
+                    <div key={consent.id} className="p-3 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="flex items-center gap-2">
+                            {getDeviceIcon(consent.device_type)}
+                            <span className="text-xs text-gray-500">{consent.device_type || 'Unknown'}</span>
                           </div>
-                        )}
+                          
+                          <Badge className={`${getStatusColor(consent.consent_status)} border`}>
+                            {consent.consent_status}
+                          </Badge>
+                          
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            {consent.accepted_activities.length} accepted
+                            <XCircle className="h-4 w-4 text-red-600 ml-2" />
+                            {consent.rejected_activities.length} rejected
+                          </div>
+
+                          {consent.country && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Globe className="h-3 w-3" />
+                              {consent.country}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="text-xs text-gray-500">
+                          {new Date(consent.consent_timestamp).toLocaleDateString()} {new Date(consent.consent_timestamp).toLocaleTimeString()}
+                        </div>
                       </div>
-                      
-                      <div className="text-xs text-gray-500">
-                        {new Date(consent.consent_timestamp).toLocaleDateString()} {new Date(consent.consent_timestamp).toLocaleTimeString()}
-                      </div>
+                      {consent.ip_address && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500 pl-6">
+                          <span className="font-medium">IP:</span>
+                          <code className="bg-gray-100 px-2 py-0.5 rounded font-mono">{consent.ip_address}</code>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

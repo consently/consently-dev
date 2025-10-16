@@ -36,7 +36,9 @@ const navigation = [
     name: 'DPDPA Consent',
     icon: FileText,
     children: [
+      { name: 'Dashboard', href: '/dashboard/dpdpa' },
       { name: 'Processing Activities', href: '/dashboard/dpdpa/activities' },
+      { name: 'Widget Configuration', href: '/dashboard/dpdpa/widget' },
       { name: 'Consent Records', href: '/dashboard/dpdpa/records' },
     ],
   },

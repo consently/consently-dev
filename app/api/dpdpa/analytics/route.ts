@@ -159,6 +159,7 @@ export async function GET(request: NextRequest) {
         rejected_activities: consent.rejected_activities || [],
         device_type: consent.device_type,
         country: consent.country,
+        ip_address: consent.ip_address,
         consent_timestamp: consent.consent_timestamp,
       })) || [];
 

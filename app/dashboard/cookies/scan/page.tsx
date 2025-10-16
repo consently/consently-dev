@@ -130,7 +130,7 @@ export default function CookieScanPage() {
       
       setScanComplete(true);
       setScanProgress('');
-      toast.success(`Found ${cookies.length} cookies across ${result.data.pagesScanned || 1} page(s)`);
+      toast.success(`Found ${cookies.length} cookies`);
       
       // Reload scan history
       loadScanHistory();
@@ -234,8 +234,7 @@ export default function CookieScanPage() {
       doc.text(`Total Cookies: ${scannedCookies.length}`, 14, 49);
       
       if (scanMetrics) {
-        doc.text(`Pages Scanned: ${scanMetrics.pagesScanned}`, 14, 56);
-        doc.text(`Compliance Score: ${scanMetrics.complianceScore}%`, 14, 63);
+        doc.text(`Compliance Score: ${scanMetrics.complianceScore}%`, 14, 56);
       }
       
       // Add category summary
@@ -600,7 +599,7 @@ export default function CookieScanPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{scannedCookies.length}</div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {scanMetrics?.pagesScanned || 1} page(s) scanned
+                  Detected cookies
                 </p>
               </CardContent>
             </Card>
@@ -658,7 +657,7 @@ export default function CookieScanPage() {
                 <CardTitle className="text-base">Scan Metrics</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">First-party cookies:</span>
                     <span className="ml-2 font-semibold">{scanMetrics.firstPartyCount}</span>
@@ -666,10 +665,6 @@ export default function CookieScanPage() {
                   <div>
                     <span className="text-gray-600">Third-party cookies:</span>
                     <span className="ml-2 font-semibold">{scanMetrics.thirdPartyCount}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Pages scanned:</span>
-                    <span className="ml-2 font-semibold">{scanMetrics.pagesScanned}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Scanned URL:</span>

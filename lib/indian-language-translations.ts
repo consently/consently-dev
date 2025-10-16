@@ -1,0 +1,310 @@
+/**
+ * Indian Language Translation Templates
+ * Pre-configured translations for major Indian languages
+ */
+
+export interface ConsentTranslation {
+  language_code: string;
+  language_name: string;
+  is_rtl: boolean;
+  translations: {
+    banner: {
+      title: string;
+      message: string;
+      accept_button: string;
+      reject_button: string;
+      settings_button: string;
+      privacy_policy_link: string;
+    };
+    settings_modal: {
+      title: string;
+      description: string;
+      save_button: string;
+      accept_all_button: string;
+      reject_all_button: string;
+      close_button: string;
+    };
+    categories: {
+      necessary: {
+        name: string;
+        description: string;
+      };
+      functional: {
+        name: string;
+        description: string;
+      };
+      analytics: {
+        name: string;
+        description: string;
+      };
+      advertising: {
+        name: string;
+        description: string;
+      };
+    };
+    messages: {
+      consent_saved: string;
+      consent_updated: string;
+      error_message: string;
+    };
+  };
+}
+
+export const INDIAN_LANGUAGE_TRANSLATIONS: ConsentTranslation[] = [
+  // Hindi
+  {
+    language_code: 'hi',
+    language_name: 'हिन्दी',
+    is_rtl: false,
+    translations: {
+      banner: {
+        title: 'हम कुकीज़ का उपयोग करते हैं',
+        message: 'हम आपके ब्राउज़िंग अनुभव को बेहतर बनाने, वैयक्तिकृत विज्ञापन या सामग्री प्रदान करने और हमारे ट्रैफ़िक का विश्लेषण करने के लिए कुकीज़ का उपयोग करते हैं।',
+        accept_button: 'सभी स्वीकार करें',
+        reject_button: 'सभी अस्वीकार करें',
+        settings_button: 'कुकी सेटिंग्स',
+        privacy_policy_link: 'गोपनीयता नीति',
+      },
+      settings_modal: {
+        title: 'कुकी सेटिंग्स',
+        description: 'हम आपके अनुभव को बेहतर बनाने के लिए कुकीज़ का उपयोग करते हैं। चुनें कि आप कौन सी कुकीज़ स्वीकार करना चाहते हैं।',
+        save_button: 'प्राथमिकताएं सहेजें',
+        accept_all_button: 'सभी स्वीकार करें',
+        reject_all_button: 'सभी अस्वीकार करें',
+        close_button: 'बंद करें',
+      },
+      categories: {
+        necessary: {
+          name: 'आवश्यक',
+          description: 'ये कुकीज़ वेबसाइट के सही ढंग से काम करने के लिए आवश्यक हैं।',
+        },
+        functional: {
+          name: 'कार्यात्मक',
+          description: 'ये कुकीज़ उन्नत कार्यक्षमता और वैयक्तिकरण को सक्षम करती हैं।',
+        },
+        analytics: {
+          name: 'विश्लेषणात्मक',
+          description: 'ये कुकीज़ हमें यह समझने में मदद करती हैं कि आगंतुक हमारी वेबसाइट के साथ कैसे इंटरैक्ट करते हैं।',
+        },
+        advertising: {
+          name: 'विज्ञापन',
+          description: 'इन कुकीज़ का उपयोग प्रासंगिक विज्ञापन प्रदान करने के लिए किया जाता है।',
+        },
+      },
+      messages: {
+        consent_saved: 'आपकी प्राथमिकताएं सहेज ली गई हैं।',
+        consent_updated: 'आपकी प्राथमिकताएं अपडेट कर दी गई हैं।',
+        error_message: 'एक त्रुटि हुई। कृपया पुनः प्रयास करें।',
+      },
+    },
+  },
+  // Bengali
+  {
+    language_code: 'bn',
+    language_name: 'বাংলা',
+    is_rtl: false,
+    translations: {
+      banner: {
+        title: 'আমরা কুকিজ ব্যবহার করি',
+        message: 'আমরা আপনার ব্রাউজিং অভিজ্ঞতা উন্নত করতে, ব্যক্তিগতকৃত বিজ্ঞাপন বা বিষয়বস্তু পরিবেশন করতে এবং আমাদের ট্রাফিক বিশ্লেষণ করতে কুকিজ ব্যবহার করি।',
+        accept_button: 'সব গ্রহণ করুন',
+        reject_button: 'সব প্রত্যাখ্যান করুন',
+        settings_button: 'কুকি সেটিংস',
+        privacy_policy_link: 'গোপনীয়তা নীতি',
+      },
+      settings_modal: {
+        title: 'কুকি সেটিংস',
+        description: 'আমরা আপনার অভিজ্ঞতা উন্নত করতে কুকিজ ব্যবহার করি। আপনি কোন কুকিজ গ্রহণ করতে চান তা চয়ন করুন।',
+        save_button: 'পছন্দ সংরক্ষণ করুন',
+        accept_all_button: 'সব গ্রহণ করুন',
+        reject_all_button: 'সব প্রত্যাখ্যান করুন',
+        close_button: 'বন্ধ করুন',
+      },
+      categories: {
+        necessary: {
+          name: 'প্রয়োজনীয়',
+          description: 'এই কুকিজগুলি ওয়েবসাইটটি সঠিকভাবে কাজ করার জন্য অপরিহার্য।',
+        },
+        functional: {
+          name: 'কার্যকরী',
+          description: 'এই কুকিজগুলি উন্নত কার্যকারিতা এবং ব্যক্তিগতকরণ সক্ষম করে।',
+        },
+        analytics: {
+          name: 'বিশ্লেষণাত্মক',
+          description: 'এই কুকিজগুলি আমাদের বুঝতে সাহায্য করে যে দর্শকরা আমাদের ওয়েবসাইটের সাথে কীভাবে ইন্টারঅ্যাক্ট করে।',
+        },
+        advertising: {
+          name: 'বিজ্ঞাপন',
+          description: 'এই কুকিজগুলি প্রাসঙ্গিক বিজ্ঞাপন সরবরাহ করতে ব্যবহৃত হয়।',
+        },
+      },
+      messages: {
+        consent_saved: 'আপনার পছন্দ সংরক্ষিত হয়েছে।',
+        consent_updated: 'আপনার পছন্দ আপডেট করা হয়েছে।',
+        error_message: 'একটি ত্রুটি ঘটেছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
+      },
+    },
+  },
+  // Tamil
+  {
+    language_code: 'ta',
+    language_name: 'தமிழ்',
+    is_rtl: false,
+    translations: {
+      banner: {
+        title: 'நாங்கள் குக்கீகளைப் பயன்படுத்துகிறோம்',
+        message: 'உங்கள் உலாவல் அனுபவத்தை மேம்படுத்தவும், தனிப்பயனாக்கப்பட்ட விளம்பரங்கள் அல்லது உள்ளடக்கத்தை வழங்கவும், எங்கள் ட்ராஃபிக்கை பகுப்பாய்வு செய்யவும் குக்கீகளைப் பயன்படுத்துகிறோம்.',
+        accept_button: 'அனைத்தையும் ஏற்கவும்',
+        reject_button: 'அனைத்தையும் நிராகரிக்கவும்',
+        settings_button: 'குக்கீ அமைப்புகள்',
+        privacy_policy_link: 'தனியுரிமைக் கொள்கை',
+      },
+      settings_modal: {
+        title: 'குக்கீ அமைப்புகள்',
+        description: 'உங்கள் அனுபவத்தை மேம்படுத்த குக்கீகளைப் பயன்படுத்துகிறோம். நீங்கள் ஏற்க விரும்பும் குக்கீகளைத் தேர்வு செய்யவும்.',
+        save_button: 'விருப்பங்களை சேமிக்கவும்',
+        accept_all_button: 'அனைத்தையும் ஏற்கவும்',
+        reject_all_button: 'அனைத்தையும் நிராகரிக்கவும்',
+        close_button: 'மூடு',
+      },
+      categories: {
+        necessary: {
+          name: 'அவசியமான',
+          description: 'இந்த குக்கீகள் வலைத்தளம் சரியாக செயல்பட அவசியம்.',
+        },
+        functional: {
+          name: 'செயல்பாட்டு',
+          description: 'இந்த குக்கீகள் மேம்பட்ட செயல்பாடு மற்றும் தனிப்பயனாக்கத்தை இயக்குகின்றன.',
+        },
+        analytics: {
+          name: 'பகுப்பாய்வு',
+          description: 'பார்வையாளர்கள் எங்கள் வலைத்தளத்துடன் எவ்வாறு தொடர்பு கொள்கிறார்கள் என்பதைப் புரிந்துகொள்ள இந்த குக்கீகள் உதவுகின்றன.',
+        },
+        advertising: {
+          name: 'விளம்பரம்',
+          description: 'இந்த குக்கீகள் தொடர்புடைய விளம்பரங்களை வழங்க பயன்படுத்தப்படுகின்றன.',
+        },
+      },
+      messages: {
+        consent_saved: 'உங்கள் விருப்பங்கள் சேமிக்கப்பட்டன.',
+        consent_updated: 'உங்கள் விருப்பங்கள் புதுப்பிக்கப்பட்டன.',
+        error_message: 'பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.',
+      },
+    },
+  },
+  // Telugu
+  {
+    language_code: 'te',
+    language_name: 'తెలుగు',
+    is_rtl: false,
+    translations: {
+      banner: {
+        title: 'మేము కుకీలను ఉపయోగిస్తాము',
+        message: 'మీ బ్రౌజింగ్ అనుభవాన్ని మెరుగుపరచడానికి, వ్యక్తిగత ప్రకటనలు లేదా కంటెంట్‌ను అందించడానికి మరియు మా ట్రాఫిక్‌ను విశ్లేషించడానికి మేము కుకీలను ఉపయోగిస్తాము.',
+        accept_button: 'అన్నీ అంగీకరించండి',
+        reject_button: 'అన్నీ తిరస్కరించండి',
+        settings_button: 'కుకీ సెట్టింగ్‌లు',
+        privacy_policy_link: 'గోప్యతా విధానం',
+      },
+      settings_modal: {
+        title: 'కుకీ సెట్టింగ్‌లు',
+        description: 'మీ అనుభవాన్ని మెరుగుపరచడానికి మేము కుకీలను ఉపయోగిస్తాము. మీరు ఏ కుకీలను అంగీకరించాలనుకుంటున్నారో ఎంచుకోండి.',
+        save_button: 'ప్రాధాన్యతలను సేవ్ చేయండి',
+        accept_all_button: 'అన్నీ అంగీకరించండి',
+        reject_all_button: 'అన్నీ తిరస్కరించండి',
+        close_button: 'మూసివేయండి',
+      },
+      categories: {
+        necessary: {
+          name: 'అవసరమైనవి',
+          description: 'వెబ్‌సైట్ సరిగ్గా పనిచేయడానికి ఈ కుకీలు అవసరం.',
+        },
+        functional: {
+          name: 'క్రియాత్మక',
+          description: 'ఈ కుకీలు మెరుగైన ఫంక్షనాలిటీ మరియు వ్యక్తిగతీకరణను ఎనేబుల్ చేస్తాయి.',
+        },
+        analytics: {
+          name: 'విశ్లేషణాత్మక',
+          description: 'సందర్శకులు మా వెబ్‌సైట్‌తో ఎలా ఇంటరాక్ట్ అవుతున్నారో అర్థం చేసుకోవడానికి ఈ కుకీలు సహాయపడతాయి.',
+        },
+        advertising: {
+          name: 'ప్రకటనలు',
+          description: 'ఈ కుకీలు సంబంధిత ప్రకటనలను అందించడానికి ఉపయోగించబడతాయి.',
+        },
+      },
+      messages: {
+        consent_saved: 'మీ ప్రాధాన్యతలు సేవ్ చేయబడ్డాయి.',
+        consent_updated: 'మీ ప్రాధాన్యతలు అప్‌డేట్ చేయబడ్డాయి.',
+        error_message: 'లోపం సంభవించింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+      },
+    },
+  },
+  // Marathi
+  {
+    language_code: 'mr',
+    language_name: 'मराठी',
+    is_rtl: false,
+    translations: {
+      banner: {
+        title: 'आम्ही कुकीज वापरतो',
+        message: 'आम्ही तुमचा ब्राउझिंग अनुभव वाढवण्यासाठी, वैयक्तिकृत जाहिराती किंवा सामग्री देण्यासाठी आणि आमच्या ट्रॅफिकचे विश्लेषण करण्यासाठी कुकीज वापरतो.',
+        accept_button: 'सर्व स्वीकारा',
+        reject_button: 'सर्व नाकारा',
+        settings_button: 'कुकी सेटिंग्ज',
+        privacy_policy_link: 'गोपनीयता धोरण',
+      },
+      settings_modal: {
+        title: 'कुकी सेटिंग्ज',
+        description: 'आम्ही तुमचा अनुभव सुधारण्यासाठी कुकीज वापरतो. तुम्हाला कोणत्या कुकीज स्वीकारायच्या आहेत ते निवडा.',
+        save_button: 'प्राधान्ये जतन करा',
+        accept_all_button: 'सर्व स्वीकारा',
+        reject_all_button: 'सर्व नाकारा',
+        close_button: 'बंद करा',
+      },
+      categories: {
+        necessary: {
+          name: 'आवश्यक',
+          description: 'या कुकीज वेबसाइट योग्यरित्या कार्य करण्यासाठी आवश्यक आहेत.',
+        },
+        functional: {
+          name: 'कार्यात्मक',
+          description: 'या कुकीज प्रगत कार्यक्षमता आणि वैयक्तिकरण सक्षम करतात.',
+        },
+        analytics: {
+          name: 'विश्लेषणात्मक',
+          description: 'या कुकीज आम्हाला अभ्यागत आमच्या वेबसाइटशी कसे संवाद साधतात हे समजून घेण्यास मदत करतात.',
+        },
+        advertising: {
+          name: 'जाहिरात',
+          description: 'या कुकीजचा वापर संबंधित जाहिराती देण्यासाठी केला जातो.',
+        },
+      },
+      messages: {
+        consent_saved: 'तुमची प्राधान्ये जतन केली आहेत.',
+        consent_updated: 'तुमची प्राधान्ये अद्यतनित केली आहेत.',
+        error_message: 'एक त्रुटी आली. कृपया पुन्हा प्रयत्न करा.',
+      },
+    },
+  },
+];
+
+/**
+ * Get translation by language code
+ */
+export function getTranslationByCode(code: string): ConsentTranslation | undefined {
+  return INDIAN_LANGUAGE_TRANSLATIONS.find(t => t.language_code === code);
+}
+
+/**
+ * Get all supported language codes
+ */
+export function getSupportedLanguageCodes(): string[] {
+  return INDIAN_LANGUAGE_TRANSLATIONS.map(t => t.language_code);
+}
+
+/**
+ * Check if a language code is supported
+ */
+export function isLanguageSupported(code: string): boolean {
+  return INDIAN_LANGUAGE_TRANSLATIONS.some(t => t.language_code === code);
+}

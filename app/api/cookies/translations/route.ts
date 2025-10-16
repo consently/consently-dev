@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit';
 import { z } from 'zod';
+import { INDIAN_LANGUAGE_TRANSLATIONS, getTranslationByCode } from '@/lib/indian-language-translations';
 
 /**
  * Widget Translations API
@@ -477,6 +478,13 @@ export async function DELETE(request: NextRequest) {
 // Helper functions
 
 function getDefaultTranslation(languageCode: string): any {
+  // Check if it's an Indian language translation
+  const indianTranslation = getTranslationByCode(languageCode);
+  if (indianTranslation) {
+    return indianTranslation;
+  }
+
+  // Default English translation
   const defaults: Record<string, any> = {
     'en': {
       language_code: 'en',
@@ -545,8 +553,12 @@ function getSupportedLanguages() {
     { code: 'ko', name: '한국어', rtl: false },
     { code: 'ar', name: 'العربية', rtl: true },
     { code: 'he', name: 'עברית', rtl: true },
+    // Indian Languages (Schedule 8)
     { code: 'hi', name: 'हिन्दी', rtl: false },
     { code: 'bn', name: 'বাংলা', rtl: false },
+    { code: 'ta', name: 'தமிழ்', rtl: false },
+    { code: 'te', name: 'తెలుగు', rtl: false },
+    { code: 'mr', name: 'मराठी', rtl: false },
   ];
 }
 

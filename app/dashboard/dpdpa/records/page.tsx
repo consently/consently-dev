@@ -41,12 +41,13 @@ export default function ConsentRecordsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [dateRange, setDateRange] = useState('30d'); // 7d, 30d, 90d, all
   const [totalRecords, setTotalRecords] = useState(0);
 
   // Fetch records on mount and when filters change
   useEffect(() => {
     fetchRecords();
-  }, [searchQuery, statusFilter, typeFilter]);
+  }, [searchQuery, statusFilter, typeFilter, dateRange]);
 
   const fetchRecords = async () => {
     setIsLoading(true);
@@ -59,6 +60,7 @@ export default function ConsentRecordsPage() {
       if (searchQuery) params.append('search', searchQuery);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (typeFilter !== 'all') params.append('type', typeFilter);
+      if (dateRange !== 'all') params.append('range', dateRange);
 
       const response = await fetch(`/api/consent/records?${params.toString()}`);
       const result = await response.json();
@@ -152,7 +154,7 @@ export default function ConsentRecordsPage() {
           <CardTitle>Filter Records</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="md:col-span-2">
               <Input
                 type="text"
@@ -182,6 +184,17 @@ export default function ConsentRecordsPage() {
                 { value: 'all', label: 'All Types' },
                 { value: 'cookie', label: 'Cookie' },
                 { value: 'dpdpa', label: 'DPDPA' },
+              ]}
+            />
+            <Select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              label="Date Range"
+              options={[
+                { value: '7d', label: 'Last 7 days' },
+                { value: '30d', label: 'Last 30 days' },
+                { value: '90d', label: 'Last 90 days' },
+                { value: 'all', label: 'All time' },
               ]}
             />
           </div>
