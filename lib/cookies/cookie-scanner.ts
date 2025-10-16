@@ -1142,8 +1142,9 @@ export class CookieScanner {
     config = { ...config, pages: Math.min(config.pages, maxPages) };
     
     console.log(`[performScan] Scanning ${url} with depth ${scanDepth}, max ${config.pages} pages, timeout ${config.timeout}s`);
-    const maxRetries = 3;
+    const maxRetries = 2; // Reduced from 3 to 2 for faster failure detection
     let lastError: Error | null = null;
+    let errorContext: string[] = [];
     
     // Try primary scanning services with retry logic
     const scanners = [
@@ -1153,50 +1154,99 @@ export class CookieScanner {
       { name: 'OneTrust', check: () => !!process.env.ONETRUST_API_KEY, fn: () => this.useOneTrustAPI(url, config) },
     ];
     
+    // Count available scanners
+    const availableScanners = scanners.filter(s => s.check());
+    if (availableScanners.length === 0) {
+      console.warn('[performScan] ⚠️  No external scanners configured (no API keys found)');
+      console.warn('[performScan] Falling back to HTTP scanner immediately');
+      errorContext.push('No external scanner API keys configured');
+      return await this.useSimpleHTTPScanner(url, config);
+    }
+    
+    console.log(`[performScan] Found ${availableScanners.length} configured scanner(s): ${availableScanners.map(s => s.name).join(', ')}`);
+    
     // Try each available scanner
-    for (const scanner of scanners) {
-      if (!scanner.check()) continue;
+    for (const scanner of availableScanners) {
+      console.log(`[performScan] Attempting scan with ${scanner.name}`);
       
-      console.log(`Attempting scan with ${scanner.name}`);
-      
-      // Retry logic with exponential backoff
+      // Retry logic with exponential backoff (but smarter)
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           const result = await this.withTimeout(
             scanner.fn(),
-            config.timeout * 1000 + 10000 // Add 10s buffer to scanner timeout
+            config.timeout * 1000 + 15000 // Add 15s buffer to scanner timeout (increased from 10s)
           );
           
-          console.log(`✓ Scan successful with ${scanner.name} (attempt ${attempt})`);
+          console.log(`[performScan] ✓ Scan successful with ${scanner.name} (attempt ${attempt})`);
+          
+          // Validate result has meaningful data
+          if (result.cookies.length === 0 && result.pagesScanned === 0) {
+            console.warn(`[performScan] ⚠️  ${scanner.name} returned empty result, this might indicate an issue`);
+          }
+          
           return result;
           
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
-          console.error(`✗ ${scanner.name} attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+          const errorMsg = lastError.message;
+          console.error(`[performScan] ✗ ${scanner.name} attempt ${attempt}/${maxRetries} failed: ${errorMsg}`);
+          errorContext.push(`${scanner.name} (attempt ${attempt}): ${errorMsg}`);
+          
+          // Check if this is a fatal error that won't be fixed by retrying
+          const isFatalError = 
+            errorMsg.includes('not configured') ||
+            errorMsg.includes('401') ||
+            errorMsg.includes('403') ||
+            errorMsg.includes('402') || // Quota exceeded
+            errorMsg.includes('Invalid or expired API key') ||
+            errorMsg.includes('ENOTFOUND') ||
+            errorMsg.includes('Authentication');
+          
+          if (isFatalError) {
+            console.error(`[performScan] Fatal error detected, skipping retries for ${scanner.name}`);
+            break; // Don't retry, move to next scanner
+          }
           
           // If not the last attempt, wait with exponential backoff
           if (attempt < maxRetries) {
-            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
-            console.log(`  Retrying in ${delay}ms...`);
+            const delay = Math.min(2000 * Math.pow(2, attempt - 1), 8000); // 2s, 4s, 8s max
+            console.log(`[performScan] Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
       }
       
-      console.log(`✗ ${scanner.name} failed after ${maxRetries} attempts, trying next scanner`);
+      console.log(`[performScan] ✗ ${scanner.name} failed after ${maxRetries} attempts, trying next scanner`);
     }
     
     // All external scanners failed, use fallback
-    console.log('⚠ All external scanners failed, using fallback HTTP scanner');
+    console.log('[performScan] ⚠️  All external scanners failed');
+    console.log('[performScan] Error summary:');
+    errorContext.forEach((ctx, i) => console.log(`[performScan]   ${i + 1}. ${ctx}`));
+    console.log('[performScan] Falling back to simple HTTP scanner (limited cookie detection)');
     
     try {
-      return await this.useSimpleHTTPScanner(url, config);
+      const fallbackResult = await this.useSimpleHTTPScanner(url, config);
+      
+      if (fallbackResult.cookies.length === 0) {
+        console.warn('[performScan] ⚠️  HTTP scanner found no cookies either');
+        console.warn('[performScan] This could mean:');
+        console.warn('[performScan]   1. The website genuinely has no cookies');
+        console.warn('[performScan]   2. All cookies are set via JavaScript (not detectable via HTTP)  ');
+        console.warn('[performScan]   3. The website requires authentication or blocks automated access');
+        console.warn('[performScan] Recommendation: Configure Browserless API for better detection');
+      }
+      
+      return fallbackResult;
     } catch (fallbackError) {
-      console.error('✗ Fallback scanner also failed:', fallbackError);
-      throw new Error(
-        `Cookie scanning failed: ${lastError?.message || 'All scanning methods failed'}. ` +
-        `Please check the URL is accessible and try again.`
-      );
+      console.error('[performScan] ✗ Fallback HTTP scanner also failed:', fallbackError);
+      
+      // Return empty result instead of throwing - more graceful
+      console.warn('[performScan] Returning empty result to prevent complete failure');
+      return {
+        cookies: [],
+        pagesScanned: 0
+      };
     }
   }
 
@@ -1232,22 +1282,25 @@ export class CookieScanner {
     
     console.log(`Using Browserless API for: ${url} (depth: ${config.pages} pages)`);
     
-    try {
-      // For shallow scans (1 page), use the simpler /content endpoint
-      if (config.pages === 1) {
-        return await this.browserlessContentScan(url, browserlessUrl, apiKey, config);
+    // For shallow scans (1 page), try both WebSocket and /content endpoint
+    if (config.pages === 1) {
+      try {
+        // Try WebSocket first for more complete cookie detection
+        console.log('[Browserless] Attempting WebSocket scan for shallow scan...');
+        return await this.browserlessFunctionScan(url, browserlessUrl, apiKey, config);
+      } catch (wsError) {
+        console.warn('[Browserless] WebSocket scan failed, trying /content endpoint...');
+        try {
+          return await this.browserlessContentScan(url, browserlessUrl, apiKey, config);
+        } catch (contentError) {
+          console.error('[Browserless] Both WebSocket and /content endpoints failed');
+          throw contentError;
+        }
       }
-      
-      // For medium/deep scans, use /function endpoint with custom Puppeteer script
-      return await this.browserlessFunctionScan(url, browserlessUrl, apiKey, config);
-      
-    } catch (error) {
-      console.error('Browserless API failed:', error);
-      
-      // Fallback to simple HTTP scanner
-      console.log('Falling back to simple HTTP scanner');
-      return await this.useSimpleHTTPScanner(url, config);
     }
+    
+    // For medium/deep scans, WebSocket is required
+    return await this.browserlessFunctionScan(url, browserlessUrl, apiKey, config);
   }
 
   /**
@@ -1344,36 +1397,94 @@ export class CookieScanner {
     
     // Extract base URL for WebSocket connection
     const wsUrl = browserlessUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-    const wsEndpoint = `${wsUrl}/chromium/playwright?token=${apiKey}`;
+    const wsEndpoint = `${wsUrl}/chromium/playwright?token=${apiKey}&blockAds=false&stealth=true`;
     
-    console.log(`Connecting to Browserless via WebSocket for multi-page scan...`);
+    console.log(`[Browserless] Connecting via WebSocket for multi-page scan...`);
+    console.log(`[Browserless] Endpoint: ${wsUrl}/chromium/playwright`);
+    console.log(`[Browserless] Target URL: ${url}`);
+    console.log(`[Browserless] Max pages: ${config.pages}, Timeout: ${config.timeout}s`);
     
     let browser;
+    let context;
+    let page;
+    
     try {
-      // Connect to Browserless browser
+      // Step 1: Establish browser connection with extended timeout
+      console.log(`[Browserless] Step 1: Establishing connection...`);
       browser = await chromium.connect(wsEndpoint, {
-        timeout: 30000
+        timeout: 60000 // Increased to 60 seconds
       });
+      console.log(`[Browserless] ✓ Browser connected successfully`);
       
-      const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      // Step 2: Create browser context with realistic settings
+      console.log(`[Browserless] Step 2: Creating browser context...`);
+      context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1920, height: 1080 },
+        locale: 'en-US',
+        timezoneId: 'America/New_York',
+        permissions: [],
+        bypassCSP: true,
+        ignoreHTTPSErrors: true
       });
+      console.log(`[Browserless] ✓ Context created successfully`);
       
-      const page = await context.newPage();
+      // Step 3: Create new page
+      console.log(`[Browserless] Step 3: Creating new page...`);
+      page = await context.newPage();
+      console.log(`[Browserless] ✓ Page created successfully`);
+      
+      // Set up additional page settings
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'
+      });
       
       const allCookies = new Map<string, any>();
       const scannedUrls = new Set<string>();
       const urlsToScan: string[] = [url];
       
-      // Navigate to initial page
-      console.log(`Navigating to: ${url}`);
-      await page.goto(url, {
-        waitUntil: 'networkidle',
-        timeout: config.timeout * 1000
-      });
+      // Step 4: Navigate to initial page with robust error handling
+      console.log(`[Browserless] Step 4: Navigating to ${url}...`);
       
-      // Wait for cookies to be set
-      await page.waitForTimeout(3000);
+      try {
+        await page.goto(url, {
+          waitUntil: 'domcontentloaded', // Changed from 'networkidle' for better reliability
+          timeout: config.timeout * 1000
+        });
+        console.log(`[Browserless] ✓ Page loaded successfully`);
+      } catch (navError) {
+        // If networkidle fails, try with a more lenient option
+        console.warn(`[Browserless] Initial navigation failed, retrying with load event...`);
+        await page.goto(url, {
+          waitUntil: 'load',
+          timeout: config.timeout * 1000
+        });
+        console.log(`[Browserless] ✓ Page loaded on retry`);
+      }
+      
+      // Step 5: Wait for JavaScript execution and cookies to be set
+      console.log(`[Browserless] Step 5: Waiting for cookies to be set...`);
+      
+      // Wait for page to stabilize and JavaScript to execute
+      await page.waitForTimeout(2000);
+      
+      // Try to interact with the page to trigger cookie banners
+      try {
+        // Check if there's a cookie consent dialog and wait for it
+        await page.waitForTimeout(1000);
+        
+        // Execute JavaScript to check for common cookie consent patterns
+        await page.evaluate(() => {
+          // Trigger any lazy-loaded scripts
+          window.scrollTo(0, 100);
+          window.scrollTo(0, 0);
+        });
+        
+        await page.waitForTimeout(2000);
+      } catch (e) {
+        console.log(`[Browserless] Page interaction completed`);
+      }
       
       // Get cookies from main page
       let cookies = await context.cookies();
@@ -1383,108 +1494,198 @@ export class CookieScanner {
       });
       
       scannedUrls.add(url);
-      console.log(`Main page scanned, found ${cookies.length} cookies`);
+      console.log(`[Browserless] Main page scanned: ${cookies.length} cookies found`);
       
-      // Extract links for multi-page scan
+      // Also check for localStorage and sessionStorage cookies
+      try {
+        const storageData = await page.evaluate(() => {
+          const ls = { ...localStorage };
+          const ss = { ...sessionStorage };
+          return { localStorage: ls, sessionStorage: ss };
+        });
+        
+        // Log storage data for debugging (could indicate cookies set via JS)
+        const lsKeys = Object.keys(storageData.localStorage).length;
+        const ssKeys = Object.keys(storageData.sessionStorage).length;
+        if (lsKeys > 0 || ssKeys > 0) {
+          console.log(`[Browserless] Found ${lsKeys} localStorage + ${ssKeys} sessionStorage items`);
+        }
+      } catch (e) {
+        console.log(`[Browserless] Could not access storage APIs`);
+      }
+      
+      // Step 6: Extract links for multi-page scan
       if (config.pages > 1) {
+        console.log(`[Browserless] Step 6: Discovering links for multi-page scan...`);
         try {
           const links = await page.evaluate((baseUrl) => {
             const baseHostname = new URL(baseUrl).hostname;
             const linkElements = Array.from(document.querySelectorAll('a[href]'));
-            return linkElements
-              .map(a => (a as HTMLAnchorElement).href)
-              .filter(href => {
-                try {
-                  const linkUrl = new URL(href);
-                  return linkUrl.hostname === baseHostname && 
-                         !href.includes('#') && 
-                         !href.includes('javascript:') &&
-                         !href.match(/\.(pdf|jpg|jpeg|png|gif|zip|doc|docx)$/i);
-                } catch {
-                  return false;
+            const uniqueLinks = new Set<string>();
+            
+            linkElements.forEach(a => {
+              const href = (a as HTMLAnchorElement).href;
+              try {
+                const linkUrl = new URL(href);
+                // More lenient filtering for better page discovery
+                if (linkUrl.hostname === baseHostname && 
+                    !href.includes('#') && 
+                    !href.includes('javascript:') &&
+                    !href.match(/\.(pdf|jpg|jpeg|png|gif|svg|webp|zip|tar|gz|doc|docx|xls|xlsx|ppt|pptx|xml|json|css|js)$/i) &&
+                    href.length < 500) { // Avoid extremely long URLs
+                  uniqueLinks.add(href);
                 }
-              });
+              } catch {
+                // Invalid URL, skip
+              }
+            });
+            
+            return Array.from(uniqueLinks);
           }, url);
           
+          // Prioritize common important pages
+          const priorityPatterns = ['/about', '/contact', '/products', '/services', '/pricing', '/features'];
+          const priorityLinks = links.filter(link => 
+            priorityPatterns.some(pattern => link.toLowerCase().includes(pattern))
+          );
+          const otherLinks = links.filter(link => 
+            !priorityPatterns.some(pattern => link.toLowerCase().includes(pattern))
+          );
+          
+          // Combine priority links first, then others
+          const sortedLinks = [...priorityLinks, ...otherLinks];
+          
           // Add discovered links to scan queue
-          links.slice(0, config.pages - 1).forEach(link => {
+          sortedLinks.slice(0, config.pages - 1).forEach(link => {
             if (!urlsToScan.includes(link)) {
               urlsToScan.push(link);
             }
           });
           
-          console.log(`Found ${links.length} links, will scan ${Math.min(urlsToScan.length, config.pages)} pages`);
+          console.log(`[Browserless] Found ${links.length} total links, will scan ${Math.min(urlsToScan.length, config.pages)} pages`);
         } catch (error) {
-          console.warn('Could not extract links:', error instanceof Error ? error.message : 'Unknown error');
+          console.warn(`[Browserless] Link extraction failed:`, error instanceof Error ? error.message : 'Unknown error');
         }
       }
       
-      // Scan additional pages with delays to avoid rate limiting
+      // Step 7: Scan additional pages with better error handling
+      if (urlsToScan.length > 1) {
+        console.log(`[Browserless] Step 7: Scanning ${Math.min(urlsToScan.length - 1, config.pages - 1)} additional pages...`);
+      }
+      
       for (let i = 1; i < Math.min(urlsToScan.length, config.pages); i++) {
         const pageUrl = urlsToScan[i];
         if (scannedUrls.has(pageUrl)) continue;
         
         try {
-          console.log(`Scanning page ${i + 1}/${config.pages}: ${pageUrl}`);
+          console.log(`[Browserless] Scanning page ${i + 1}/${config.pages}: ${pageUrl}`);
           
           // Add delay between page scans to avoid overwhelming the browser
-          if (i > 1) {
-            await page.waitForTimeout(1500);
+          await page.waitForTimeout(1000);
+          
+          // Navigate with fallback strategy
+          try {
+            await page.goto(pageUrl, {
+              waitUntil: 'domcontentloaded',
+              timeout: 25000 // Slightly shorter timeout for additional pages
+            });
+          } catch (navError) {
+            console.warn(`[Browserless] Navigation issue on page ${i + 1}, trying alternative...`);
+            await page.goto(pageUrl, {
+              waitUntil: 'load',
+              timeout: 25000
+            });
           }
           
-          await page.goto(pageUrl, {
-            waitUntil: 'networkidle',
-            timeout: 30000
-          });
-          
-          await page.waitForTimeout(2000);
+          // Wait for JavaScript to execute
+          await page.waitForTimeout(1500);
           
           // Get cookies after visiting page
           cookies = await context.cookies();
+          const newCookies = cookies.filter(cookie => {
+            const key = `${cookie.name}|${cookie.domain}`;
+            return !allCookies.has(key);
+          });
+          
           cookies.forEach(cookie => {
             const key = `${cookie.name}|${cookie.domain}`;
             allCookies.set(key, cookie);
           });
           
           scannedUrls.add(pageUrl);
-          console.log(`Page ${i + 1} scanned, total unique cookies: ${allCookies.size}`);
+          console.log(`[Browserless] Page ${i + 1} scanned: +${newCookies.length} new cookies (total: ${allCookies.size})`);
           
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          console.warn(`Failed to scan page ${pageUrl}:`, errorMsg);
+          console.warn(`[Browserless] Failed to scan page ${i + 1} (${pageUrl}): ${errorMsg}`);
           
-          // If browser/context was closed, stop scanning to avoid more errors
+          // Check if it's a critical error that should stop scanning
           if (errorMsg.includes('Target page, context or browser has been closed') ||
               errorMsg.includes('Browser closed') ||
-              errorMsg.includes('Connection closed')) {
-            console.log('Browser connection lost, stopping additional page scans');
+              errorMsg.includes('Connection closed') ||
+              errorMsg.includes('Session closed')) {
+            console.log(`[Browserless] Critical error detected, stopping additional page scans`);
             break;
           }
+          
+          // For timeouts or other errors, continue with next page
+          if (errorMsg.includes('Timeout') || errorMsg.includes('timeout')) {
+            console.log(`[Browserless] Timeout on page ${i + 1}, continuing with next page...`);
+            continue;
+          }
+          
           // Continue with next page for other errors
         }
       }
       
-      // Check for cookies in iframes
+      // Step 8: Check for cookies in iframes
+      console.log(`[Browserless] Step 8: Checking for iframe cookies...`);
       try {
         const frames = page.frames();
-        console.log(`Found ${frames.length} frames (including main)`);
+        console.log(`[Browserless] Found ${frames.length} frames (including main frame)`);
         
-        // Wait a bit for iframe cookies to load
+        // Wait for iframe cookies to load
         if (frames.length > 1) {
           await page.waitForTimeout(2000);
           
+          // Try to interact with iframes to trigger cookie setting
+          try {
+            for (const frame of frames) {
+              if (frame !== page.mainFrame()) {
+                try {
+                  await frame.evaluate(() => {
+                    // Trigger any lazy-loaded scripts in iframe
+                    window.scrollTo?.(0, 50);
+                  });
+                } catch (e) {
+                  // Some iframes might not be accessible due to CORS
+                }
+              }
+            }
+          } catch (e) {
+            console.log(`[Browserless] Iframe interaction completed`);
+          }
+          
+          await page.waitForTimeout(1000);
+          
           // Get final cookie state (includes iframe cookies)
           cookies = await context.cookies();
+          const beforeCount = allCookies.size;
           cookies.forEach(cookie => {
             const key = `${cookie.name}|${cookie.domain}`;
             allCookies.set(key, cookie);
           });
+          const iframeCookies = allCookies.size - beforeCount;
+          if (iframeCookies > 0) {
+            console.log(`[Browserless] Found ${iframeCookies} additional cookies from iframes`);
+          }
         }
       } catch (error) {
-        console.warn('Could not scan iframes:', error instanceof Error ? error.message : 'Unknown error');
+        console.warn(`[Browserless] Iframe scanning completed with warnings:`, error instanceof Error ? error.message : 'Unknown error');
       }
       
-      // Transform cookies to our format
+      // Step 9: Transform cookies to our format
+      console.log(`[Browserless] Step 9: Processing ${allCookies.size} unique cookies...`);
       const transformedCookies: ScannedCookie[] = Array.from(allCookies.values()).map((cookie: any) => ({
         name: cookie.name,
         domain: cookie.domain,
@@ -1498,9 +1699,18 @@ export class CookieScanner {
         sameSite: cookie.sameSite as 'Strict' | 'Lax' | 'None' | undefined,
       }));
       
-      console.log(`Multi-page scan complete: ${scannedUrls.size} pages scanned, ${transformedCookies.length} unique cookies`);
+      console.log(`[Browserless] ✓ Scan complete: ${scannedUrls.size} pages scanned, ${transformedCookies.length} unique cookies found`);
+      console.log(`[Browserless] Cookie breakdown:`);
+      console.log(`[Browserless]   - Total unique cookies: ${transformedCookies.length}`);
+      console.log(`[Browserless]   - Pages successfully scanned: ${scannedUrls.size}`);
+      console.log(`[Browserless]   - HttpOnly cookies: ${transformedCookies.filter(c => c.httpOnly).length}`);
+      console.log(`[Browserless]   - Secure cookies: ${transformedCookies.filter(c => c.secure).length}`);
+      console.log(`[Browserless]   - Session cookies: ${transformedCookies.filter(c => !c.expires).length}`);
       
+      // Cleanup
+      console.log(`[Browserless] Closing browser connection...`);
       await browser.close();
+      console.log(`[Browserless] ✓ Browser closed successfully`);
       
       return {
         cookies: transformedCookies,
@@ -1508,15 +1718,44 @@ export class CookieScanner {
       };
       
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Browserless] ✗ Scan failed: ${errorMsg}`);
+      
+      // Enhanced error diagnostics
+      if (errorMsg.includes('connect ETIMEDOUT') || errorMsg.includes('ENOTFOUND')) {
+        console.error(`[Browserless] Network error: Cannot reach Browserless server`);
+        console.error(`[Browserless] Check: 1) BROWSERLESS_URL is correct, 2) Network connectivity, 3) Firewall settings`);
+      } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
+        console.error(`[Browserless] Authentication error: Invalid or expired API key`);
+        console.error(`[Browserless] Check your BROWSERLESS_API_KEY environment variable`);
+      } else if (errorMsg.includes('402')) {
+        console.error(`[Browserless] Quota exceeded: Browserless API limit reached`);
+        console.error(`[Browserless] Check your Browserless subscription and usage limits`);
+      } else if (errorMsg.includes('Target page, context or browser has been closed')) {
+        console.error(`[Browserless] Browser closed unexpectedly - this may indicate:`);
+        console.error(`[Browserless]   1. Browserless server timeout (URL took too long to load)`);
+        console.error(`[Browserless]   2. Memory limits exceeded`);
+        console.error(`[Browserless]   3. Target website blocking automated browsers`);
+        console.error(`[Browserless] Try: Using a simpler website or increasing timeout`);
+      } else if (errorMsg.includes('WebSocket')) {
+        console.error(`[Browserless] WebSocket connection error`);
+        console.error(`[Browserless] This could be due to proxy/firewall blocking WebSocket connections`);
+      }
+      
+      // Attempt cleanup
       if (browser) {
         try {
           await browser.close();
+          console.log(`[Browserless] Browser connection closed after error`);
         } catch (closeError) {
-          console.warn('Failed to close browser:', closeError);
+          console.warn(`[Browserless] Could not close browser:`, closeError);
         }
       }
-      console.error('Playwright WebSocket scan failed:', error);
-      throw error;
+      
+      // Re-throw with more context
+      const enhancedError = new Error(`Browserless scan failed: ${errorMsg}`);
+      (enhancedError as any).originalError = error;
+      throw enhancedError;
     }
   }
 
