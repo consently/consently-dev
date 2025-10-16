@@ -44,20 +44,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enforce subscription/trial entitlements
-    const { getEntitlements, isScanDepthAllowed } = await import('@/lib/subscription');
-    const entitlements = await getEntitlements();
+    // Enforce subscription/trial entitlements only for medium and deep scans
+    // Shallow scans are always allowed for authenticated users
+    if (scanDepth !== 'shallow') {
+      const { getEntitlements, isScanDepthAllowed } = await import('@/lib/subscription');
+      const entitlements = await getEntitlements();
 
-    if (!isScanDepthAllowed(scanDepth, entitlements)) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: entitlements.isTrial || entitlements.plan !== 'free' 
-            ? 'Your plan does not allow this scan depth' 
-            : 'Upgrade or start a free trial to use deeper scans' 
-        },
-        { status: 403 }
-      );
+      if (!isScanDepthAllowed(scanDepth, entitlements)) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: entitlements.isTrial || entitlements.plan !== 'free' 
+              ? 'Your plan does not allow this scan depth' 
+              : 'Upgrade or start a free trial to use deeper scans' 
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // Perform real cookie scan using CookieScanner service
