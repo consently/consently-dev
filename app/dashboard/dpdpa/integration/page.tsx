@@ -298,7 +298,7 @@ console.assert(window.consentlyDPDPA.getConsent() === null, 'Consent cleared');
                   onClick={() => setSelectedConfig(config)}
                 >
                   {config.name}
-                  <Badge variant={config.is_active ? 'success' : 'secondary'} className="ml-2">
+                  <Badge variant={config.is_active ? 'default' : 'secondary'} className="ml-2">
                     {config.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </Button>
