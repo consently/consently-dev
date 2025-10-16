@@ -6,11 +6,45 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Cookie } from './cookie-service';
 
+export type ScanTier = 'free' | 'premium' | 'enterprise';
+export type ScanDepth = 'shallow' | 'medium' | 'deep';
+
 interface ScanOptions {
   url: string;
-  scanDepth: 'shallow' | 'medium' | 'deep';
+  scanDepth: ScanDepth;
   userId: string;
+  tier?: ScanTier; // User's subscription tier
 }
+
+  // Tiered scanning configuration
+const SCAN_TIER_LIMITS = {
+  free: {
+    maxPages: 1,
+    timeout: 30,
+    scanDepth: 'shallow' as ScanDepth,
+    description: 'Quick Scan - Homepage only',
+    price: 'Free',
+    useSitemap: false
+  },
+  premium: {
+    maxPages: 5,
+    timeout: 60,
+    scanDepth: 'medium' as ScanDepth,
+    description: 'Standard Scan - Top 5 URLs',
+    price: '₹999/month',
+    useSitemap: true
+  },
+  enterprise: {
+    maxPages: 50,
+    timeout: 180,
+    scanDepth: 'deep' as ScanDepth,
+    description: 'Deep Crawl - Up to 50 pages',
+    price: '₹2499/month',
+    useSitemap: true
+  }
+} as const;
+
+export { SCAN_TIER_LIMITS };
 
 interface ScannedCookie {
   name: string;
@@ -566,44 +600,474 @@ export class CookieScanner {
       expiry: 'Session',
       is_third_party: false,
     },
+    // AWS CloudFront
+    'aws-waf-token': {
+      category: 'necessary',
+      provider: 'AWS WAF',
+      purpose: 'Web Application Firewall security token',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    'CloudFront-Policy': {
+      category: 'necessary',
+      provider: 'AWS CloudFront',
+      purpose: 'CloudFront signed cookie for private content',
+      expiry: 'Varies',
+      is_third_party: true,
+    },
+    // Azure
+    ARRAffinity: {
+      category: 'necessary',
+      provider: 'Microsoft Azure',
+      purpose: 'Load balancer session affinity',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    ARRAffinitySameSite: {
+      category: 'necessary',
+      provider: 'Microsoft Azure',
+      purpose: 'Load balancer session affinity with SameSite',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // Vercel
+    __vercel_live_token: {
+      category: 'functional',
+      provider: 'Vercel',
+      purpose: 'Preview deployment authentication',
+      expiry: '30 days',
+      is_third_party: false,
+    },
+    _vercel_jwt: {
+      category: 'necessary',
+      provider: 'Vercel',
+      purpose: 'Authentication token',
+      expiry: 'Session',
+      is_third_party: false,
+    },
+    // Cloudflare (additional)
+    __cf_bm: {
+      category: 'necessary',
+      provider: 'Cloudflare',
+      purpose: 'Bot management',
+      expiry: '30 minutes',
+      is_third_party: true,
+    },
+    cf_ob_info: {
+      category: 'necessary',
+      provider: 'Cloudflare',
+      purpose: 'Orange-to-Blue routing',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // PayPal
+    ts_c: {
+      category: 'necessary',
+      provider: 'PayPal',
+      purpose: 'Fraud detection and security',
+      expiry: '3 years',
+      is_third_party: true,
+    },
+    tsrce: {
+      category: 'necessary',
+      provider: 'PayPal',
+      purpose: 'Source tracking for security',
+      expiry: '3 days',
+      is_third_party: true,
+    },
+    'x-pp-s': {
+      category: 'necessary',
+      provider: 'PayPal',
+      purpose: 'PayPal session identifier',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // Square
+    __sq_tid: {
+      category: 'necessary',
+      provider: 'Square',
+      purpose: 'Transaction ID for payment processing',
+      expiry: '30 minutes',
+      is_third_party: true,
+    },
+    // WooCommerce
+    woocommerce_cart_hash: {
+      category: 'necessary',
+      provider: 'WooCommerce',
+      purpose: 'Shopping cart functionality',
+      expiry: 'Session',
+      is_third_party: false,
+    },
+    woocommerce_items_in_cart: {
+      category: 'necessary',
+      provider: 'WooCommerce',
+      purpose: 'Track items in shopping cart',
+      expiry: 'Session',
+      is_third_party: false,
+    },
+    'wp_woocommerce_session_': {
+      category: 'necessary',
+      provider: 'WooCommerce',
+      purpose: 'WooCommerce session management',
+      expiry: '2 days',
+      is_third_party: false,
+    },
+    // Mailchimp
+    mc_: {
+      category: 'advertising',
+      provider: 'Mailchimp',
+      purpose: 'Email marketing campaign tracking',
+      expiry: '2 years',
+      is_third_party: true,
+    },
+    // Salesforce
+    'com.salesforce.LocaleInfo': {
+      category: 'preferences',
+      provider: 'Salesforce',
+      purpose: 'Store user locale preferences',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    sfdc_lv: {
+      category: 'functional',
+      provider: 'Salesforce',
+      purpose: 'Last visited page tracking',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // Webflow
+    wf_: {
+      category: 'functional',
+      provider: 'Webflow',
+      purpose: 'Site functionality and forms',
+      expiry: '1 year',
+      is_third_party: false,
+    },
+    // Squarespace
+    SS_MID: {
+      category: 'necessary',
+      provider: 'Squarespace',
+      purpose: 'Security and fraud prevention',
+      expiry: '2 years',
+      is_third_party: false,
+    },
+    crumb: {
+      category: 'necessary',
+      provider: 'Squarespace',
+      purpose: 'CSRF protection',
+      expiry: 'Session',
+      is_third_party: false,
+    },
+    // Ghost
+    'ghost-admin-api-session': {
+      category: 'necessary',
+      provider: 'Ghost',
+      purpose: 'Admin session management',
+      expiry: 'Session',
+      is_third_party: false,
+    },
+    // Wix
+    svSession: {
+      category: 'necessary',
+      provider: 'Wix',
+      purpose: 'Session management',
+      expiry: 'Session',
+      is_third_party: false,
+    },
+    hs: {
+      category: 'necessary',
+      provider: 'Wix',
+      purpose: 'Security token',
+      expiry: 'Session',
+      is_third_party: false,
+    },
+    // Google Optimize
+    _gaexp: {
+      category: 'analytics',
+      provider: 'Google Optimize',
+      purpose: 'A/B testing experiment data',
+      expiry: '90 days',
+      is_third_party: true,
+    },
+    _opt_: {
+      category: 'analytics',
+      provider: 'Google Optimize',
+      purpose: 'Optimize experiment variations',
+      expiry: '10 seconds',
+      is_third_party: true,
+    },
+    // AB Tasty
+    ABTasty: {
+      category: 'analytics',
+      provider: 'AB Tasty',
+      purpose: 'A/B testing and personalization',
+      expiry: '13 months',
+      is_third_party: true,
+    },
+    ABTastySession: {
+      category: 'analytics',
+      provider: 'AB Tasty',
+      purpose: 'Session-based test tracking',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // Convert
+    _conv_: {
+      category: 'analytics',
+      provider: 'Convert',
+      purpose: 'A/B testing experiments',
+      expiry: '90 days',
+      is_third_party: true,
+    },
+    // LiveChat
+    __lc_: {
+      category: 'functional',
+      provider: 'LiveChat',
+      purpose: 'Live chat functionality',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // Crisp
+    'crisp-client/session': {
+      category: 'functional',
+      provider: 'Crisp',
+      purpose: 'Chat session management',
+      expiry: '6 months',
+      is_third_party: true,
+    },
+    // Tawk.to
+    TawkConnectionTime: {
+      category: 'functional',
+      provider: 'Tawk.to',
+      purpose: 'Track chat connection time',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    __tawkuuid: {
+      category: 'functional',
+      provider: 'Tawk.to',
+      purpose: 'Unique visitor identification',
+      expiry: '6 months',
+      is_third_party: true,
+    },
+    // Quora Pixel
+    _qca: {
+      category: 'advertising',
+      provider: 'Quora',
+      purpose: 'Quantcast audience measurement',
+      expiry: '13 months',
+      is_third_party: true,
+    },
+    // Amazon Associates
+    'ubid-main': {
+      category: 'functional',
+      provider: 'Amazon',
+      purpose: 'Unique browser identifier',
+      expiry: '10 years',
+      is_third_party: true,
+    },
+    'session-id': {
+      category: 'necessary',
+      provider: 'Amazon',
+      purpose: 'Session management',
+      expiry: 'Session',
+      is_third_party: true,
+    },
+    // Bing Ads
+    _uetsid: {
+      category: 'advertising',
+      provider: 'Bing Ads',
+      purpose: 'Track ad campaign performance',
+      expiry: '1 day',
+      is_third_party: true,
+    },
+    _uetvid: {
+      category: 'advertising',
+      provider: 'Bing Ads',
+      purpose: 'Visitor identification for ads',
+      expiry: '13 months',
+      is_third_party: true,
+    },
+    // Disqus
+    disqus_unique: {
+      category: 'functional',
+      provider: 'Disqus',
+      purpose: 'Comment system user identification',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // AddThis
+    'uvc': {
+      category: 'social',
+      provider: 'AddThis',
+      purpose: 'Social sharing tracking',
+      expiry: '13 months',
+      is_third_party: true,
+    },
+    // ShareThis
+    '__stid': {
+      category: 'social',
+      provider: 'ShareThis',
+      purpose: 'Social sharing widget tracking',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // Typekit (Adobe Fonts)
+    tk_ai: {
+      category: 'functional',
+      provider: 'Adobe Fonts',
+      purpose: 'Font loading and caching',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // Crazy Egg
+    '_ce.s': {
+      category: 'analytics',
+      provider: 'Crazy Egg',
+      purpose: 'Heatmap and session recording',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // Lucky Orange
+    _lo_uid: {
+      category: 'analytics',
+      provider: 'Lucky Orange',
+      purpose: 'Session recording and analytics',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // FullStory
+    fs_uid: {
+      category: 'analytics',
+      provider: 'FullStory',
+      purpose: 'Session replay and analytics',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // Sumo
+    '__smToken': {
+      category: 'functional',
+      provider: 'Sumo',
+      purpose: 'Email capture and list building',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // OptinMonster
+    om_: {
+      category: 'functional',
+      provider: 'OptinMonster',
+      purpose: 'Lead generation popups',
+      expiry: '90 days',
+      is_third_party: true,
+    },
+    // Mailerlite
+    ml_subscriber: {
+      category: 'advertising',
+      provider: 'MailerLite',
+      purpose: 'Email marketing subscriber tracking',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // ActiveCampaign
+    ac_enable_tracking: {
+      category: 'advertising',
+      provider: 'ActiveCampaign',
+      purpose: 'Marketing automation tracking',
+      expiry: '1 year',
+      is_third_party: true,
+    },
+    // Drip
+    __drip_visitor: {
+      category: 'advertising',
+      provider: 'Drip',
+      purpose: 'Email marketing visitor identification',
+      expiry: '2 years',
+      is_third_party: true,
+    },
   };
 
   /**
-   * Scan a website for cookies
+   * Scan a website for cookies with tier-based limits
    */
   static async scanWebsite(options: ScanOptions): Promise<{
     scanId: string;
     cookies: Cookie[];
     summary: any;
   }> {
-    const { url, scanDepth, userId } = options;
+    const { url, scanDepth, userId, tier = 'free' } = options;
     const supabase = await createClient();
+
+    // Validate tier and apply limits
+    const tierConfig = SCAN_TIER_LIMITS[tier];
+    if (!tierConfig) {
+      throw new Error(`Invalid subscription tier: ${tier}`);
+    }
+
+    // Enforce tier-based scan depth limits
+    let effectiveScanDepth = scanDepth;
+    const tierDepthMap: Record<ScanDepth, number> = { shallow: 1, medium: 2, deep: 3 };
+    const requestedDepthLevel = tierDepthMap[scanDepth];
+    const allowedDepthLevel = tierDepthMap[tierConfig.scanDepth];
+    
+    if (requestedDepthLevel > allowedDepthLevel) {
+      console.warn(`Scan depth ${scanDepth} exceeds tier ${tier} limit. Downgrading to ${tierConfig.scanDepth}`);
+      effectiveScanDepth = tierConfig.scanDepth;
+    }
 
     // Generate scan ID
     const scanId = `scan_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const startTime = Date.now();
+
+    console.log(`[CookieScanner] Starting scan: ${scanId}`);
+    console.log(`[CookieScanner] URL: ${url}, Tier: ${tier}, Depth: ${effectiveScanDepth}, Max Pages: ${tierConfig.maxPages}`);
 
     try {
+      // Validate URL format
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch (e) {
+        throw new Error('Invalid URL format. Please provide a valid HTTP/HTTPS URL.');
+      }
+
+      // Security check: Only allow HTTP/HTTPS protocols
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('Only HTTP and HTTPS URLs are supported');
+      }
+
       // Create scan record
-      await supabase.from('cookie_scan_history').insert({
+      const { error: insertError } = await supabase.from('cookie_scan_history').insert({
         user_id: userId,
         scan_id: scanId,
         website_url: url,
         scan_status: 'running',
-        scan_depth: scanDepth,
+        scan_depth: effectiveScanDepth,
         started_at: new Date().toISOString(),
       });
 
-      // Perform actual scan
-      const { cookies: scannedCookies, pagesScanned } = await this.performScan(url, scanDepth);
+      if (insertError) {
+        console.error('[CookieScanner] Failed to create scan record:', insertError);
+        throw new Error('Failed to initialize scan. Please try again.');
+      }
+
+      // Perform actual scan with tier limits
+      const { cookies: scannedCookies, pagesScanned } = await this.performScan(
+        url,
+        effectiveScanDepth,
+        tierConfig.maxPages
+      );
+
+      console.log(`[CookieScanner] Scan completed: ${scannedCookies.length} cookies found across ${pagesScanned} pages`);
 
       // Classify cookies
       const classifiedCookies = this.classifyCookies(scannedCookies, url, userId);
 
       // Calculate metrics
       const summary = this.calculateSummary(classifiedCookies, pagesScanned);
+      const scanDuration = Math.round((Date.now() - startTime) / 1000);
 
       // Update scan record
-      await supabase
+      const { error: updateError } = await supabase
         .from('cookie_scan_history')
         .update({
           scan_status: 'completed',
@@ -612,25 +1076,45 @@ export class CookieScanner {
           cookies_data: classifiedCookies,
           classification: summary.classification,
           compliance_score: summary.compliance_score,
+          scan_duration: scanDuration,
           completed_at: new Date().toISOString(),
         })
         .eq('scan_id', scanId);
 
+      if (updateError) {
+        console.error('[CookieScanner] Failed to update scan record:', updateError);
+      }
+
+      console.log(`[CookieScanner] Scan ${scanId} completed successfully in ${scanDuration}s`);
+
       return {
         scanId,
         cookies: classifiedCookies,
-        summary,
+        summary: {
+          ...summary,
+          scan_duration: scanDuration,
+          tier_used: tier,
+          tier_limits: tierConfig,
+        },
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[CookieScanner] Scan ${scanId} failed:`, errorMessage);
+
       // Update scan with error
       await supabase
         .from('cookie_scan_history')
         .update({
           scan_status: 'failed',
-          error_message: error instanceof Error ? error.message : 'Unknown error',
+          error_message: errorMessage,
           completed_at: new Date().toISOString(),
         })
-        .eq('scan_id', scanId);
+        .eq('scan_id', scanId)
+        .then(({ error }) => {
+          if (error) {
+            console.error('[CookieScanner] Failed to update error status:', error);
+          }
+        });
 
       throw error;
     }
@@ -643,16 +1127,21 @@ export class CookieScanner {
    */
   private static async performScan(
     url: string,
-    scanDepth: string
+    scanDepth: string,
+    maxPages: number = 20
   ): Promise<{ cookies: ScannedCookie[]; pagesScanned: number }> {
     // Determine scan configuration based on depth
     const scanConfig = {
       shallow: { pages: 1, timeout: 30 },
       medium: { pages: 5, timeout: 60 },
-      deep: { pages: 20, timeout: 120 }
+      deep: { pages: 50, timeout: 120 }
     };
     
-    const config = scanConfig[scanDepth as keyof typeof scanConfig];
+    let config = scanConfig[scanDepth as keyof typeof scanConfig];
+    // Apply tier-based page limit
+    config = { ...config, pages: Math.min(config.pages, maxPages) };
+    
+    console.log(`[performScan] Scanning ${url} with depth ${scanDepth}, max ${config.pages} pages, timeout ${config.timeout}s`);
     const maxRetries = 3;
     let lastError: Error | null = null;
     

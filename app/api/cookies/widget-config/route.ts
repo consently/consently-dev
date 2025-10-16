@@ -66,11 +66,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate behavior
-    const validBehaviors = ['implicit', 'explicit', 'optout'];
+    // Validate behavior (implicit removed)
+    const validBehaviors = ['explicit', 'optout'];
     if (config.behavior && !validBehaviors.includes(config.behavior)) {
       return NextResponse.json(
-        { error: 'Invalid behavior. Must be: implicit, explicit, or optout' },
+        { error: 'Invalid behavior. Must be: explicit or optout' },
         { status: 400 }
       );
     }
@@ -241,7 +241,7 @@ export async function GET() {
       widgetId: data.widget_id,
       domain: data.domain,
       categories: Array.isArray(data.categories) ? data.categories : ['necessary'],
-      behavior: data.behavior,
+      behavior: data.behavior === 'implicit' ? 'explicit' : data.behavior,
       consentDuration: data.consent_duration,
       showBrandingLink: data.show_branding_link,
       blockScripts: data.block_scripts,

@@ -44,11 +44,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enforce subscription/trial entitlements
+    const { getEntitlements, isScanDepthAllowed } = await import('@/lib/subscription');
+    const entitlements = await getEntitlements();
+
+    if (!isScanDepthAllowed(scanDepth, entitlements)) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: entitlements.isTrial || entitlements.plan !== 'free' 
+            ? 'Your plan does not allow this scan depth' 
+            : 'Upgrade or start a free trial to use deeper scans' 
+        },
+        { status: 403 }
+      );
+    }
+
     // Perform real cookie scan using CookieScanner service
+    // Pass tier based on scanDepth to allow multi-page scanning
+    let tier: 'free' | 'premium' | 'enterprise' = 'free';
+    if (scanDepth === 'medium') tier = 'premium';
+    if (scanDepth === 'deep') tier = 'enterprise';
+    
     const { scanId, cookies, summary } = await CookieScanner.scanWebsite({
       url,
       scanDepth,
       userId: user.id,
+      tier,
     });
 
     // Format response

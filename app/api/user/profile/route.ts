@@ -96,9 +96,12 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .maybeSingle();
 
+    // Compute trial status
+    const trial_active = !!(subscription?.is_trial && (!subscription.trial_end || new Date(subscription.trial_end) > new Date()));
+
     return NextResponse.json({
       profile,
-      subscription: subscription || null,
+      subscription: subscription ? { ...subscription, trial_active } : null,
       auth: {
         email: user.email,
         emailVerified: user.email_confirmed_at !== null,

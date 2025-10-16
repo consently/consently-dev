@@ -302,11 +302,17 @@ async function performScan(
   scanId?: string
 ) {
   try {
+    // Determine tier based on scan depth to allow multi-page scanning
+    let tier: 'free' | 'premium' | 'enterprise' = 'free';
+    if (scanDepth === 'medium') tier = 'premium';
+    if (scanDepth === 'deep') tier = 'enterprise';
+    
     // Perform the scan
     const result = await CookieScanner.scanWebsite({
       url,
       scanDepth,
       userId,
+      tier,
     });
 
     // Auto-import cookies if enabled

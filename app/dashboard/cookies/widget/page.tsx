@@ -58,9 +58,8 @@ const COOKIE_CATEGORIES = [
 ];
 
 const BEHAVIOR_OPTIONS = [
-  { id: 'implicit', name: 'Implicit Consent', description: 'Track after X seconds without action' },
-  { id: 'explicit', name: 'Explicit Consent', description: 'Require user action before tracking' },
-  { id: 'optout', name: 'Opt-Out', description: 'Track by default, allow opt-out' }
+  { id: 'explicit', name: 'Explicit Consent', description: 'Require user action before any tracking' },
+  { id: 'optout', name: 'Opt-Out', description: 'Track by default, allow users to opt out (not GDPR recommended)' }
 ];
 
 type WidgetConfig = {
@@ -192,19 +191,9 @@ export default function CookieWidgetPage() {
   };
 
   const getEmbedCode = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com';
     return `<!-- Consently Cookie Consent Widget -->
-<script>
-  window.consentlyConfig = {
-    widgetId: "${config.widgetId}",
-    domain: "${config.domain}",
-    categories: ${JSON.stringify(config.categories)},
-    behavior: "${config.behavior}",
-    consentDuration: ${config.consentDuration},
-    blockScripts: ${config.blockScripts},
-    respectDNT: ${config.respectDNT}
-  };
-</script>
-<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js" async></script>`;
+<script src="${origin}/widget.js" data-consently-id="${config.widgetId}" async></script>`;
   };
 
   const handleCopyCode = async () => {
@@ -404,7 +393,7 @@ export default function CookieWidgetPage() {
                     <h4 className="text-sm font-semibold text-blue-900 mb-1">Preview Information</h4>
                     <div className="space-y-1 text-sm text-blue-800">
                       <p>• <strong>Domain:</strong> {config.domain || 'Not set'}</p>
-                      <p>• <strong>Behavior:</strong> {config.behavior === 'explicit' ? 'Explicit Consent' : config.behavior === 'implicit' ? 'Implicit Consent' : 'Opt-Out'}</p>
+                      <p>• <strong>Behavior:</strong> {config.behavior === 'explicit' ? 'Explicit Consent' : 'Opt-Out'}</p>
                       <p>• <strong>Consent Duration:</strong> {config.consentDuration} days</p>
                       <p>• <strong>Categories:</strong> {config.categories.join(', ')}</p>
                       <p className="mt-2 text-xs">💡 This is a visual preview. The actual widget will use your banner template design from the Templates page.</p>
@@ -529,59 +518,60 @@ export default function CookieWidgetPage() {
         </CardContent>
       </Card>
 
-      {/* Consent Behavior */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Zap className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <CardTitle>Consent Behavior</CardTitle>
-              <CardDescription>Configure how consent is collected from users</CardDescription>
+      {/* Consent Behavior - Modern Design */}
+      <Card className="border-2">
+        <CardHeader className="border-b bg-gradient-to-r from-purple-50 to-blue-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg">
+                <Zap className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Consent Behavior</CardTitle>
+                <CardDescription>Choose how your visitors provide consent</CardDescription>
+              </div>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">
-              Consent Mode
-            </label>
-            <div className="space-y-3">
+        <CardContent className="p-6">
+          {/* Consent Mode Selection */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Consent Mode</h3>
+              <Badge variant="outline" className="text-xs">
+                {config.behavior === 'explicit' ? 'GDPR Recommended' : 'Not Recommended'}
+              </Badge>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-4">
               {BEHAVIOR_OPTIONS.map((option) => {
                 const isSelected = config.behavior === option.id;
                 return (
                   <div
                     key={option.id}
                     onClick={() => updateConfig({ behavior: option.id })}
-                    className={`relative rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                    className={`group relative rounded-xl border-2 p-5 cursor-pointer transition-all duration-200 ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                        ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg scale-105'
+                        : 'border-gray-200 hover:border-purple-300 hover:shadow-md'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        id={option.id}
-                        name="behavior"
-                        checked={isSelected}
-                        onChange={() => updateConfig({ behavior: option.id })}
-                        className="mt-1 text-blue-600 focus:ring-blue-500"
-                      />
+                    {isSelected && (
+                      <div className="absolute -top-2 -right-2 bg-purple-500 text-white rounded-full p-2 shadow-lg">
+                        <CheckCircle className="h-4 w-4" />
+                      </div>
+                    )}
+                    <div className="flex items-start gap-4">
+                      <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                      </div>
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <label
-                            htmlFor={option.id}
-                            className="text-sm font-semibold text-gray-900 cursor-pointer"
-                          >
-                            {option.name}
-                          </label>
-                          {isSelected && (
-                            <Badge className="bg-blue-600 text-white">Active</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600">
+                        <h4 className="font-semibold text-gray-900 mb-2 text-base">
+                          {option.name}
+                        </h4>
+                        <p className="text-sm text-gray-600 leading-relaxed">
                           {option.description}
                         </p>
                       </div>
@@ -592,175 +582,171 @@ export default function CookieWidgetPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">
-              Compliance & Privacy Options
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div
-                onClick={() => updateConfig({ blockScripts: !config.blockScripts })}
-                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                  config.blockScripts
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-300'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="blockScripts"
-                    checked={config.blockScripts}
-                    onChange={(e) => updateConfig({ blockScripts: e.target.checked })}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Shield className="h-4 w-4 text-blue-600" />
-                      <label
-                        htmlFor="blockScripts"
-                        className="text-sm font-medium text-gray-900 cursor-pointer"
-                      >
-                        Auto-block Scripts
-                      </label>
+          {/* Privacy & Compliance Settings */}
+          <div className="mt-8 pt-8 border-t">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                Privacy & Compliance Settings
+              </h3>
+              <Badge variant="outline" className="text-xs">
+                {[config.blockScripts, config.gdprApplies].filter(Boolean).length} of 2 recommended enabled
+              </Badge>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-5">
+              {[
+                {
+                  id: 'blockScripts',
+                  checked: config.blockScripts,
+                  icon: Shield,
+                  title: 'Auto-block Scripts',
+                  description: 'Block tracking scripts until consent is given',
+                  color: 'blue',
+                  bgColor: 'bg-blue-500',
+                  borderColor: 'border-blue-500',
+                  lightBg: 'bg-blue-50',
+                  recommended: true
+                },
+                {
+                  id: 'gdprApplies',
+                  checked: config.gdprApplies,
+                  icon: Lock,
+                  title: 'GDPR/DPDPA Compliance',
+                  description: 'Strict compliance with privacy regulations',
+                  color: 'green',
+                  bgColor: 'bg-green-500',
+                  borderColor: 'border-green-500',
+                  lightBg: 'bg-green-50',
+                  recommended: true
+                },
+                {
+                  id: 'respectDNT',
+                  checked: config.respectDNT,
+                  icon: Eye,
+                  title: 'Do Not Track',
+                  description: 'Honor browser DNT header preferences',
+                  color: 'purple',
+                  bgColor: 'bg-purple-500',
+                  borderColor: 'border-purple-500',
+                  lightBg: 'bg-purple-50',
+                  recommended: false
+                },
+                {
+                  id: 'showBrandingLink',
+                  checked: config.showBrandingLink,
+                  icon: Info,
+                  title: 'Show Attribution',
+                  description: 'Display "Powered by Consently" link',
+                  color: 'gray',
+                  bgColor: 'bg-gray-500',
+                  borderColor: 'border-gray-400',
+                  lightBg: 'bg-gray-50',
+                  recommended: false
+                }
+              ].map((setting) => {
+                const Icon = setting.icon;
+                
+                return (
+                  <div
+                    key={setting.id}
+                    onClick={() => updateConfig({ [setting.id]: !setting.checked })}
+                    className={`group relative rounded-xl border-2 p-5 cursor-pointer transition-all duration-200 ${
+                      setting.checked
+                        ? `${setting.borderColor} ${setting.lightBg} shadow-md`
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                  >
+                    {setting.recommended && setting.checked && (
+                      <div className="absolute -top-3 -right-3">
+                        <Badge className="bg-green-500 text-white text-xs px-2 py-1 shadow-lg">
+                          <CheckCircle className="h-3 w-3 mr-1 inline" />
+                          Recommended
+                        </Badge>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-start gap-4">
+                      {/* Icon Circle */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                        setting.checked ? setting.bgColor : 'bg-gray-200'
+                      } transition-colors`}>
+                        <Icon className={`h-5 w-5 ${
+                          setting.checked ? 'text-white' : 'text-gray-500'
+                        }`} />
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <label
+                            htmlFor={setting.id}
+                            className="text-base font-semibold text-gray-900 cursor-pointer leading-tight"
+                          >
+                            {setting.title}
+                          </label>
+                          <Checkbox
+                            id={setting.id}
+                            checked={setting.checked}
+                            onChange={(e) => updateConfig({ [setting.id]: e.target.checked })}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-shrink-0"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {setting.description}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-600">
-                      Block tracking scripts until consent is given
-                    </p>
                   </div>
-                </div>
-              </div>
-
-              <div
-                onClick={() => updateConfig({ respectDNT: !config.respectDNT })}
-                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                  config.respectDNT
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-gray-200 hover:border-purple-300'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="respectDNT"
-                    checked={config.respectDNT}
-                    onChange={(e) => updateConfig({ respectDNT: e.target.checked })}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Eye className="h-4 w-4 text-purple-600" />
-                      <label
-                        htmlFor="respectDNT"
-                        className="text-sm font-medium text-gray-900 cursor-pointer"
-                      >
-                        Respect Do Not Track
-                      </label>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      Honor browser DNT header settings
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                onClick={() => updateConfig({ gdprApplies: !config.gdprApplies })}
-                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                  config.gdprApplies
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-200 hover:border-green-300'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="gdprApplies"
-                    checked={config.gdprApplies}
-                    onChange={(e) => updateConfig({ gdprApplies: e.target.checked })}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Lock className="h-4 w-4 text-green-600" />
-                      <label
-                        htmlFor="gdprApplies"
-                        className="text-sm font-medium text-gray-900 cursor-pointer"
-                      >
-                        GDPR/DPDPA Compliance
-                      </label>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      Strict compliance with GDPR & DPDPA
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                onClick={() => updateConfig({ showBrandingLink: !config.showBrandingLink })}
-                className={`rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                  config.showBrandingLink
-                    ? 'border-gray-400 bg-gray-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="showBranding"
-                    checked={config.showBrandingLink}
-                    onChange={(e) => updateConfig({ showBrandingLink: e.target.checked })}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Info className="h-4 w-4 text-gray-600" />
-                      <label
-                        htmlFor="showBranding"
-                        className="text-sm font-medium text-gray-900 cursor-pointer"
-                      >
-                        Show Branding
-                      </label>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      Display "Powered by Consently" link
-                    </p>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Cookie Categories */}
-      <Card>
-        <CardHeader>
+      {/* Cookie Categories - Modern Design */}
+      <Card className="border-2">
+        <CardHeader className="border-b bg-gradient-to-r from-orange-50 to-yellow-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Cookie className="h-5 w-5 text-orange-600" />
+              <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl shadow-lg">
+                <Cookie className="h-6 w-6 text-white" />
               </div>
               <div>
-                <CardTitle>Cookie Categories</CardTitle>
-                <CardDescription>Select the cookie types your website uses</CardDescription>
+                <CardTitle className="text-xl">Cookie Categories</CardTitle>
+                <CardDescription>Define which types of cookies your website uses</CardDescription>
               </div>
             </div>
-            <Badge className="bg-blue-100 text-blue-800">
-              {config.categories.length} Selected
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1">
+                {config.categories.length} Selected
+              </Badge>
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {COOKIE_CATEGORIES.map((category) => {
               const isSelected = config.categories.includes(category.id);
               const isRequired = category.required;
               
+              const categoryColors = {
+                necessary: { bg: 'from-blue-500 to-blue-600', border: 'border-blue-500', light: 'bg-blue-50' },
+                analytics: { bg: 'from-green-500 to-green-600', border: 'border-green-500', light: 'bg-green-50' },
+                marketing: { bg: 'from-purple-500 to-purple-600', border: 'border-purple-500', light: 'bg-purple-50' },
+                preferences: { bg: 'from-amber-500 to-amber-600', border: 'border-amber-500', light: 'bg-amber-50' },
+                social: { bg: 'from-pink-500 to-pink-600', border: 'border-pink-500', light: 'bg-pink-50' }
+              }[category.id] || { bg: 'from-gray-500 to-gray-600', border: 'border-gray-500', light: 'bg-gray-50' };
+              
               return (
                 <div
                   key={category.id}
-                  className={`relative rounded-lg border-2 p-4 transition-all ${
+                  className={`group relative rounded-xl border-2 p-5 transition-all duration-200 ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  } ${isRequired ? 'opacity-100' : 'cursor-pointer hover:shadow-md'}`}
+                      ? `${categoryColors.border} ${categoryColors.light} shadow-lg`
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                  } ${isRequired ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                   onClick={() => {
                     if (!isRequired) {
                       const checked = !isSelected;
@@ -773,41 +759,51 @@ export default function CookieWidgetPage() {
                   }}
                 >
                   {isRequired && (
-                    <div className="absolute -top-2 -right-2">
-                      <Badge className="bg-blue-600 text-white text-xs">Required</Badge>
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs shadow-lg">
+                        <Lock className="h-3 w-3 mr-1 inline" />
+                        Required
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  {isSelected && !isRequired && (
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <div className="bg-green-500 text-white rounded-full p-1.5 shadow-lg">
+                        <CheckCircle className="h-4 w-4" />
+                      </div>
                     </div>
                   )}
                   
                   <div className="flex items-start gap-3">
-                    <Checkbox
-                      id={`cat-${category.id}`}
-                      checked={isSelected}
-                      disabled={isRequired}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        updateConfig({
-                          categories: checked
-                            ? [...config.categories, category.id]
-                            : config.categories.filter((c) => c !== category.id)
-                        });
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <div className="mt-0.5">
+                      <Checkbox
+                        id={`cat-${category.id}`}
+                        checked={isSelected}
+                        disabled={isRequired}
+                        onChange={(e) => {
+                          if (!isRequired) {
+                            const checked = e.target.checked;
+                            updateConfig({
+                              categories: checked
+                                ? [...config.categories, category.id]
+                                : config.categories.filter((c) => c !== category.id)
+                            });
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
                     <div className="flex-1">
                       <label
                         htmlFor={`cat-${category.id}`}
-                        className="block text-sm font-semibold text-gray-900 mb-1 cursor-pointer"
+                        className="block text-base font-bold text-gray-900 mb-2 cursor-pointer"
                       >
                         {category.name}
                       </label>
-                      <p className="text-xs text-gray-600 leading-relaxed">
+                      <p className="text-sm text-gray-600 leading-relaxed">
                         {category.description}
                       </p>
-                      {isSelected && !isRequired && (
-                        <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-200">
-                          Active
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -815,14 +811,30 @@ export default function CookieWidgetPage() {
             })}
           </div>
           
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex gap-3">
-              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-medium text-blue-900 mb-1">About Cookie Categories</h4>
-                <p className="text-sm text-blue-800">
-                  Select all cookie types that your website uses. "Necessary" cookies are always required and cannot be disabled as they are essential for basic website functionality.
-                </p>
+          {/* Info Banner */}
+          <div className="mt-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 p-5">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <Info className="h-5 w-5 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-blue-900 mb-2">Category Selection Guide</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span><strong>Necessary</strong> cookies are always required for basic website functionality</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span>Select only the categories that your website actually uses</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span>Users will be able to opt-in/out of non-necessary categories</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -974,6 +986,152 @@ export default function CookieWidgetPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* No-code Installation Guides */}
+      <PlatformInstallCard embedCode={getEmbedCode()} />
     </div>
   );
+}
+
+type Platform = 'shopify' | 'wordpress' | 'wix' | 'magento' | 'squarespace' | 'webflow';
+
+function PlatformInstallCard({ embedCode }: { embedCode: string }) {
+  const [selected, setSelected] = useState<Platform | null>('shopify');
+
+  const platforms: { id: Platform; name: string; badge?: string }[] = [
+    { id: 'shopify', name: 'Shopify' },
+    { id: 'wordpress', name: 'WordPress' },
+    { id: 'wix', name: 'Wix' },
+    { id: 'magento', name: 'Magento' },
+    { id: 'squarespace', name: 'Squarespace' },
+    { id: 'webflow', name: 'Webflow' },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <Code className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <CardTitle>No-code Installation</CardTitle>
+              <CardDescription>Select your platform to view step-by-step guide</CardDescription>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+          {platforms.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setSelected(p.id)}
+              className={`px-3 py-2 rounded border text-sm ${selected === p.id ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="rounded-lg border bg-gray-50 p-4">
+          {selected && (
+            <InstallSteps platform={selected} embedCode={embedCode} />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CodeBlock({ code }: { code: string }) {
+  return (
+    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
+      <pre>{code}</pre>
+    </div>
+  );
+}
+
+function InstallSteps({ platform, embedCode }: { platform: Platform; embedCode: string }) {
+  switch (platform) {
+    case 'shopify':
+      return (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">Shopify</h4>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
+            <li>Open Shopify admin → Online Store → Themes → Edit code.</li>
+            <li>Open layout/theme.liquid.</li>
+            <li>Paste the snippet right before the closing <code className="px-1 rounded bg-white">&lt;/head&gt;</code> tag.</li>
+            <li>Save and publish.</li>
+          </ol>
+          <CodeBlock code={embedCode} />
+        </div>
+      );
+    case 'wordpress':
+      return (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">WordPress</h4>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
+            <li>Install and activate "Insert Headers and Footers" (or similar) plugin.</li>
+            <li>Go to Settings → Insert Headers and Footers.</li>
+            <li>Paste the snippet into the Header section.</li>
+            <li>Save and clear caches if any.</li>
+          </ol>
+          <CodeBlock code={embedCode} />
+        </div>
+      );
+    case 'wix':
+      return (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">Wix</h4>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
+            <li>Wix Dashboard → Settings → Custom code.</li>
+            <li>Add Custom Code → Paste snippet.</li>
+            <li>Place code in Head → Apply to All pages → Load once.</li>
+            <li>Publish your site.</li>
+          </ol>
+          <CodeBlock code={embedCode} />
+        </div>
+      );
+    case 'magento':
+      return (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">Magento</h4>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
+            <li>Admin → Content → Configuration → Edit your theme.</li>
+            <li>HTML Head → Scripts and Style Sheets.</li>
+            <li>Paste the snippet and Save Config.</li>
+            <li>Flush Magento caches.</li>
+          </ol>
+          <CodeBlock code={embedCode} />
+        </div>
+      );
+    case 'squarespace':
+      return (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">Squarespace</h4>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
+            <li>Settings → Developer Tools → Code Injection.</li>
+            <li>Paste the snippet into the Header field.</li>
+            <li>Save and publish.</li>
+          </ol>
+          <CodeBlock code={embedCode} />
+        </div>
+      );
+    case 'webflow':
+      return (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">Webflow</h4>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
+            <li>Project Settings → Custom Code.</li>
+            <li>Paste the snippet in the Head Code area.</li>
+            <li>Save, then Publish your site.</li>
+          </ol>
+          <CodeBlock code={embedCode} />
+        </div>
+      );
+    default:
+      return null;
+  }
 }

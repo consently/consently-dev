@@ -13,6 +13,7 @@ export interface Database {
           subscription_plan: 'small' | 'medium' | 'enterprise' | null;
           subscription_status: 'active' | 'inactive' | 'cancelled' | null;
           onboarding_completed: boolean;
+          demo_account: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -25,6 +26,7 @@ export interface Database {
           subscription_plan?: 'small' | 'medium' | 'enterprise' | null;
           subscription_status?: 'active' | 'inactive' | 'cancelled' | null;
           onboarding_completed?: boolean;
+          demo_account?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -37,6 +39,7 @@ export interface Database {
           subscription_plan?: 'small' | 'medium' | 'enterprise' | null;
           subscription_status?: 'active' | 'inactive' | 'cancelled' | null;
           onboarding_completed?: boolean;
+          demo_account?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -174,6 +177,8 @@ export interface Database {
           payment_id: string | null;
           start_date: string;
           end_date: string | null;
+          is_trial: boolean;
+          trial_end: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -189,6 +194,8 @@ export interface Database {
           payment_id?: string | null;
           start_date?: string;
           end_date?: string | null;
+          is_trial?: boolean;
+          trial_end?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -204,6 +211,8 @@ export interface Database {
           payment_id?: string | null;
           start_date?: string;
           end_date?: string | null;
+          is_trial?: boolean;
+          trial_end?: string | null;
           created_at?: string;
           updated_at?: string;
         };
