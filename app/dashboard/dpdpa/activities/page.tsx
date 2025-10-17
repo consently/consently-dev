@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,8 @@ import {
   ChevronRight,
   Check,
   X,
-  Loader2
+  Loader2,
+  BarChart3
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -512,6 +514,11 @@ export default function ProcessingActivitiesPage() {
                   </div>
                   
                   <div className="flex gap-2 ml-4">
+                    <Link href={`/dashboard/dpdpa/activity-stats/${activity.id}`}>
+                      <Button variant="ghost" size="sm" title="View Stats">
+                        <BarChart3 className="h-4 w-4 text-blue-600" />
+                      </Button>
+                    </Link>
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(activity)}>
                       <Edit className="h-4 w-4" />
                     </Button>

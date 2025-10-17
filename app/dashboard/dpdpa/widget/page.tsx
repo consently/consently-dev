@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -27,7 +28,8 @@ import {
   Play,
   FileCode,
   Zap,
-  RefreshCw
+  RefreshCw,
+  BarChart3
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,6 +69,15 @@ interface WidgetConfig {
   showBranding: boolean;
   isActive: boolean;
   language: string;
+  customTranslations?: {
+    [languageCode: string]: {
+      title?: string;
+      message?: string;
+      acceptButtonText?: string;
+      rejectButtonText?: string;
+      [key: string]: any;
+    };
+  };
 }
 
 export default function DPDPAWidgetPage() {
@@ -99,9 +110,11 @@ export default function DPDPAWidgetPage() {
     showDataSubjectsRights: true,
     showBranding: true,
     isActive: true,
-    language: 'en'
+    language: 'en',
+    customTranslations: {}
   });
   const [copySuccess, setCopySuccess] = useState(false);
+  const [selectedLanguagesForTranslation, setSelectedLanguagesForTranslation] = useState<string[]>([]);
 
   const themePresets = [
     { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
@@ -154,7 +167,8 @@ export default function DPDPAWidgetPage() {
             showDataSubjectsRights: existingConfig.show_data_subjects_rights,
             showBranding: existingConfig.show_branding,
             isActive: existingConfig.is_active,
-            language: existingConfig.language || 'en'
+            language: existingConfig.language || 'en',
+            customTranslations: existingConfig.custom_translations || {}
           });
         }
       }
@@ -295,14 +309,25 @@ export default function DPDPAWidgetPage() {
             </div>
             <div className="flex items-center gap-3">
               {config.widgetId && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  {showPreview ? 'Hide' : 'Preview'}
-                </Button>
+                <>
+                  <Link href={`/dashboard/dpdpa/widget-stats/${config.widgetId}`}>
+                    <Button 
+                      variant="outline"
+                      className="shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      View Stats
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    {showPreview ? 'Hide' : 'Preview'}
+                  </Button>
+                </>
               )}
               <Button 
                 onClick={handleSave} 
@@ -375,36 +400,20 @@ export default function DPDPAWidgetPage() {
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    Title
-                  </label>
-                  <Input
-                    value={config.title}
-                    onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                    placeholder="Your Data Privacy Rights"
-                    className="transition-all focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <Globe className="h-4 w-4 text-gray-500" />
-                    Language
-                  </label>
-                  <Select
-                    value={config.language}
-                    onChange={(e) => setConfig({ ...config, language: e.target.value })}
-                    options={[
-                      { value: 'en', label: '🇬🇧 English' },
-                      { value: 'hi', label: '🇮🇳 हिन्दी' },
-                      { value: 'bn', label: '🇧🇩 বাংলা' },
-                      { value: 'ta', label: '🇮🇳 தமிழ்' },
-                      { value: 'te', label: '🇮🇳 తెలుగు' },
-                      { value: 'mr', label: '🇮🇳 मराठी' },
-                    ]}
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Title
+                </label>
+                <Input
+                  value={config.title}
+                  onChange={(e) => setConfig({ ...config, title: e.target.value })}
+                  placeholder="Your Data Privacy Rights"
+                  className="transition-all focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Users can select their language in the widget itself
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -711,39 +720,91 @@ export default function DPDPAWidgetPage() {
                 </div>
               </div>
 
-              {/* Live Preview */}
+              {/* Live Preview - Updated to match new widget design */}
               <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                <p className="text-xs font-medium text-gray-500 mb-3">PREVIEW</p>
+                <p className="text-xs font-medium text-gray-500 mb-3">LIVE PREVIEW</p>
                 <div 
-                  className="p-4 shadow-lg"
+                  className="shadow-2xl max-w-md mx-auto overflow-hidden"
                   style={{
                     backgroundColor: config.theme.backgroundColor,
                     color: config.theme.textColor,
                     borderRadius: `${config.theme.borderRadius}px`
                   }}
                 >
-                  <h3 className="font-semibold mb-2">{config.title}</h3>
-                  <p className="text-sm opacity-80 mb-3">{config.message.substring(0, 60)}...</p>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-4 py-2 rounded text-sm font-medium text-white"
-                      style={{ 
-                        backgroundColor: config.theme.primaryColor,
-                        borderRadius: `${config.theme.borderRadius}px`
-                      }}
+                  {/* Header */}
+                  <div className="p-4 border-b" style={{ borderColor: '#e5e7eb' }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+                          style={{ backgroundColor: config.theme.primaryColor }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9 11l3 3L22 4"/>
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                          </svg>
+                        </div>
+                        <span className="font-bold text-sm">Consent Manager</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button className="text-xs px-2 py-1 border rounded-lg flex items-center gap-1" style={{ borderColor: '#e5e7eb' }}>
+                          <Globe className="h-3 w-3" />
+                          {config.language === 'hi' ? 'हिंदी' : config.language === 'ta' ? 'தமிழ்' : 'English'}
+                        </button>
+                      </div>
+                    </div>
+                    <div 
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5"
+                      style={{ backgroundColor: '#e0e7ff', color: '#1e3a8a' }}
                     >
-                      {config.acceptButtonText}
-                    </button>
-                    <button
-                      className="px-4 py-2 rounded text-sm font-medium border"
-                      style={{ 
-                        borderColor: config.theme.primaryColor,
-                        color: config.theme.primaryColor,
-                        borderRadius: `${config.theme.borderRadius}px`
-                      }}
-                    >
-                      {config.rejectButtonText}
-                    </button>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#10b981' }}></span>
+                      Fully compliant with DPDPA 2023
+                    </div>
+                  </div>
+
+                  {/* Requirements Box */}
+                  <div className="p-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                      <div className="text-xs font-semibold text-blue-900 mb-2">
+                        DPDPA 2023 requires you to read and download the privacy notice
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-gray-400">
+                          <path d="M20 6L9 17l-5-5"/>
+                        </svg>
+                        <span>Scroll down to read the privacy notice</span>
+                      </div>
+                    </div>
+
+                    {/* Privacy Notice Preview */}
+                    <div className="border rounded-lg p-3 mb-3 bg-white" style={{ maxHeight: '120px', overflow: 'hidden', position: 'relative' }}>
+                      <h4 className="text-xs font-bold mb-1">Privacy Notice</h4>
+                      <p className="text-xs opacity-70 mb-2">We process your personal data in compliance with DPDPA 2023...</p>
+                      <div className="text-xs opacity-50">1. Data Collection</div>
+                      <div className="text-xs opacity-50">2. Processing Purposes</div>
+                      <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent"></div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        className="flex-1 px-3 py-2 rounded-lg text-xs font-bold text-white"
+                        style={{ backgroundColor: config.theme.primaryColor }}
+                      >
+                        Download Privacy Notice
+                      </button>
+                      <button
+                        className="flex-1 px-3 py-2 rounded-lg text-xs font-bold"
+                        style={{ backgroundColor: '#e5e7eb', color: '#6b7280' }}
+                      >
+                        Proceed to Consent
+                      </button>
+                    </div>
+
+                    {/* Warning Message */}
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
+                      <p className="text-xs text-red-600">⚠ Please complete both requirements to proceed</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -860,6 +921,190 @@ export default function DPDPAWidgetPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Optional Custom Translations */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50">
+            <CardHeader className="border-b border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 bg-purple-600 rounded-lg">
+                      <Globe className="h-5 w-5 text-white" />
+                    </div>
+                    <span>Custom Translations</span>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">Optional</Badge>
+                  </CardTitle>
+                  <CardDescription className="text-purple-900/70 mt-2">
+                    Add your own translated content - completely flexible and optional
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="bg-white border border-purple-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Info className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 mb-1">Your Choice, Your Format</h4>
+                    <p className="text-sm text-gray-600">
+                      Add translations for any language you need. Use your own wording and style. 
+                      Leave fields empty to use our defaults. No limitations!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedLanguagesForTranslation.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="flex justify-center mb-4">
+                    <div className="p-4 bg-purple-100 rounded-full">
+                      <Globe className="h-10 w-10 text-purple-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Languages Added Yet</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                    Click below to add custom translations for Indian languages
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {selectedLanguagesForTranslation.map((lang) => (
+                    <div key={lang} className="bg-white border-2 border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-gray-900 flex items-center gap-3">
+                          <span className="text-2xl">
+                            {lang === 'hi' ? '🇮🇳' : lang === 'pa' ? '🇮🇳' : lang === 'te' ? '🇮🇳' : '🇮🇳'}
+                          </span>
+                          <span>
+                            {lang === 'hi' ? 'Hindi (हिंदी)' : 
+                             lang === 'pa' ? 'Punjabi (ਪੰਜਾਬੀ)' :
+                             lang === 'te' ? 'Telugu (తెలుగు)' :
+                             'Tamil (தமிழ்)'}
+                          </span>
+                        </h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedLanguagesForTranslation(selectedLanguagesForTranslation.filter(l => l !== lang));
+                            const newTranslations = { ...config.customTranslations };
+                            delete newTranslations[lang];
+                            setConfig({ ...config, customTranslations: newTranslations });
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Custom Title</label>
+                          <Input
+                            value={config.customTranslations?.[lang]?.title || ''}
+                            onChange={(e) => setConfig({
+                              ...config,
+                              customTranslations: {
+                                ...config.customTranslations,
+                                [lang]: {
+                                  ...config.customTranslations?.[lang],
+                                  title: e.target.value
+                                }
+                              }
+                            })}
+                            placeholder="Leave empty for default"
+                            className="transition-all focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Custom Message</label>
+                          <Textarea
+                            value={config.customTranslations?.[lang]?.message || ''}
+                            onChange={(e) => setConfig({
+                              ...config,
+                              customTranslations: {
+                                ...config.customTranslations,
+                                [lang]: {
+                                  ...config.customTranslations?.[lang],
+                                  message: e.target.value
+                                }
+                              }
+                            })}
+                            placeholder="Leave empty for default"
+                            rows={3}
+                            className="resize-none transition-all focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">Accept Button</label>
+                            <Input
+                              value={config.customTranslations?.[lang]?.acceptButtonText || ''}
+                              onChange={(e) => setConfig({
+                                ...config,
+                                customTranslations: {
+                                  ...config.customTranslations,
+                                  [lang]: {
+                                    ...config.customTranslations?.[lang],
+                                    acceptButtonText: e.target.value
+                                  }
+                                }
+                              })}
+                              placeholder="Default"
+                              className="transition-all focus:ring-2 focus:ring-purple-500"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">Reject Button</label>
+                            <Input
+                              value={config.customTranslations?.[lang]?.rejectButtonText || ''}
+                              onChange={(e) => setConfig({
+                                ...config,
+                                customTranslations: {
+                                  ...config.customTranslations,
+                                  [lang]: {
+                                    ...config.customTranslations?.[lang],
+                                    rejectButtonText: e.target.value
+                                  }
+                                }
+                              })}
+                              placeholder="Default"
+                              className="transition-all focus:ring-2 focus:ring-purple-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                {['hi', 'pa', 'te', 'ta'].filter(lang => !selectedLanguagesForTranslation.includes(lang)).map((lang) => (
+                  <Button
+                    key={lang}
+                    variant="outline"
+                    onClick={() => setSelectedLanguagesForTranslation([...selectedLanguagesForTranslation, lang])}
+                    className="flex-1 border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add {lang === 'hi' ? 'Hindi' : lang === 'pa' ? 'Punjabi' : lang === 'te' ? 'Telugu' : 'Tamil'}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <p className="text-xs text-purple-900">
+                  <strong>✨ Tip:</strong> Empty fields will use our default translations automatically. 
+                  You have complete freedom to customize only what you need!
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}
@@ -970,6 +1215,65 @@ export default function DPDPAWidgetPage() {
                   </code>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* DPDPA Compliance Features */}
+          <Card className="shadow-sm border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+            <CardHeader className="border-b border-green-200">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 bg-green-600 rounded-lg">
+                  <Shield className="h-5 w-5 text-white" />
+                </div>
+                <span>DPDPA 2023 Features</span>
+              </CardTitle>
+              <CardDescription className="text-green-900/70">
+                Built-in compliance requirements
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <div className="flex items-start gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Privacy Notice Display</h4>
+                    <p className="text-xs text-gray-600 mt-1">Users must scroll through and read the complete privacy notice before proceeding</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <div className="flex items-start gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Mandatory Download</h4>
+                    <p className="text-xs text-gray-600 mt-1">Privacy notice must be downloaded before consent can be provided</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <div className="flex items-start gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Multi-Language Support</h4>
+                    <p className="text-xs text-gray-600 mt-1">Users can select their preferred language (English, Hindi, Punjabi, Telugu, Tamil). You can optionally provide your own custom translations.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <div className="flex items-start gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Granular Consent</h4>
+                    <p className="text-xs text-gray-600 mt-1">Individual accept/reject options for each processing activity</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-green-600 rounded-lg p-3 text-white">
+                <p className="text-xs font-semibold flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  All requirements automatically enforced
+                </p>
+              </div>
             </CardContent>
           </Card>
 

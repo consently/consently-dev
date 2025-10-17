@@ -21,6 +21,154 @@
 
   console.log('[Consently DPDPA] Initializing widget with ID:', widgetId);
 
+  // DPDPA Widget Translations
+  const TRANSLATIONS = {
+    en: {
+      consentManager: 'Consent Manager',
+      compliantWith: 'Fully compliant with Digital Personal Data Protection Act, 2023',
+      requirementsTitle: 'DPDPA 2023 requires you to read and download the privacy notice',
+      scrollInstruction: 'Scroll down to read the privacy notice',
+      downloadButton: 'Download Privacy Notice',
+      proceedButton: 'Proceed to Consent',
+      warningMessage: 'Please complete both requirements to proceed',
+      processingActivities: 'Processing Activities',
+      processingDescription: 'We process your personal data for the following purposes. You can accept or reject each activity individually.',
+      acceptButton: 'Accept',
+      rejectButton: 'Reject',
+      acceptAll: 'Accept All',
+      rejectAll: 'Reject All',
+      dataAttributes: 'Data Attributes',
+      retentionPeriod: 'Retention Period',
+      yourDataRights: 'Your Data Rights',
+      dataRightsText: 'Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.',
+      withdrawConsent: 'Withdraw/Modify Consent',
+      raiseGrievance: 'Raise Grievance',
+      privacyNotice: 'Privacy Notice'
+    },
+    hi: {
+      consentManager: 'सहमति प्रबंधक',
+      compliantWith: 'डिजिटल व्यक्तिगत डेटा संरक्षण अधिनियम, 2023 के साथ पूरी तरह से अनुपालन',
+      requirementsTitle: 'DPDPA 2023 के लिए आवश्यक है कि आप गोपनीयता सूचना पढ़ें और डाउनलोड करें',
+      scrollInstruction: 'गोपनीयता सूचना पढ़ने के लिए नीचे स्क्रॉल करें',
+      downloadButton: 'गोपनीयता सूचना डाउनलोड करें',
+      proceedButton: 'सहमति के लिए आगे बढ़ें',
+      warningMessage: 'आगे बढ़ने के लिए कृपया दोनों आवश्यकताओं को पूरा करें',
+      processingActivities: 'प्रसंस्करण गतिविधियाँ',
+      processingDescription: 'हम आपके व्यक्तिगत डेटा को निम्नलिखित उद्देश्यों के लिए संसाधित करते हैं। आप प्रत्येक गतिविधि को व्यक्तिगत रूप से स्वीकार या अस्वीकार कर सकते हैं।',
+      acceptButton: 'स्वीकार करें',
+      rejectButton: 'अस्वीकार करें',
+      acceptAll: 'सभी स्वीकार करें',
+      rejectAll: 'सभी अस्वीकार करें',
+      dataAttributes: 'डेटा विशेषताएँ',
+      retentionPeriod: 'प्रतिधारण अवधि',
+      yourDataRights: 'आपके डेटा अधिकार',
+      dataRightsText: 'DPDPA 2023 के तहत, आपको अपने व्यक्तिगत डेटा तक पहुँचने, सुधारने और हटाने का अधिकार है। आप किसी भी समय अपनी सहमति वापस ले सकते हैं।',
+      withdrawConsent: 'सहमति वापस लें/संशोधित करें',
+      raiseGrievance: 'शिकायत दर्ज करें',
+      privacyNotice: 'गोपनीयता सूचना'
+    },
+    pa: {
+      consentManager: 'ਸਹਿਮਤੀ ਪ੍ਰਬੰਧਕ',
+      compliantWith: 'ਡਿਜੀਟਲ ਨਿੱਜੀ ਡੇਟਾ ਸੁਰੱਖਿਆ ਐਕਟ, 2023 ਨਾਲ ਪੂਰੀ ਤਰ੍ਹਾਂ ਅਨੁਕੂਲ',
+      requirementsTitle: 'DPDPA 2023 ਲਈ ਜ਼ਰੂਰੀ ਹੈ ਕਿ ਤੁਸੀਂ ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ ਪੜ੍ਹੋ ਅਤੇ ਡਾਊਨਲੋਡ ਕਰੋ',
+      scrollInstruction: 'ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ ਪੜ੍ਹਨ ਲਈ ਹੇਠਾਂ ਸਕ੍ਰੋਲ ਕਰੋ',
+      downloadButton: 'ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ ਡਾਊਨਲੋਡ ਕਰੋ',
+      proceedButton: 'ਸਹਿਮਤੀ ਲਈ ਅੱਗੇ ਵਧੋ',
+      warningMessage: 'ਕਿਰਪਾ ਕਰਕੇ ਅੱਗੇ ਵਧਣ ਲਈ ਦੋਵੇਂ ਜ਼ਰੂਰਤਾਂ ਪੂਰੀਆਂ ਕਰੋ',
+      processingActivities: 'ਪ੍ਰੋਸੈਸਿੰਗ ਗਤੀਵਿਧੀਆਂ',
+      processingDescription: 'ਅਸੀਂ ਹੇਠ ਲਿਖੇ ਉਦੇਸ਼ਾਂ ਲਈ ਤੁਹਾਡੇ ਨਿੱਜੀ ਡੇਟਾ ਦੀ ਪ੍ਰਕਿਰਿਆ ਕਰਦੇ ਹਾਂ। ਤੁਸੀਂ ਹਰੇਕ ਗਤੀਵਿਧੀ ਨੂੰ ਵੱਖਰੇ ਤੌਰ \'ਤੇ ਸਵੀਕਾਰ ਜਾਂ ਰੱਦ ਕਰ ਸਕਦੇ ਹੋ।',
+      acceptButton: 'ਸਵੀਕਾਰ ਕਰੋ',
+      rejectButton: 'ਰੱਦ ਕਰੋ',
+      acceptAll: 'ਸਭ ਸਵੀਕਾਰ ਕਰੋ',
+      rejectAll: 'ਸਭ ਰੱਦ ਕਰੋ',
+      dataAttributes: 'ਡੇਟਾ ਗੁਣ',
+      retentionPeriod: 'ਬਰਕਰਾਰੀ ਮਿਆਦ',
+      yourDataRights: 'ਤੁਹਾਡੇ ਡੇਟਾ ਅਧਿਕਾਰ',
+      dataRightsText: 'DPDPA 2023 ਦੇ ਅਧੀਨ, ਤੁਹਾਨੂੰ ਆਪਣੇ ਨਿੱਜੀ ਡੇਟਾ ਤੱਕ ਪਹੁੰਚ, ਸੁਧਾਰ ਅਤੇ ਮਿਟਾਉਣ ਦਾ ਅਧਿਕਾਰ ਹੈ। ਤੁਸੀਂ ਕਿਸੇ ਵੀ ਸਮੇਂ ਆਪਣੀ ਸਹਿਮਤੀ ਵਾਪਸ ਲੈ ਸਕਦੇ ਹੋ।',
+      withdrawConsent: 'ਸਹਿਮਤੀ ਵਾਪਸ ਲਓ/ਸੋਧੋ',
+      raiseGrievance: 'ਸ਼ਿਕਾਇਤ ਦਰਜ ਕਰੋ',
+      privacyNotice: 'ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ'
+    },
+    te: {
+      consentManager: 'సమ్మతి నిర్వాహకుడు',
+      compliantWith: 'డిజిటల్ వ్యక్తిగత డేటా రక్షణ చట్టం, 2023తో పూర్తిగా అనుగుణంగా ఉంది',
+      requirementsTitle: 'DPDPA 2023 మీరు గోప్యత నోటీసును చదవడం మరియు డౌన్లోడ్ చేయడం అవసరం',
+      scrollInstruction: 'గోప్యత నోటీసును చదవడానికి క్రిందికి స్క్రోల్ చేయండి',
+      downloadButton: 'గోప్యత నోటీసును డౌన్లోడ్ చేయండి',
+      proceedButton: 'సమ్మతికి కొనసాగండి',
+      warningMessage: 'దయచేసి కొనసాగడానికి రెండు అవసరాలను పూర్తి చేయండి',
+      processingActivities: 'ప్రాసెసింగ్ కార్యకలాపాలు',
+      processingDescription: 'మేము కింది ప్రయోజనాల కోసం మీ వ్యక్తిగత డేటాను ప్రాసెస్ చేస్తాము. మీరు ప్రతి కార్యాచరణను వ్యక్తిగతంగా అంగీకరించవచ్చు లేదా తిరస్కరించవచ్చు.',
+      acceptButton: 'అంగీకరించండి',
+      rejectButton: 'తిరస్కరించండి',
+      acceptAll: 'అన్నీ అంగీకరించండి',
+      rejectAll: 'అన్నీ తిరస్కరించండి',
+      dataAttributes: 'డేటా లక్షణాలు',
+      retentionPeriod: 'నిలుపుదల వ్యవధి',
+      yourDataRights: 'మీ డేటా హక్కులు',
+      dataRightsText: 'DPDPA 2023 క్రింద, మీరు మీ వ్యక్తిగత డేటాను యాక్సెస్ చేయడానికి, సరిదిద్దడానికి మరియు తొలగించడానికి హక్కును కలిగి ఉన్నారు. మీరు ఎప్పుడైనా మీ సమ్మతిని ఉపసంహరించుకోవచ్చు.',
+      withdrawConsent: 'సమ్మతిని ఉపసంహరించండి/సవరించండి',
+      raiseGrievance: 'ఫిర్యాదు నమోదు చేయండి',
+      privacyNotice: 'గోప్యత నోటీసు'
+    },
+    ta: {
+      consentManager: 'ஒப்புதல் மேலாளர்',
+      compliantWith: 'டிஜிட்டல் தனிப்பட்ட தரவு பாதுகாப்பு சட்டம், 2023 உடன் முழுமையாக இணங்குகிறது',
+      requirementsTitle: 'DPDPA 2023 நீங்கள் தனியுரிமை அறிவிப்பைப் படிக்க மற்றும் பதிவிறக்க வேண்டும்',
+      scrollInstruction: 'தனியுரிமை அறிவிப்பைப் படிக்க கீழே உருட்டவும்',
+      downloadButton: 'தனியுரிமை அறிவிப்பைப் பதிவிறக்கவும்',
+      proceedButton: 'ஒப்புதலுக்கு தொடரவும்',
+      warningMessage: 'தொடர இரண்டு தேவைகளையும் பூர்த்தி செய்யவும்',
+      processingActivities: 'செயலாக்க நடவடிக்கைகள்',
+      processingDescription: 'பின்வரும் நோக்கங்களுக்காக உங்கள் தனிப்பட்ட தரவை செயலாக்குகிறோம். நீங்கள் ஒவ்வொரு செயல்பாட்டையும் தனித்தனியாக ஏற்கலாம் அல்லது நிராகரிக்கலாம்.',
+      acceptButton: 'ஏற்கவும்',
+      rejectButton: 'நிராகரிக்கவும்',
+      acceptAll: 'அனைத்தையும் ஏற்கவும்',
+      rejectAll: 'அனைத்தையும் நிராகரிக்கவும்',
+      dataAttributes: 'தரவு பண்புகள்',
+      retentionPeriod: 'தக்கவைப்பு காலம்',
+      yourDataRights: 'உங்கள் தரவு உரிமைகள்',
+      dataRightsText: 'DPDPA 2023 இன் கீழ், உங்கள் தனிப்பட்ட தரவை அணுக, திருத்த மற்றும் நீக்க உங்களுக்கு உரிமை உள்ளது. நீங்கள் எந்த நேரத்திலும் உங்கள் ஒப்புதலை திரும்பப் பெறலாம்.',
+      withdrawConsent: 'ஒப்புதலை திரும்பப் பெறவும்/மாற்றவும்',
+      raiseGrievance: 'புகாரை பதிவு செய்யவும்',
+      privacyNotice: 'தனியுரிமை அறிவிப்பு'
+    }
+  };
+
+  function getTranslation(lang) {
+    const defaultTrans = TRANSLATIONS[lang] || TRANSLATIONS.en;
+    
+    // Check if custom translations are provided for this language
+    if (config.customTranslations && config.customTranslations[lang]) {
+      const custom = config.customTranslations[lang];
+      // Merge custom translations with defaults (custom overrides default)
+      return {
+        consentManager: custom.title || defaultTrans.consentManager,
+        compliantWith: defaultTrans.compliantWith,
+        requirementsTitle: defaultTrans.requirementsTitle,
+        scrollInstruction: defaultTrans.scrollInstruction,
+        downloadButton: defaultTrans.downloadButton,
+        proceedButton: defaultTrans.proceedButton,
+        warningMessage: defaultTrans.warningMessage,
+        processingActivities: defaultTrans.processingActivities,
+        processingDescription: custom.message || defaultTrans.processingDescription,
+        acceptButton: custom.acceptButtonText || defaultTrans.acceptButton,
+        rejectButton: custom.rejectButtonText || defaultTrans.rejectButton,
+        acceptAll: custom.acceptButtonText || defaultTrans.acceptAll,
+        rejectAll: custom.rejectButtonText || defaultTrans.rejectAll,
+        dataAttributes: defaultTrans.dataAttributes,
+        retentionPeriod: defaultTrans.retentionPeriod,
+        yourDataRights: defaultTrans.yourDataRights,
+        dataRightsText: defaultTrans.dataRightsText,
+        withdrawConsent: defaultTrans.withdrawConsent,
+        raiseGrievance: defaultTrans.raiseGrievance,
+        privacyNotice: defaultTrans.privacyNotice
+      };
+    }
+    
+    return defaultTrans;
+  }
+
   // Global configuration
   let config = null;
   let activities = [];
@@ -197,7 +345,7 @@
   }
 
   // Create and show consent widget
-  function showConsentWidget() {
+  async function showConsentWidget() {
     if (document.getElementById('consently-dpdpa-widget')) {
       return; // Already shown
     }
@@ -209,6 +357,15 @@
     const borderRadius = theme.borderRadius || 12;
     const fontFamily = theme.fontFamily || 'system-ui, sans-serif';
     const fontSize = theme.fontSize || 14;
+
+    // Track requirements
+    let readComplete = false;
+    let downloadComplete = false;
+    let selectedLanguage = 'en'; // Start with English
+    let t = getTranslation(selectedLanguage); // Current translations
+
+    // Get privacy notice HTML from config
+    const noticeHTML = config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
 
     // Create overlay
     const overlay = document.createElement('div');
@@ -240,9 +397,9 @@
       font-size: ${fontSize}px;
       border-radius: ${borderRadius}px;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      max-width: 700px;
+      max-width: 760px;
       max-height: 90vh;
-      width: 90%;
+      width: 92%;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -252,76 +409,103 @@
     `;
 
     // Build widget HTML
-    widget.innerHTML = `
-      <div style="padding: 32px; overflow-y: auto; flex: 1;">
-        <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 24px;">
-          <div style="flex: 1;">
-            <h2 style="font-size: 24px; font-weight: 700; margin: 0 0 12px 0; color: ${textColor};">
-              ${escapeHtml(config.title)}
-            </h2>
-            <p style="font-size: 15px; line-height: 1.6; color: ${textColor}; opacity: 0.8; margin: 0;">
-              ${escapeHtml(config.message)}
-            </p>
+    function buildWidgetHTML() {
+      return `
+      <div style="padding: 24px 24px 0 24px; overflow-y: auto; flex: 1;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:${primaryColor};color:white;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div>
+              <div style="font-size:18px;font-weight:700;color:${textColor};margin:0;">${escapeHtml(t.consentManager)}</div>
+              <div style="margin-top:6px;background:#e0e7ff;color:#1e3a8a;border-radius:9999px;padding:6px 10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                <span style="width:8px;height:8px;border-radius:9999px;background:#10b981;"></span>
+                ${escapeHtml(t.compliantWith)}
+              </div>
+            </div>
           </div>
-          <button id="dpdpa-close-btn" style="background: none; border: none; cursor: pointer; padding: 8px; margin-left: 16px; opacity: 0.5; transition: opacity 0.2s;" aria-label="Close">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="position:relative;">
+              <button id="dpdpa-lang-btn" style="display:flex;align-items:center;gap:8px;padding:10px 16px;border:none;border-radius:10px;background:#3b82f6;color:#fff;cursor:pointer;font-weight:600;font-size:14px;box-shadow:0 2px 4px rgba(59,130,246,0.3);transition:all 0.2s;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <span>${languageLabel(selectedLanguage)}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.8;">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </button>
+              <div id="dpdpa-lang-menu" style="display:none;position:absolute;right:0;margin-top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,.15);overflow:hidden;z-index:10;min-width:180px;">
+                ${['en','hi','pa','te','ta'].map(code => `
+                  <button data-lang="${code}" style="display:flex;gap:10px;align-items:center;white-space:nowrap;width:100%;text-align:left;padding:12px 16px;border:none;background:${code === selectedLanguage ? '#f0f9ff' : '#fff'};cursor:pointer;font-size:14px;font-weight:${code === selectedLanguage ? '600' : '500'};color:${code === selectedLanguage ? '#0369a1' : '#374151'};transition:all 0.15s;">
+                    <span style="font-size:18px;">${languageFlag(code)}</span>
+                    <span>${languageLabel(code)}</span>
+                    ${code === selectedLanguage ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-left:auto;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            <button id="dpdpa-close-btn" style="background: none; border: none; cursor: pointer; padding: 8px; opacity: 0.6; transition: opacity 0.2s;" aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
         </div>
 
-        <div style="margin-bottom: 24px;">
-          <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor};">
-            Processing Activities
-          </h3>
-          <p style="font-size: 13px; color: ${textColor}; opacity: 0.7; margin: 0 0 16px 0;">
-            We process your personal data for the following purposes. You can accept or reject each activity individually.
-          </p>
+        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px 14px 0 14px;margin-bottom:16px;background:#f8fafc;">
+          <div style="background:#e0e7ff;color:#1e3a8a;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;">${escapeHtml(t.requirementsTitle)}</div>
+          <div style="display:flex;gap:12px;align-items:center;padding:12px 2px;color:#334155;font-size:13px;">
+            <div id="dpdpa-read-status" style="display:flex;align-items:center;gap:6px;">
+              <span id="dpdpa-read-icon" style="color:#94a3b8;">✔</span>
+              <span>${escapeHtml(t.scrollInstruction)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="dpdpa-notice-container" style="border:1px solid #e5e7eb;border-radius:12px;padding:0;max-height:300px;overflow:auto;margin-bottom:16px;">
+          <div style="padding:16px;">
+            ${noticeHTML}
+          </div>
+        </div>
+
+        <div id="dpdpa-actions-gate" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;">
+          <button id="dpdpa-download-notice" style="padding:10px 16px;background:${primaryColor};color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;">${escapeHtml(t.downloadButton)}</button>
+          <button id="dpdpa-proceed-consent" disabled style="padding:10px 16px;background:#e5e7eb;color:#6b7280;border:none;border-radius:10px;cursor:not-allowed;font-weight:700;">${escapeHtml(t.proceedButton)}</button>
+        </div>
+        <div id="dpdpa-requirements-msg" style="display:block;color:#ef4444;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:16px;">${escapeHtml(t.warningMessage)}</div>
+
+        <div id="dpdpa-consent-section" style="display:none; margin-bottom: 24px;">
+          <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor};">${escapeHtml(t.processingActivities)}</h3>
+          <p style="font-size: 13px; color: ${textColor}; opacity: 0.7; margin: 0 0 16px 0;">${escapeHtml(t.processingDescription)}</p>
           <div id="dpdpa-activities-list" style="display: flex; flex-direction: column; gap: 12px;">
-            ${activities.map((activity, index) => `
+            ${activities.map((activity) => `
               <div class="dpdpa-activity-item" style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; transition: border-color 0.2s;">
                 <div style="display: flex; align-items: start; justify-content: space-between;">
                   <div style="flex: 1; padding-right: 16px;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                      <h4 style="font-size: 15px; font-weight: 600; margin: 0; color: ${textColor};">
-                        ${escapeHtml(activity.activity_name)}
-                      </h4>
-                      <span style="font-size: 11px; padding: 2px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-weight: 500;">
-                        ${escapeHtml(activity.industry || 'General')}
-                      </span>
+                      <h4 style="font-size: 15px; font-weight: 600; margin: 0; color: ${textColor};">${escapeHtml(activity.activity_name)}</h4>
+                      <span style="font-size: 11px; padding: 2px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-weight: 500;">${escapeHtml(activity.industry || 'General')}</span>
                     </div>
-                    <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0 0 12px 0;">
-                      ${escapeHtml(activity.purpose)}
-                    </p>
+                    <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0 0 12px 0;">${escapeHtml(activity.purpose)}</p>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 12px;">
                       <div>
-                        <div style="font-weight: 600; color: ${textColor}; opacity: 0.7; margin-bottom: 4px;">Data Attributes</div>
+                        <div style="font-weight: 600; color: ${textColor}; opacity: 0.7; margin-bottom: 4px;">${escapeHtml(t.dataAttributes)}</div>
                         <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                          ${activity.data_attributes.slice(0, 3).map(attr => `
-                            <span style="padding: 2px 8px; background: #f3f4f6; color: ${textColor}; border-radius: 4px; font-size: 11px;">
-                              ${escapeHtml(attr)}
-                            </span>
-                          `).join('')}
-                          ${activity.data_attributes.length > 3 ? `
-                            <span style="padding: 2px 8px; background: #f3f4f6; color: ${textColor}; border-radius: 4px; font-size: 11px;">
-                              +${activity.data_attributes.length - 3} more
-                            </span>
-                          ` : ''}
+                          ${activity.data_attributes.slice(0, 3).map(attr => `<span style=\"padding: 2px 8px; background: #f3f4f6; color: ${textColor}; border-radius: 4px; font-size: 11px;\">${escapeHtml(attr)}</span>`).join('')}
+                          ${activity.data_attributes.length > 3 ? `<span style=\"padding: 2px 8px; background: #f3f4f6; color: ${textColor}; border-radius: 4px; font-size: 11px;\">+${activity.data_attributes.length - 3} more</span>` : ''}
                         </div>
                       </div>
                       <div>
-                        <div style="font-weight: 600; color: ${textColor}; opacity: 0.7; margin-bottom: 4px;">Retention Period</div>
+                        <div style="font-weight: 600; color: ${textColor}; opacity: 0.7; margin-bottom: 4px;">${escapeHtml(t.retentionPeriod)}</div>
                         <div style="color: ${textColor}; opacity: 0.9;">${escapeHtml(activity.retention_period)}</div>
                       </div>
                     </div>
                   </div>
                   <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <button class="dpdpa-activity-accept" data-activity-id="${activity.id}" style="padding: 8px 16px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.2s; white-space: nowrap;">
-                      Accept
-                    </button>
-                    <button class="dpdpa-activity-reject" data-activity-id="${activity.id}" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.2s; white-space: nowrap;">
-                      Reject
-                    </button>
+                    <button class="dpdpa-activity-accept" data-activity-id="${activity.id}" style="padding: 8px 16px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.2s; white-space: nowrap;">${escapeHtml(t.acceptButton)}</button>
+                    <button class="dpdpa-activity-reject" data-activity-id="${activity.id}" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.2s; white-space: nowrap;">${escapeHtml(t.rejectButton)}</button>
                   </div>
                 </div>
                 <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
@@ -332,27 +516,48 @@
 
         ${config.showDataSubjectsRights ? `
           <div style="background: #f9fafb; border-left: 4px solid ${primaryColor}; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
-            <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; color: ${textColor};">Your Data Rights</h4>
-            <p style="font-size: 12px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0 8px 0 0;">
-              Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.
-            </p>
+            <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; color: ${textColor};">${escapeHtml(t.yourDataRights)}</h4>
+            <p style="font-size: 12px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0 8px 0 0;">${escapeHtml(t.dataRightsText)}</p>
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-              <button id="dpdpa-withdraw-btn" style="padding:6px 10px; background:#f59e0b; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">Withdraw/Modify Consent</button>
-              <button id="dpdpa-grievance-btn" style="padding:6px 10px; background:#374151; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">Raise Grievance</button>
+              <button id="dpdpa-withdraw-btn" style="padding:6px 10px; background:#f59e0b; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">${escapeHtml(t.withdrawConsent)}</button>
+              <button id="dpdpa-grievance-btn" style="padding:6px 10px; background:#374151; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">${escapeHtml(t.raiseGrievance)}</button>
             </div>
           </div>
         ` : ''}
       </div>
 
-      <div style="padding: 20px 32px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end; background: #f9fafb;">
-        <button id="dpdpa-reject-all-btn" style="padding: 12px 24px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s;">
-          ${escapeHtml(config.rejectButtonText)}
-        </button>
-        <button id="dpdpa-accept-all-btn" style="padding: 12px 24px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-          ${escapeHtml(config.acceptButtonText)}
-        </button>
+      <div id="dpdpa-consent-actions" style="display:none;padding: 16px 24px; border-top: 1px solid #e5e7eb; gap: 12px; justify-content: flex-end; background: #f9fafb;">
+        <button id="dpdpa-reject-all-btn" style="padding: 12px 24px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s;">${escapeHtml(t.rejectAll)}</button>
+        <button id="dpdpa-accept-all-btn" style="padding: 12px 24px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">${escapeHtml(t.acceptAll)}</button>
       </div>
     `;
+    }
+    
+    widget.innerHTML = buildWidgetHTML();
+
+    function updateProceedState() {
+      const proceedBtn = widget.querySelector('#dpdpa-proceed-consent');
+      const readIcon = widget.querySelector('#dpdpa-read-icon');
+      const reqMsg = widget.querySelector('#dpdpa-requirements-msg');
+      if (readComplete && downloadComplete) {
+        proceedBtn.removeAttribute('disabled');
+        proceedBtn.style.background = primaryColor;
+        proceedBtn.style.color = '#fff';
+        proceedBtn.style.cursor = 'pointer';
+        if (reqMsg) reqMsg.style.display = 'none';
+      }
+      if (readIcon) readIcon.style.color = readComplete ? '#10b981' : '#94a3b8';
+    }
+
+    function languageLabel(code) {
+      const map = { en: 'English', hi: 'हिंदी', pa: 'ਪੰਜਾਬੀ', te: 'తెలుగు', ta: 'தமிழ்' };
+      return map[code] || code;
+    }
+
+    function languageFlag(code) {
+      const map = { en: '🇬🇧', hi: '🇮🇳', pa: '🇮🇳', te: '🇮🇳', ta: '🇮🇳' };
+      return map[code] || '🌐';
+    }
 
     // Append to overlay and body
     overlay.appendChild(widget);
@@ -367,6 +572,98 @@
 
     // Attach event listeners
     attachEventListeners(overlay, widget);
+
+    // Function to rebuild widget content with new language
+    function rebuildWidget() {
+      widget.innerHTML = buildWidgetHTML();
+      // Re-attach all event listeners
+      attachEventListeners(overlay, widget);
+      // Re-setup gated interactions
+      setupGatedInteractions();
+      // Restore state
+      updateProceedState();
+    }
+
+    // Setup gated interactions
+    function setupGatedInteractions() {
+      const noticeContainer = widget.querySelector('#dpdpa-notice-container');
+      noticeContainer.addEventListener('scroll', () => {
+        const atBottom = noticeContainer.scrollTop + noticeContainer.clientHeight >= noticeContainer.scrollHeight - 10;
+        if (atBottom) { readComplete = true; updateProceedState(); }
+      });
+
+      widget.querySelector('#dpdpa-download-notice').addEventListener('click', async () => {
+        try {
+          const blob = new Blob([noticeHTML], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `privacy-notice-${new Date().toISOString().split('T')[0]}.html`;
+          a.click();
+          URL.revokeObjectURL(url);
+          downloadComplete = true;
+          updateProceedState();
+        } catch (e) {}
+      });
+
+      widget.querySelector('#dpdpa-proceed-consent').addEventListener('click', () => {
+        if (!(readComplete && downloadComplete)) return;
+        widget.querySelector('#dpdpa-consent-section').style.display = 'block';
+        const actions = widget.querySelector('#dpdpa-consent-actions');
+        if (actions) actions.style.display = 'flex';
+        const target = widget.querySelector('#dpdpa-consent-section');
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      const langBtn = widget.querySelector('#dpdpa-lang-btn');
+      const langMenu = widget.querySelector('#dpdpa-lang-menu');
+      
+      // Hover effect
+      langBtn.addEventListener('mouseenter', () => {
+        langBtn.style.boxShadow = '0 4px 8px rgba(59,130,246,0.4)';
+        langBtn.style.transform = 'translateY(-1px)';
+      });
+      langBtn.addEventListener('mouseleave', () => {
+        langBtn.style.boxShadow = '0 2px 4px rgba(59,130,246,0.3)';
+        langBtn.style.transform = 'translateY(0)';
+      });
+      
+      // Toggle menu
+      langBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        langMenu.style.display = langMenu.style.display === 'none' || !langMenu.style.display ? 'block' : 'none';
+      });
+      
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (!langBtn.contains(e.target) && !langMenu.contains(e.target)) {
+          langMenu.style.display = 'none';
+        }
+      });
+      langMenu.querySelectorAll('button[data-lang]').forEach(b => {
+        // Hover effects
+        b.addEventListener('mouseenter', () => {
+          if (b.getAttribute('data-lang') !== selectedLanguage) {
+            b.style.background = '#f0f9ff';
+          }
+        });
+        b.addEventListener('mouseleave', () => {
+          if (b.getAttribute('data-lang') !== selectedLanguage) {
+            b.style.background = '#fff';
+          }
+        });
+        
+        b.addEventListener('click', () => {
+          selectedLanguage = b.getAttribute('data-lang');
+          t = getTranslation(selectedLanguage);
+          langMenu.style.display = 'none';
+          rebuildWidget();
+        });
+      });
+    }
+
+    // Initial setup
+    setupGatedInteractions();
   }
 
   // Attach event listeners
