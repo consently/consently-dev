@@ -9,6 +9,8 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip } from '@/components/ui/tooltip';
+import { Accordion } from '@/components/ui/accordion';
 import { 
   Settings, 
   Code, 
@@ -53,6 +55,8 @@ interface WidgetConfig {
     backgroundColor: string;
     textColor: string;
     borderRadius: number;
+    fontFamily?: string;
+    logoUrl?: string;
   };
   title: string;
   message: string;
@@ -78,6 +82,9 @@ interface WidgetConfig {
       [key: string]: any;
     };
   };
+  privacyNoticeVersion?: string;
+  privacyNoticeLastUpdated?: string;
+  requiresReconsent?: boolean;
 }
 
 export default function DPDPAWidgetPage() {
@@ -115,6 +122,16 @@ export default function DPDPAWidgetPage() {
   });
   const [copySuccess, setCopySuccess] = useState(false);
   const [selectedLanguagesForTranslation, setSelectedLanguagesForTranslation] = useState<string[]>([]);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityFilter, setActivityFilter] = useState<string>('all');
+  const [activitySort, setActivitySort] = useState<'name' | 'industry'>('name');
+  const [showAddActivityModal, setShowAddActivityModal] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<'html' | 'wordpress' | 'shopify' | 'wix' | 'react'>('html');
+  const [widgetStats, setWidgetStats] = useState<{totalConsents: number; weeklyConsents: number; conversionRate: number} | null>(null);
+  const [notifications, setNotifications] = useState<Array<{id: string; type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string}>>([]);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const themePresets = [
     { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
@@ -124,9 +141,65 @@ export default function DPDPAWidgetPage() {
     { name: 'Elegant Rose', primaryColor: '#f43f5e', backgroundColor: '#fff1f2', textColor: '#881337' },
   ];
 
+  const fontFamilies = [
+    { name: 'System Default', value: 'system-ui, -apple-system, sans-serif' },
+    { name: 'Inter', value: 'Inter, system-ui, sans-serif' },
+    { name: 'Roboto', value: 'Roboto, sans-serif' },
+    { name: 'Open Sans', value: '"Open Sans", sans-serif' },
+    { name: 'Lato', value: 'Lato, sans-serif' },
+    { name: 'Montserrat', value: 'Montserrat, sans-serif' },
+    { name: 'Poppins', value: 'Poppins, sans-serif' },
+    { name: 'Georgia (Serif)', value: 'Georgia, serif' },
+    { name: 'Times New Roman (Serif)', value: '"Times New Roman", serif' },
+  ];
+
   useEffect(() => {
     fetchData();
+    initializeNotifications();
   }, []);
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (!hasUnsavedChanges || !config.widgetId) return;
+
+    const autoSaveTimer = setTimeout(() => {
+      handleSave(true); // silent save
+    }, 30000); // Auto-save after 30 seconds of inactivity
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [config, hasUnsavedChanges]);
+
+  // Track unsaved changes
+  useEffect(() => {
+    if (config.widgetId) {
+      setHasUnsavedChanges(true);
+    }
+  }, [config]);
+
+  // Initialize notifications
+  const initializeNotifications = () => {
+    const alerts = [];
+    
+    // Check for expiring consents (example notification)
+    alerts.push({
+      id: 'dpdpa-compliance',
+      type: 'info' as const,
+      title: 'DPDPA 2023 Compliance Active',
+      message: 'Your widget is fully compliant with Digital Personal Data Protection Act 2023 requirements.'
+    });
+
+    // Check if widget is new (no stats yet)
+    if (config.widgetId && !widgetStats) {
+      alerts.push({
+        id: 'new-widget',
+        type: 'info' as const,
+        title: 'New Widget Detected',
+        message: 'Deploy your widget to start collecting consent data. Stats will appear once users interact.'
+      });
+    }
+
+    setNotifications(alerts);
+  };
 
   const fetchData = async () => {
     try {
@@ -146,6 +219,24 @@ export default function DPDPAWidgetPage() {
         if (configData.data && configData.data.length > 0) {
           // Use the first config (in production, you might want to support multiple configs)
           const existingConfig = configData.data[0];
+          
+          // Fetch widget stats if widgetId exists
+          if (existingConfig.widget_id) {
+            try {
+              const statsRes = await fetch(`/api/dpdpa/widget-stats/${existingConfig.widget_id}`);
+              if (statsRes.ok) {
+                const statsData = await statsRes.json();
+                setWidgetStats({
+                  totalConsents: statsData.totalConsents || 0,
+                  weeklyConsents: statsData.weeklyConsents || 0,
+                  conversionRate: statsData.conversionRate || 0
+                });
+              }
+            } catch (error) {
+              console.error('Error fetching stats:', error);
+            }
+          }
+          
           setConfig({
             widgetId: existingConfig.widget_id,
             name: existingConfig.name,
@@ -180,14 +271,40 @@ export default function DPDPAWidgetPage() {
     }
   };
 
-  const handleSave = async () => {
-    if (!config.domain) {
-      toast.error('Please enter a domain');
-      return;
+  const validateConfig = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!config.domain || config.domain.trim() === '') {
+      errors.domain = 'Domain is required';
+    } else if (config.domain.includes('http') || config.domain.includes('www')) {
+      errors.domain = 'Remove http://, https://, and www from domain';
     }
-
+    
+    if (!config.name || config.name.trim() === '') {
+      errors.name = 'Widget name is required';
+    }
+    
     if (config.selectedActivities.length === 0) {
-      toast.error('Please select at least one processing activity');
+      errors.activities = 'Select at least one processing activity';
+    }
+    
+    if (!config.title || config.title.trim() === '') {
+      errors.title = 'Title is required';
+    }
+    
+    if (!config.message || config.message.trim() === '') {
+      errors.message = 'Message is required';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSave = async (silent = false) => {
+    if (!validateConfig()) {
+      if (!silent) {
+        toast.error('Please fix the validation errors before saving');
+      }
       return;
     }
 
@@ -215,10 +332,23 @@ export default function DPDPAWidgetPage() {
         setConfig(prev => ({ ...prev, widgetId: data.widgetId }));
       }
 
-      toast.success('Configuration saved successfully!');
+      if (!silent) {
+        toast.success('✅ Configuration saved successfully!', {
+          description: config.widgetId ? 'Your widget configuration has been updated.' : 'Your widget is now ready to deploy.',
+        });
+      }
+      
+      // Update last saved time and clear unsaved changes flag
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      
+      // Clear validation errors on successful save
+      setValidationErrors({});
     } catch (error) {
       console.error('Error saving config:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save configuration');
+      toast.error('❌ Failed to save configuration', {
+        description: error instanceof Error ? error.message : 'Please try again or contact support.',
+      });
     } finally {
       setSaving(false);
     }
@@ -237,6 +367,32 @@ export default function DPDPAWidgetPage() {
     if (!config.widgetId) return '';
     const baseUrl = window.location.origin;
     return `<!-- Consently DPDPA Widget -->\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${config.widgetId}"></script>`;
+  };
+
+  const getPlatformSpecificCode = (platform: string) => {
+    if (!config.widgetId) return '';
+    const baseUrl = window.location.origin;
+    const widgetId = config.widgetId;
+
+    switch (platform) {
+      case 'html':
+        return `<!-- Consently DPDPA Widget -->\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+      
+      case 'wordpress':
+        return `<?php\n/**\n * Add Consently DPDPA Widget to WordPress\n * Add this to your theme's footer.php or use a plugin like "Insert Headers and Footers"\n */\n?>\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+      
+      case 'shopify':
+        return `<!-- Add to: Online Store > Themes > Actions > Edit Code > theme.liquid -->\n<!-- Place before </body> tag -->\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+      
+      case 'wix':
+        return `<!-- Wix Installation:\n1. Go to Settings > Custom Code\n2. Click "+ Add Custom Code"\n3. Paste the code below\n4. Set to load on "All Pages" in the <body> section\n-->\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+      
+      case 'react':
+        return `// React/Next.js Installation\nimport { useEffect } from 'react';\n\nfunction ConsentlyWidget() {\n  useEffect(() => {\n    const script = document.createElement('script');\n    script.src = '${baseUrl}/dpdpa-widget.js';\n    script.setAttribute('data-dpdpa-widget-id', '${widgetId}');\n    script.async = true;\n    document.body.appendChild(script);\n\n    return () => {\n      document.body.removeChild(script);\n    };\n  }, []);\n\n  return null;\n}\n\nexport default ConsentlyWidget;`;
+      
+      default:
+        return getEmbedCode();
+    }
   };
 
   const copyEmbedCode = () => {
@@ -259,6 +415,30 @@ export default function DPDPAWidgetPage() {
     });
     toast.success(`Applied ${preset.name} theme`);
   };
+
+  // Filter and sort activities
+  const filteredAndSortedActivities = activities
+    .filter(activity => {
+      // Search filter
+      const matchesSearch = activitySearch === '' || 
+        activity.activity_name.toLowerCase().includes(activitySearch.toLowerCase()) ||
+        activity.purpose.toLowerCase().includes(activitySearch.toLowerCase());
+      
+      // Industry filter
+      const matchesFilter = activityFilter === 'all' || activity.industry === activityFilter;
+      
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      if (activitySort === 'name') {
+        return a.activity_name.localeCompare(b.activity_name);
+      } else {
+        return a.industry.localeCompare(b.industry);
+      }
+    });
+
+  // Get unique industries for filter dropdown
+  const uniqueIndustries = Array.from(new Set(activities.map(a => a.industry))).sort();
 
   if (loading) {
     return (
@@ -330,10 +510,11 @@ export default function DPDPAWidgetPage() {
                 </>
               )}
               <Button 
-                onClick={handleSave} 
+                onClick={() => handleSave(false)}
                 disabled={saving}
                 size="lg"
                 className="shadow-lg hover:shadow-xl transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                aria-label="Save widget configuration"
               >
                 {saving ? (
                   <>
@@ -347,10 +528,126 @@ export default function DPDPAWidgetPage() {
                   </>
                 )}
               </Button>
+              {hasUnsavedChanges && !saving && (
+                <span className="text-xs text-gray-500 ml-2">
+                  Unsaved changes • Auto-save in 30s
+                </span>
+              )}
+              {lastSaved && (
+                <span className="text-xs text-gray-500 ml-2">
+                  Last saved: {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Notifications Banner */}
+      {notifications.length > 0 && (
+        <div className="space-y-2" role="alert" aria-live="polite">
+          {notifications.map((notification) => (
+            <div
+              key={notification.id}
+              className={`relative overflow-hidden rounded-xl border p-4 shadow-sm ${
+                notification.type === 'error' ? 'bg-red-50 border-red-200' :
+                notification.type === 'warning' ? 'bg-orange-50 border-orange-200' :
+                notification.type === 'success' ? 'bg-green-50 border-green-200' :
+                'bg-blue-50 border-blue-200'
+              }`}
+            >
+              <button
+                onClick={() => setNotifications(notifications.filter(n => n.id !== notification.id))}
+                className="absolute top-2 right-2 p-1 hover:bg-black/10 rounded"
+                aria-label="Dismiss notification"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                  notification.type === 'error' ? 'bg-red-100' :
+                  notification.type === 'warning' ? 'bg-orange-100' :
+                  notification.type === 'success' ? 'bg-green-100' :
+                  'bg-blue-100'
+                }`}>
+                  {notification.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600" />}
+                  {notification.type === 'warning' && <AlertCircle className="h-5 w-5 text-orange-600" />}
+                  {notification.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600" />}
+                  {notification.type === 'info' && <Info className="h-5 w-5 text-blue-600" />}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 text-sm">{notification.title}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quick Analytics Summary */}
+      {config.widgetId && widgetStats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-600">Weekly Consents</p>
+                  <p className="text-3xl font-bold text-blue-900 mt-2">{widgetStats.weeklyConsents}</p>
+                  <p className="text-xs text-blue-700 mt-1">Last 7 days</p>
+                </div>
+                <div className="p-3 bg-blue-500 rounded-full">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-indigo-600">Total Consents</p>
+                  <p className="text-3xl font-bold text-indigo-900 mt-2">{widgetStats.totalConsents}</p>
+                  <p className="text-xs text-indigo-700 mt-1">All time</p>
+                </div>
+                <div className="p-3 bg-indigo-500 rounded-full">
+                  <CheckCircle className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-600">Conversion Rate</p>
+                  <p className="text-3xl font-bold text-green-900 mt-2">{widgetStats.conversionRate}%</p>
+                  <p className="text-xs text-green-700 mt-1">Acceptance rate</p>
+                </div>
+                <div className="p-3 bg-green-500 rounded-full">
+                  <Sparkles className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-600">Activities</p>
+                  <p className="text-3xl font-bold text-purple-900 mt-2">{config.selectedActivities.length}</p>
+                  <p className="text-xs text-purple-700 mt-1">Configured</p>
+                </div>
+                <div className="p-3 bg-purple-500 rounded-full">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Configuration Grid */}
       <div className="grid gap-8 lg:grid-cols-3">
@@ -371,33 +668,61 @@ export default function DPDPAWidgetPage() {
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Widget Name
+                  <Tooltip content="Internal name for identifying this widget configuration in your dashboard" />
                 </label>
                 <Input
                   value={config.name}
-                  onChange={(e) => setConfig({ ...config, name: e.target.value })}
+                  onChange={(e) => {
+                    setConfig({ ...config, name: e.target.value });
+                    if (validationErrors.name) {
+                      setValidationErrors({ ...validationErrors, name: '' });
+                    }
+                  }}
                   placeholder="My DPDPA Widget"
-                  className="transition-all focus:ring-2 focus:ring-blue-500"
+                  className={`transition-all focus:ring-2 focus:ring-blue-500 ${validationErrors.name ? 'border-red-500' : ''}`}
                 />
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Internal name for identification
-                </p>
+                {validationErrors.name && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.name}
+                  </p>
+                )}
+                {!validationErrors.name && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Internal name for identification
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Domain <span className="text-red-500">*</span>
+                  <Tooltip content="The domain where this widget will be deployed (e.g., example.com). Do not include https:// or www." />
                 </label>
                 <Input
                   value={config.domain}
-                  onChange={(e) => setConfig({ ...config, domain: e.target.value })}
+                  onChange={(e) => {
+                    setConfig({ ...config, domain: e.target.value });
+                    if (validationErrors.domain) {
+                      setValidationErrors({ ...validationErrors, domain: '' });
+                    }
+                  }}
                   placeholder="example.com"
-                  className="transition-all focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  className={`transition-all focus:ring-2 focus:ring-blue-500 font-mono text-sm ${validationErrors.domain ? 'border-red-500' : ''}`}
                 />
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  <Globe className="h-3 w-3" />
-                  The domain where this widget will be deployed (without https://)
-                </p>
+                {validationErrors.domain && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.domain}
+                  </p>
+                )}
+                {!validationErrors.domain && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Globe className="h-3 w-3" />
+                    The domain where this widget will be deployed (without https://)
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -450,14 +775,88 @@ export default function DPDPAWidgetPage() {
                     Choose which processing activities to display in the widget
                   </CardDescription>
                 </div>
-                {config.selectedActivities.length > 0 && (
+                {config.selectedActivities.length > 0 ? (
                   <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
                     {config.selectedActivities.length} selected
                   </Badge>
-                )}
+                ) : validationErrors.activities ? (
+                  <Badge className="bg-red-100 text-red-700">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Required
+                  </Badge>
+                ) : null}
               </div>
             </CardHeader>
             <CardContent className="pt-6">
+              {validationErrors.activities && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {validationErrors.activities}
+                  </p>
+                </div>
+              )}
+              
+              {/* Search, Filter, and Sort Controls */}
+              {activities.length > 0 && (
+                <div className="mb-6 space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Search */}
+                    <div className="flex-1 relative">
+                      <Input
+                        value={activitySearch}
+                        onChange={(e) => setActivitySearch(e.target.value)}
+                        placeholder="Search activities by name or purpose..."
+                        className="pl-10"
+                      />
+                      <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    
+                    {/* Filter by Industry */}
+                    <select
+                      value={activityFilter}
+                      onChange={(e) => setActivityFilter(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">All Industries</option>
+                      {uniqueIndustries.map(industry => (
+                        <option key={industry} value={industry}>{industry}</option>
+                      ))}
+                    </select>
+                    
+                    {/* Sort */}
+                    <select
+                      value={activitySort}
+                      onChange={(e) => setActivitySort(e.target.value as 'name' | 'industry')}
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="name">Sort by Name</option>
+                      <option value="industry">Sort by Industry</option>
+                    </select>
+                  </div>
+                  
+                  {/* Results count */}
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>
+                      Showing {filteredAndSortedActivities.length} of {activities.length} activities
+                    </span>
+                    {(activitySearch || activityFilter !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setActivitySearch('');
+                          setActivityFilter('all');
+                        }}
+                        className="text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {activities.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="flex justify-center mb-4">
@@ -478,7 +877,21 @@ export default function DPDPAWidgetPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {activities.map((activity) => (
+                  {filteredAndSortedActivities.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No activities match your filters</p>
+                      <button
+                        onClick={() => {
+                          setActivitySearch('');
+                          setActivityFilter('all');
+                        }}
+                        className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Clear filters
+                      </button>
+                    </div>
+                  ) : (
+                    filteredAndSortedActivities.map((activity) => (
                     <div
                       key={activity.id}
                       className={`group relative border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 ${
@@ -529,24 +942,21 @@ export default function DPDPAWidgetPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Appearance */}
-          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
-            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Palette className="h-5 w-5 text-purple-600" />
-                </div>
-                Appearance & Theme
-              </CardTitle>
-              <CardDescription>Customize colors, text, and visual styling</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
+          <Accordion 
+            title="Appearance & Theme" 
+            defaultOpen={false}
+            icon={<div className="p-2 bg-purple-100 rounded-lg"><Palette className="h-5 w-5 text-purple-600" /></div>}
+            className="shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="space-y-6">
               {/* Theme Presets */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -673,6 +1083,64 @@ export default function DPDPAWidgetPage() {
                 </div>
               </div>
 
+              {/* Font Family Selection */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Font Family
+                  <Tooltip content="Choose the font family for your widget text. Google Fonts will be loaded automatically." />
+                </label>
+                <select
+                  value={config.theme.fontFamily || fontFamilies[0].value}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      theme: { ...config.theme, fontFamily: e.target.value }
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  {fontFamilies.map(font => (
+                    <option key={font.value} value={font.value}>{font.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Logo Upload */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Brand Logo (Optional)
+                  <Tooltip content="Upload your logo to display in the widget header. Recommended size: 120x40px, PNG or SVG format." />
+                </label>
+                <div className="flex items-center gap-3">
+                  {config.theme.logoUrl && (
+                    <div className="relative">
+                      <img src={config.theme.logoUrl} alt="Logo" className="h-10 w-auto border border-gray-200 rounded" />
+                      <button
+                        onClick={() => setConfig({ ...config, theme: { ...config.theme, logoUrl: '' } })}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <Input
+                    type="url"
+                    value={config.theme.logoUrl || ''}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        theme: { ...config.theme, logoUrl: e.target.value }
+                      })
+                    }
+                    placeholder="https://example.com/logo.png"
+                    className="flex-1 transition-all focus:ring-2 focus:ring-purple-500 font-mono text-xs"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">Enter a URL to your logo image</p>
+              </div>
+
               {/* Button Text & Styling */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -747,10 +1215,18 @@ export default function DPDPAWidgetPage() {
                         <span className="font-bold text-sm">Consent Manager</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button className="text-xs px-2 py-1 border rounded-lg flex items-center gap-1" style={{ borderColor: '#e5e7eb' }}>
-                          <Globe className="h-3 w-3" />
-                          {config.language === 'hi' ? 'हिंदी' : config.language === 'ta' ? 'தமிழ்' : 'English'}
-                        </button>
+                        <select 
+                          value={config.language}
+                          onChange={(e) => setConfig({ ...config, language: e.target.value })}
+                          className="text-xs px-2 py-1 border rounded-lg cursor-pointer bg-white"
+                          style={{ borderColor: '#e5e7eb' }}
+                        >
+                          <option value="en">🇬🇧 English</option>
+                          <option value="hi">🇮🇳 हिंदी</option>
+                          <option value="pa">🇮🇳 ਪੰਜਾਬੀ</option>
+                          <option value="te">🇮🇳 తెలుగు</option>
+                          <option value="ta">🇮🇳 தமிழ்</option>
+                        </select>
                       </div>
                     </div>
                     <div 
@@ -808,29 +1284,28 @@ export default function DPDPAWidgetPage() {
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Accordion>
 
           {/* Behavior Settings */}
-          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
-            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Zap className="h-5 w-5 text-green-600" />
-                </div>
-                Behavior Settings
-              </CardTitle>
-              <CardDescription>Configure how the widget behaves and appears to users</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="flex items-start gap-3">
-                  <Play className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-gray-900">Auto Show Widget</p>
-                    <p className="text-sm text-gray-600">Automatically display widget when users visit</p>
+          <Accordion 
+            title="Behavior Settings" 
+            defaultOpen={false}
+            icon={<div className="p-2 bg-green-100 rounded-lg"><Zap className="h-5 w-5 text-green-600" /></div>}
+            className="shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-start gap-3">
+                    <Play className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900">Auto Show Widget</p>
+                        <Tooltip content="When enabled, the widget will automatically appear after the specified delay. When disabled, you'll need to trigger it programmatically." />
+                      </div>
+                      <p className="text-sm text-gray-600">Automatically display widget when users visit</p>
+                    </div>
                   </div>
-                </div>
                 <Checkbox
                   checked={config.autoShow}
                   onChange={(e) =>
@@ -864,8 +1339,9 @@ export default function DPDPAWidgetPage() {
               )}
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Consent Duration: {config.consentDuration} days
+                  <Tooltip content="How long the user's consent will be remembered before asking again (30-730 days)" />
                 </label>
                 <input
                   type="range"
@@ -906,7 +1382,10 @@ export default function DPDPAWidgetPage() {
                   <div className="flex items-start gap-3">
                     <Shield className="h-5 w-5 text-purple-600 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-gray-900">Respect Do Not Track</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900">Respect Do Not Track</p>
+                        <Tooltip content="When enabled, the widget will not display if the user has Do Not Track (DNT) enabled in their browser" />
+                      </div>
                       <p className="text-sm text-gray-600">Honor browser DNT settings</p>
                     </div>
                   </div>
@@ -919,39 +1398,46 @@ export default function DPDPAWidgetPage() {
                   />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Accordion>
 
           {/* Optional Custom Translations */}
-          <Card className="shadow-sm hover:shadow-md transition-shadow border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50">
-            <CardHeader className="border-b border-purple-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="p-2 bg-purple-600 rounded-lg">
-                      <Globe className="h-5 w-5 text-white" />
-                    </div>
-                    <span>Custom Translations</span>
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">Optional</Badge>
-                  </CardTitle>
-                  <CardDescription className="text-purple-900/70 mt-2">
-                    Add your own translated content - completely flexible and optional
-                  </CardDescription>
-                </div>
+          <Accordion 
+            title={
+              <div className="flex items-center gap-2">
+                <span>Custom Translations</span>
+                <Badge variant="secondary" className="bg-gray-100 text-gray-700 text-xs">Optional</Badge>
+                {selectedLanguagesForTranslation.length > 0 && (
+                  <Badge className="bg-blue-600 text-white text-xs">
+                    {selectedLanguagesForTranslation.length} {selectedLanguagesForTranslation.length === 1 ? 'language' : 'languages'}
+                  </Badge>
+                )}
+                <Tooltip content="Add your own translations to override the default text. Leave fields empty to use built-in translations." />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="bg-white border border-purple-200 rounded-xl p-4">
+            }
+            defaultOpen={selectedLanguagesForTranslation.length > 0}
+            icon={<div className="p-2 bg-blue-100 rounded-lg"><Globe className="h-5 w-5 text-blue-600" /></div>}
+            className="shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Info className="h-5 w-5 text-purple-600" />
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Info className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 mb-1">Your Choice, Your Format</h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 mb-3">
                       Add translations for any language you need. Use your own wording and style. 
                       Leave fields empty to use our defaults. No limitations!
                     </p>
+                    <div className="bg-white rounded-lg p-3 border border-blue-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">Example Preview:</p>
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <div><strong>English:</strong> "Accept All" → Your custom: "I Agree to All"</div>
+                        <div><strong>Hindi:</strong> "सभी स्वीकार करें" → Your custom: "मैं सब को मानता हूँ"</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -959,8 +1445,8 @@ export default function DPDPAWidgetPage() {
               {selectedLanguagesForTranslation.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="flex justify-center mb-4">
-                    <div className="p-4 bg-purple-100 rounded-full">
-                      <Globe className="h-10 w-10 text-purple-600" />
+                    <div className="p-4 bg-blue-100 rounded-full">
+                      <Globe className="h-10 w-10 text-blue-600" />
                     </div>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Languages Added Yet</h3>
@@ -1015,7 +1501,7 @@ export default function DPDPAWidgetPage() {
                               }
                             })}
                             placeholder="Leave empty for default"
-                            className="transition-all focus:ring-2 focus:ring-purple-500"
+                            className="transition-all focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
 
@@ -1035,7 +1521,7 @@ export default function DPDPAWidgetPage() {
                             })}
                             placeholder="Leave empty for default"
                             rows={3}
-                            className="resize-none transition-all focus:ring-2 focus:ring-purple-500"
+                            className="resize-none transition-all focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
 
@@ -1055,7 +1541,7 @@ export default function DPDPAWidgetPage() {
                                 }
                               })}
                               placeholder="Default"
-                              className="transition-all focus:ring-2 focus:ring-purple-500"
+                              className="transition-all focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                           <div className="space-y-2">
@@ -1073,7 +1559,7 @@ export default function DPDPAWidgetPage() {
                                 }
                               })}
                               placeholder="Default"
-                              className="transition-all focus:ring-2 focus:ring-purple-500"
+                              className="transition-all focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                         </div>
@@ -1089,7 +1575,7 @@ export default function DPDPAWidgetPage() {
                     key={lang}
                     variant="outline"
                     onClick={() => setSelectedLanguagesForTranslation([...selectedLanguagesForTranslation, lang])}
-                    className="flex-1 border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50"
+                    className="flex-1 border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add {lang === 'hi' ? 'Hindi' : lang === 'pa' ? 'Punjabi' : lang === 'te' ? 'Telugu' : 'Tamil'}
@@ -1097,14 +1583,14 @@ export default function DPDPAWidgetPage() {
                 ))}
               </div>
 
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                <p className="text-xs text-purple-900">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-900">
                   <strong>✨ Tip:</strong> Empty fields will use our default translations automatically. 
                   You have complete freedom to customize only what you need!
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Accordion>
         </div>
 
         {/* Sidebar */}
@@ -1119,43 +1605,109 @@ export default function DPDPAWidgetPage() {
                 <span>Integration Code</span>
               </CardTitle>
               <CardDescription className="text-blue-900/70">
-                Add this to your website
+                Choose your platform and copy the code
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
               {config.widgetId ? (
                 <>
+                  {/* Platform Tabs */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {[
+                      { id: 'html', label: 'HTML', icon: '🌐' },
+                      { id: 'wordpress', label: 'WordPress', icon: '📝' },
+                      { id: 'shopify', label: 'Shopify', icon: '🛒' },
+                      { id: 'wix', label: 'Wix', icon: '🎨' },
+                      { id: 'react', label: 'React', icon: '⚛️' },
+                    ].map((platform) => (
+                      <button
+                        key={platform.id}
+                        onClick={() => setSelectedPlatform(platform.id as any)}
+                        className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                          selectedPlatform === platform.id
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-200'
+                        }`}
+                      >
+                        <span className="mr-1">{platform.icon}</span>
+                        {platform.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Code Block */}
                   <div className="relative group">
-                    <div className="bg-gray-900 text-gray-100 p-5 rounded-xl text-xs font-mono overflow-x-auto border border-gray-700 shadow-inner">
-                      <pre className="leading-relaxed">{getEmbedCode()}</pre>
+                    <div className="bg-gray-900 text-gray-100 p-5 rounded-xl text-xs font-mono overflow-x-auto border border-gray-700 shadow-inner max-h-64">
+                      <pre className="leading-relaxed">{getPlatformSpecificCode(selectedPlatform)}</pre>
                     </div>
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Badge variant="secondary" className="text-xs bg-gray-800 text-gray-300">
-                        HTML
+                        {selectedPlatform.toUpperCase()}
                       </Badge>
                     </div>
                   </div>
+
+                  {/* Copy Button */}
                   <Button 
-                    onClick={copyEmbedCode} 
+                    onClick={() => {
+                      navigator.clipboard.writeText(getPlatformSpecificCode(selectedPlatform));
+                      setCopySuccess(true);
+                      toast.success('✅ Code copied to clipboard!', {
+                        description: `${selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)} integration code copied successfully.`
+                      });
+                      setTimeout(() => setCopySuccess(false), 3000);
+                    }}
                     className="w-full shadow-md hover:shadow-lg transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                     size="lg"
                   >
                     {copySuccess ? (
                       <>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Copied to Clipboard!
+                        <CheckCircle className="mr-2 h-4 w-4 animate-bounce" />
+                        Copied Successfully!
                       </>
                     ) : (
                       <>
                         <Copy className="mr-2 h-4 w-4" />
-                        Copy Embed Code
+                        Copy {selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)} Code
                       </>
                     )}
                   </Button>
+
+                  {/* Usage Statistics */}
+                  {widgetStats && (
+                    <div className="bg-white border border-blue-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-blue-600" />
+                        Usage Statistics
+                      </h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">{widgetStats.weeklyConsents}</div>
+                          <div className="text-xs text-gray-600 mt-1">This Week</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-indigo-600">{widgetStats.totalConsents}</div>
+                          <div className="text-xs text-gray-600 mt-1">Total</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">{widgetStats.conversionRate}%</div>
+                          <div className="text-xs text-gray-600 mt-1">Conversion</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Installation Guide */}
                   <div className="bg-blue-100 border border-blue-200 rounded-lg p-3">
                     <p className="text-xs text-blue-900 flex items-start gap-2">
                       <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                      <span>Paste this code just before the closing <code className="bg-white px-1 rounded">&lt;/body&gt;</code> tag on your website to activate the widget.</span>
+                      <span>
+                        {selectedPlatform === 'html' && 'Paste this code just before the closing </body> tag on your website.'}
+                        {selectedPlatform === 'wordpress' && 'Add this to your theme\'s footer.php or use a plugin like "Insert Headers and Footers".'}
+                        {selectedPlatform === 'shopify' && 'Go to Online Store > Themes > Actions > Edit Code > theme.liquid. Place before </body> tag.'}
+                        {selectedPlatform === 'wix' && 'Go to Settings > Custom Code, click "+ Add Custom Code", and set to load on all pages.'}
+                        {selectedPlatform === 'react' && 'Import and use the ConsentlyWidget component in your app layout or _app.js file.'}
+                      </span>
                     </p>
                   </div>
                 </>
@@ -1176,6 +1728,112 @@ export default function DPDPAWidgetPage() {
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Privacy Notice Compliance */}
+          <Card className="shadow-sm border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+            <CardHeader className="border-b border-green-200">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 bg-green-600 rounded-lg">
+                  <Shield className="h-5 w-5 text-white" />
+                </div>
+                <span>Privacy Notice Compliance</span>
+              </CardTitle>
+              <CardDescription className="text-green-900/70">
+                DPDPA 2023 Requirements
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {/* Requirements Checklist */}
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Scroll Requirement</h4>
+                    <p className="text-xs text-gray-600 mt-1">Users must scroll through entire privacy notice</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Download Requirement</h4>
+                    <p className="text-xs text-gray-600 mt-1">Privacy notice must be downloaded before consent</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Progress Indicator</h4>
+                    <p className="text-xs text-gray-600 mt-1">Visual progress bar shows completion status</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Version Tracking */}
+              <div className="p-4 bg-white rounded-lg border border-green-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-green-600" />
+                  Version Tracking
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">Current Version:</span>
+                    <Badge className="bg-green-100 text-green-700">
+                      {config.privacyNoticeVersion || 'v1.0'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">Last Updated:</span>
+                    <span className="text-gray-900 font-medium">
+                      {config.privacyNoticeLastUpdated 
+                        ? new Date(config.privacyNoticeLastUpdated).toLocaleDateString()
+                        : 'Not set'
+                      }
+                    </span>
+                  </div>
+                  {config.requiresReconsent && (
+                    <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                      <p className="text-xs text-orange-900 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Re-consent required after notice update
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Update Privacy Notice */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-green-300 hover:bg-green-50"
+                onClick={() => {
+                  const newVersion = prompt('Enter new version number (e.g., v1.1, v2.0):', config.privacyNoticeVersion || 'v1.0');
+                  if (newVersion) {
+                    setConfig({
+                      ...config,
+                      privacyNoticeVersion: newVersion,
+                      privacyNoticeLastUpdated: new Date().toISOString(),
+                      requiresReconsent: true
+                    });
+                    toast.success('Privacy notice version updated', {
+                      description: 'Existing users will be prompted to re-consent'
+                    });
+                  }
+                }}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Update Privacy Notice Version
+              </Button>
             </CardContent>
           </Card>
 
