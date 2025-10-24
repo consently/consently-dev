@@ -132,6 +132,8 @@ export default function DPDPAWidgetPage() {
   const [notifications, setNotifications] = useState<Array<{id: string; type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string}>>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showPrivacyNoticeModal, setShowPrivacyNoticeModal] = useState(false);
+  const [generatedPrivacyNotice, setGeneratedPrivacyNotice] = useState<string>('');
 
   const themePresets = [
     { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
@@ -440,6 +442,140 @@ export default function DPDPAWidgetPage() {
   // Get unique industries for filter dropdown
   const uniqueIndustries = Array.from(new Set(activities.map(a => a.industry))).sort();
 
+  // Generate privacy notice HTML for preview
+  const generatePrivacyNoticePreview = () => {
+    if (config.selectedActivities.length === 0) {
+      toast.error('Please select at least one processing activity first');
+      return;
+    }
+
+    const selectedActivitiesData = activities.filter(a => config.selectedActivities.includes(a.id));
+    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com');
+    setGeneratedPrivacyNotice(html);
+    setShowPrivacyNoticeModal(true);
+  };
+
+  // Privacy notice HTML generator (matches backend logic)
+  const generatePrivacyNoticeHTML = (activities: ProcessingActivity[], domain: string): string => {
+    const companyName = domain || '[Your Company Name]';
+    
+    const activitySections = activities.map((activity, index) => `
+      <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 8px;">
+        <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 600;">
+          ${index + 1}. ${escapeHtml(activity.activity_name)}
+        </h3>
+        
+        <div style="margin-bottom: 12px;">
+          <strong style="color: #374151;">Purpose:</strong>
+          <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(activity.purpose)}</p>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <strong style="color: #374151;">Data Categories:</strong>
+          <p style="margin: 4px 0 0 0; color: #6b7280;">${activity.data_attributes.map(a => escapeHtml(a)).join(', ')}</p>
+        </div>
+
+        <div>
+          <strong style="color: #374151;">Retention Period:</strong>
+          <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(activity.retention_period)}</p>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Notice - Data Processing Activities</title>
+  </head>
+  <body style="font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1f2937; max-width: 800px; margin: 0 auto; padding: 32px 16px;">
+    
+    <h1 style="color: #111827; font-size: 32px; margin-bottom: 16px;">Privacy Notice</h1>
+    
+    <div style="background: #dbeafe; padding: 16px; border-radius: 8px; margin-bottom: 32px;">
+      <p style="margin: 0; color: #1e40af; font-weight: 500;">
+        This notice explains how ${escapeHtml(companyName)} processes your personal data in compliance with the Digital Personal Data Protection Act, 2023 (DPDPA).
+      </p>
+    </div>
+
+    <h2 style="color: #1f2937; font-size: 24px; margin-top: 32px; margin-bottom: 16px;">Data Processing Activities</h2>
+    
+    <p style="color: #6b7280; margin-bottom: 24px;">
+      We process your personal data for the following purposes. You have the right to provide or withdraw consent for each activity.
+    </p>
+
+    ${activitySections}
+
+    <div style="margin-top: 48px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
+      <h2 style="color: #1f2937; font-size: 20px; margin-bottom: 16px;">Your Rights Under DPDPA 2023</h2>
+      
+      <ul style="color: #6b7280; line-height: 1.8;">
+        <li><strong>Right to Access:</strong> You can request information about what personal data we hold about you.</li>
+        <li><strong>Right to Correction:</strong> You can request correction of inaccurate or incomplete data.</li>
+        <li><strong>Right to Erasure:</strong> You can request deletion of your personal data in certain circumstances.</li>
+        <li><strong>Right to Withdraw Consent:</strong> You can withdraw your consent at any time.</li>
+        <li><strong>Right to Grievance Redressal:</strong> You can raise concerns or complaints about data processing.</li>
+      </ul>
+
+      <p style="color: #6b7280; margin-top: 24px;">
+        <strong>How to Exercise Your Rights:</strong><br>
+        You can manage your consent preferences or raise a grievance through our consent widget on ${escapeHtml(domain)}, 
+        or contact us at [contact-email@${escapeHtml(domain)}].
+      </p>
+
+      <p style="color: #6b7280; margin-top: 16px;">
+        <strong>Response Time:</strong> We will respond to your requests within 72 hours as required by DPDPA 2023.
+      </p>
+    </div>
+
+    <div style="margin-top: 32px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
+      <p style="margin: 0; color: #6b7280; font-size: 14px;">
+        <strong>Last Updated:</strong> ${new Date().toLocaleDateString()}<br>
+        <strong>Contact:</strong> [contact-email@${escapeHtml(domain)}]<br>
+        <strong>Compliance:</strong> This notice is compliant with the Digital Personal Data Protection Act, 2023 (DPDPA)
+      </p>
+    </div>
+
+  </body>
+  </html>
+    `.trim();
+  };
+
+  const escapeHtml = (text: string): string => {
+    const map: { [key: string]: string } = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, (m) => map[m]);
+  };
+
+  const downloadPrivacyNotice = () => {
+    if (config.selectedActivities.length === 0) {
+      toast.error('Please select at least one processing activity first');
+      return;
+    }
+
+    const selectedActivitiesData = activities.filter(a => config.selectedActivities.includes(a.id));
+    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com');
+    
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `privacy-notice-${config.domain || 'document'}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Privacy notice downloaded successfully!');
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
@@ -649,118 +785,78 @@ export default function DPDPAWidgetPage() {
         </div>
       )}
 
+      {/* Privacy Notice Modal */}
+      {showPrivacyNoticeModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowPrivacyNoticeModal(false)}
+        >
+          <div 
+            className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Full Privacy Notice Preview</h2>
+                <p className="text-sm text-gray-600 mt-1">This is what users will see and download</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={downloadPrivacyNotice}
+                  variant="outline"
+                  size="sm"
+                  className="shadow-sm"
+                >
+                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download
+                </Button>
+                <button
+                  onClick={() => setShowPrivacyNoticeModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  aria-label="Close modal"
+                >
+                  <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div 
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: generatedPrivacyNotice }}
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t bg-gray-50 rounded-b-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Auto-generated from your processing activities</span>
+                </div>
+                <Button
+                  onClick={() => setShowPrivacyNoticeModal(false)}
+                  variant="default"
+                >
+                  Close Preview
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Configuration Grid */}
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Configuration Form */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Settings */}
-          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
-            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Settings className="h-5 w-5 text-blue-600" />
-                </div>
-                Basic Settings
-              </CardTitle>
-              <CardDescription>Configure basic widget settings and metadata</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  Widget Name
-                  <Tooltip content="Internal name for identifying this widget configuration in your dashboard" />
-                </label>
-                <Input
-                  value={config.name}
-                  onChange={(e) => {
-                    setConfig({ ...config, name: e.target.value });
-                    if (validationErrors.name) {
-                      setValidationErrors({ ...validationErrors, name: '' });
-                    }
-                  }}
-                  placeholder="My DPDPA Widget"
-                  className={`transition-all focus:ring-2 focus:ring-blue-500 ${validationErrors.name ? 'border-red-500' : ''}`}
-                />
-                {validationErrors.name && (
-                  <p className="text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {validationErrors.name}
-                  </p>
-                )}
-                {!validationErrors.name && (
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <Info className="h-3 w-3" />
-                    Internal name for identification
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  Domain <span className="text-red-500">*</span>
-                  <Tooltip content="The domain where this widget will be deployed (e.g., example.com). Do not include https:// or www." />
-                </label>
-                <Input
-                  value={config.domain}
-                  onChange={(e) => {
-                    setConfig({ ...config, domain: e.target.value });
-                    if (validationErrors.domain) {
-                      setValidationErrors({ ...validationErrors, domain: '' });
-                    }
-                  }}
-                  placeholder="example.com"
-                  className={`transition-all focus:ring-2 focus:ring-blue-500 font-mono text-sm ${validationErrors.domain ? 'border-red-500' : ''}`}
-                />
-                {validationErrors.domain && (
-                  <p className="text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {validationErrors.domain}
-                  </p>
-                )}
-                {!validationErrors.domain && (
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <Globe className="h-3 w-3" />
-                    The domain where this widget will be deployed (without https://)
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  Title
-                </label>
-                <Input
-                  value={config.title}
-                  onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                  placeholder="Your Data Privacy Rights"
-                  className="transition-all focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Users can select their language in the widget itself
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  Message
-                </label>
-                <Textarea
-                  value={config.message}
-                  onChange={(e) => setConfig({ ...config, message: e.target.value })}
-                  placeholder="We process your personal data with your consent. Please review the activities below..."
-                  rows={4}
-                  className="transition-all focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-                <p className="text-xs text-gray-500">
-                  {config.message.length} characters
-                </p>
-              </div>
-
-            </CardContent>
-          </Card>
-
-          {/* Processing Activities Selection */}
+          {/* Processing Activities Selection - NOW FIRST */}
           <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
             <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
               <div className="flex items-center justify-between">
@@ -946,6 +1042,113 @@ export default function DPDPAWidgetPage() {
                   )}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Basic Settings - NOW SECOND */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
+            <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Settings className="h-5 w-5 text-blue-600" />
+                </div>
+                Basic Settings
+              </CardTitle>
+              <CardDescription>Configure basic widget settings and metadata</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Widget Name
+                  <Tooltip content="Internal name for identifying this widget configuration in your dashboard" />
+                </label>
+                <Input
+                  value={config.name}
+                  onChange={(e) => {
+                    setConfig({ ...config, name: e.target.value });
+                    if (validationErrors.name) {
+                      setValidationErrors({ ...validationErrors, name: '' });
+                    }
+                  }}
+                  placeholder="My DPDPA Widget"
+                  className={`transition-all focus:ring-2 focus:ring-blue-500 ${validationErrors.name ? 'border-red-500' : ''}`}
+                />
+                {validationErrors.name && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.name}
+                  </p>
+                )}
+                {!validationErrors.name && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Internal name for identification
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Domain <span className="text-red-500">*</span>
+                  <Tooltip content="The domain where this widget will be deployed (e.g., example.com). Do not include https:// or www." />
+                </label>
+                <Input
+                  value={config.domain}
+                  onChange={(e) => {
+                    setConfig({ ...config, domain: e.target.value });
+                    if (validationErrors.domain) {
+                      setValidationErrors({ ...validationErrors, domain: '' });
+                    }
+                  }}
+                  placeholder="example.com"
+                  className={`transition-all focus:ring-2 focus:ring-blue-500 font-mono text-sm ${validationErrors.domain ? 'border-red-500' : ''}`}
+                />
+                {validationErrors.domain && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.domain}
+                  </p>
+                )}
+                {!validationErrors.domain && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Globe className="h-3 w-3" />
+                    The domain where this widget will be deployed (without https://)
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Title
+                </label>
+                <Input
+                  value={config.title}
+                  onChange={(e) => setConfig({ ...config, title: e.target.value })}
+                  placeholder="Your Data Privacy Rights"
+                  className="transition-all focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Users can select their language in the widget itself
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Message
+                </label>
+                <Textarea
+                  value={config.message}
+                  onChange={(e) => setConfig({ ...config, message: e.target.value })}
+                  placeholder="We process your personal data with your consent. Please review the activities below..."
+                  rows={4}
+                  className="transition-all focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <p className="text-xs text-gray-500">
+                  {config.message.length} characters
+                </p>
+              </div>
+
             </CardContent>
           </Card>
 
@@ -1203,16 +1406,28 @@ export default function DPDPAWidgetPage() {
                   <div className="p-4 border-b" style={{ borderColor: '#e5e7eb' }}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
-                          style={{ backgroundColor: config.theme.primaryColor }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M9 11l3 3L22 4"/>
-                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                          </svg>
-                        </div>
-                        <span className="font-bold text-sm">Consent Manager</span>
+                        {config.theme.logoUrl ? (
+                          <img 
+                            src={config.theme.logoUrl} 
+                            alt="Brand Logo" 
+                            className="h-8 w-auto object-contain"
+                            onError={(e) => {
+                              // Fallback to icon if image fails to load
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div 
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+                            style={{ backgroundColor: config.theme.primaryColor }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M9 11l3 3L22 4"/>
+                              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                          </div>
+                        )}
+                        <span className="font-bold text-sm">{config.title}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <select 
@@ -1255,15 +1470,45 @@ export default function DPDPAWidgetPage() {
                     {/* Privacy Notice Preview */}
                     <div className="border rounded-lg p-3 mb-3 bg-white" style={{ maxHeight: '120px', overflow: 'hidden', position: 'relative' }}>
                       <h4 className="text-xs font-bold mb-1">Privacy Notice</h4>
-                      <p className="text-xs opacity-70 mb-2">We process your personal data in compliance with DPDPA 2023...</p>
-                      <div className="text-xs opacity-50">1. Data Collection</div>
-                      <div className="text-xs opacity-50">2. Processing Purposes</div>
+                      <p className="text-xs opacity-70 mb-2">{config.message}</p>
+                      {config.selectedActivities.length > 0 && (
+                        <div className="space-y-1">
+                          {config.selectedActivities.slice(0, 2).map((actId, idx) => {
+                            const activity = activities.find(a => a.id === actId);
+                            return activity ? (
+                              <div key={actId} className="text-xs opacity-50">
+                                {idx + 1}. {activity.activity_name}
+                              </div>
+                            ) : null;
+                          })}
+                          {config.selectedActivities.length > 2 && (
+                            <div className="text-xs opacity-50">... and {config.selectedActivities.length - 2} more</div>
+                          )}
+                        </div>
+                      )}
                       <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent"></div>
                     </div>
+
+                    {/* Preview Full Notice Button */}
+                    <button
+                      onClick={generatePrivacyNoticePreview}
+                      disabled={config.selectedActivities.length === 0}
+                      className="w-full mb-3 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                      style={{ 
+                        backgroundColor: config.selectedActivities.length > 0 ? config.theme.primaryColor : '#e5e7eb',
+                        color: config.selectedActivities.length > 0 ? '#fff' : '#6b7280',
+                        cursor: config.selectedActivities.length > 0 ? 'pointer' : 'not-allowed',
+                        opacity: config.selectedActivities.length > 0 ? 1 : 0.6
+                      }}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Preview Full Privacy Notice
+                    </button>
 
                     {/* Action Buttons */}
                     <div className="flex gap-2 mb-3">
                       <button
+                        onClick={downloadPrivacyNotice}
                         className="flex-1 px-3 py-2 rounded-lg text-xs font-bold text-white"
                         style={{ backgroundColor: config.theme.primaryColor }}
                       >
@@ -1278,9 +1523,23 @@ export default function DPDPAWidgetPage() {
                     </div>
 
                     {/* Warning Message */}
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 mb-3">
                       <p className="text-xs text-red-600">⚠ Please complete both requirements to proceed</p>
                     </div>
+
+                    {/* Powered by Consently */}
+                    {config.showBranding && (
+                      <div className="pt-2 border-t border-gray-200 text-center">
+                        <a 
+                          href="https://consently.app" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors inline-flex items-center gap-1"
+                        >
+                          Powered by <span className="font-semibold">Consently</span>
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
