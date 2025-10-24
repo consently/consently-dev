@@ -90,6 +90,7 @@ export async function GET(
       
       // Advanced
       language: widgetConfig.language,
+      supportedLanguages: widgetConfig.supported_languages || ['en'],
       customTranslations: widgetConfig.custom_translations,
       showBranding: widgetConfig.show_branding,
       customCSS: widgetConfig.custom_css,
