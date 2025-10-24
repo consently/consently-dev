@@ -21,152 +21,94 @@
 
   console.log('[Consently DPDPA] Initializing widget with ID:', widgetId);
 
-  // DPDPA Widget Translations
-  const TRANSLATIONS = {
-    en: {
-      consentManager: 'Consent Manager',
-      compliantWith: 'Fully compliant with Digital Personal Data Protection Act, 2023',
-      requirementsTitle: 'DPDPA 2023 requires you to read and download the privacy notice',
-      scrollInstruction: 'Scroll down to read the privacy notice',
-      downloadButton: 'Download Privacy Notice',
-      proceedButton: 'Proceed to Consent',
-      warningMessage: 'Please complete both requirements to proceed',
-      processingActivities: 'Processing Activities',
-      processingDescription: 'We process your personal data for the following purposes. You can accept or reject each activity individually.',
-      acceptButton: 'Accept',
-      rejectButton: 'Reject',
-      acceptAll: 'Accept All',
-      rejectAll: 'Reject All',
-      dataAttributes: 'Data Attributes',
-      retentionPeriod: 'Retention Period',
-      yourDataRights: 'Your Data Rights',
-      dataRightsText: 'Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.',
-      withdrawConsent: 'Withdraw/Modify Consent',
-      raiseGrievance: 'Raise Grievance',
-      privacyNotice: 'Privacy Notice'
-    },
-    hi: {
-      consentManager: 'सहमति प्रबंधक',
-      compliantWith: 'डिजिटल व्यक्तिगत डेटा संरक्षण अधिनियम, 2023 के साथ पूरी तरह से अनुपालन',
-      requirementsTitle: 'DPDPA 2023 के लिए आवश्यक है कि आप गोपनीयता सूचना पढ़ें और डाउनलोड करें',
-      scrollInstruction: 'गोपनीयता सूचना पढ़ने के लिए नीचे स्क्रॉल करें',
-      downloadButton: 'गोपनीयता सूचना डाउनलोड करें',
-      proceedButton: 'सहमति के लिए आगे बढ़ें',
-      warningMessage: 'आगे बढ़ने के लिए कृपया दोनों आवश्यकताओं को पूरा करें',
-      processingActivities: 'प्रसंस्करण गतिविधियाँ',
-      processingDescription: 'हम आपके व्यक्तिगत डेटा को निम्नलिखित उद्देश्यों के लिए संसाधित करते हैं। आप प्रत्येक गतिविधि को व्यक्तिगत रूप से स्वीकार या अस्वीकार कर सकते हैं।',
-      acceptButton: 'स्वीकार करें',
-      rejectButton: 'अस्वीकार करें',
-      acceptAll: 'सभी स्वीकार करें',
-      rejectAll: 'सभी अस्वीकार करें',
-      dataAttributes: 'डेटा विशेषताएँ',
-      retentionPeriod: 'प्रतिधारण अवधि',
-      yourDataRights: 'आपके डेटा अधिकार',
-      dataRightsText: 'DPDPA 2023 के तहत, आपको अपने व्यक्तिगत डेटा तक पहुँचने, सुधारने और हटाने का अधिकार है। आप किसी भी समय अपनी सहमति वापस ले सकते हैं।',
-      withdrawConsent: 'सहमति वापस लें/संशोधित करें',
-      raiseGrievance: 'शिकायत दर्ज करें',
-      privacyNotice: 'गोपनीयता सूचना'
-    },
-    pa: {
-      consentManager: 'ਸਹਿਮਤੀ ਪ੍ਰਬੰਧਕ',
-      compliantWith: 'ਡਿਜੀਟਲ ਨਿੱਜੀ ਡੇਟਾ ਸੁਰੱਖਿਆ ਐਕਟ, 2023 ਨਾਲ ਪੂਰੀ ਤਰ੍ਹਾਂ ਅਨੁਕੂਲ',
-      requirementsTitle: 'DPDPA 2023 ਲਈ ਜ਼ਰੂਰੀ ਹੈ ਕਿ ਤੁਸੀਂ ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ ਪੜ੍ਹੋ ਅਤੇ ਡਾਊਨਲੋਡ ਕਰੋ',
-      scrollInstruction: 'ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ ਪੜ੍ਹਨ ਲਈ ਹੇਠਾਂ ਸਕ੍ਰੋਲ ਕਰੋ',
-      downloadButton: 'ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ ਡਾਊਨਲੋਡ ਕਰੋ',
-      proceedButton: 'ਸਹਿਮਤੀ ਲਈ ਅੱਗੇ ਵਧੋ',
-      warningMessage: 'ਕਿਰਪਾ ਕਰਕੇ ਅੱਗੇ ਵਧਣ ਲਈ ਦੋਵੇਂ ਜ਼ਰੂਰਤਾਂ ਪੂਰੀਆਂ ਕਰੋ',
-      processingActivities: 'ਪ੍ਰੋਸੈਸਿੰਗ ਗਤੀਵਿਧੀਆਂ',
-      processingDescription: 'ਅਸੀਂ ਹੇਠ ਲਿਖੇ ਉਦੇਸ਼ਾਂ ਲਈ ਤੁਹਾਡੇ ਨਿੱਜੀ ਡੇਟਾ ਦੀ ਪ੍ਰਕਿਰਿਆ ਕਰਦੇ ਹਾਂ। ਤੁਸੀਂ ਹਰੇਕ ਗਤੀਵਿਧੀ ਨੂੰ ਵੱਖਰੇ ਤੌਰ \'ਤੇ ਸਵੀਕਾਰ ਜਾਂ ਰੱਦ ਕਰ ਸਕਦੇ ਹੋ।',
-      acceptButton: 'ਸਵੀਕਾਰ ਕਰੋ',
-      rejectButton: 'ਰੱਦ ਕਰੋ',
-      acceptAll: 'ਸਭ ਸਵੀਕਾਰ ਕਰੋ',
-      rejectAll: 'ਸਭ ਰੱਦ ਕਰੋ',
-      dataAttributes: 'ਡੇਟਾ ਗੁਣ',
-      retentionPeriod: 'ਬਰਕਰਾਰੀ ਮਿਆਦ',
-      yourDataRights: 'ਤੁਹਾਡੇ ਡੇਟਾ ਅਧਿਕਾਰ',
-      dataRightsText: 'DPDPA 2023 ਦੇ ਅਧੀਨ, ਤੁਹਾਨੂੰ ਆਪਣੇ ਨਿੱਜੀ ਡੇਟਾ ਤੱਕ ਪਹੁੰਚ, ਸੁਧਾਰ ਅਤੇ ਮਿਟਾਉਣ ਦਾ ਅਧਿਕਾਰ ਹੈ। ਤੁਸੀਂ ਕਿਸੇ ਵੀ ਸਮੇਂ ਆਪਣੀ ਸਹਿਮਤੀ ਵਾਪਸ ਲੈ ਸਕਦੇ ਹੋ।',
-      withdrawConsent: 'ਸਹਿਮਤੀ ਵਾਪਸ ਲਓ/ਸੋਧੋ',
-      raiseGrievance: 'ਸ਼ਿਕਾਇਤ ਦਰਜ ਕਰੋ',
-      privacyNotice: 'ਗੋਪਨੀਯਤਾ ਨੋਟਿਸ'
-    },
-    te: {
-      consentManager: 'సమ్మతి నిర్వాహకుడు',
-      compliantWith: 'డిజిటల్ వ్యక్తిగత డేటా రక్షణ చట్టం, 2023తో పూర్తిగా అనుగుణంగా ఉంది',
-      requirementsTitle: 'DPDPA 2023 మీరు గోప్యత నోటీసును చదవడం మరియు డౌన్లోడ్ చేయడం అవసరం',
-      scrollInstruction: 'గోప్యత నోటీసును చదవడానికి క్రిందికి స్క్రోల్ చేయండి',
-      downloadButton: 'గోప్యత నోటీసును డౌన్లోడ్ చేయండి',
-      proceedButton: 'సమ్మతికి కొనసాగండి',
-      warningMessage: 'దయచేసి కొనసాగడానికి రెండు అవసరాలను పూర్తి చేయండి',
-      processingActivities: 'ప్రాసెసింగ్ కార్యకలాపాలు',
-      processingDescription: 'మేము కింది ప్రయోజనాల కోసం మీ వ్యక్తిగత డేటాను ప్రాసెస్ చేస్తాము. మీరు ప్రతి కార్యాచరణను వ్యక్తిగతంగా అంగీకరించవచ్చు లేదా తిరస్కరించవచ్చు.',
-      acceptButton: 'అంగీకరించండి',
-      rejectButton: 'తిరస్కరించండి',
-      acceptAll: 'అన్నీ అంగీకరించండి',
-      rejectAll: 'అన్నీ తిరస్కరించండి',
-      dataAttributes: 'డేటా లక్షణాలు',
-      retentionPeriod: 'నిలుపుదల వ్యవధి',
-      yourDataRights: 'మీ డేటా హక్కులు',
-      dataRightsText: 'DPDPA 2023 క్రింద, మీరు మీ వ్యక్తిగత డేటాను యాక్సెస్ చేయడానికి, సరిదిద్దడానికి మరియు తొలగించడానికి హక్కును కలిగి ఉన్నారు. మీరు ఎప్పుడైనా మీ సమ్మతిని ఉపసంహరించుకోవచ్చు.',
-      withdrawConsent: 'సమ్మతిని ఉపసంహరించండి/సవరించండి',
-      raiseGrievance: 'ఫిర్యాదు నమోదు చేయండి',
-      privacyNotice: 'గోప్యత నోటీసు'
-    },
-    ta: {
-      consentManager: 'ஒப்புதல் மேலாளர்',
-      compliantWith: 'டிஜிட்டல் தனிப்பட்ட தரவு பாதுகாப்பு சட்டம், 2023 உடன் முழுமையாக இணங்குகிறது',
-      requirementsTitle: 'DPDPA 2023 நீங்கள் தனியுரிமை அறிவிப்பைப் படிக்க மற்றும் பதிவிறக்க வேண்டும்',
-      scrollInstruction: 'தனியுரிமை அறிவிப்பைப் படிக்க கீழே உருட்டவும்',
-      downloadButton: 'தனியுரிமை அறிவிப்பைப் பதிவிறக்கவும்',
-      proceedButton: 'ஒப்புதலுக்கு தொடரவும்',
-      warningMessage: 'தொடர இரண்டு தேவைகளையும் பூர்த்தி செய்யவும்',
-      processingActivities: 'செயலாக்க நடவடிக்கைகள்',
-      processingDescription: 'பின்வரும் நோக்கங்களுக்காக உங்கள் தனிப்பட்ட தரவை செயலாக்குகிறோம். நீங்கள் ஒவ்வொரு செயல்பாட்டையும் தனித்தனியாக ஏற்கலாம் அல்லது நிராகரிக்கலாம்.',
-      acceptButton: 'ஏற்கவும்',
-      rejectButton: 'நிராகரிக்கவும்',
-      acceptAll: 'அனைத்தையும் ஏற்கவும்',
-      rejectAll: 'அனைத்தையும் நிராகரிக்கவும்',
-      dataAttributes: 'தரவு பண்புகள்',
-      retentionPeriod: 'தக்கவைப்பு காலம்',
-      yourDataRights: 'உங்கள் தரவு உரிமைகள்',
-      dataRightsText: 'DPDPA 2023 இன் கீழ், உங்கள் தனிப்பட்ட தரவை அணுக, திருத்த மற்றும் நீக்க உங்களுக்கு உரிமை உள்ளது. நீங்கள் எந்த நேரத்திலும் உங்கள் ஒப்புதலை திரும்பப் பெறலாம்.',
-      withdrawConsent: 'ஒப்புதலை திரும்பப் பெறவும்/மாற்றவும்',
-      raiseGrievance: 'புகாரை பதிவு செய்யவும்',
-      privacyNotice: 'தனியுரிமை அறிவிப்பு'
-    }
+  // English translations as base
+  const BASE_TRANSLATIONS = {
+    consentManager: 'Consent Manager',
+    compliantWith: 'Fully compliant with Digital Personal Data Protection Act, 2023',
+    requirementsTitle: 'DPDPA 2023 requires you to read and download the privacy notice',
+    scrollInstruction: 'Scroll down to read the privacy notice',
+    downloadButton: 'Download Privacy Notice',
+    proceedButton: 'Proceed to Consent',
+    warningMessage: 'Please complete both requirements to proceed',
+    processingActivities: 'Processing Activities',
+    processingDescription: 'We process your personal data for the following purposes. You can accept or reject each activity individually.',
+    acceptButton: 'Accept',
+    rejectButton: 'Reject',
+    acceptAll: 'Accept All',
+    rejectAll: 'Reject All',
+    dataAttributes: 'Data Attributes',
+    retentionPeriod: 'Retention Period',
+    yourDataRights: 'Your Data Rights',
+    dataRightsText: 'Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.',
+    withdrawConsent: 'Withdraw/Modify Consent',
+    raiseGrievance: 'Raise Grievance',
+    privacyNotice: 'Privacy Notice'
   };
 
-  function getTranslation(lang) {
-    const defaultTrans = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  // Translation cache to avoid repeated API calls
+  const translationCache = {};
+
+  // Get API URL from config or use default
+  function getApiUrl() {
+    const scriptSrc = currentScript ? currentScript.src : '';
+    if (scriptSrc.includes('localhost')) {
+      return 'http://localhost:3000';
+    }
+    if (scriptSrc.includes('consently-dev-sigma.vercel.app')) {
+      return 'https://consently-dev-sigma.vercel.app';
+    }
+    // Extract domain from script src
+    const match = scriptSrc.match(/^(https?:\/\/[^\/]+)/);
+    return match ? match[1] : window.location.origin;
+  }
+
+  // Translate text using LibreTranslate API
+  async function translateText(text, targetLang) {
+    if (targetLang === 'en') return text;
     
-    // Check if custom translations are provided for this language
-    if (config.customTranslations && config.customTranslations[lang]) {
-      const custom = config.customTranslations[lang];
-      // Merge custom translations with defaults (custom overrides default)
-      return {
-        consentManager: custom.title || defaultTrans.consentManager,
-        compliantWith: defaultTrans.compliantWith,
-        requirementsTitle: defaultTrans.requirementsTitle,
-        scrollInstruction: defaultTrans.scrollInstruction,
-        downloadButton: defaultTrans.downloadButton,
-        proceedButton: defaultTrans.proceedButton,
-        warningMessage: defaultTrans.warningMessage,
-        processingActivities: defaultTrans.processingActivities,
-        processingDescription: custom.message || defaultTrans.processingDescription,
-        acceptButton: custom.acceptButtonText || defaultTrans.acceptButton,
-        rejectButton: custom.rejectButtonText || defaultTrans.rejectButton,
-        acceptAll: custom.acceptButtonText || defaultTrans.acceptAll,
-        rejectAll: custom.rejectButtonText || defaultTrans.rejectAll,
-        dataAttributes: defaultTrans.dataAttributes,
-        retentionPeriod: defaultTrans.retentionPeriod,
-        yourDataRights: defaultTrans.yourDataRights,
-        dataRightsText: defaultTrans.dataRightsText,
-        withdrawConsent: defaultTrans.withdrawConsent,
-        raiseGrievance: defaultTrans.raiseGrievance,
-        privacyNotice: defaultTrans.privacyNotice
-      };
+    const cacheKey = `${targetLang}:${text}`;
+    if (translationCache[cacheKey]) {
+      return translationCache[cacheKey];
+    }
+
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text,
+          target: targetLang,
+          source: 'en'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const translated = data.translatedText || text;
+        translationCache[cacheKey] = translated;
+        return translated;
+      }
+    } catch (error) {
+      console.error('[Consently] Translation error:', error);
     }
     
-    return defaultTrans;
+    return text; // Fallback to original
+  }
+
+  // Get translations for a language (with real-time translation)
+  async function getTranslation(lang) {
+    if (lang === 'en') {
+      return BASE_TRANSLATIONS;
+    }
+
+    // Translate all base strings
+    const translations = {};
+    for (const [key, value] of Object.entries(BASE_TRANSLATIONS)) {
+      translations[key] = await translateText(value, lang);
+    }
+    
+    return translations;
   }
 
   // Global configuration
@@ -362,7 +304,7 @@
     let readComplete = false;
     let downloadComplete = false;
     let selectedLanguage = 'en'; // Start with English
-    let t = getTranslation(selectedLanguage); // Current translations
+    let t = await getTranslation(selectedLanguage); // Current translations
 
     // Get privacy notice HTML from config
     const noticeHTML = config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
@@ -439,7 +381,7 @@
                 </svg>
               </button>
               <div id="dpdpa-lang-menu" style="display:none;position:absolute;right:0;margin-top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,.15);overflow:hidden;z-index:10;min-width:180px;">
-                ${['en','hi','pa','te','ta'].map(code => `
+                ${(config.supportedLanguages || ['en']).map(code => `
                   <button data-lang="${code}" style="display:flex;gap:10px;align-items:center;white-space:nowrap;width:100%;text-align:left;padding:12px 16px;border:none;background:${code === selectedLanguage ? '#f0f9ff' : '#fff'};cursor:pointer;font-size:14px;font-weight:${code === selectedLanguage ? '600' : '500'};color:${code === selectedLanguage ? '#0369a1' : '#374151'};transition:all 0.15s;">
                     <span style="font-size:18px;">${languageFlag(code)}</span>
                     <span>${languageLabel(code)}</span>
@@ -550,12 +492,38 @@
     }
 
     function languageLabel(code) {
-      const map = { en: 'English', hi: 'हिंदी', pa: 'ਪੰਜਾਬੀ', te: 'తెలుగు', ta: 'தமிழ்' };
+      const map = { 
+        en: 'English', 
+        hi: 'हिंदी', 
+        pa: 'ਪੰਜਾਬੀ', 
+        te: 'తెలుగు', 
+        ta: 'தமிழ்',
+        bn: 'বাংলা',
+        mr: 'मराठी',
+        gu: 'ગુજરાતી',
+        kn: 'ಕನ್ನಡ',
+        ml: 'മലയാളം',
+        or: 'ଓଡ଼ିଆ',
+        ur: 'اردو'
+      };
       return map[code] || code;
     }
 
     function languageFlag(code) {
-      const map = { en: '🇬🇧', hi: '🇮🇳', pa: '🇮🇳', te: '🇮🇳', ta: '🇮🇳' };
+      const map = { 
+        en: '🇬🇧', 
+        hi: '🇮🇳', 
+        pa: '🇮🇳', 
+        te: '🇮🇳', 
+        ta: '🇮🇳',
+        bn: '🇮🇳',
+        mr: '🇮🇳',
+        gu: '🇮🇳',
+        kn: '🇮🇳',
+        ml: '🇮🇳',
+        or: '🇮🇳',
+        ur: '🇮🇳'
+      };
       return map[code] || '🌐';
     }
 
@@ -574,7 +542,14 @@
     attachEventListeners(overlay, widget);
 
     // Function to rebuild widget content with new language
-    function rebuildWidget() {
+    async function rebuildWidget() {
+      // Show loading
+      widget.style.opacity = '0.6';
+      widget.style.pointerEvents = 'none';
+      
+      // Fetch translations
+      t = await getTranslation(selectedLanguage);
+      
       widget.innerHTML = buildWidgetHTML();
       // Re-attach all event listeners
       attachEventListeners(overlay, widget);
@@ -582,6 +557,10 @@
       setupGatedInteractions();
       // Restore state
       updateProceedState();
+      
+      // Remove loading
+      widget.style.opacity = '1';
+      widget.style.pointerEvents = 'auto';
     }
 
     // Setup gated interactions
@@ -653,11 +632,10 @@
           }
         });
         
-        b.addEventListener('click', () => {
+        b.addEventListener('click', async () => {
           selectedLanguage = b.getAttribute('data-lang');
-          t = getTranslation(selectedLanguage);
           langMenu.style.display = 'none';
-          rebuildWidget();
+          await rebuildWidget();
         });
       });
     }

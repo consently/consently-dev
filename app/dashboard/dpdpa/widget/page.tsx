@@ -73,15 +73,7 @@ interface WidgetConfig {
   showBranding: boolean;
   isActive: boolean;
   language: string;
-  customTranslations?: {
-    [languageCode: string]: {
-      title?: string;
-      message?: string;
-      acceptButtonText?: string;
-      rejectButtonText?: string;
-      [key: string]: any;
-    };
-  };
+  supportedLanguages?: string[];
   privacyNoticeVersion?: string;
   privacyNoticeLastUpdated?: string;
   requiresReconsent?: boolean;
@@ -118,7 +110,7 @@ export default function DPDPAWidgetPage() {
     showBranding: true,
     isActive: true,
     language: 'en',
-    customTranslations: {}
+    supportedLanguages: ['en', 'hi', 'pa', 'te', 'ta']
   });
   const [copySuccess, setCopySuccess] = useState(false);
   const [selectedLanguagesForTranslation, setSelectedLanguagesForTranslation] = useState<string[]>([]);
@@ -261,7 +253,7 @@ export default function DPDPAWidgetPage() {
             showBranding: existingConfig.show_branding,
             isActive: existingConfig.is_active,
             language: existingConfig.language || 'en',
-            customTranslations: existingConfig.custom_translations || {}
+            supportedLanguages: existingConfig.supported_languages || ['en', 'hi', 'pa', 'te', 'ta']
           });
         }
       }
@@ -1149,6 +1141,78 @@ export default function DPDPAWidgetPage() {
                 </p>
               </div>
 
+              {/* Supported Languages */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Globe className="h-4 w-4" />
+                  Supported Languages
+                  <Tooltip content="Select which languages will be available in the widget dropdown. Text will be automatically translated when users select a language." />
+                </label>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                  <p className="text-xs text-blue-800">
+                    <strong>🌐 Auto-Translation:</strong> When users select a language, all widget text will be automatically translated in real-time.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { code: 'en', name: 'English', flag: '🇬🇧' },
+                    { code: 'hi', name: 'Hindi (हिंदी)', flag: '🇮🇳' },
+                    { code: 'pa', name: 'Punjabi (ਪੰਜਾਬੀ)', flag: '🇮🇳' },
+                    { code: 'te', name: 'Telugu (తెలుగు)', flag: '🇮🇳' },
+                    { code: 'ta', name: 'Tamil (தமிழ்)', flag: '🇮🇳' },
+                    { code: 'bn', name: 'Bengali (বাংলা)', flag: '🇮🇳' },
+                    { code: 'mr', name: 'Marathi (मराठी)', flag: '🇮🇳' },
+                    { code: 'gu', name: 'Gujarati (ગુજરાતી)', flag: '🇮🇳' },
+                    { code: 'kn', name: 'Kannada (ಕನ್ನಡ)', flag: '🇮🇳' },
+                    { code: 'ml', name: 'Malayalam (മലയാളം)', flag: '🇮🇳' },
+                    { code: 'or', name: 'Odia (ଓଡ଼ିଆ)', flag: '🇮🇳' },
+                    { code: 'ur', name: 'Urdu (اردو)', flag: '🇮🇳' },
+                  ].map(lang => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        const isSelected = config.supportedLanguages?.includes(lang.code);
+                        if (isSelected) {
+                          // Don't allow removing English
+                          if (lang.code === 'en') {
+                            toast.error('English is required and cannot be removed');
+                            return;
+                          }
+                          setConfig({
+                            ...config,
+                            supportedLanguages: config.supportedLanguages?.filter(l => l !== lang.code) || []
+                          });
+                        } else {
+                          setConfig({
+                            ...config,
+                            supportedLanguages: [...(config.supportedLanguages || []), lang.code]
+                          });
+                        }
+                      }}
+                      className={`flex items-center gap-2 p-3 border-2 rounded-lg transition-all ${
+                        config.supportedLanguages?.includes(lang.code)
+                          ? 'border-blue-500 bg-blue-50 shadow-sm'
+                          : 'border-gray-200 hover:border-blue-300 bg-white'
+                      }`}
+                    >
+                      <span className="text-xl">{lang.flag}</span>
+                      <span className="text-sm font-medium text-gray-700 flex-1 text-left">{lang.name}</span>
+                      {config.supportedLanguages?.includes(lang.code) && (
+                        <CheckCircle className="h-4 w-4 text-blue-600" />
+                      )}
+                      {lang.code === 'en' && (
+                        <Badge className="bg-blue-600 text-white text-xs">Required</Badge>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Selected languages will appear in the widget dropdown. Users can switch languages and see auto-translated content.
+                </p>
+              </div>
+
             </CardContent>
           </Card>
 
@@ -1393,7 +1457,15 @@ export default function DPDPAWidgetPage() {
 
               {/* Live Preview - Updated to match new widget design */}
               <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                <p className="text-xs font-medium text-gray-500 mb-3">LIVE PREVIEW</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-medium text-gray-500">LIVE PREVIEW</p>
+                  {config.language !== 'en' && (
+                    <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                      <Info className="h-3 w-3" />
+                      <span className="text-xs font-medium">Static preview - Translation works in live widget</span>
+                    </div>
+                  )}
+                </div>
                 <div 
                   className="shadow-2xl max-w-md mx-auto overflow-hidden"
                   style={{
@@ -1436,11 +1508,24 @@ export default function DPDPAWidgetPage() {
                           className="text-xs px-2 py-1 border rounded-lg cursor-pointer bg-white"
                           style={{ borderColor: '#e5e7eb' }}
                         >
-                          <option value="en">🇬🇧 English</option>
-                          <option value="hi">🇮🇳 हिंदी</option>
-                          <option value="pa">🇮🇳 ਪੰਜਾਬੀ</option>
-                          <option value="te">🇮🇳 తెలుగు</option>
-                          <option value="ta">🇮🇳 தமிழ்</option>
+                          {(config.supportedLanguages || ['en']).map(code => {
+                            const langMap: Record<string, {flag: string, name: string}> = {
+                              en: { flag: '🇬🇧', name: 'English' },
+                              hi: { flag: '🇮🇳', name: 'हिंदी' },
+                              pa: { flag: '🇮🇳', name: 'ਪੰਜਾਬੀ' },
+                              te: { flag: '🇮🇳', name: 'తెలుగు' },
+                              ta: { flag: '🇮🇳', name: 'தமிழ்' },
+                              bn: { flag: '🇮🇳', name: 'বাংলা' },
+                              mr: { flag: '🇮🇳', name: 'मराठी' },
+                              gu: { flag: '🇮🇳', name: 'ગુજરાતી' },
+                              kn: { flag: '🇮🇳', name: 'ಕನ್ನಡ' },
+                              ml: { flag: '🇮🇳', name: 'മലയാളം' },
+                              or: { flag: '🇮🇳', name: 'ଓଡ଼ିଆ' },
+                              ur: { flag: '🇮🇳', name: 'اردو' }
+                            };
+                            const lang = langMap[code] || { flag: '🌐', name: code };
+                            return <option key={code} value={code}>{lang.flag} {lang.name}</option>;
+                          })}
                         </select>
                       </div>
                     </div>
@@ -1660,196 +1745,6 @@ export default function DPDPAWidgetPage() {
             </div>
           </Accordion>
 
-          {/* Optional Custom Translations */}
-          <Accordion 
-            title={
-              <div className="flex items-center gap-2">
-                <span>Custom Translations</span>
-                <Badge variant="secondary" className="bg-gray-100 text-gray-700 text-xs">Optional</Badge>
-                {selectedLanguagesForTranslation.length > 0 && (
-                  <Badge className="bg-blue-600 text-white text-xs">
-                    {selectedLanguagesForTranslation.length} {selectedLanguagesForTranslation.length === 1 ? 'language' : 'languages'}
-                  </Badge>
-                )}
-                <Tooltip content="Add your own translations to override the default text. Leave fields empty to use built-in translations." />
-              </div>
-            }
-            defaultOpen={selectedLanguagesForTranslation.length > 0}
-            icon={<div className="p-2 bg-blue-100 rounded-lg"><Globe className="h-5 w-5 text-blue-600" /></div>}
-            className="shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Info className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900 mb-1">Your Choice, Your Format</h4>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Add translations for any language you need. Use your own wording and style. 
-                      Leave fields empty to use our defaults. No limitations!
-                    </p>
-                    <div className="bg-white rounded-lg p-3 border border-blue-200">
-                      <p className="text-xs font-semibold text-gray-700 mb-2">Example Preview:</p>
-                      <div className="space-y-1 text-xs text-gray-600">
-                        <div><strong>English:</strong> "Accept All" → Your custom: "I Agree to All"</div>
-                        <div><strong>Hindi:</strong> "सभी स्वीकार करें" → Your custom: "मैं सब को मानता हूँ"</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {selectedLanguagesForTranslation.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="flex justify-center mb-4">
-                    <div className="p-4 bg-blue-100 rounded-full">
-                      <Globe className="h-10 w-10 text-blue-600" />
-                    </div>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Languages Added Yet</h3>
-                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">
-                    Click below to add custom translations for Indian languages
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {selectedLanguagesForTranslation.map((lang) => (
-                    <div key={lang} className="bg-white border-2 border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-bold text-gray-900 flex items-center gap-3">
-                          <span className="text-2xl">
-                            {lang === 'hi' ? '🇮🇳' : lang === 'pa' ? '🇮🇳' : lang === 'te' ? '🇮🇳' : '🇮🇳'}
-                          </span>
-                          <span>
-                            {lang === 'hi' ? 'Hindi (हिंदी)' : 
-                             lang === 'pa' ? 'Punjabi (ਪੰਜਾਬੀ)' :
-                             lang === 'te' ? 'Telugu (తెలుగు)' :
-                             'Tamil (தமிழ்)'}
-                          </span>
-                        </h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedLanguagesForTranslation(selectedLanguagesForTranslation.filter(l => l !== lang));
-                            const newTranslations = { ...config.customTranslations };
-                            delete newTranslations[lang];
-                            setConfig({ ...config, customTranslations: newTranslations });
-                          }}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Custom Title</label>
-                          <Input
-                            value={config.customTranslations?.[lang]?.title || ''}
-                            onChange={(e) => setConfig({
-                              ...config,
-                              customTranslations: {
-                                ...config.customTranslations,
-                                [lang]: {
-                                  ...config.customTranslations?.[lang],
-                                  title: e.target.value
-                                }
-                              }
-                            })}
-                            placeholder="Leave empty for default"
-                            className="transition-all focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-gray-700">Custom Message</label>
-                          <Textarea
-                            value={config.customTranslations?.[lang]?.message || ''}
-                            onChange={(e) => setConfig({
-                              ...config,
-                              customTranslations: {
-                                ...config.customTranslations,
-                                [lang]: {
-                                  ...config.customTranslations?.[lang],
-                                  message: e.target.value
-                                }
-                              }
-                            })}
-                            placeholder="Leave empty for default"
-                            rows={3}
-                            className="resize-none transition-all focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Accept Button</label>
-                            <Input
-                              value={config.customTranslations?.[lang]?.acceptButtonText || ''}
-                              onChange={(e) => setConfig({
-                                ...config,
-                                customTranslations: {
-                                  ...config.customTranslations,
-                                  [lang]: {
-                                    ...config.customTranslations?.[lang],
-                                    acceptButtonText: e.target.value
-                                  }
-                                }
-                              })}
-                              placeholder="Default"
-                              className="transition-all focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Reject Button</label>
-                            <Input
-                              value={config.customTranslations?.[lang]?.rejectButtonText || ''}
-                              onChange={(e) => setConfig({
-                                ...config,
-                                customTranslations: {
-                                  ...config.customTranslations,
-                                  [lang]: {
-                                    ...config.customTranslations?.[lang],
-                                    rejectButtonText: e.target.value
-                                  }
-                                }
-                              })}
-                              placeholder="Default"
-                              className="transition-all focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                {['hi', 'pa', 'te', 'ta'].filter(lang => !selectedLanguagesForTranslation.includes(lang)).map((lang) => (
-                  <Button
-                    key={lang}
-                    variant="outline"
-                    onClick={() => setSelectedLanguagesForTranslation([...selectedLanguagesForTranslation, lang])}
-                    className="flex-1 border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add {lang === 'hi' ? 'Hindi' : lang === 'pa' ? 'Punjabi' : lang === 'te' ? 'Telugu' : 'Tamil'}
-                  </Button>
-                ))}
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-900">
-                  <strong>✨ Tip:</strong> Empty fields will use our default translations automatically. 
-                  You have complete freedom to customize only what you need!
-                </p>
-              </div>
-            </div>
-          </Accordion>
         </div>
 
         {/* Sidebar */}

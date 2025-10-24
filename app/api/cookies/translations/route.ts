@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit';
 import { z } from 'zod';
-import { INDIAN_LANGUAGE_TRANSLATIONS, getTranslationByCode } from '@/lib/indian-language-translations';
 
 /**
  * Widget Translations API
@@ -478,12 +477,6 @@ export async function DELETE(request: NextRequest) {
 // Helper functions
 
 function getDefaultTranslation(languageCode: string): any {
-  // Check if it's an Indian language translation
-  const indianTranslation = getTranslationByCode(languageCode);
-  if (indianTranslation) {
-    return indianTranslation;
-  }
-
   // Default English translation
   const defaults: Record<string, any> = {
     'en': {

@@ -22,12 +22,12 @@ const widgetConfigSchema = z.object({
   requireExplicitConsent: z.boolean().optional(),
   showDataSubjectsRights: z.boolean().optional(),
   language: z.string().optional(),
-  customTranslations: z.any().optional(),
   enableAnalytics: z.boolean().optional(),
   enableAuditLog: z.boolean().optional(),
   showBranding: z.boolean().optional(),
   customCSS: z.string().optional(),
   isActive: z.boolean().optional(),
+  supportedLanguages: z.array(z.string()).optional(),
 });
 
 // GET - Fetch widget configuration(s)
@@ -142,12 +142,12 @@ export async function POST(request: NextRequest) {
       require_explicit_consent: configData.requireExplicitConsent ?? true,
       show_data_subjects_rights: configData.showDataSubjectsRights ?? true,
       language: configData.language || 'en',
-      custom_translations: configData.customTranslations,
       enable_analytics: configData.enableAnalytics ?? true,
       enable_audit_log: configData.enableAuditLog ?? true,
       show_branding: configData.showBranding ?? true,
       custom_css: configData.customCSS,
       is_active: configData.isActive ?? true,
+      supported_languages: configData.supportedLanguages || ['en', 'hi', 'pa', 'te', 'ta'],
     };
 
     // Insert widget configuration
@@ -228,12 +228,12 @@ export async function PUT(request: NextRequest) {
     if (configData.requireExplicitConsent !== undefined) updatePayload.require_explicit_consent = configData.requireExplicitConsent;
     if (configData.showDataSubjectsRights !== undefined) updatePayload.show_data_subjects_rights = configData.showDataSubjectsRights;
     if (configData.language !== undefined) updatePayload.language = configData.language;
-    if (configData.customTranslations !== undefined) updatePayload.custom_translations = configData.customTranslations;
     if (configData.enableAnalytics !== undefined) updatePayload.enable_analytics = configData.enableAnalytics;
     if (configData.enableAuditLog !== undefined) updatePayload.enable_audit_log = configData.enableAuditLog;
     if (configData.showBranding !== undefined) updatePayload.show_branding = configData.showBranding;
     if (configData.customCSS !== undefined) updatePayload.custom_css = configData.customCSS;
     if (configData.isActive !== undefined) updatePayload.is_active = configData.isActive;
+    if (configData.supportedLanguages !== undefined) updatePayload.supported_languages = configData.supportedLanguages;
 
     // Update widget configuration
     const { data, error } = await supabase
