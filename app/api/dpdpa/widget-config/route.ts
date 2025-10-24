@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
     const widgetId = `dpdpa_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 9)}`;
 
     // Prepare data for insertion
+    // Note: selected_activities needs to be cast to UUID[] in PostgreSQL
     const insertData = {
       user_id: user.id,
       widget_id: widgetId,
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
       accept_button_text: configData.acceptButtonText,
       reject_button_text: configData.rejectButtonText,
       customize_button_text: configData.customizeButtonText,
-      selected_activities: configData.selectedActivities || [],
+      selected_activities: (configData.selectedActivities || []) as any,
       auto_show: configData.autoShow ?? true,
       show_after_delay: configData.showAfterDelay ?? 1000,
       consent_duration: configData.consentDuration ?? 365,
@@ -159,8 +160,9 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating widget config:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { error: 'Failed to create widget configuration' },
+        { error: 'Failed to create widget configuration', details: error.message },
         { status: 500 }
       );
     }
@@ -246,8 +248,10 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Error updating widget config:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Update payload:', JSON.stringify(updatePayload, null, 2));
       return NextResponse.json(
-        { error: 'Failed to update widget configuration' },
+        { error: 'Failed to update widget configuration', details: error.message },
         { status: 500 }
       );
     }
