@@ -199,14 +199,73 @@ Add this script tag just before the closing `</body>` tag:
 
 ```html
 <!-- Consently DPDPA Widget -->
-<script src="https://your-domain.com/dpdpa-widget.js" 
+<script defer src="https://your-domain.com/dpdpa-widget.js" 
         data-dpdpa-widget-id="YOUR_WIDGET_ID">
 </script>
 ```
 
+**Important:** Always include the `defer` attribute to prevent blocking page rendering.
+
 Replace:
 - `https://your-domain.com` with your Consently platform URL
 - `YOUR_WIDGET_ID` with the ID from your dashboard
+
+### Shopify Integration
+
+For Shopify stores, follow these steps:
+
+#### Quick Setup (Development/Testing)
+
+1. **Access theme editor:**
+   - Go to **Online Store > Themes**
+   - Click **Actions > Edit Code**
+
+2. **Edit theme.liquid:**
+   - Find `layout/theme.liquid` in the file list
+   - Locate the closing `</body>` tag (usually near the bottom)
+   - Paste this code **before** the `</body>` tag:
+
+   ```html
+   <!-- Consently DPDPA Widget -->
+   <script defer src="https://your-domain.com/dpdpa-widget.js" 
+           data-dpdpa-widget-id="YOUR_WIDGET_ID">
+   </script>
+   ```
+
+3. **Save** and test on your store
+
+**Expected Shopify Warnings:**
+- ✅ **Parser Blocking Script:** Fixed with `defer` attribute
+- ⚠️ **Remote Asset Warning:** Optional to fix (see production setup below)
+
+#### Production Setup (Shopify CDN Hosting)
+
+For optimal performance and to eliminate all Shopify warnings:
+
+1. **Download the widget file:**
+   ```bash
+   curl -o dpdpa-widget.js https://your-domain.com/dpdpa-widget.js
+   ```
+
+2. **Upload to Shopify:**
+   - Go to **Settings > Files** in Shopify admin
+   - Click **Upload files**
+   - Select `dpdpa-widget.js`
+   - Copy the generated Shopify CDN URL (format: `https://cdn.shopify.com/s/files/1/.../dpdpa-widget.js`)
+
+3. **Update theme.liquid:**
+   ```html
+   <script defer src="https://cdn.shopify.com/s/files/1/.../dpdpa-widget.js" 
+           data-dpdpa-widget-id="YOUR_WIDGET_ID">
+   </script>
+   ```
+
+**Benefits:**
+- ✅ No Shopify warnings or theme check issues
+- ✅ Faster load times via Shopify's global CDN
+- ✅ Better caching and reliability
+
+**Important:** When you update the widget in the future, you'll need to re-upload the file to Shopify
 
 ### Manual Trigger
 

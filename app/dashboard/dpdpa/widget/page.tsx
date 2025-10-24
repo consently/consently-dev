@@ -370,16 +370,16 @@ export default function DPDPAWidgetPage() {
 
     switch (platform) {
       case 'html':
-        return `<!-- Consently DPDPA Widget -->\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+        return `<!-- Consently DPDPA Widget -->\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
       
       case 'wordpress':
-        return `<?php\n/**\n * Add Consently DPDPA Widget to WordPress\n * Add this to your theme's footer.php or use a plugin like "Insert Headers and Footers"\n */\n?>\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+        return `<?php\n/**\n * Add Consently DPDPA Widget to WordPress\n * Add this to your theme's footer.php or use a plugin like \"Insert Headers and Footers\"\n */\n?>\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
       
       case 'shopify':
-        return `<!-- Add to: Online Store > Themes > Actions > Edit Code > theme.liquid -->\n<!-- Place before </body> tag -->\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+        return `<!-- Add to: Online Store > Themes > Actions > Edit Code > theme.liquid -->\n<!-- Place before </body> tag -->\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>\n\n<!-- Production Option: Upload to Shopify CDN -->\n<!-- 1. Download widget: curl -o dpdpa-widget.js ${baseUrl}/dpdpa-widget.js -->\n<!-- 2. Upload at: Settings > Files -->\n<!-- 3. Replace src with Shopify CDN URL -->`;
       
       case 'wix':
-        return `<!-- Wix Installation:\n1. Go to Settings > Custom Code\n2. Click "+ Add Custom Code"\n3. Paste the code below\n4. Set to load on "All Pages" in the <body> section\n-->\n<script src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+        return `<!-- Wix Installation:\n1. Go to Settings > Custom Code\n2. Click \"+ Add Custom Code\"\n3. Paste the code below\n4. Set to load on \"All Pages\" in the <body> section\n-->\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
       
       case 'react':
         return `// React/Next.js Installation\nimport { useEffect } from 'react';\n\nfunction ConsentlyWidget() {\n  useEffect(() => {\n    const script = document.createElement('script');\n    script.src = '${baseUrl}/dpdpa-widget.js';\n    script.setAttribute('data-dpdpa-widget-id', '${widgetId}');\n    script.async = true;\n    document.body.appendChild(script);\n\n    return () => {\n      document.body.removeChild(script);\n    };\n  }, []);\n\n  return null;\n}\n\nexport default ConsentlyWidget;`;
@@ -1858,7 +1858,7 @@ export default function DPDPAWidgetPage() {
                       <span>
                         {selectedPlatform === 'html' && 'Paste this code just before the closing </body> tag on your website.'}
                         {selectedPlatform === 'wordpress' && 'Add this to your theme\'s footer.php or use a plugin like "Insert Headers and Footers".'}
-                        {selectedPlatform === 'shopify' && 'Go to Online Store > Themes > Actions > Edit Code > theme.liquid. Place before </body> tag.'}
+                        {selectedPlatform === 'shopify' && 'Go to Online Store > Themes > Actions > Edit Code > theme.liquid. Place before </body> tag. For production, upload the widget file to Shopify (Settings > Files) to use their CDN.'}
                         {selectedPlatform === 'wix' && 'Go to Settings > Custom Code, click "+ Add Custom Code", and set to load on all pages.'}
                         {selectedPlatform === 'react' && 'Import and use the ConsentlyWidget component in your app layout or _app.js file.'}
                       </span>
