@@ -5,8 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip } from '@/components/ui/tooltip';
+import { Accordion } from '@/components/ui/accordion';
 import { 
   Settings, 
   Code, 
@@ -22,8 +25,16 @@ import {
   Timer,
   Zap,
   Lock,
-  Cookie
+  Cookie,
+  Layout,
+  Palette,
+  Sparkles,
+  BarChart3,
+  RefreshCw,
+  FileCode,
+  Play
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const COOKIE_CATEGORIES = [
   {
@@ -63,8 +74,16 @@ const BEHAVIOR_OPTIONS = [
   { id: 'optout', name: 'Opt-Out', description: 'Track by default, allow users to opt out (not GDPR recommended)' }
 ];
 
+type BannerTemplate = {
+  id: string;
+  name: string;
+  description?: string;
+  is_default?: boolean;
+};
+
 type WidgetConfig = {
   widgetId: string;
+  name: string;
   domain: string;
   categories: string[];
   behavior: string;
@@ -75,6 +94,18 @@ type WidgetConfig = {
   gdprApplies: boolean;
   autoBlock: string[];
   language: string;
+  bannerTemplateId?: string | null;
+  theme: {
+    primaryColor: string;
+    backgroundColor: string;
+    textColor: string;
+    borderRadius: number;
+    fontFamily?: string;
+    logoUrl?: string;
+  };
+  autoShow: boolean;
+  showAfterDelay: number;
+  supportedLanguages?: string[];
 };
 
 export default function CookieWidgetPage() {
@@ -84,8 +115,17 @@ export default function CookieWidgetPage() {
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [bannerTemplates, setBannerTemplates] = useState<BannerTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<'html' | 'wordpress' | 'shopify' | 'wix' | 'react'>('html');
+  const [widgetStats, setWidgetStats] = useState<{totalConsents: number; weeklyConsents: number; conversionRate: number} | null>(null);
+  const [notifications, setNotifications] = useState<Array<{id: string; type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string}>>([]);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [config, setConfig] = useState<WidgetConfig>({
     widgetId: '',
+    name: 'My Cookie Widget',
     domain: '',
     categories: ['necessary'],
     behavior: 'explicit',
@@ -95,12 +135,116 @@ export default function CookieWidgetPage() {
     respectDNT: false,
     gdprApplies: true,
     autoBlock: [],
-    language: 'en'
+    language: 'en',
+    bannerTemplateId: null,
+    theme: {
+      primaryColor: '#3b82f6',
+      backgroundColor: '#ffffff',
+      textColor: '#1f2937',
+      borderRadius: 12
+    },
+    autoShow: true,
+    showAfterDelay: 1000,
+    supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr']
   });
+
+  const themePresets = [
+    { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
+    { name: 'Professional Dark', primaryColor: '#6366f1', backgroundColor: '#1f2937', textColor: '#f9fafb' },
+    { name: 'Modern Purple', primaryColor: '#8b5cf6', backgroundColor: '#faf5ff', textColor: '#581c87' },
+    { name: 'Fresh Green', primaryColor: '#10b981', backgroundColor: '#ffffff', textColor: '#064e3b' },
+    { name: 'Elegant Rose', primaryColor: '#f43f5e', backgroundColor: '#fff1f2', textColor: '#881337' },
+  ];
+
+  const fontFamilies = [
+    { name: 'System Default', value: 'system-ui, -apple-system, sans-serif' },
+    { name: 'Inter', value: 'Inter, system-ui, sans-serif' },
+    { name: 'Roboto', value: 'Roboto, sans-serif' },
+    { name: 'Open Sans', value: '"Open Sans", sans-serif' },
+    { name: 'Lato', value: 'Lato, sans-serif' },
+    { name: 'Montserrat', value: 'Montserrat, sans-serif' },
+    { name: 'Poppins', value: 'Poppins, sans-serif' },
+  ];
 
   useEffect(() => {
     fetchConfig();
+    fetchBannerTemplates();
+    initializeNotifications();
   }, []);
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (!hasUnsavedChanges || !config.widgetId) return;
+
+    const autoSaveTimer = setTimeout(() => {
+      handleSave(true); // silent save
+    }, 30000); // Auto-save after 30 seconds of inactivity
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [config, hasUnsavedChanges]);
+
+  // Track unsaved changes
+  useEffect(() => {
+    if (config.widgetId) {
+      setHasUnsavedChanges(true);
+    }
+  }, [config]);
+
+  // Initialize notifications
+  const initializeNotifications = () => {
+    const alerts = [];
+    
+    // GDPR compliance notification
+    alerts.push({
+      id: 'gdpr-compliance',
+      type: 'info' as const,
+      title: 'GDPR & DPDPA Compliance Active',
+      message: 'Your cookie widget is configured for privacy regulation compliance.'
+    });
+
+    // Check if widget is new (no stats yet)
+    if (config.widgetId && !widgetStats) {
+      alerts.push({
+        id: 'new-widget',
+        type: 'info' as const,
+        title: 'New Widget Detected',
+        message: 'Deploy your widget to start tracking consent data. Stats will appear once users interact.'
+      });
+    }
+
+    setNotifications(alerts);
+  };
+
+  const applyThemePreset = (preset: typeof themePresets[0]) => {
+    setConfig({
+      ...config,
+      theme: {
+        ...config.theme,
+        primaryColor: preset.primaryColor,
+        backgroundColor: preset.backgroundColor,
+        textColor: preset.textColor
+      }
+    });
+    toast.success(`Applied ${preset.name} theme`);
+  };
+
+  const fetchBannerTemplates = async () => {
+    try {
+      setLoadingTemplates(true);
+      const response = await fetch('/api/cookies/banner');
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setBannerTemplates(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching banner templates:', error);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
 
   const fetchConfig = async () => {
     try {
@@ -318,7 +462,7 @@ export default function CookieWidgetPage() {
                 </div>
                 <div>
                   <CardTitle>Live Preview</CardTitle>
-                  <CardDescription>See how your cookie banner will appear to visitors</CardDescription>
+                  <CardDescription>Real-time preview with your custom theme and settings</CardDescription>
                 </div>
               </div>
               <Badge className="bg-blue-100 text-blue-800">Preview Mode</Badge>
@@ -348,23 +492,91 @@ export default function CookieWidgetPage() {
                   </div>
                 </div>
                 
-                {/* Cookie Banner Preview */}
+                {/* Cookie Banner Preview - Using Actual Config */}
                 <div className="relative">
-                  <div className="bg-white border-t-2 border-gray-200 p-6 shadow-lg">
+                  <div 
+                    className="border-t-2 p-6 shadow-lg"
+                    style={{
+                      backgroundColor: config.theme?.backgroundColor || '#ffffff',
+                      color: config.theme?.textColor || '#1f2937',
+                      borderRadius: `${config.theme?.borderRadius || 0}px`,
+                      fontFamily: config.theme?.fontFamily || 'system-ui, sans-serif'
+                    }}
+                  >
                     <div className="max-w-4xl mx-auto">
                       <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
                         <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            🍪 We value your privacy
-                          </h3>
-                          <p className="text-sm text-gray-700">
+                          {config.theme?.logoUrl && (
+                            <img 
+                              src={config.theme.logoUrl} 
+                              alt="Logo" 
+                              className="h-8 w-auto mb-3"
+                              onError={(e) => e.currentTarget.style.display = 'none'}
+                            />
+                          )}
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 
+                              className="text-lg font-semibold"
+                              style={{ color: config.theme?.textColor || '#1f2937' }}
+                            >
+                              🍪 We value your privacy
+                            </h3>
+                            {/* Language Selector */}
+                            {config.supportedLanguages && config.supportedLanguages.length > 1 && (
+                              <select 
+                                className="text-xs px-2 py-1 border rounded-lg"
+                                style={{ 
+                                  borderColor: '#e5e7eb',
+                                  backgroundColor: 'white',
+                                  color: config.theme?.textColor || '#1f2937'
+                                }}
+                              >
+                                {config.supportedLanguages.map(lang => {
+                                  const langMap: Record<string, string> = {
+                                    en: '🇬🇧 English',
+                                    hi: '🇮🇳 हिंदी',
+                                    pa: '🇮🇳 ਪੰਜਾਬੀ',
+                                    te: '🇮🇳 తెలుగు',
+                                    ta: '🇮🇳 தமிழ்',
+                                    bn: '🇮🇳 বাংলা',
+                                    mr: '🇮🇳 मराठी',
+                                    gu: '🇮🇳 ગુજરાતી',
+                                    kn: '🇮🇳 ಕನ್ನಡ',
+                                    ml: '🇮🇳 മലയാളം',
+                                    or: '🇮🇳 ଓଡ଼ିଆ',
+                                    ur: '🇮🇳 اردو'
+                                  };
+                                  return (
+                                    <option key={lang} value={lang}>
+                                      {langMap[lang] || lang}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            )}
+                          </div>
+                          <p 
+                            className="text-sm"
+                            style={{ 
+                              color: config.theme?.textColor || '#6b7280',
+                              opacity: 0.9 
+                            }}
+                          >
                             We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
                             By clicking "Accept All", you consent to our use of cookies.
                           </p>
                           {config.categories.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
                               {config.categories.map((cat) => (
-                                <Badge key={cat} variant="outline" className="text-xs">
+                                <Badge 
+                                  key={cat} 
+                                  variant="outline" 
+                                  className="text-xs"
+                                  style={{
+                                    borderColor: config.theme?.primaryColor || '#3b82f6',
+                                    color: config.theme?.primaryColor || '#3b82f6'
+                                  }}
+                                >
                                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
                                 </Badge>
                               ))}
@@ -372,17 +584,54 @@ export default function CookieWidgetPage() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                          <button 
+                            className="px-4 py-2 text-white text-sm font-medium transition-colors hover:opacity-90"
+                            style={{
+                              backgroundColor: config.theme?.primaryColor || '#3b82f6',
+                              borderRadius: `${config.theme?.borderRadius || 8}px`
+                            }}
+                          >
                             Accept All
                           </button>
-                          <button className="px-4 py-2 bg-white text-blue-600 border-2 border-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">
+                          <button 
+                            className="px-4 py-2 border-2 text-sm font-medium transition-colors hover:opacity-80"
+                            style={{
+                              borderColor: config.theme?.primaryColor || '#3b82f6',
+                              color: config.theme?.primaryColor || '#3b82f6',
+                              backgroundColor: config.theme?.backgroundColor || 'white',
+                              borderRadius: `${config.theme?.borderRadius || 8}px`
+                            }}
+                          >
                             Reject All
                           </button>
-                          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+                          <button 
+                            className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
+                            style={{
+                              backgroundColor: '#f3f4f6',
+                              color: config.theme?.textColor || '#1f2937',
+                              borderRadius: `${config.theme?.borderRadius || 8}px`
+                            }}
+                          >
                             Cookie Settings
                           </button>
                         </div>
                       </div>
+                      {config.showBrandingLink && (
+                        <div className="mt-4 pt-4 border-t text-center">
+                          <a 
+                            href="https://consently.app" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs hover:underline"
+                            style={{ 
+                              color: config.theme?.textColor || '#6b7280',
+                              opacity: 0.7 
+                            }}
+                          >
+                            Powered by <span className="font-semibold">Consently</span>
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -393,14 +642,18 @@ export default function CookieWidgetPage() {
                 <div className="flex gap-3">
                   <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-semibold text-blue-900 mb-1">Preview Information</h4>
-                    <div className="space-y-1 text-sm text-blue-800">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-1">Current Configuration</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
                       <p>• <strong>Domain:</strong> {config.domain || 'Not set'}</p>
                       <p>• <strong>Behavior:</strong> {config.behavior === 'explicit' ? 'Explicit Consent' : 'Opt-Out'}</p>
-                      <p>• <strong>Consent Duration:</strong> {config.consentDuration} days</p>
-                      <p>• <strong>Categories:</strong> {config.categories.join(', ')}</p>
-                      <p className="mt-2 text-xs">💡 This is a visual preview. The actual widget will use your banner template design from the Templates page.</p>
+                      <p>• <strong>Duration:</strong> {config.consentDuration} days</p>
+                      <p>• <strong>Categories:</strong> {config.categories.length}</p>
+                      <p>• <strong>Auto Show:</strong> {config.autoShow ? `Yes (${config.showAfterDelay}ms delay)` : 'No'}</p>
+                      <p>• <strong>Languages:</strong> {config.supportedLanguages?.length || 1}</p>
                     </div>
+                    <p className="mt-3 text-xs text-blue-700">
+                      💡 This preview reflects your current theme settings. Save to apply changes to the live widget.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -505,27 +758,97 @@ export default function CookieWidgetPage() {
               </p>
             </div>
 
+            {/* Supported Languages */}
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <Globe className="h-4 w-4" />
+                Supported Languages
+                <Tooltip content="Select which languages will be available in the widget dropdown. Text will be automatically translated when users select a language." />
+              </label>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <p className="text-xs text-blue-800">
+                  <strong>🌐 Auto-Translation:</strong> When users select a language, all widget text will be automatically translated in real-time.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { code: 'en', name: 'English', flag: '🇬🇧' },
+                  { code: 'hi', name: 'Hindi (हिंदी)', flag: '🇮🇳' },
+                  { code: 'pa', name: 'Punjabi (ਪੰਜਾਬੀ)', flag: '🇮🇳' },
+                  { code: 'te', name: 'Telugu (తెలుగు)', flag: '🇮🇳' },
+                  { code: 'ta', name: 'Tamil (தமிழ்)', flag: '🇮🇳' },
+                  { code: 'bn', name: 'Bengali (বাংলা)', flag: '🇮🇳' },
+                  { code: 'mr', name: 'Marathi (मराठी)', flag: '🇮🇳' },
+                  { code: 'gu', name: 'Gujarati (ગુજરાતી)', flag: '🇮🇳' },
+                  { code: 'kn', name: 'Kannada (ಕನ್ನಡ)', flag: '🇮🇳' },
+                  { code: 'ml', name: 'Malayalam (മലയാളം)', flag: '🇮🇳' },
+                  { code: 'or', name: 'Odia (ଓଡ଼ିଆ)', flag: '🇮🇳' },
+                  { code: 'ur', name: 'Urdu (اردو)', flag: '🇮🇳' },
+                ].map(lang => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => {
+                      const isSelected = config.supportedLanguages?.includes(lang.code);
+                      if (isSelected) {
+                        // Don't allow removing English
+                        if (lang.code === 'en') {
+                          toast.error('English is required and cannot be removed');
+                          return;
+                        }
+                        updateConfig({
+                          supportedLanguages: config.supportedLanguages?.filter(l => l !== lang.code) || []
+                        });
+                      } else {
+                        updateConfig({
+                          supportedLanguages: [...(config.supportedLanguages || []), lang.code]
+                        });
+                      }
+                    }}
+                    className={`flex items-center gap-2 p-3 border-2 rounded-lg transition-all ${
+                      config.supportedLanguages?.includes(lang.code)
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-gray-200 hover:border-blue-300 bg-white'
+                    }`}
+                  >
+                    <span className="text-xl">{lang.flag}</span>
+                    <span className="text-sm font-medium text-gray-700 flex-1 text-left">{lang.name}</span>
+                    {config.supportedLanguages?.includes(lang.code) && (
+                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                    )}
+                    {lang.code === 'en' && (
+                      <Badge className="bg-blue-600 text-white text-xs">Required</Badge>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                Selected languages will appear in the widget dropdown. Users can switch languages and see auto-translated content.
+              </p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-gray-500" />
-                  Widget Language
+                  <Layout className="h-4 w-4 text-gray-500" />
+                  Banner Template Design
                 </div>
               </label>
               <Select
-                value={config.language}
-                onChange={(e) => updateConfig({ language: e.target.value })}
-                options={[
-                  { value: 'en', label: 'English' },
-                  { value: 'hi', label: 'हिन्दी (Hindi)' },
-                  { value: 'bn', label: 'বাংলা (Bengali)' },
-                  { value: 'ta', label: 'தமிழ் (Tamil)' },
-                  { value: 'te', label: 'తెలుగు (Telugu)' },
-                  { value: 'mr', label: 'मराठी (Marathi)' },
-                ]}
-              />
+                value={config.bannerTemplateId || ''}
+                onChange={(e) => updateConfig({ bannerTemplateId: e.target.value || null })}
+                disabled={loadingTemplates}
+              >
+                <option value="">Use Default Banner Template</option>
+                {bannerTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} {template.is_default ? '(Default)' : ''}
+                  </option>
+                ))}
+              </Select>
               <p className="mt-1 text-xs text-gray-500">
-                Display language for consent banner text
+                Choose which banner design to display. Create templates in the Templates page.
               </p>
             </div>
 
@@ -731,6 +1054,267 @@ export default function CookieWidgetPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Appearance & Theme */}
+      <Accordion 
+        title="Appearance & Theme" 
+        defaultOpen={false}
+        icon={<div className="p-2 bg-purple-100 rounded-lg"><Palette className="h-5 w-5 text-purple-600" /></div>}
+        className="shadow-sm hover:shadow-md transition-shadow border-2"
+      >
+        <div className="space-y-6 p-6">
+          {/* Theme Presets */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Quick Themes
+              </div>
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {themePresets.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => applyThemePreset(preset)}
+                  className="group relative p-3 border-2 border-gray-200 rounded-xl hover:border-indigo-300 transition-all hover:shadow-md"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div 
+                      className="w-6 h-6 rounded-full shadow-sm" 
+                      style={{ backgroundColor: preset.primaryColor }}
+                    ></div>
+                    <div 
+                      className="w-4 h-4 rounded border" 
+                      style={{ backgroundColor: preset.backgroundColor }}
+                    ></div>
+                    <div 
+                      className="w-4 h-4 rounded" 
+                      style={{ backgroundColor: preset.textColor }}
+                    ></div>
+                  </div>
+                  <p className="text-xs font-medium text-gray-700 text-left group-hover:text-indigo-600 transition-colors">
+                    {preset.name}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Color Customization */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Custom Colors
+            </label>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-gray-600 font-medium">Primary Color</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="color"
+                    value={config.theme?.primaryColor || '#3b82f6'}
+                    onChange={(e) =>
+                      updateConfig({
+                        theme: { ...config.theme, primaryColor: e.target.value }
+                      })
+                    }
+                    className="h-12 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={config.theme?.primaryColor || '#3b82f6'}
+                    onChange={(e) =>
+                      updateConfig({
+                        theme: { ...config.theme, primaryColor: e.target.value }
+                      })
+                    }
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-gray-600 font-medium">Background</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="color"
+                    value={config.theme?.backgroundColor || '#ffffff'}
+                    onChange={(e) =>
+                      updateConfig({
+                        theme: { ...config.theme, backgroundColor: e.target.value }
+                      })
+                    }
+                    className="h-12 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={config.theme?.backgroundColor || '#ffffff'}
+                    onChange={(e) =>
+                      updateConfig({
+                        theme: { ...config.theme, backgroundColor: e.target.value }
+                      })
+                    }
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-gray-600 font-medium">Text Color</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="color"
+                    value={config.theme?.textColor || '#1f2937'}
+                    onChange={(e) =>
+                      updateConfig({
+                        theme: { ...config.theme, textColor: e.target.value }
+                      })
+                    }
+                    className="h-12 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={config.theme?.textColor || '#1f2937'}
+                    onChange={(e) =>
+                      updateConfig({
+                        theme: { ...config.theme, textColor: e.target.value }
+                      })
+                    }
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Font Family Selection */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Font Family
+              <Tooltip content="Choose the font family for your widget text. Google Fonts will be loaded automatically." />
+            </label>
+            <select
+              value={config.theme?.fontFamily || fontFamilies[0].value}
+              onChange={(e) =>
+                updateConfig({
+                  theme: { ...config.theme, fontFamily: e.target.value }
+                })
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              {fontFamilies.map(font => (
+                <option key={font.value} value={font.value}>{font.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Logo Upload */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Brand Logo (Optional)
+              <Tooltip content="Upload your logo to display in the widget header. Recommended size: 120x40px, PNG or SVG format." />
+            </label>
+            <div className="flex items-center gap-3">
+              {config.theme?.logoUrl && (
+                <div className="relative">
+                  <img src={config.theme.logoUrl} alt="Logo" className="h-10 w-auto border border-gray-200 rounded" />
+                  <button
+                    onClick={() => updateConfig({ theme: { ...config.theme, logoUrl: '' } })}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  >
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+              <Input
+                type="url"
+                value={config.theme?.logoUrl || ''}
+                onChange={(e) =>
+                  updateConfig({
+                    theme: { ...config.theme, logoUrl: e.target.value }
+                  })
+                }
+                placeholder="https://example.com/logo.png"
+                className="flex-1 transition-all focus:ring-2 focus:ring-purple-500 font-mono text-xs"
+              />
+            </div>
+            <p className="text-xs text-gray-500">Enter a URL to your logo image</p>
+          </div>
+
+          {/* Border Radius */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Border Radius: {config.theme?.borderRadius || 12}px
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="24"
+              value={config.theme?.borderRadius || 12}
+              onChange={(e) =>
+                updateConfig({
+                  theme: { ...config.theme, borderRadius: parseInt(e.target.value) }
+                })
+              }
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+            />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Sharp</span>
+              <span>Rounded</span>
+            </div>
+          </div>
+        </div>
+      </Accordion>
+
+      {/* Widget Behavior */}
+      <Accordion 
+        title="Widget Behavior" 
+        defaultOpen={false}
+        icon={<div className="p-2 bg-green-100 rounded-lg"><Zap className="h-5 w-5 text-green-600" /></div>}
+        className="shadow-sm hover:shadow-md transition-shadow border-2"
+      >
+        <div className="space-y-6 p-6">
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="flex items-start gap-3">
+              <Play className="h-5 w-5 text-green-600 mt-0.5" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-gray-900">Auto Show Widget</p>
+                  <Tooltip content="When enabled, the widget will automatically appear after the specified delay. When disabled, you'll need to trigger it programmatically." />
+                </div>
+                <p className="text-sm text-gray-600">Automatically display widget when users visit</p>
+              </div>
+            </div>
+            <Checkbox
+              checked={config.autoShow}
+              onChange={(e) => updateConfig({ autoShow: e.target.checked })}
+              className="h-5 w-5"
+            />
+          </div>
+
+          {config.autoShow && (
+            <div className="space-y-2 pl-4 border-l-2 border-green-300">
+              <label className="block text-sm font-medium text-gray-700">
+                Show After Delay: {config.showAfterDelay}ms
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="5000"
+                step="100"
+                value={config.showAfterDelay}
+                onChange={(e) =>
+                  updateConfig({ showAfterDelay: parseInt(e.target.value) })
+                }
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Instant</span>
+                <span>5 seconds</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </Accordion>
 
       {/* Cookie Categories - Modern Design */}
       <Card className="border-2">

@@ -13,6 +13,8 @@ type WidgetConfigData = {
   respectDNT?: boolean;
   gdprApplies?: boolean;
   autoBlock?: string[];
+  bannerTemplateId?: string | null;
+  language?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -104,6 +106,23 @@ export async function POST(request: NextRequest) {
       throw selectError;
     }
 
+    // If bannerTemplateId is provided, verify it exists and belongs to user
+    if (config.bannerTemplateId) {
+      const { data: template, error: templateError } = await supabase
+        .from('banner_configs')
+        .select('id')
+        .eq('id', config.bannerTemplateId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (templateError || !template) {
+        return NextResponse.json(
+          { error: 'Invalid banner template ID or template does not belong to user' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Prepare data for database (ensure proper types)
     const dbData = {
       user_id: user.id,
@@ -116,7 +135,9 @@ export async function POST(request: NextRequest) {
       block_scripts: config.blockScripts ?? true,
       respect_dnt: config.respectDNT ?? false,
       gdpr_applies: config.gdprApplies ?? true,
-      auto_block: config.autoBlock || []
+      auto_block: config.autoBlock || [],
+      banner_template_id: config.bannerTemplateId || null,
+      language: config.language || 'en'
     };
 
     console.log('Database data:', JSON.stringify(dbData, null, 2));
@@ -136,6 +157,8 @@ export async function POST(request: NextRequest) {
           respect_dnt: dbData.respect_dnt,
           gdpr_applies: dbData.gdpr_applies,
           auto_block: dbData.auto_block,
+          banner_template_id: dbData.banner_template_id,
+          language: dbData.language,
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id);
@@ -247,7 +270,9 @@ export async function GET() {
       blockScripts: data.block_scripts,
       respectDNT: data.respect_dnt,
       gdprApplies: data.gdpr_applies,
-      autoBlock: Array.isArray(data.auto_block) ? data.auto_block : []
+      autoBlock: Array.isArray(data.auto_block) ? data.auto_block : [],
+      bannerTemplateId: data.banner_template_id,
+      language: data.language || 'en'
     };
 
     console.log('Returning config:', JSON.stringify(config, null, 2));

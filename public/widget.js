@@ -1,25 +1,34 @@
 /**
- * Consently Cookie Consent Widget v3.0
+ * Consently Cookie Consent Widget v3.1
  * Production-ready embeddable widget (no dependencies)
  * DPDPA 2023 & GDPR Compliant
  * 
- * Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_BANNER_ID"></script>
+ * This widget fetches configuration from widget_configs table and applies
+ * the linked banner template design from banner_configs table.
+ * 
+ * Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_WIDGET_ID"></script>
+ * 
+ * The widget will:
+ * 1. Fetch widget configuration (domain, categories, behavior)
+ * 2. Load linked banner template (design, colors, layout)
+ * 3. Merge both configs and render the banner
+ * 4. Track consent decisions
  */
 
 (function() {
   'use strict';
 
-  // Get banner ID from script tag
+  // Get widget ID from script tag
   const currentScript = document.currentScript || document.querySelector('script[data-consently-id]');
-  const bannerId = currentScript ? currentScript.getAttribute('data-consently-id') : null;
+  const widgetId = currentScript ? currentScript.getAttribute('data-consently-id') : null;
   
-  if (!bannerId) {
+  if (!widgetId) {
     console.error('[Consently] Error: data-consently-id attribute is required');
-    console.error('[Consently] Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_BANNER_ID"></script>');
+    console.error('[Consently] Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_WIDGET_ID"></script>');
     return;
   }
 
-  console.log('[Consently] Initializing widget with banner ID:', bannerId);
+  console.log('[Consently] Initializing widget with ID:', widgetId);
 
   // Default configuration (will be overridden by API)
   const defaultConfig = {
@@ -96,7 +105,7 @@
     }
   };
 
-  // Fetch configuration from API
+  // Fetch widget configuration + linked banner template from API
   async function fetchBannerConfig() {
     try {
       // Determine the API base URL
@@ -112,9 +121,10 @@
         apiBase = window.location.origin;
       }
       
-      const apiUrl = `${apiBase}/api/cookies/widget-public/${bannerId}`;
+      // API fetches widget config + linked banner template
+      const apiUrl = `${apiBase}/api/cookies/widget-public/${widgetId}`;
       
-      console.log('[Consently] Fetching configuration from:', apiUrl);
+      console.log('[Consently] Fetching widget config + banner template from:', apiUrl);
       
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -130,14 +140,16 @@
       
       const data = await response.json();
       
-      if (data && (data.id || data.config)) {
-        // API returns config directly, not nested
+      if (data && (data.widgetId || data.bannerId)) {
+        // API returns merged widget config + banner template
         config = Object.assign({}, defaultConfig, data);
-        config.widgetId = bannerId;
+        config.widgetId = widgetId;
         config.apiEndpoint = '/api/consent/record';
         config.apiBase = apiBase;
         configLoaded = true;
-        console.log('[Consently] Configuration loaded successfully:', config.name || 'Unnamed Banner');
+        console.log('[Consently] Configuration loaded successfully');
+        console.log('[Consently] Widget ID:', config.widgetId);
+        console.log('[Consently] Banner:', config.bannerName || 'Default');
         return true;
       } else {
         throw new Error('Invalid configuration response');
@@ -145,7 +157,7 @@
     } catch (error) {
       console.error('[Consently] Failed to load configuration:', error);
       console.log('[Consently] Using default configuration');
-      config.widgetId = bannerId;
+      config.widgetId = widgetId;
       config.apiEndpoint = '/api/consent/record';
       config.apiBase = window.location.origin;
       return false;
@@ -469,7 +481,7 @@
       status: status,
       categories: categories,
       timestamp: Date.now(),
-      widgetId: bannerId,
+      widgetId: widgetId,
       domain: window.location.hostname
     };
 

@@ -35,26 +35,93 @@ export async function GET(
       }
     );
 
-    // Fetch banner configuration directly using widgetId as banner ID
-    const { data: banner, error: bannerError } = await supabase
-      .from('banner_configs')
+    // Fetch widget configuration with linked banner template
+    const { data: widgetConfig, error: widgetError } = await supabase
+      .from('widget_configs')
       .select('*')
-      .eq('id', widgetId)
-      .eq('is_active', true)
+      .eq('widget_id', widgetId)
       .single();
 
-    if (bannerError || !banner) {
-      console.error('Banner config error:', bannerError);
+    if (widgetError) {
+      console.error('Widget config error:', widgetError);
       return NextResponse.json(
-        { error: 'Banner configuration not found or inactive' },
+        { error: 'Widget configuration not found' },
+        { status: 404 }
+      );
+    }
+
+    // Fetch the linked banner template or default
+    let banner = null;
+    
+    if (widgetConfig.banner_template_id) {
+      // Fetch the specific linked template
+      const { data: linkedBanner } = await supabase
+        .from('banner_configs')
+        .select('*')
+        .eq('id', widgetConfig.banner_template_id)
+        .eq('is_active', true)
+        .single();
+      
+      banner = linkedBanner;
+    }
+    
+    // If no banner linked or found, try to get user's default banner
+    if (!banner && widgetConfig.user_id) {
+      const { data: defaultBanner } = await supabase
+        .from('banner_configs')
+        .select('*')
+        .eq('user_id', widgetConfig.user_id)
+        .eq('is_default', true)
+        .eq('is_active', true)
+        .single();
+      
+      banner = defaultBanner;
+    }
+    
+    // If still no banner, get the most recent active one for the user
+    if (!banner && widgetConfig.user_id) {
+      const { data: recentBanner } = await supabase
+        .from('banner_configs')
+        .select('*')
+        .eq('user_id', widgetConfig.user_id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      banner = recentBanner;
+    }
+
+    if (!banner) {
+      console.error('No active banner template found for widget');
+      return NextResponse.json(
+        { error: 'No active banner template found' },
         { status: 404 }
       );
     }
 
     // Transform snake_case database fields to camelCase for JavaScript
     const config = {
-      id: banner.id,
-      name: banner.name,
+      // Widget configuration
+      widgetId: widgetConfig.widget_id,
+      domain: widgetConfig.domain,
+      categories: Array.isArray(widgetConfig.categories) 
+        ? widgetConfig.categories 
+        : ['necessary'],
+      behavior: widgetConfig.behavior,
+      consentDuration: widgetConfig.consent_duration,
+      showBrandingLink: widgetConfig.show_branding_link,
+      blockScripts: widgetConfig.block_scripts,
+      respectDNT: widgetConfig.respect_dnt,
+      gdprApplies: widgetConfig.gdpr_applies,
+      autoBlock: Array.isArray(widgetConfig.auto_block) 
+        ? widgetConfig.auto_block 
+        : [],
+      language: widgetConfig.language || 'en',
+      
+      // Banner template design (merged with widget settings)
+      bannerId: banner.id,
+      bannerName: banner.name,
       layout: banner.layout,
       position: banner.position,
       
@@ -72,18 +139,15 @@ export async function GET(
       rejectButton: banner.reject_button,
       settingsButton: banner.settings_button,
       
-      // Behavior settings
+      // Behavior settings (banner overrides widget if specified)
       showRejectButton: banner.show_reject_button,
       showSettingsButton: banner.show_settings_button,
       autoShow: banner.auto_show,
       showAfterDelay: banner.show_after_delay,
-      respectDNT: banner.respect_dnt,
       blockContent: banner.block_content,
       zIndex: banner.z_index,
-      
-      // Additional metadata
-      createdAt: banner.created_at,
-      updatedAt: banner.updated_at,
+      customCSS: banner.custom_css,
+      customJS: banner.custom_js,
     };
 
     // Set cache headers for better performance (cache for 5 minutes)
