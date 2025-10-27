@@ -23,8 +23,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { widgetId, consentId, status, categories, deviceType, userAgent, language } = body;
 
+    console.log('[API] Received consent request:', {
+      widgetId,
+      consentId,
+      status,
+      categories: categories || []
+    });
+
     // Validate required fields
     if (!widgetId || !consentId || !status) {
+      console.error('[API] Missing required fields:', { widgetId, consentId, status });
       return NextResponse.json(
         { success: false, error: 'Missing required fields: widgetId, consentId, status' },
         { status: 400 }
@@ -60,19 +68,52 @@ export async function POST(request: NextRequest) {
     );
 
     // Look up the widget config to get user_id
-    const { data: widgetConfig, error: widgetError } = await supabase
+    let widgetConfig = null;
+    let widgetError = null;
+    
+    const { data: cookieWidgetConfig, error: cookieError } = await supabase
       .from('widget_configs')
       .select('user_id, domain')
       .eq('widget_id', widgetId)
       .single();
 
-    if (widgetError || !widgetConfig) {
-      console.error('Widget lookup error:', widgetError);
-      return NextResponse.json(
-        { success: false, error: 'Invalid widget ID' },
-        { status: 404 }
-      );
+    if (cookieError || !cookieWidgetConfig) {
+      console.log('[API] Cookie widget lookup failed, trying DPDPA widget configs...');
+      
+      // Try DPDPA widget configs as fallback
+      const { data: dpdpaConfig, error: dpdpaError } = await supabase
+        .from('dpdpa_widget_configs')
+        .select('user_id, domain')
+        .eq('widget_id', widgetId)
+        .single();
+      
+      if (dpdpaError || !dpdpaConfig) {
+        console.error('[API] Widget lookup failed for both tables:', {
+          cookieError: cookieError?.message,
+          dpdpaError: dpdpaError?.message,
+          widgetId
+        });
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Invalid widget ID',
+            details: `Widget ${widgetId} not found in widget_configs or dpdpa_widget_configs`
+          },
+          { status: 404 }
+        );
+      }
+      
+      widgetConfig = dpdpaConfig;
+      console.log('[API] Using DPDPA widget config');
+    } else {
+      widgetConfig = cookieWidgetConfig;
+      console.log('[API] Using cookie widget config');
     }
+    
+    console.log('[API] Widget config found:', {
+      user_id: widgetConfig.user_id,
+      domain: widgetConfig.domain
+    });
 
     // Get IP address and user agent from headers
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
@@ -110,7 +151,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (logError) {
-      console.error('Supabase error inserting consent log:', logError);
+      console.error('[API] Supabase error inserting consent log:', logError);
+    } else {
+      console.log('[API] Consent log inserted successfully:', logData?.id);
     }
 
     // Also insert into consent_records for backwards compatibility
@@ -135,12 +178,18 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Supabase error inserting consent:', error);
+      console.error('[API] Supabase error inserting consent record:', error);
       return NextResponse.json(
         { success: false, error: 'Failed to record consent', details: error.message },
         { status: 500 }
       );
     }
+    
+    console.log('[API] Consent recorded successfully:', {
+      id: data.id,
+      consent_id: data.consent_id,
+      status: data.status
+    });
 
     return NextResponse.json({ 
       success: true, 
@@ -151,10 +200,11 @@ export async function POST(request: NextRequest) {
         created_at: data.created_at
       }
     });
-  } catch (error) {
-    console.error('API error:', error);
+  } catch (error: any) {
+    console.error('[API] Unexpected error:', error);
+    console.error('[API] Error stack:', error.stack);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }

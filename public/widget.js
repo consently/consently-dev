@@ -983,35 +983,35 @@
     };
 
     console.log('[Consently] Sending consent to:', apiUrl);
+    console.log('[Consently] Payload:', JSON.stringify(data, null, 2));
 
-    // Use sendBeacon if available (more reliable for page unload)
-    if (navigator.sendBeacon) {
-      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-      const sent = navigator.sendBeacon(apiUrl, blob);
-      console.log('[Consently] Consent sent via beacon:', sent);
-    } else {
-      // Fallback to fetch
-      fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-        keepalive: true // Important for page unload scenarios
-      })
-      .then(function(response) {
-        if (response.ok) {
-          console.log('[Consently] Consent recorded successfully');
-        } else {
-          console.error('[Consently] Server returned error:', response.status);
+    // Always use fetch for better error handling and debugging
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      keepalive: true // Important for page unload scenarios
+    })
+    .then(function(response) {
+      console.log('[Consently] Response status:', response.status);
+      if (!response.ok) {
+        console.error('[Consently] Server returned error:', response.status, response.statusText);
+      }
+      return response.json();
+    })
+    .then(function(result) {
+      console.log('[Consently] Server response:', result);
+      if (result && !result.success) {
+        console.error('[Consently] Failed to record consent:', result.error);
+        if (result.details) {
+          console.error('[Consently] Error details:', result.details);
         }
-        return response.json();
-      })
-      .then(function(result) {
-        console.log('[Consently] Server response:', result);
-      })
-      .catch(function(err) {
-        console.error('[Consently] Failed to record consent:', err);
-      });
-    }
+      }
+    })
+    .catch(function(err) {
+      console.error('[Consently] Failed to record consent:', err);
+      console.error('[Consently] Error details:', err.message, err.stack);
+    });
   }
 
   // Apply consent (enable/disable tracking scripts)
