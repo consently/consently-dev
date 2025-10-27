@@ -1054,15 +1054,20 @@ export default function CookieTemplatesPage() {
               }}
             >
               {/* Language Selector Preview */}
-              <div className="absolute top-4 right-4 z-10">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium" 
+              <div className="absolute top-3 right-3 z-10">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full border text-sm" 
                   style={{
-                    borderColor: config.theme.primaryColor,
-                    color: config.theme.primaryColor,
+                    borderColor: 'rgba(0,0,0,0.1)',
+                    color: config.theme.textColor,
                     backgroundColor: 'white',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}>
-                  🇬🇧 English ▼
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                  }}
+                  title="Language Selector">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                  </svg>
                 </div>
               </div>
               

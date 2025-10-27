@@ -422,28 +422,30 @@
         }
         .consently-lang-selector {
           position: absolute;
-          top: 16px;
-          right: 16px;
+          top: 12px;
+          right: 12px;
           z-index: 10;
         }
         .consently-lang-btn-banner {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 6px 10px;
-          border: 1px solid ${primaryColor};
-          border-radius: 6px;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          padding: 0;
+          border: 1px solid rgba(0,0,0,0.1);
+          border-radius: 50%;
           background: white;
-          color: ${primaryColor};
+          color: ${textColor};
           cursor: pointer;
-          font-size: 13px;
-          font-weight: 500;
+          font-size: 16px;
           transition: all 0.2s;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
         .consently-lang-btn-banner:hover {
-          background: ${primaryColor};
-          color: white;
+          background: #f9fafb;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+          transform: scale(1.05);
         }
         .consently-lang-menu-banner {
           display: none;
@@ -455,11 +457,24 @@
           border: 1px solid #e5e7eb;
           border-radius: 8px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          overflow: hidden;
           z-index: 10;
-          min-width: 160px;
-          max-height: 250px;
+          min-width: 180px;
+          max-height: 240px;
           overflow-y: auto;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar {
+          width: 6px;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
         .consently-lang-menu-banner button {
           display: flex;
@@ -496,11 +511,11 @@
         }
       </style>
       <div class="consently-lang-selector">
-        <button id="consently-lang-btn-banner" class="consently-lang-btn-banner">
-          <span>${languageFlag(selectedLanguage)}</span>
-          <span id="consently-lang-label-banner">${languageLabel(selectedLanguage)}</span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 10l5 5 5-5z"/>
+        <button id="consently-lang-btn-banner" class="consently-lang-btn-banner" title="${languageLabel(selectedLanguage)}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
           </svg>
         </button>
         <div id="consently-lang-menu-banner" class="consently-lang-menu-banner">
