@@ -88,6 +88,7 @@ type BannerConfig = {
     fontSize?: number;
     borderRadius?: number;
     boxShadow?: boolean;
+    logoUrl?: string;
   };
   title: string;
   message: string;
@@ -155,7 +156,8 @@ export default function CookieTemplatesPage() {
       fontFamily: 'system-ui, sans-serif',
       fontSize: 14,
       borderRadius: 8,
-      boxShadow: true
+      boxShadow: true,
+      logoUrl: ''
     },
     title: 'We value your privacy',
     message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
@@ -349,7 +351,8 @@ export default function CookieTemplatesPage() {
         fontFamily: 'system-ui, sans-serif',
         fontSize: 14,
         borderRadius: 8,
-        boxShadow: true
+        boxShadow: true,
+        logoUrl: ''
       },
       title: 'We value your privacy',
       message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic.',
@@ -639,6 +642,22 @@ export default function CookieTemplatesPage() {
                     </option>
                   ))}
                 </Select>
+              </div>
+
+              {/* Logo URL */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Company Logo URL
+                </label>
+                <Input
+                  type="url"
+                  value={config.theme.logoUrl || ''}
+                  onChange={(e) => updateTheme({ logoUrl: e.target.value })}
+                  placeholder="https://example.com/logo.png"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter the URL of your company logo (recommended size: 150x40px)
+                </p>
               </div>
 
               {/* Theme Colors */}
@@ -1030,9 +1049,33 @@ export default function CookieTemplatesPage() {
                 borderRadius: `${config.theme.borderRadius}px`,
                 boxShadow: config.theme.boxShadow ? '0 10px 40px rgba(0,0,0,0.15)' : 'none',
                 fontSize: `${config.theme.fontSize}px`,
-                zIndex: config.zIndex
+                zIndex: config.zIndex,
+                position: 'relative'
               }}
             >
+              {/* Language Selector Preview */}
+              <div className="absolute top-4 right-4 z-10">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium" 
+                  style={{
+                    borderColor: config.theme.primaryColor,
+                    color: config.theme.primaryColor,
+                    backgroundColor: 'white',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}>
+                  🇬🇧 English ▼
+                </div>
+              </div>
+              
+              {/* Logo */}
+              {config.theme.logoUrl && (
+                <img 
+                  src={config.theme.logoUrl} 
+                  alt="Logo" 
+                  className="h-8 w-auto mb-3"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
+              
               <h3 className="mb-2 text-lg font-bold">{config.title}</h3>
               <p className="mb-4 text-sm opacity-90">{config.message}</p>
               

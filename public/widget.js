@@ -316,6 +316,7 @@
       background-color: ${backgroundColor};
       color: ${textColor};
       padding: 24px;
+      padding-top: 48px;
       box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
       z-index: ${zIndex};
       font-family: ${fontFamily};
@@ -420,8 +421,10 @@
           text-decoration: underline;
         }
         .consently-lang-selector {
-          position: relative;
-          display: inline-block;
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          z-index: 10;
         }
         .consently-lang-btn-banner {
           display: flex;
@@ -436,6 +439,7 @@
           font-size: 13px;
           font-weight: 500;
           transition: all 0.2s;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .consently-lang-btn-banner:hover {
           background: ${primaryColor};
@@ -444,9 +448,9 @@
         .consently-lang-menu-banner {
           display: none;
           position: absolute;
-          bottom: 100%;
+          top: 100%;
           right: 0;
-          margin-bottom: 8px;
+          margin-top: 8px;
           background: white;
           border: 1px solid #e5e7eb;
           border-radius: 8px;
@@ -491,6 +495,23 @@
           }
         }
       </style>
+      <div class="consently-lang-selector">
+        <button id="consently-lang-btn-banner" class="consently-lang-btn-banner">
+          <span>${languageFlag(selectedLanguage)}</span>
+          <span id="consently-lang-label-banner">${languageLabel(selectedLanguage)}</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7 10l5 5 5-5z"/>
+          </svg>
+        </button>
+        <div id="consently-lang-menu-banner" class="consently-lang-menu-banner">
+          ${(config.supportedLanguages || ['en', 'hi', 'es', 'fr', 'de']).map(code => `
+            <button data-lang="${code}" class="${code === selectedLanguage ? 'active' : ''}">
+              <span style="font-size: 16px;">${languageFlag(code)}</span>
+              <span>${languageLabel(code)}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
       <div class="consently-container">
         <div class="consently-content">
           ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" class="consently-logo" onerror="this.style.display='none'">` : ''}
@@ -498,23 +519,6 @@
           <p class="consently-message">${message}</p>
         </div>
         <div class="consently-actions">
-          <div class="consently-lang-selector">
-            <button id="consently-lang-btn-banner" class="consently-lang-btn-banner">
-              <span>${languageFlag(selectedLanguage)}</span>
-              <span id="consently-lang-label-banner">${languageLabel(selectedLanguage)}</span>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M7 10l5 5 5-5z"/>
-              </svg>
-            </button>
-            <div id="consently-lang-menu-banner" class="consently-lang-menu-banner">
-              ${(config.supportedLanguages || ['en', 'hi', 'es', 'fr', 'de']).map(code => `
-                <button data-lang="${code}" class="${code === selectedLanguage ? 'active' : ''}">
-                  <span style="font-size: 16px;">${languageFlag(code)}</span>
-                  <span>${languageLabel(code)}</span>
-                </button>
-              `).join('')}
-            </div>
-          </div>
           <button id="consently-accept" class="consently-btn consently-btn-primary">
             ${acceptText}
           </button>
