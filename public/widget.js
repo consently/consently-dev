@@ -419,6 +419,65 @@
           opacity: 1;
           text-decoration: underline;
         }
+        .consently-lang-selector {
+          position: relative;
+          display: inline-block;
+        }
+        .consently-lang-btn-banner {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 10px;
+          border: 1px solid ${primaryColor};
+          border-radius: 6px;
+          background: white;
+          color: ${primaryColor};
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+        .consently-lang-btn-banner:hover {
+          background: ${primaryColor};
+          color: white;
+        }
+        .consently-lang-menu-banner {
+          display: none;
+          position: absolute;
+          bottom: 100%;
+          right: 0;
+          margin-bottom: 8px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          overflow: hidden;
+          z-index: 10;
+          min-width: 160px;
+          max-height: 250px;
+          overflow-y: auto;
+        }
+        .consently-lang-menu-banner button {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          width: 100%;
+          text-align: left;
+          padding: 10px 14px;
+          border: none;
+          background: white;
+          cursor: pointer;
+          font-size: 13px;
+          transition: background 0.15s;
+        }
+        .consently-lang-menu-banner button:hover {
+          background: #f0f9ff;
+        }
+        .consently-lang-menu-banner button.active {
+          background: #f0f9ff;
+          font-weight: 600;
+          color: #0369a1;
+        }
         @media (max-width: 768px) {
           .consently-container {
             flex-direction: column;
@@ -439,6 +498,23 @@
           <p class="consently-message">${message}</p>
         </div>
         <div class="consently-actions">
+          <div class="consently-lang-selector">
+            <button id="consently-lang-btn-banner" class="consently-lang-btn-banner">
+              <span>${languageFlag(selectedLanguage)}</span>
+              <span id="consently-lang-label-banner">${languageLabel(selectedLanguage)}</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            <div id="consently-lang-menu-banner" class="consently-lang-menu-banner">
+              ${(config.supportedLanguages || ['en', 'hi', 'es', 'fr', 'de']).map(code => `
+                <button data-lang="${code}" class="${code === selectedLanguage ? 'active' : ''}">
+                  <span style="font-size: 16px;">${languageFlag(code)}</span>
+                  <span>${languageLabel(code)}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
           <button id="consently-accept" class="consently-btn consently-btn-primary">
             ${acceptText}
           </button>
@@ -465,26 +541,83 @@
 
     document.body.appendChild(banner);
 
-    // Add event listeners
+    console.log('[Consently] Banner added to DOM, attaching event listeners...');
+
+    // Add event listeners with error handling
     const acceptBtn = document.getElementById('consently-accept');
     if (acceptBtn) {
-      acceptBtn.addEventListener('click', function() {
+      acceptBtn.addEventListener('click', function(e) {
+        console.log('[Consently] Accept button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         handleConsent('accepted', ['necessary', 'analytics', 'marketing', 'preferences']);
       });
+      console.log('[Consently] Accept button listener attached');
+    } else {
+      console.error('[Consently] Accept button not found!');
     }
 
     const rejectBtn = document.getElementById('consently-reject');
     if (rejectBtn) {
-      rejectBtn.addEventListener('click', function() {
+      rejectBtn.addEventListener('click', function(e) {
+        console.log('[Consently] Reject button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         handleConsent('rejected', ['necessary']);
       });
+      console.log('[Consently] Reject button listener attached');
     }
 
     const settingsBtn = document.getElementById('consently-settings');
     if (settingsBtn) {
-      settingsBtn.addEventListener('click', function() {
+      settingsBtn.addEventListener('click', function(e) {
+        console.log('[Consently] Settings button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         showSettingsModal();
       });
+      console.log('[Consently] Settings button listener attached');
+    }
+
+    // Language selector in banner
+    const langBtnBanner = document.getElementById('consently-lang-btn-banner');
+    const langMenuBanner = document.getElementById('consently-lang-menu-banner');
+    
+    if (langBtnBanner && langMenuBanner) {
+      // Toggle menu
+      langBtnBanner.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('[Consently] Language button clicked');
+        langMenuBanner.style.display = langMenuBanner.style.display === 'none' || !langMenuBanner.style.display ? 'block' : 'none';
+      });
+      
+      // Close on outside click
+      document.addEventListener('click', function(e) {
+        if (!langBtnBanner.contains(e.target) && !langMenuBanner.contains(e.target)) {
+          langMenuBanner.style.display = 'none';
+        }
+      });
+      
+      // Language selection
+      langMenuBanner.querySelectorAll('button[data-lang]').forEach(function(btn) {
+        btn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const newLang = this.getAttribute('data-lang');
+          console.log('[Consently] Language changed to:', newLang);
+          if (newLang !== selectedLanguage) {
+            selectedLanguage = newLang;
+            langMenuBanner.style.display = 'none';
+            
+            // Remove existing banner and show new one with selected language
+            banner.remove();
+            await showConsentBanner();
+          }
+        });
+      });
+      
+      console.log('[Consently] Language selector listeners attached');
     }
   }
 
