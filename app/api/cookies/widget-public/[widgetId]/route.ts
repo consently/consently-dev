@@ -92,12 +92,57 @@ export async function GET(
       banner = recentBanner;
     }
 
+    // If still no banner, create default configuration inline
     if (!banner) {
-      console.error('No active banner template found for widget');
-      return NextResponse.json(
-        { error: 'No active banner template found' },
-        { status: 404 }
-      );
+      console.warn('No banner template found, using default configuration');
+      banner = {
+        id: 'default',
+        name: 'Default Banner',
+        layout: 'bar',
+        position: 'bottom',
+        theme: {
+          primaryColor: '#3b82f6',
+          secondaryColor: '#1e40af',
+          backgroundColor: '#ffffff',
+          textColor: '#1f2937',
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: 14,
+          borderRadius: 8,
+          boxShadow: true
+        },
+        title: 'We value your privacy',
+        message: 'We use cookies to enhance your browsing experience and analyze our traffic.',
+        privacy_policy_url: null,
+        privacy_policy_text: 'Privacy Policy',
+        accept_button: {
+          text: 'Accept All',
+          backgroundColor: '#3b82f6',
+          textColor: '#ffffff',
+          borderRadius: 8
+        },
+        reject_button: {
+          text: 'Reject All',
+          backgroundColor: 'transparent',
+          textColor: '#3b82f6',
+          borderColor: '#3b82f6',
+          borderRadius: 8
+        },
+        settings_button: {
+          text: 'Cookie Settings',
+          backgroundColor: '#f3f4f6',
+          textColor: '#1f2937',
+          borderRadius: 8
+        },
+        show_reject_button: true,
+        show_settings_button: true,
+        auto_show: true,
+        show_after_delay: 0,
+        respect_dnt: false,
+        block_content: false,
+        z_index: 9999,
+        custom_css: null,
+        custom_js: null
+      };
     }
 
     // Transform snake_case database fields to camelCase for JavaScript

@@ -297,6 +297,11 @@
     const fontSize = theme.fontSize || 14;
     const borderRadius = theme.borderRadius || 8;
     const zIndex = config.zIndex || 9999;
+    
+    // Extract button configurations from banner template
+    const acceptButton = config.acceptButton || { backgroundColor: primaryColor, textColor: '#ffffff' };
+    const rejectButton = config.rejectButton || { backgroundColor: 'transparent', textColor: primaryColor, borderColor: primaryColor };
+    const settingsButton = config.settingsButton || { backgroundColor: '#f3f4f6', textColor: textColor };
 
     // Translate text if needed
     const title = selectedLanguage !== 'en' ? await translateText(config.title, selectedLanguage) : config.title;
@@ -356,18 +361,22 @@
           transform: translateY(-1px);
         }
         .consently-btn-primary {
-          background-color: ${primaryColor};
-          color: white;
+          background-color: ${acceptButton.backgroundColor || primaryColor};
+          color: ${acceptButton.textColor || '#ffffff'};
+          border: 2px solid ${acceptButton.borderColor || acceptButton.backgroundColor || primaryColor};
+          border-radius: ${acceptButton.borderRadius || borderRadius}px;
         }
         .consently-btn-secondary {
-          background-color: transparent;
-          color: ${primaryColor};
-          border: 2px solid ${primaryColor};
+          background-color: ${rejectButton.backgroundColor || 'transparent'};
+          color: ${rejectButton.textColor || primaryColor};
+          border: 2px solid ${rejectButton.borderColor || primaryColor};
+          border-radius: ${rejectButton.borderRadius || borderRadius}px;
         }
         .consently-btn-text {
-          background-color: transparent;
-          color: ${textColor};
-          text-decoration: underline;
+          background-color: ${settingsButton.backgroundColor || '#f3f4f6'};
+          color: ${settingsButton.textColor || textColor};
+          border: 2px solid transparent;
+          border-radius: ${settingsButton.borderRadius || borderRadius}px;
         }
         .consently-container {
           max-width: 1200px;

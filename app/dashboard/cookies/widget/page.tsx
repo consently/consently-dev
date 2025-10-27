@@ -123,6 +123,7 @@ export default function CookieWidgetPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [linkedBanner, setLinkedBanner] = useState<any>(null);
   const [config, setConfig] = useState<WidgetConfig>({
     widgetId: '',
     name: 'My Cookie Widget',
@@ -171,6 +172,28 @@ export default function CookieWidgetPage() {
     fetchBannerTemplates();
     initializeNotifications();
   }, []);
+  
+  // Fetch linked banner template when bannerTemplateId changes
+  useEffect(() => {
+    const fetchLinkedBanner = async () => {
+      if (config.bannerTemplateId) {
+        try {
+          const response = await fetch(`/api/cookies/banner?id=${config.bannerTemplateId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              setLinkedBanner(data.data);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching linked banner:', error);
+        }
+      } else {
+        setLinkedBanner(null);
+      }
+    };
+    fetchLinkedBanner();
+  }, [config.bannerTemplateId]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -309,10 +332,72 @@ export default function CookieWidgetPage() {
     setError(null);
     
     try {
+      // Step 1: Create or update banner template to match widget theme
+      let bannerTemplateId = config.bannerTemplateId;
+      
+      if (!bannerTemplateId) {
+        // Auto-create a banner template for this widget
+        toast.info('Creating banner template...');
+        const bannerResponse = await fetch('/api/cookies/banner', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: `${config.name} Banner`,
+            description: 'Auto-generated banner template',
+            position: 'bottom',
+            layout: 'bar',
+            theme: config.theme,
+            title: '🍪 We value your privacy',
+            message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
+            privacyPolicyText: 'Privacy Policy',
+            acceptButton: {
+              text: 'Accept All',
+              backgroundColor: config.theme.primaryColor,
+              textColor: '#ffffff',
+              borderRadius: config.theme.borderRadius || 8
+            },
+            rejectButton: {
+              text: 'Reject All',
+              backgroundColor: 'transparent',
+              textColor: config.theme.primaryColor,
+              borderColor: config.theme.primaryColor,
+              borderRadius: config.theme.borderRadius || 8
+            },
+            settingsButton: {
+              text: 'Cookie Settings',
+              backgroundColor: '#f3f4f6',
+              textColor: config.theme.textColor,
+              borderRadius: config.theme.borderRadius || 8
+            },
+            showRejectButton: true,
+            showSettingsButton: true,
+            autoShow: config.autoShow,
+            showAfterDelay: config.showAfterDelay,
+            respectDNT: config.respectDNT,
+            blockContent: false,
+            zIndex: 9999,
+            is_active: true,
+            is_default: false
+          })
+        });
+
+        if (bannerResponse.ok) {
+          const bannerData = await bannerResponse.json();
+          if (bannerData.success && bannerData.data) {
+            bannerTemplateId = bannerData.data.id;
+            toast.success('Banner template created!');
+          }
+        }
+      }
+      
+      // Step 2: Save widget configuration with linked banner
       const response = await fetch('/api/cookies/widget-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify({
+          ...config,
+          bannerTemplateId: bannerTemplateId
+        })
       });
 
       const data = await response.json();
@@ -320,9 +405,15 @@ export default function CookieWidgetPage() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save configuration');
       }
+      
+      // Update config with new banner template ID
+      if (bannerTemplateId && !config.bannerTemplateId) {
+        setConfig(prev => ({ ...prev, bannerTemplateId }));
+      }
 
       setSaved(true);
       setError(null);
+      toast.success('Configuration saved successfully!');
       
       // Show success message for longer
       setTimeout(() => setSaved(false), 5000);
@@ -332,6 +423,7 @@ export default function CookieWidgetPage() {
         ? error.message 
         : 'Failed to save configuration';
       setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -494,13 +586,22 @@ export default function CookieWidgetPage() {
                 
                 {/* Cookie Banner Preview - Using Actual Config */}
                 <div className="relative">
+                  {linkedBanner ? (
+                    <div className="mb-2 px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-xs text-blue-800">
+                      <strong>✓ Using Banner Template:</strong> {linkedBanner.name}
+                    </div>
+                  ) : (
+                    <div className="mb-2 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-xs text-amber-800">
+                      <strong>⚠ No Banner Template Linked:</strong> When you save, a banner template will be auto-created to match your theme. Or select one above.
+                    </div>
+                  )}
                   <div 
                     className="border-t-2 p-6 shadow-lg"
                     style={{
-                      backgroundColor: config.theme?.backgroundColor || '#ffffff',
-                      color: config.theme?.textColor || '#1f2937',
-                      borderRadius: `${config.theme?.borderRadius || 0}px`,
-                      fontFamily: config.theme?.fontFamily || 'system-ui, sans-serif'
+                      backgroundColor: linkedBanner?.theme?.backgroundColor || config.theme?.backgroundColor || '#ffffff',
+                      color: linkedBanner?.theme?.textColor || config.theme?.textColor || '#1f2937',
+                      borderRadius: `${linkedBanner?.theme?.borderRadius || config.theme?.borderRadius || 0}px`,
+                      fontFamily: linkedBanner?.theme?.fontFamily || config.theme?.fontFamily || 'system-ui, sans-serif'
                     }}
                   >
                     <div className="max-w-4xl mx-auto">
@@ -517,9 +618,9 @@ export default function CookieWidgetPage() {
                           <div className="flex items-center gap-2 mb-2">
                             <h3 
                               className="text-lg font-semibold"
-                              style={{ color: config.theme?.textColor || '#1f2937' }}
+                              style={{ color: linkedBanner?.theme?.textColor || config.theme?.textColor || '#1f2937' }}
                             >
-                              🍪 We value your privacy
+                              {linkedBanner?.title || '🍪 We value your privacy'}
                             </h3>
                             {/* Language Selector */}
                             {config.supportedLanguages && config.supportedLanguages.length > 1 && (
@@ -558,12 +659,11 @@ export default function CookieWidgetPage() {
                           <p 
                             className="text-sm"
                             style={{ 
-                              color: config.theme?.textColor || '#6b7280',
+                              color: linkedBanner?.theme?.textColor || config.theme?.textColor || '#6b7280',
                               opacity: 0.9 
                             }}
                           >
-                            We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
-                            By clicking "Accept All", you consent to our use of cookies.
+                            {linkedBanner?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.'}
                           </p>
                           {config.categories.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -585,34 +685,37 @@ export default function CookieWidgetPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button 
-                            className="px-4 py-2 text-white text-sm font-medium transition-colors hover:opacity-90"
+                            className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-90"
                             style={{
-                              backgroundColor: config.theme?.primaryColor || '#3b82f6',
-                              borderRadius: `${config.theme?.borderRadius || 8}px`
+                              backgroundColor: linkedBanner?.acceptButton?.backgroundColor || config.theme?.primaryColor || '#3b82f6',
+                              color: linkedBanner?.acceptButton?.textColor || '#ffffff',
+                              borderRadius: `${linkedBanner?.acceptButton?.borderRadius || config.theme?.borderRadius || 8}px`,
+                              border: 'none'
                             }}
                           >
-                            Accept All
+                            {linkedBanner?.acceptButton?.text || 'Accept All'}
                           </button>
                           <button 
                             className="px-4 py-2 border-2 text-sm font-medium transition-colors hover:opacity-80"
                             style={{
-                              borderColor: config.theme?.primaryColor || '#3b82f6',
-                              color: config.theme?.primaryColor || '#3b82f6',
-                              backgroundColor: config.theme?.backgroundColor || 'white',
-                              borderRadius: `${config.theme?.borderRadius || 8}px`
+                              borderColor: linkedBanner?.rejectButton?.borderColor || config.theme?.primaryColor || '#3b82f6',
+                              color: linkedBanner?.rejectButton?.textColor || config.theme?.primaryColor || '#3b82f6',
+                              backgroundColor: linkedBanner?.rejectButton?.backgroundColor || 'transparent',
+                              borderRadius: `${linkedBanner?.rejectButton?.borderRadius || config.theme?.borderRadius || 8}px`
                             }}
                           >
-                            Reject All
+                            {linkedBanner?.rejectButton?.text || 'Reject All'}
                           </button>
                           <button 
                             className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
                             style={{
-                              backgroundColor: '#f3f4f6',
-                              color: config.theme?.textColor || '#1f2937',
-                              borderRadius: `${config.theme?.borderRadius || 8}px`
+                              backgroundColor: linkedBanner?.settingsButton?.backgroundColor || '#f3f4f6',
+                              color: linkedBanner?.settingsButton?.textColor || config.theme?.textColor || '#1f2937',
+                              borderRadius: `${linkedBanner?.settingsButton?.borderRadius || config.theme?.borderRadius || 8}px`,
+                              border: 'none'
                             }}
                           >
-                            Cookie Settings
+                            {linkedBanner?.settingsButton?.text || 'Cookie Settings'}
                           </button>
                         </div>
                       </div>

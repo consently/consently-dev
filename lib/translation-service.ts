@@ -1,22 +1,14 @@
 /**
- * Unified Translation Service
- * Supports multiple translation providers with automatic fallback
- * 
- * Priority order:
- * 1. Google Cloud Translation API (best for Indian languages)
- * 2. LibreTranslate (free, self-hosted option)
- * 3. Cached translations (pre-translated content)
+ * Google Translation Service
+ * Provides translation capabilities using Google Cloud Translation API
  * 
  * Environment variables:
- * - TRANSLATION_PROVIDER: 'google' | 'libretranslate' | 'auto' (default: 'auto')
- * - GOOGLE_TRANSLATE_API_KEY: Google Cloud API key
- * - LIBRETRANSLATE_API_URL: LibreTranslate endpoint (default: https://libretranslate.com/translate)
+ * - GOOGLE_TRANSLATE_API_KEY: Google Cloud API key (required)
  */
 
 import { translateWithGoogle, translateBatchGoogle, isIndianLanguageSupported as isGoogleSupported } from './google-translate';
-import { translateText as translateLibre, translateBatch as translateBatchLibre, isLanguageSupported as isLibreSupported } from './libre-translate';
 
-export type TranslationProvider = 'google' | 'libretranslate' | 'auto';
+export type TranslationProvider = 'google';
 
 export interface TranslationOptions {
   provider?: TranslationProvider;
@@ -26,7 +18,7 @@ export interface TranslationOptions {
 
 export interface TranslationResult {
   translatedText: string;
-  provider: 'google' | 'libretranslate' | 'cache' | 'none';
+  provider: 'google' | 'cache' | 'none';
   cached: boolean;
   error?: string;
 }
@@ -64,11 +56,10 @@ function saveToCache(text: string, translation: string, targetLang: string, sour
 }
 
 /**
- * Determine which translation provider to use
+ * Always use Google Translate as the provider
  */
 function getProvider(options?: TranslationOptions): TranslationProvider {
-  const envProvider = process.env.TRANSLATION_PROVIDER as TranslationProvider;
-  return options?.provider || envProvider || 'auto';
+  return 'google';
 }
 
 /**
@@ -108,44 +99,20 @@ export async function translate(
     }
   }
 
-  const provider = getProvider(options);
-
   try {
-    let translatedText: string;
-    let usedProvider: 'google' | 'libretranslate';
+    // Check if Google Translate is configured
+    if (!isGoogleConfigured()) {
+      console.warn('[Translation Service] Google Translate API key not configured');
+      return {
+        translatedText: text,
+        provider: 'none',
+        cached: false,
+        error: 'Google Translate API key not configured',
+      };
+    }
 
-    // Strategy: Auto-select best provider
-    if (provider === 'auto') {
-      // For Indian languages, prefer Google if available
-      if (isGoogleSupported(targetLanguage) && isGoogleConfigured()) {
-        translatedText = await translateWithGoogle(text, targetLanguage, sourceLanguage);
-        usedProvider = 'google';
-      } else if (isLibreSupported(targetLanguage)) {
-        translatedText = await translateLibre(text, targetLanguage, sourceLanguage);
-        usedProvider = 'libretranslate';
-      } else {
-        // No provider available for this language
-        return {
-          translatedText: text,
-          provider: 'none',
-          cached: false,
-          error: `No translation provider available for language: ${targetLanguage}`,
-        };
-      }
-    }
-    // Use Google explicitly
-    else if (provider === 'google') {
-      if (!isGoogleConfigured()) {
-        throw new Error('Google Translate API key not configured');
-      }
-      translatedText = await translateWithGoogle(text, targetLanguage, sourceLanguage);
-      usedProvider = 'google';
-    }
-    // Use LibreTranslate explicitly
-    else {
-      translatedText = await translateLibre(text, targetLanguage, sourceLanguage);
-      usedProvider = 'libretranslate';
-    }
+    // Use Google Translate
+    const translatedText = await translateWithGoogle(text, targetLanguage, sourceLanguage);
 
     // Cache the result
     if (options?.cacheResults !== false && translatedText !== text) {
@@ -154,27 +121,12 @@ export async function translate(
 
     return {
       translatedText,
-      provider: usedProvider,
+      provider: 'google',
       cached: false,
     };
 
   } catch (error) {
     console.error('[Translation Service] Error:', error);
-
-    // Fallback strategy
-    if (provider === 'auto' || provider === 'google') {
-      // Try LibreTranslate as fallback
-      try {
-        const translatedText = await translateLibre(text, targetLanguage, sourceLanguage);
-        return {
-          translatedText,
-          provider: 'libretranslate',
-          cached: false,
-        };
-      } catch (fallbackError) {
-        console.error('[Translation Service] Fallback failed:', fallbackError);
-      }
-    }
 
     // Return original text if fallback is enabled
     if (options?.fallbackToOriginal !== false) {
@@ -199,30 +151,20 @@ export async function translateBatch(
   sourceLanguage: string = 'en',
   options?: TranslationOptions
 ): Promise<TranslationResult[]> {
-  const provider = getProvider(options);
-
   try {
-    let translations: string[];
-    let usedProvider: 'google' | 'libretranslate';
-
-    if (provider === 'auto') {
-      if (isGoogleSupported(targetLanguage) && isGoogleConfigured()) {
-        translations = await translateBatchGoogle(texts, targetLanguage, sourceLanguage);
-        usedProvider = 'google';
-      } else {
-        translations = await translateBatchLibre(texts, targetLanguage, sourceLanguage);
-        usedProvider = 'libretranslate';
-      }
-    } else if (provider === 'google') {
-      if (!isGoogleConfigured()) {
-        throw new Error('Google Translate API key not configured');
-      }
-      translations = await translateBatchGoogle(texts, targetLanguage, sourceLanguage);
-      usedProvider = 'google';
-    } else {
-      translations = await translateBatchLibre(texts, targetLanguage, sourceLanguage);
-      usedProvider = 'libretranslate';
+    // Check if Google Translate is configured
+    if (!isGoogleConfigured()) {
+      console.warn('[Translation Service] Google Translate API key not configured');
+      return texts.map(text => ({
+        translatedText: text,
+        provider: 'none' as const,
+        cached: false,
+        error: 'Google Translate API key not configured',
+      }));
     }
+
+    // Use Google Translate
+    const translations = await translateBatchGoogle(texts, targetLanguage, sourceLanguage);
 
     return translations.map((translatedText, index) => {
       // Cache each result
@@ -232,7 +174,7 @@ export async function translateBatch(
 
       return {
         translatedText,
-        provider: usedProvider,
+        provider: 'google' as const,
         cached: false,
       };
     });
@@ -255,26 +197,18 @@ export async function translateBatch(
 }
 
 /**
- * Check if a language is supported by any provider
+ * Check if a language is supported by Google Translate
  */
 export function isLanguageSupported(languageCode: string): boolean {
-  return isGoogleSupported(languageCode) || isLibreSupported(languageCode);
+  return isGoogleSupported(languageCode);
 }
 
 /**
- * Get all supported Indian language codes across all providers
+ * Get all supported Indian language codes from Google Translate
  */
-export function getSupportedLanguages(): string[] {
-  const allLanguages = new Set<string>();
-  
-  // Add supported languages from all providers
-  const googleLangs = Object.keys(await import('./google-translate').then(m => m.INDIAN_LANGUAGES_GOOGLE));
-  const libreLangs = Object.keys(await import('./libre-translate').then(m => m.SUPPORTED_LANGUAGES));
-  
-  googleLangs.forEach(lang => allLanguages.add(lang));
-  libreLangs.forEach(lang => allLanguages.add(lang));
-  
-  return Array.from(allLanguages).sort();
+export async function getSupportedLanguages(): Promise<string[]> {
+  const { INDIAN_LANGUAGES_GOOGLE } = await import('./google-translate');
+  return Object.keys(INDIAN_LANGUAGES_GOOGLE).sort();
 }
 
 /**

@@ -3,13 +3,12 @@ import { translate, translateBatch, isLanguageSupported, getCacheStats } from '@
 
 /**
  * Translation API Endpoint
- * Provides real-time translation with multiple providers
+ * Provides real-time translation using Google Cloud Translation API
  * 
- * Supports:
- * - Google Cloud Translation API (preferred for Indian languages)
- * - LibreTranslate (free fallback)
- * - Automatic provider selection
- * - Translation caching
+ * Features:
+ * - Google Cloud Translation API for high-quality translations
+ * - Translation caching for performance
+ * - Support for Indian languages
  * 
  * Supported Indian Languages:
  * Hindi (hi), Bengali (bn), Tamil (ta), Telugu (te), Marathi (mr),
@@ -20,7 +19,7 @@ import { translate, translateBatch, isLanguageSupported, getCacheStats } from '@
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { text, texts, target, source = 'en', provider = 'auto' } = body;
+    const { text, texts, target, source = 'en' } = body;
 
     // Validate input
     if (!target) {
@@ -51,7 +50,6 @@ export async function POST(request: NextRequest) {
     // Handle batch translation
     if (texts && Array.isArray(texts)) {
       const results = await translateBatch(texts, target, source, {
-        provider,
         cacheResults: true,
         fallbackToOriginal: true,
       });
@@ -68,7 +66,6 @@ export async function POST(request: NextRequest) {
     // Handle single text translation
     if (text) {
       const result = await translate(text, target, source, {
-        provider,
         cacheResults: true,
         fallbackToOriginal: true,
       });
@@ -109,14 +106,12 @@ export async function GET() {
     
     return NextResponse.json({
       success: true,
-      providers: {
-        google: googleConfigured ? 'configured' : 'not configured',
-        libretranslate: 'available',
-      },
+      provider: 'google',
+      status: googleConfigured ? 'configured' : 'not configured',
       cache: cacheStats,
       supported_languages: {
         indian: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as'],
-        all: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'es', 'fr', 'de', 'pt', 'zh'],
+        all: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as'],
       },
     });
   } catch (error) {
