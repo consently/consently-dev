@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
       status: data.status
     });
 
-    return NextResponse.json({ 
+    const response = NextResponse.json({ 
       success: true, 
       data: {
         id: data.id,
@@ -200,12 +200,38 @@ export async function POST(request: NextRequest) {
         created_at: data.created_at
       }
     });
+    
+    // Add CORS headers for cross-origin widget requests
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    return response;
   } catch (error: any) {
     console.error('[API] Unexpected error:', error);
     console.error('[API] Error stack:', error.stack);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { success: false, error: 'Internal server error', details: error.message },
       { status: 500 }
     );
+    
+    // Add CORS headers even for errors
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    return errorResponse;
   }
+}
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }
