@@ -124,6 +124,8 @@ export default function CookieWidgetPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [linkedBanner, setLinkedBanner] = useState<any>(null);
+  const [previewConfig, setPreviewConfig] = useState<any>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [config, setConfig] = useState<WidgetConfig>({
     widgetId: '',
     name: 'My Cookie Widget',
@@ -172,6 +174,13 @@ export default function CookieWidgetPage() {
     fetchBannerTemplates();
     initializeNotifications();
   }, []);
+  
+  // Fetch preview config when widget ID is available and preview mode is enabled
+  useEffect(() => {
+    if (config.widgetId && previewMode) {
+      fetchPreviewConfig(config.widgetId);
+    }
+  }, [config.widgetId, previewMode]);
   
   // Fetch linked banner template when bannerTemplateId changes
   useEffect(() => {
@@ -266,6 +275,30 @@ export default function CookieWidgetPage() {
       console.error('Error fetching banner templates:', error);
     } finally {
       setLoadingTemplates(false);
+    }
+  };
+
+  // Fetch the merged preview config from the same API endpoint that widget.js uses
+  const fetchPreviewConfig = async (widgetId: string) => {
+    if (!widgetId) return;
+    
+    try {
+      setLoadingPreview(true);
+      const response = await fetch(`/api/cookies/widget-public/${widgetId}`);
+      
+      if (response.ok) {
+        const mergedConfig = await response.json();
+        setPreviewConfig(mergedConfig);
+        console.log('Preview config loaded:', mergedConfig);
+      } else {
+        console.warn('Could not fetch preview config, widget may not be saved yet');
+        setPreviewConfig(null);
+      }
+    } catch (error) {
+      console.error('Error fetching preview config:', error);
+      setPreviewConfig(null);
+    } finally {
+      setLoadingPreview(false);
     }
   };
 
@@ -411,6 +444,9 @@ export default function CookieWidgetPage() {
         setConfig(prev => ({ ...prev, bannerTemplateId }));
       }
 
+      // Refresh preview config to show the updated/newly created banner
+      await fetchPreviewConfig(config.widgetId);
+
       setSaved(true);
       setError(null);
       toast.success('Configuration saved successfully!');
@@ -554,10 +590,14 @@ export default function CookieWidgetPage() {
                 </div>
                 <div>
                   <CardTitle>Live Preview</CardTitle>
-                  <CardDescription>Real-time preview with your custom theme and settings</CardDescription>
+                  <CardDescription>
+                    {loadingPreview ? 'Loading preview...' : previewConfig ? 'Showing exactly what users will see on your website' : 'Real-time preview with your custom theme and settings'}
+                  </CardDescription>
                 </div>
               </div>
-              <Badge className="bg-blue-100 text-blue-800">Preview Mode</Badge>
+              <Badge className="bg-blue-100 text-blue-800">
+                {loadingPreview ? 'Loading...' : previewConfig ? 'Live from API' : 'Preview Mode'}
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -584,32 +624,36 @@ export default function CookieWidgetPage() {
                   </div>
                 </div>
                 
-                {/* Cookie Banner Preview - Using Actual Config */}
+                {/* Cookie Banner Preview - Using Actual Config from API */}
                 <div className="relative">
-                  {linkedBanner ? (
-                    <div className="mb-2 px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-xs text-blue-800">
-                      <strong>✓ Using Banner Template:</strong> {linkedBanner.name}
+                  {previewConfig ? (
+                    <div className="mb-2 px-4 py-2 bg-green-100 border border-green-300 rounded-lg text-xs text-green-800">
+                      <strong>✓ Live Preview:</strong> Showing {previewConfig.bannerName || 'banner'} from API (exactly what users will see)
+                    </div>
+                  ) : config.widgetId ? (
+                    <div className="mb-2 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-xs text-amber-800">
+                      <strong>⚠ Preview Unavailable:</strong> Save your widget first to see the live preview. This shows an approximation using your current theme.
                     </div>
                   ) : (
-                    <div className="mb-2 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-xs text-amber-800">
-                      <strong>⚠ No Banner Template Linked:</strong> When you save, a banner template will be auto-created to match your theme. Or select one above.
+                    <div className="mb-2 px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-xs text-blue-800">
+                      <strong>ℹ Preview:</strong> This shows how your banner will look based on current settings.
                     </div>
                   )}
                   <div 
                     className="border-t-2 p-6 shadow-lg"
                     style={{
-                      backgroundColor: linkedBanner?.theme?.backgroundColor || config.theme?.backgroundColor || '#ffffff',
-                      color: linkedBanner?.theme?.textColor || config.theme?.textColor || '#1f2937',
-                      borderRadius: `${linkedBanner?.theme?.borderRadius || config.theme?.borderRadius || 0}px`,
-                      fontFamily: linkedBanner?.theme?.fontFamily || config.theme?.fontFamily || 'system-ui, sans-serif'
+                      backgroundColor: previewConfig?.theme?.backgroundColor || config.theme?.backgroundColor || '#ffffff',
+                      color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937',
+                      borderRadius: `${previewConfig?.theme?.borderRadius || config.theme?.borderRadius || 0}px`,
+                      fontFamily: previewConfig?.theme?.fontFamily || config.theme?.fontFamily || 'system-ui, sans-serif'
                     }}
                   >
                     <div className="max-w-4xl mx-auto">
                       <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
                         <div className="flex-1">
-                          {config.theme?.logoUrl && (
+                          {(previewConfig?.theme?.logoUrl || config.theme?.logoUrl) && (
                             <img 
-                              src={config.theme.logoUrl} 
+                              src={previewConfig?.theme?.logoUrl || config.theme.logoUrl} 
                               alt="Logo" 
                               className="h-8 w-auto mb-3"
                               onError={(e) => e.currentTarget.style.display = 'none'}
@@ -618,21 +662,21 @@ export default function CookieWidgetPage() {
                           <div className="flex items-center gap-2 mb-2">
                             <h3 
                               className="text-lg font-semibold"
-                              style={{ color: linkedBanner?.theme?.textColor || config.theme?.textColor || '#1f2937' }}
+                              style={{ color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937' }}
                             >
-                              {linkedBanner?.title || '🍪 We value your privacy'}
+                              {previewConfig?.title || '🍪 We value your privacy'}
                             </h3>
                             {/* Language Selector */}
-                            {config.supportedLanguages && config.supportedLanguages.length > 1 && (
+                            {(previewConfig?.supportedLanguages || config.supportedLanguages)?.length > 1 && (
                               <select 
                                 className="text-xs px-2 py-1 border rounded-lg"
                                 style={{ 
                                   borderColor: '#e5e7eb',
                                   backgroundColor: 'white',
-                                  color: config.theme?.textColor || '#1f2937'
+                                  color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937'
                                 }}
                               >
-                                {config.supportedLanguages.map(lang => {
+                                {(previewConfig?.supportedLanguages || config.supportedLanguages).map((lang: string) => {
                                   const langMap: Record<string, string> = {
                                     en: '🇬🇧 English',
                                     hi: '🇮🇳 हिंदी',
@@ -659,22 +703,22 @@ export default function CookieWidgetPage() {
                           <p 
                             className="text-sm"
                             style={{ 
-                              color: linkedBanner?.theme?.textColor || config.theme?.textColor || '#6b7280',
+                              color: previewConfig?.theme?.textColor || config.theme?.textColor || '#6b7280',
                               opacity: 0.9 
                             }}
                           >
-                            {linkedBanner?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.'}
+                            {previewConfig?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.'}
                           </p>
-                          {config.categories.length > 0 && (
+                          {(previewConfig?.categories || config.categories).length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
-                              {config.categories.map((cat) => (
+                              {(previewConfig?.categories || config.categories).map((cat: string) => (
                                 <Badge 
                                   key={cat} 
                                   variant="outline" 
                                   className="text-xs"
                                   style={{
-                                    borderColor: config.theme?.primaryColor || '#3b82f6',
-                                    color: config.theme?.primaryColor || '#3b82f6'
+                                    borderColor: previewConfig?.theme?.primaryColor || config.theme?.primaryColor || '#3b82f6',
+                                    color: previewConfig?.theme?.primaryColor || config.theme?.primaryColor || '#3b82f6'
                                   }}
                                 >
                                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -687,39 +731,39 @@ export default function CookieWidgetPage() {
                           <button 
                             className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-90"
                             style={{
-                              backgroundColor: linkedBanner?.acceptButton?.backgroundColor || config.theme?.primaryColor || '#3b82f6',
-                              color: linkedBanner?.acceptButton?.textColor || '#ffffff',
-                              borderRadius: `${linkedBanner?.acceptButton?.borderRadius || config.theme?.borderRadius || 8}px`,
+                              backgroundColor: previewConfig?.acceptButton?.backgroundColor || config.theme?.primaryColor || '#3b82f6',
+                              color: previewConfig?.acceptButton?.textColor || '#ffffff',
+                              borderRadius: `${previewConfig?.acceptButton?.borderRadius || config.theme?.borderRadius || 8}px`,
                               border: 'none'
                             }}
                           >
-                            {linkedBanner?.acceptButton?.text || 'Accept All'}
+                            {previewConfig?.acceptButton?.text || 'Accept All'}
                           </button>
                           <button 
                             className="px-4 py-2 border-2 text-sm font-medium transition-colors hover:opacity-80"
                             style={{
-                              borderColor: linkedBanner?.rejectButton?.borderColor || config.theme?.primaryColor || '#3b82f6',
-                              color: linkedBanner?.rejectButton?.textColor || config.theme?.primaryColor || '#3b82f6',
-                              backgroundColor: linkedBanner?.rejectButton?.backgroundColor || 'transparent',
-                              borderRadius: `${linkedBanner?.rejectButton?.borderRadius || config.theme?.borderRadius || 8}px`
+                              borderColor: previewConfig?.rejectButton?.borderColor || config.theme?.primaryColor || '#3b82f6',
+                              color: previewConfig?.rejectButton?.textColor || config.theme?.primaryColor || '#3b82f6',
+                              backgroundColor: previewConfig?.rejectButton?.backgroundColor || 'transparent',
+                              borderRadius: `${previewConfig?.rejectButton?.borderRadius || config.theme?.borderRadius || 8}px`
                             }}
                           >
-                            {linkedBanner?.rejectButton?.text || 'Reject All'}
+                            {previewConfig?.rejectButton?.text || 'Reject All'}
                           </button>
                           <button 
                             className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
                             style={{
-                              backgroundColor: linkedBanner?.settingsButton?.backgroundColor || '#f3f4f6',
-                              color: linkedBanner?.settingsButton?.textColor || config.theme?.textColor || '#1f2937',
-                              borderRadius: `${linkedBanner?.settingsButton?.borderRadius || config.theme?.borderRadius || 8}px`,
+                              backgroundColor: previewConfig?.settingsButton?.backgroundColor || '#f3f4f6',
+                              color: previewConfig?.settingsButton?.textColor || config.theme?.textColor || '#1f2937',
+                              borderRadius: `${previewConfig?.settingsButton?.borderRadius || config.theme?.borderRadius || 8}px`,
                               border: 'none'
                             }}
                           >
-                            {linkedBanner?.settingsButton?.text || 'Cookie Settings'}
+                            {previewConfig?.settingsButton?.text || 'Cookie Settings'}
                           </button>
                         </div>
                       </div>
-                      {config.showBrandingLink && (
+                      {(previewConfig?.showBrandingLink ?? config.showBrandingLink) && (
                         <div className="mt-4 pt-4 border-t text-center">
                           <a 
                             href="https://consently.app" 
@@ -727,7 +771,7 @@ export default function CookieWidgetPage() {
                             rel="noopener noreferrer"
                             className="text-xs hover:underline"
                             style={{ 
-                              color: config.theme?.textColor || '#6b7280',
+                              color: previewConfig?.theme?.textColor || config.theme?.textColor || '#6b7280',
                               opacity: 0.7 
                             }}
                           >
@@ -745,17 +789,26 @@ export default function CookieWidgetPage() {
                 <div className="flex gap-3">
                   <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-semibold text-blue-900 mb-1">Current Configuration</h4>
+                    <h4 className="text-sm font-semibold text-blue-900 mb-1">
+                      {previewConfig ? 'Live Configuration (from API)' : 'Current Configuration'}
+                    </h4>
                     <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
-                      <p>• <strong>Domain:</strong> {config.domain || 'Not set'}</p>
-                      <p>• <strong>Behavior:</strong> {config.behavior === 'explicit' ? 'Explicit Consent' : 'Opt-Out'}</p>
-                      <p>• <strong>Duration:</strong> {config.consentDuration} days</p>
-                      <p>• <strong>Categories:</strong> {config.categories.length}</p>
-                      <p>• <strong>Auto Show:</strong> {config.autoShow ? `Yes (${config.showAfterDelay}ms delay)` : 'No'}</p>
-                      <p>• <strong>Languages:</strong> {config.supportedLanguages?.length || 1}</p>
+                      <p>• <strong>Domain:</strong> {previewConfig?.domain || config.domain || 'Not set'}</p>
+                      <p>• <strong>Behavior:</strong> {(previewConfig?.behavior || config.behavior) === 'explicit' ? 'Explicit Consent' : 'Opt-Out'}</p>
+                      <p>• <strong>Duration:</strong> {previewConfig?.consentDuration || config.consentDuration} days</p>
+                      <p>• <strong>Categories:</strong> {(previewConfig?.categories || config.categories).length}</p>
+                      <p>• <strong>Position:</strong> {previewConfig?.position || 'bottom'}</p>
+                      <p>• <strong>Layout:</strong> {previewConfig?.layout || 'bar'}</p>
+                      {previewConfig && (
+                        <p className="col-span-2">• <strong>Banner Template:</strong> {previewConfig.bannerName}</p>
+                      )}
                     </div>
                     <p className="mt-3 text-xs text-blue-700">
-                      💡 This preview reflects your current theme settings. Save to apply changes to the live widget.
+                      {previewConfig ? (
+                        '✅ This preview shows exactly what users will see on your website (live from API).'
+                      ) : (
+                        '💡 Save your widget to see the live preview. This shows an approximation based on current settings.'
+                      )}
                     </p>
                   </div>
                 </div>
