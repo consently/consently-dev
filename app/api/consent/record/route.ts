@@ -86,7 +86,34 @@ export async function POST(request: NextRequest) {
     const visitorEmail = `visitor@${widgetConfig.domain}`;
     const tokenizedEmail = tokenizeEmail(visitorIdentifier);
 
-    // Insert consent record
+    // Insert consent record in both tables for compatibility
+    // First insert into consent_logs (dashboard reads from here)
+    const { data: logData, error: logError } = await supabase
+      .from('consent_logs')
+      .insert([
+        {
+          user_id: widgetConfig.user_id,
+          consent_id: consentId,
+          visitor_token: tokenizedEmail,
+          consent_type: 'cookie',
+          status,
+          categories: categories || ['necessary'],
+          device_info: { type: detectedDeviceType },
+          ip_address: ipAddress,
+          user_agent: requestUserAgent,
+          language: language || 'en',
+          consent_method: 'banner',
+          widget_version: '3.1',
+        },
+      ])
+      .select()
+      .single();
+
+    if (logError) {
+      console.error('Supabase error inserting consent log:', logError);
+    }
+
+    // Also insert into consent_records for backwards compatibility
     const { data, error } = await supabase
       .from('consent_records')
       .insert([

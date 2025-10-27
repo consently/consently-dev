@@ -125,8 +125,15 @@ export async function GET(
       layout: banner.layout,
       position: banner.position,
       
-      // Theme configuration
-      theme: banner.theme,
+      // Theme configuration (merge banner theme with any widget-specific theme overrides)
+      theme: {
+        ...(banner.theme || {}),
+        logoUrl: banner.theme?.logoUrl || null,
+        fontFamily: banner.theme?.fontFamily || 'system-ui, sans-serif',
+      },
+      
+      // Supported languages from widget config
+      supportedLanguages: widgetConfig.supported_languages || ['en'],
       
       // Content
       title: banner.title,

@@ -73,6 +73,88 @@
 
   let config = Object.assign({}, defaultConfig);
   let configLoaded = false;
+  let selectedLanguage = 'en';
+  let translationCache = {};
+
+  // Translation helper functions
+  async function translateText(text, targetLang) {
+    if (targetLang === 'en' || !targetLang) return text;
+    
+    const cacheKey = `${targetLang}:${text}`;
+    if (translationCache[cacheKey]) {
+      return translationCache[cacheKey];
+    }
+
+    try {
+      const apiBase = config.apiBase || window.location.origin;
+      const response = await fetch(`${apiBase}/api/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text,
+          target: targetLang,
+          source: 'en'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const translated = data.translatedText || text;
+        translationCache[cacheKey] = translated;
+        return translated;
+      }
+    } catch (error) {
+      console.error('[Consently] Translation error:', error);
+    }
+    
+    return text; // Fallback to original
+  }
+
+  function languageLabel(code) {
+    const map = { 
+      en: 'English', 
+      hi: 'हिंदी', 
+      pa: 'ਪੰਜਾਬੀ', 
+      te: 'తెలుగు', 
+      ta: 'தமிழ்',
+      bn: 'বাংলা',
+      mr: 'मराठी',
+      gu: 'ગુજરાતી',
+      kn: 'ಕನ್ನಡ',
+      ml: 'മലയാളം',
+      or: 'ଓଡ଼ିଆ',
+      ur: 'اردو',
+      es: 'Español',
+      fr: 'Français',
+      de: 'Deutsch',
+      pt: 'Português',
+      zh: '中文'
+    };
+    return map[code] || code;
+  }
+
+  function languageFlag(code) {
+    const map = { 
+      en: '🇬🇧', 
+      hi: '🇮🇳', 
+      pa: '🇮🇳', 
+      te: '🇮🇳', 
+      ta: '🇮🇳',
+      bn: '🇮🇳',
+      mr: '🇮🇳',
+      gu: '🇮🇳',
+      kn: '🇮🇳',
+      ml: '🇮🇳',
+      or: '🇮🇳',
+      ur: '🇮🇳',
+      es: '🇪🇸',
+      fr: '🇫🇷',
+      de: '🇩🇪',
+      pt: '🇵🇹',
+      zh: '🇨🇳'
+    };
+    return map[code] || '🌐';
+  }
 
   // Cookie helper functions
   const CookieManager = {
@@ -200,7 +282,7 @@
   }
 
   // Create and show consent banner
-  function showConsentBanner() {
+  async function showConsentBanner() {
     // Check if banner already exists
     if (document.getElementById('consently-banner')) {
       return;
@@ -215,6 +297,13 @@
     const fontSize = theme.fontSize || 14;
     const borderRadius = theme.borderRadius || 8;
     const zIndex = config.zIndex || 9999;
+
+    // Translate text if needed
+    const title = selectedLanguage !== 'en' ? await translateText(config.title, selectedLanguage) : config.title;
+    const message = selectedLanguage !== 'en' ? await translateText(config.message, selectedLanguage) : config.message;
+    const acceptText = selectedLanguage !== 'en' ? await translateText(config.acceptButton?.text || 'Accept All', selectedLanguage) : (config.acceptButton?.text || 'Accept All');
+    const rejectText = selectedLanguage !== 'en' ? await translateText(config.rejectButton?.text || 'Reject All', selectedLanguage) : (config.rejectButton?.text || 'Reject All');
+    const settingsText = selectedLanguage !== 'en' ? await translateText(config.settingsButton?.text || 'Cookie Settings', selectedLanguage) : (config.settingsButton?.text || 'Cookie Settings');
 
     // Create banner container
     const banner = document.createElement('div');
@@ -307,6 +396,29 @@
           margin: 0;
           opacity: 0.9;
         }
+        .consently-logo {
+          height: 32px;
+          width: auto;
+          margin-bottom: 12px;
+          display: block;
+        }
+        .consently-branding {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(0, 0, 0, 0.1);
+          text-align: center;
+          font-size: 12px;
+          opacity: 0.7;
+        }
+        .consently-branding a {
+          color: inherit;
+          text-decoration: none;
+          transition: opacity 0.2s;
+        }
+        .consently-branding a:hover {
+          opacity: 1;
+          text-decoration: underline;
+        }
         @media (max-width: 768px) {
           .consently-container {
             flex-direction: column;
@@ -322,25 +434,33 @@
       </style>
       <div class="consently-container">
         <div class="consently-content">
-          <h3 class="consently-title">${config.title}</h3>
-          <p class="consently-message">${config.message}</p>
+          ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" class="consently-logo" onerror="this.style.display='none'">` : ''}
+          <h3 class="consently-title">${title}</h3>
+          <p class="consently-message">${message}</p>
         </div>
         <div class="consently-actions">
           <button id="consently-accept" class="consently-btn consently-btn-primary">
-            ${config.acceptButton?.text || 'Accept All'}
+            ${acceptText}
           </button>
           ${config.showRejectButton ? `
             <button id="consently-reject" class="consently-btn consently-btn-secondary">
-              ${config.rejectButton?.text || 'Reject All'}
+              ${rejectText}
             </button>
           ` : ''}
           ${config.showSettingsButton ? `
             <button id="consently-settings" class="consently-btn consently-btn-text">
-              ${config.settingsButton?.text || 'Cookie Settings'}
+              ${settingsText}
             </button>
           ` : ''}
         </div>
       </div>
+      ${config.showBrandingLink !== false ? `
+        <div class="consently-branding">
+          <a href="https://consently.app" target="_blank" rel="noopener noreferrer">
+            Powered by <strong>Consently</strong>
+          </a>
+        </div>
+      ` : ''}
     `;
 
     document.body.appendChild(banner);
@@ -369,12 +489,32 @@
   }
 
   // Show detailed settings modal
-  function showSettingsModal() {
-    // Remove existing modal if any
-    const existing = document.getElementById('consently-modal');
-    if (existing) {
-      existing.remove();
-    }
+  async function showSettingsModal() {
+    console.log('[Consently] Opening settings modal...');
+    
+    try {
+      // Remove existing modal if any
+      const existing = document.getElementById('consently-modal');
+      if (existing) {
+        console.log('[Consently] Removing existing modal');
+        existing.remove();
+      }
+
+      // Hide banner if showing (will be removed after saving)
+      const banner = document.getElementById('consently-banner');
+      if (banner) {
+        console.log('[Consently] Hiding banner');
+        banner.style.display = 'none';
+      }
+
+      // Translate modal text with error handling
+      console.log('[Consently] Translating modal text to:', selectedLanguage);
+      const modalTitle = selectedLanguage !== 'en' ? await translateText('Cookie Settings', selectedLanguage) : 'Cookie Settings';
+      const modalDescription = selectedLanguage !== 'en' ? await translateText('Manage your cookie preferences. Some cookies are necessary for the website to function.', selectedLanguage) : 'Manage your cookie preferences. Some cookies are necessary for the website to function.';
+      const saveButtonText = selectedLanguage !== 'en' ? await translateText('Save Preferences', selectedLanguage) : 'Save Preferences';
+      const cancelButtonText = selectedLanguage !== 'en' ? await translateText('Cancel', selectedLanguage) : 'Cancel';
+      const requiredLabel = selectedLanguage !== 'en' ? await translateText('Required', selectedLanguage) : 'Required';
+      console.log('[Consently] Translation complete');
 
     const modal = document.createElement('div');
     modal.id = 'consently-modal';
@@ -394,10 +534,10 @@
     `;
 
     const categories = [
-      { id: 'necessary', name: 'Necessary', description: 'Essential for website functionality', required: true },
-      { id: 'analytics', name: 'Analytics', description: 'Help us understand visitor behavior', required: false },
-      { id: 'marketing', name: 'Marketing', description: 'Used for targeted advertising', required: false },
-      { id: 'preferences', name: 'Preferences', description: 'Remember your settings', required: false }
+      { id: 'necessary', name: selectedLanguage !== 'en' ? await translateText('Necessary', selectedLanguage) : 'Necessary', description: selectedLanguage !== 'en' ? await translateText('Essential for website functionality', selectedLanguage) : 'Essential for website functionality', required: true },
+      { id: 'analytics', name: selectedLanguage !== 'en' ? await translateText('Analytics', selectedLanguage) : 'Analytics', description: selectedLanguage !== 'en' ? await translateText('Help us understand visitor behavior', selectedLanguage) : 'Help us understand visitor behavior', required: false },
+      { id: 'marketing', name: selectedLanguage !== 'en' ? await translateText('Marketing', selectedLanguage) : 'Marketing', description: selectedLanguage !== 'en' ? await translateText('Used for targeted advertising', selectedLanguage) : 'Used for targeted advertising', required: false },
+      { id: 'preferences', name: selectedLanguage !== 'en' ? await translateText('Preferences', selectedLanguage) : 'Preferences', description: selectedLanguage !== 'en' ? await translateText('Remember your settings', selectedLanguage) : 'Remember your settings', required: false }
     ];
 
     let categoriesHTML = '';
@@ -413,7 +553,7 @@
                      style="margin-top: 4px; width: 18px; height: 18px;">
               <div style="flex: 1;">
                 <div style="font-weight: 600; margin-bottom: 4px;">
-                  ${cat.name} ${cat.required ? '<span style="color: #3b82f6; font-size: 12px;">(Required)</span>' : ''}
+                  ${cat.name} ${cat.required ? '<span style="color: #3b82f6; font-size: 12px;">(' + requiredLabel + ')</span>' : ''}
                 </div>
                 <div style="font-size: 13px; color: #6b7280;">${cat.description}</div>
               </div>
@@ -429,25 +569,99 @@
           from { opacity: 0; }
           to { opacity: 1; }
         }
+        #consently-lang-btn:hover {
+          background: #2563eb !important;
+          box-shadow: 0 4px 8px rgba(59,130,246,0.4) !important;
+        }
+        #consently-lang-menu button:hover {
+          background: #f0f9ff !important;
+        }
+        .consently-modal-logo {
+          height: 40px;
+          width: auto;
+          margin-bottom: 16px;
+          display: block;
+        }
       </style>
       <div style="background-color: white; border-radius: 12px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;">
-        <h2 style="margin: 0 0 16px 0; font-size: 24px; color: #1f2937;">Cookie Settings</h2>
+        ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" class="consently-modal-logo" onerror="this.style.display='none'">` : ''}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0; font-size: 24px; color: #1f2937;">${modalTitle}</h2>
+          <div style="position: relative;">
+            <button id="consently-lang-btn" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: none; border-radius: 8px; background: #3b82f6; color: #fff; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              <span id="consently-lang-label">${languageLabel(selectedLanguage)}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.8;">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            <div id="consently-lang-menu" style="display: none; position: absolute; right: 0; margin-top: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.15); overflow: hidden; z-index: 10; min-width: 180px; max-height: 300px; overflow-y: auto;">
+              ${(config.supportedLanguages || ['en', 'hi', 'es', 'fr', 'de']).map(code => `
+                <button data-lang="${code}" style="display: flex; gap: 10px; align-items: center; white-space: nowrap; width: 100%; text-align: left; padding: 12px 16px; border: none; background: ${code === selectedLanguage ? '#f0f9ff' : '#fff'}; cursor: pointer; font-size: 14px; font-weight: ${code === selectedLanguage ? '600' : '500'}; color: ${code === selectedLanguage ? '#0369a1' : '#374151'}; transition: all 0.15s;">
+                  <span style="font-size: 18px;">${languageFlag(code)}</span>
+                  <span>${languageLabel(code)}</span>
+                  ${code === selectedLanguage ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-left: auto;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
         <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 14px;">
-          Manage your cookie preferences. Some cookies are necessary for the website to function.
+          ${modalDescription}
         </p>
         ${categoriesHTML}
         <div style="display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
           <button id="consently-save-settings" class="consently-btn consently-btn-primary" style="flex: 1;">
-            Save Preferences
+            ${saveButtonText}
           </button>
           <button id="consently-close-modal" class="consently-btn consently-btn-secondary" style="flex: 1;">
-            Cancel
+            ${cancelButtonText}
           </button>
         </div>
       </div>
     `;
 
-    document.body.appendChild(modal);
+      console.log('[Consently] Appending modal to body');
+      document.body.appendChild(modal);
+      console.log('[Consently] Settings modal opened successfully');
+
+    // Language selector event listeners
+    const langBtn = document.getElementById('consently-lang-btn');
+    const langMenu = document.getElementById('consently-lang-menu');
+    
+    if (langBtn && langMenu) {
+      // Toggle menu
+      langBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        langMenu.style.display = langMenu.style.display === 'none' || !langMenu.style.display ? 'block' : 'none';
+      });
+      
+      // Close on outside click
+      document.addEventListener('click', function(e) {
+        if (!langBtn.contains(e.target) && !langMenu.contains(e.target)) {
+          langMenu.style.display = 'none';
+        }
+      });
+      
+      // Language selection
+      langMenu.querySelectorAll('button[data-lang]').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          const newLang = this.getAttribute('data-lang');
+          if (newLang !== selectedLanguage) {
+            selectedLanguage = newLang;
+            langMenu.style.display = 'none';
+            
+            // Reload modal with new language
+            modal.remove();
+            await showSettingsModal();
+          }
+        });
+      });
+    }
 
     // Event listeners
     document.getElementById('consently-save-settings').addEventListener('click', function() {
@@ -465,6 +679,106 @@
     });
 
     document.getElementById('consently-close-modal').addEventListener('click', function() {
+      modal.remove();
+    });
+
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    } catch (error) {
+      console.error('[Consently] Fatal error in showSettingsModal:', error);
+      console.error('[Consently] Stack trace:', error.stack);
+      // Create a simple fallback modal without translations
+      createFallbackModal();
+    }
+  }
+
+  // Fallback modal for when main modal fails
+  function createFallbackModal() {
+    console.log('[Consently] Creating fallback modal');
+    const modal = document.createElement('div');
+    modal.id = 'consently-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 9999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    `;
+
+    const theme = config.theme || {};
+    modal.innerHTML = `
+      <div style="background-color: white; border-radius: 12px; max-width: 500px; width: 100%; padding: 24px; font-family: system-ui, sans-serif;">
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; color: #1f2937;">Cookie Settings</h2>
+        <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 14px;">Manage your cookie preferences.</p>
+        
+        <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
+          <label style="display: flex; align-items: start; gap: 12px;">
+            <input type="checkbox" id="cat-necessary" checked disabled style="margin-top: 4px; width: 18px; height: 18px;">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; margin-bottom: 4px;">Necessary <span style="color: #3b82f6; font-size: 12px;">(Required)</span></div>
+              <div style="font-size: 13px; color: #6b7280;">Essential for website functionality</div>
+            </div>
+          </label>
+        </div>
+        
+        <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
+          <label style="display: flex; align-items: start; gap: 12px; cursor: pointer;">
+            <input type="checkbox" id="cat-analytics" style="margin-top: 4px; width: 18px; height: 18px;">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; margin-bottom: 4px;">Analytics</div>
+              <div style="font-size: 13px; color: #6b7280;">Help us understand visitor behavior</div>
+            </div>
+          </label>
+        </div>
+        
+        <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
+          <label style="display: flex; align-items: start; gap: 12px; cursor: pointer;">
+            <input type="checkbox" id="cat-marketing" style="margin-top: 4px; width: 18px; height: 18px;">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; margin-bottom: 4px;">Marketing</div>
+              <div style="font-size: 13px; color: #6b7280;">Used for targeted advertising</div>
+            </div>
+          </label>
+        </div>
+        
+        <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
+          <label style="display: flex; align-items: start; gap: 12px; cursor: pointer;">
+            <input type="checkbox" id="cat-preferences" style="margin-top: 4px; width: 18px; height: 18px;">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; margin-bottom: 4px;">Preferences</div>
+              <div style="font-size: 13px; color: #6b7280;">Remember your settings</div>
+            </div>
+          </label>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <button id="fallback-save" style="flex: 1; padding: 12px 24px; border-radius: 8px; border: none; background: ${theme.primaryColor || '#3b82f6'}; color: white; font-weight: 600; cursor: pointer;">Save Preferences</button>
+          <button id="fallback-close" style="flex: 1; padding: 12px 24px; border-radius: 8px; border: 2px solid ${theme.primaryColor || '#3b82f6'}; background: white; color: ${theme.primaryColor || '#3b82f6'}; font-weight: 600; cursor: pointer;">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('fallback-save').addEventListener('click', function() {
+      const selectedCategories = ['necessary'];
+      if (document.getElementById('cat-analytics').checked) selectedCategories.push('analytics');
+      if (document.getElementById('cat-marketing').checked) selectedCategories.push('marketing');
+      if (document.getElementById('cat-preferences').checked) selectedCategories.push('preferences');
+      modal.remove();
+      handleConsent('partial', selectedCategories);
+    });
+
+    document.getElementById('fallback-close').addEventListener('click', function() {
       modal.remove();
     });
 
@@ -502,6 +816,15 @@
       setTimeout(() => banner.remove(), 300);
     }
 
+    // Remove modal if open
+    const modal = document.getElementById('consently-modal');
+    if (modal) {
+      modal.remove();
+    }
+
+    // Show cookie preferences icon
+    showCookiePreferencesIcon();
+
     // Trigger custom event
     window.dispatchEvent(new CustomEvent('consentlyConsent', { detail: consentData }));
     
@@ -517,7 +840,7 @@
     
     const data = {
       consentId: 'cns_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-      widgetId: bannerId,
+      widgetId: widgetId,
       status: consentData.status,
       categories: consentData.categories,
       deviceType: /Mobile|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent) ? 
@@ -588,11 +911,77 @@
     } catch (e) {
       console.warn('[Consently] localStorage not available');
     }
+
+    // Show cookie preferences icon after applying consent
+    showCookiePreferencesIcon();
+  }
+
+  // Show cookie preferences icon (floating button)
+  function showCookiePreferencesIcon() {
+    // Remove existing icon if any
+    const existing = document.getElementById('consently-preferences-icon');
+    if (existing) {
+      return; // Already showing
+    }
+
+    const theme = config.theme || {};
+    const primaryColor = theme.primaryColor || '#3b82f6';
+    const zIndex = (config.zIndex || 9999) - 1;
+
+    const icon = document.createElement('button');
+    icon.id = 'consently-preferences-icon';
+    icon.setAttribute('aria-label', 'Manage cookie preferences');
+    icon.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-color: ${primaryColor};
+      color: white;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: ${zIndex};
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s ease;
+    `;
+    icon.innerHTML = '🍪';
+    icon.title = 'Manage cookie preferences';
+
+    // Hover effect
+    icon.addEventListener('mouseenter', function() {
+      this.style.transform = 'scale(1.1)';
+      this.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
+    });
+    icon.addEventListener('mouseleave', function() {
+      this.style.transform = 'scale(1)';
+      this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+    });
+
+    // Click to reopen settings
+    icon.addEventListener('click', function() {
+      console.log('[Consently] Cookie icon clicked - opening settings modal');
+      try {
+        showSettingsModal();
+      } catch (error) {
+        console.error('[Consently] Error opening settings modal:', error);
+        alert('Failed to open cookie settings. Please refresh the page.');
+      }
+    });
+
+    document.body.appendChild(icon);
   }
 
   // Expose public API
   window.Consently = {
     showBanner: showConsentBanner,
+    showSettings: showSettingsModal,
     getConsent: function() {
       return CookieManager.get('consently_consent');
     },
@@ -601,6 +990,9 @@
       try {
         localStorage.removeItem('consently_consent');
       } catch (e) {}
+      // Remove icon
+      const icon = document.getElementById('consently-preferences-icon');
+      if (icon) icon.remove();
       showConsentBanner();
     },
     updateConsent: function(categories) {

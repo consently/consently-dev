@@ -15,6 +15,17 @@ type WidgetConfigData = {
   autoBlock?: string[];
   bannerTemplateId?: string | null;
   language?: string;
+  theme?: {
+    primaryColor?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    borderRadius?: number;
+    fontFamily?: string;
+    logoUrl?: string;
+  };
+  supportedLanguages?: string[];
+  autoShow?: boolean;
+  showAfterDelay?: number;
 };
 
 export async function POST(request: NextRequest) {
@@ -137,7 +148,11 @@ export async function POST(request: NextRequest) {
       gdpr_applies: config.gdprApplies ?? true,
       auto_block: config.autoBlock || [],
       banner_template_id: config.bannerTemplateId || null,
-      language: config.language || 'en'
+      language: config.language || 'en',
+      theme: config.theme || null,
+      supported_languages: config.supportedLanguages || ['en'],
+      auto_show: config.autoShow ?? true,
+      show_after_delay: config.showAfterDelay ?? 1000
     };
 
     console.log('Database data:', JSON.stringify(dbData, null, 2));
@@ -159,6 +174,10 @@ export async function POST(request: NextRequest) {
           auto_block: dbData.auto_block,
           banner_template_id: dbData.banner_template_id,
           language: dbData.language,
+          theme: dbData.theme,
+          supported_languages: dbData.supported_languages,
+          auto_show: dbData.auto_show,
+          show_after_delay: dbData.show_after_delay,
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id);
@@ -272,7 +291,16 @@ export async function GET() {
       gdprApplies: data.gdpr_applies,
       autoBlock: Array.isArray(data.auto_block) ? data.auto_block : [],
       bannerTemplateId: data.banner_template_id,
-      language: data.language || 'en'
+      language: data.language || 'en',
+      theme: data.theme || {
+        primaryColor: '#3b82f6',
+        backgroundColor: '#ffffff',
+        textColor: '#1f2937',
+        borderRadius: 12
+      },
+      supportedLanguages: Array.isArray(data.supported_languages) ? data.supported_languages : ['en'],
+      autoShow: data.auto_show ?? true,
+      showAfterDelay: data.show_after_delay ?? 1000
     };
 
     console.log('Returning config:', JSON.stringify(config, null, 2));
