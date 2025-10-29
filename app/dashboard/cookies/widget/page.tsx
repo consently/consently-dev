@@ -738,44 +738,56 @@ export default function CookieWidgetPage() {
                             >
                               {translatingPreview ? '...' : (translatedPreviewContent?.title || previewConfig?.title || '🍪 We value your privacy')}
                             </h3>
-                            {/* Language Selector */}
-                            {(previewConfig?.supportedLanguages || config.supportedLanguages)?.length > 1 && (
-                              <select 
-                                value={previewLanguage}
-                                onChange={(e) => handlePreviewLanguageChange(e.target.value)}
-                                disabled={translatingPreview}
-                                className="text-xs px-2 py-1 border rounded-lg cursor-pointer hover:border-blue-400 transition-colors"
-                                style={{ 
-                                  borderColor: '#e5e7eb',
-                                  backgroundColor: 'white',
-                                  color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937',
-                                  opacity: translatingPreview ? 0.5 : 1
-                                }}
-                              >
-                                {Array.from(new Set(previewConfig?.supportedLanguages || config.supportedLanguages)).map((lang: string) => {
-                                  const langMap: Record<string, string> = {
-                                    en: '🇬🇧 English',
-                                    hi: '🇮🇳 हिंदी',
-                                    pa: '🇮🇳 ꣪꤂ꤜꢾꢬꥀ',
-                                    te: '🇮🇳 తెలుగు',
-                                    ta: '🇮🇳 தமிழ்',
-                                    bn: '🇮🇳 বাংলা',
-                                    mr: '🇮🇳 मराठी',
-                                    gu: '🇮🇳 ગુજરાતી',
-                                    kn: '🇮🇳 ಕನ್ನಡ',
-                                    ml: '🇮🇳 മലയാളം',
-                                    or: '🇮🇳 ଓଡ଼ିଆ',
-                                    ur: '🇮🇳 اردو',
-                                    as: '🇮🇳 অসমীয়া'
-                                  };
-                                  return (
+                            {/* Language Selector - Only show if multiple languages selected */}
+                            {(() => {
+                              const supportedLangs = previewConfig?.supportedLanguages || config.supportedLanguages || ['en'];
+                              const langMap: Record<string, string> = {
+                                en: '🇬🇧 English',
+                                hi: '🇮🇳 हिंदी',
+                                pa: '🇮🇳 ਪੰਜਾਬੀ',
+                                te: '🇮🇳 తెలుగు',
+                                ta: '🇮🇳 தமிழ்',
+                                bn: '🇮🇳 বাংলা',
+                                mr: '🇮🇳 मराठी',
+                                gu: '🇮🇳 ગુજરાતી',
+                                kn: '🇮🇳 ಕನ್ನಡ',
+                                ml: '🇮🇳 മലയാളം',
+                                or: '🇮🇳 ଓଡ଼ିଆ',
+                                ur: '🇮🇳 اردو',
+                                as: '🇮🇳 অসমীয়া',
+                                es: '🇪🇸 Español',
+                                fr: '🇫🇷 Français',
+                                de: '🇩🇪 Deutsch',
+                                pt: '🇵🇹 Português',
+                                zh: '🇨🇳 中文'
+                              };
+                              
+                              // Filter to only show selected languages with valid labels
+                              const validLangs = supportedLangs.filter((lang: string) => langMap[lang]);
+                              
+                              if (validLangs.length <= 1) return null;
+                              
+                              return (
+                                <select 
+                                  value={previewLanguage}
+                                  onChange={(e) => handlePreviewLanguageChange(e.target.value)}
+                                  disabled={translatingPreview}
+                                  className="text-xs px-2 py-1 border rounded-lg cursor-pointer hover:border-blue-400 transition-colors"
+                                  style={{ 
+                                    borderColor: '#e5e7eb',
+                                    backgroundColor: 'white',
+                                    color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937',
+                                    opacity: translatingPreview ? 0.5 : 1
+                                  }}
+                                >
+                                  {validLangs.map((lang: string) => (
                                     <option key={lang} value={lang}>
-                                      {langMap[lang] || lang}
+                                      {langMap[lang]}
                                     </option>
-                                  );
-                                })}
-                              </select>
-                            )}
+                                  ))}
+                                </select>
+                              );
+                            })()}
                             {translatingPreview && (
                               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                             )}

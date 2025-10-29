@@ -171,7 +171,8 @@
       pt: 'Português',
       zh: '中文'
     };
-    return map[code] || code;
+    // Return native name only, never show English language codes
+    return map[code] || '';
   }
 
   function languageFlag(code) {
@@ -604,6 +605,14 @@
           }
         }
       </style>
+      ${(() => {
+        // Only show language selector if multiple languages are supported
+        const supportedLangs = config.supportedLanguages || ['en'];
+        const validLangs = supportedLangs.filter(code => languageLabel(code));
+        
+        if (validLangs.length <= 1) return '';
+        
+        return `
       <div class="consently-lang-selector">
         <button id="consently-lang-btn-banner" class="consently-lang-btn-banner" title="${languageLabel(selectedLanguage)}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -613,14 +622,15 @@
           </svg>
         </button>
         <div id="consently-lang-menu-banner" class="consently-lang-menu-banner">
-          ${(config.supportedLanguages || ['en', 'hi', 'es', 'fr', 'de']).map(code => `
+          ${validLangs.map(code => `
             <button data-lang="${code}" class="${code === selectedLanguage ? 'active' : ''}">
               <span style="font-size: 16px;">${languageFlag(code)}</span>
               <span>${languageLabel(code)}</span>
             </button>
           `).join('')}
         </div>
-      </div>
+      </div>`;
+      })()}
       <div class="consently-container">
         <div class="consently-content">
           ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" class="consently-logo" onerror="this.style.display='none'">` : ''}
@@ -850,6 +860,13 @@
         ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" class="consently-modal-logo" onerror="this.style.display='none'">` : ''}
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="margin: 0; font-size: 24px; color: #1f2937;">${modalTitle}</h2>
+          ${(() => {
+            const supportedLangs = config.supportedLanguages || ['en'];
+            const validLangs = supportedLangs.filter(code => languageLabel(code));
+            
+            if (validLangs.length <= 1) return '';
+            
+            return `
           <div style="position: relative;">
             <button id="consently-lang-btn" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: none; border-radius: 8px; background: #3b82f6; color: #fff; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -863,7 +880,7 @@
               </svg>
             </button>
             <div id="consently-lang-menu" style="display: none; position: absolute; right: 0; margin-top: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.15); overflow: hidden; z-index: 10; min-width: 180px; max-height: 300px; overflow-y: auto;">
-              ${(config.supportedLanguages || ['en', 'hi', 'es', 'fr', 'de']).map(code => `
+              ${validLangs.map(code => `
                 <button data-lang="${code}" style="display: flex; gap: 10px; align-items: center; white-space: nowrap; width: 100%; text-align: left; padding: 12px 16px; border: none; background: ${code === selectedLanguage ? '#f0f9ff' : '#fff'}; cursor: pointer; font-size: 14px; font-weight: ${code === selectedLanguage ? '600' : '500'}; color: ${code === selectedLanguage ? '#0369a1' : '#374151'}; transition: all 0.15s;">
                   <span style="font-size: 18px;">${languageFlag(code)}</span>
                   <span>${languageLabel(code)}</span>
@@ -871,7 +888,8 @@
                 </button>
               `).join('')}
             </div>
-          </div>
+          </div>`;
+          })()}
         </div>
         <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 14px;">
           ${modalDescription}
