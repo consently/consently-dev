@@ -337,16 +337,19 @@ export default function CookieScanPage() {
 
   /**
    * Generate consent banner with detected cookies
+   * Also creates widget configuration and provides embed code
    */
   const handleGenerateBanner = async () => {
     setIsGeneratingBanner(true);
     try {
       // Prepare banner configuration based on scan results using new API format
       const categoriesFound = getCategoriesUsed();
+      const hostname = new URL(scannedUrl).hostname;
+      
       const bannerConfig = {
-        name: `Cookie Banner for ${new URL(scannedUrl).hostname}`,
+        name: `Cookie Banner for ${hostname}`,
         description: `Generated from cookie scan of ${scannedUrl}`,
-        layout: 'modal',
+        layout: 'bar',
         position: 'bottom',
         
         // Theme configuration
@@ -362,7 +365,7 @@ export default function CookieScanPage() {
         },
         
         // Content
-        title: 'We value your privacy',
+        title: '🍪 We value your privacy',
         message: `This website uses cookies to enhance your experience. We have detected ${scannedCookies.length} cookies across ${categoriesFound.length} categories. Please review and customize your preferences.`,
         privacyPolicyUrl: '',
         privacyPolicyText: 'Privacy Policy',
@@ -398,7 +401,7 @@ export default function CookieScanPage() {
         showRejectButton: true,
         showSettingsButton: true,
         autoShow: true,
-        showAfterDelay: 0,
+        showAfterDelay: 1000,
         respectDNT: false,
         blockContent: false,
         zIndex: 9999,
@@ -408,10 +411,10 @@ export default function CookieScanPage() {
         is_default: false
       };
 
-      console.log('Sending banner configuration:', bannerConfig);
+      console.log('Step 1: Creating banner configuration...');
 
-      // Save banner configuration using the new API
-      const response = await fetch('/api/cookies/banner', {
+      // Step 1: Save banner configuration
+      const bannerResponse = await fetch('/api/cookies/banner', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -419,34 +422,92 @@ export default function CookieScanPage() {
         body: JSON.stringify(bannerConfig),
       });
 
-      const result = await response.json();
+      const bannerResult = await bannerResponse.json();
 
-      if (!response.ok) {
+      if (!bannerResponse.ok) {
         console.error('Banner API Error:', {
-          status: response.status,
-          statusText: response.statusText,
-          result: result
+          status: bannerResponse.status,
+          statusText: bannerResponse.statusText,
+          result: bannerResult
         });
         
         // Show detailed error message if available
         let errorMessage = 'Failed to create banner configuration';
-        if (result.error) {
-          errorMessage = result.error;
+        if (bannerResult.error) {
+          errorMessage = bannerResult.error;
         }
-        if (result.details && Array.isArray(result.details)) {
-          const detailsText = result.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+        if (bannerResult.details && Array.isArray(bannerResult.details)) {
+          const detailsText = bannerResult.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
           errorMessage += `. Details: ${detailsText}`;
         }
         
         throw new Error(errorMessage);
       }
 
-      toast.success('Consent banner generated successfully!');
+      const bannerId = bannerResult.data?.id;
+      if (!bannerId) {
+        throw new Error('Banner created but no ID returned');
+      }
+
+      toast.success('✓ Banner template created!');
+      console.log('Step 2: Creating widget configuration...');
+
+      // Step 2: Create widget configuration and link it to the banner
+      const widgetId = 'cnsty_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+      const widgetConfig = {
+        widgetId: widgetId,
+        name: `Widget for ${hostname}`,
+        domain: hostname,
+        categories: categoriesFound.length > 0 ? categoriesFound : ['necessary'],
+        behavior: 'explicit',
+        consentDuration: 365,
+        showBrandingLink: true,
+        blockScripts: true,
+        respectDNT: false,
+        gdprApplies: true,
+        autoBlock: [],
+        language: 'en',
+        bannerTemplateId: bannerId, // Link to the banner we just created
+        theme: bannerConfig.theme,
+        autoShow: true,
+        showAfterDelay: 1000,
+        supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr']
+      };
+
+      const widgetResponse = await fetch('/api/cookies/widget-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(widgetConfig),
+      });
+
+      const widgetResult = await widgetResponse.json();
+
+      if (!widgetResponse.ok) {
+        console.error('Widget API Error:', widgetResult);
+        throw new Error(widgetResult.error || 'Failed to create widget configuration');
+      }
+
+      toast.success('✓ Widget configuration created!');
+      console.log('Step 3: Complete! Widget ID:', widgetId);
+
+      // Show success message with embed code
+      const origin = window.location.origin;
+      const embedCode = `<script src="${origin}/widget.js" data-consently-id="${widgetId}" async></script>`;
       
-      // Navigate to templates page to view/edit the banner
+      // Copy embed code to clipboard
+      try {
+        await navigator.clipboard.writeText(embedCode);
+        toast.success('🎉 Complete! Embed code copied to clipboard!');
+      } catch (e) {
+        toast.success('🎉 Cookie consent widget created successfully!');
+      }
+      
+      // Navigate to widget configuration page
       setTimeout(() => {
-        router.push('/dashboard/cookies/templates');
-      }, 1500);
+        router.push('/dashboard/cookies/widget');
+      }, 2000);
 
     } catch (error) {
       console.error('Banner generation error:', error);
@@ -717,68 +778,96 @@ export default function CookieScanPage() {
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-4">
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => handleExport('csv')}
-                disabled={isExporting}
-              >
-                {isExporting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Exporting...
-                  </>
-                ) : (
-                  <>
-                    <Download className="mr-2 h-4 w-4" />
-                    Export CSV
-                  </>
-                )}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleExport('json')}
-                disabled={isExporting}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export JSON
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleExport('pdf')}
-                disabled={isExporting}
-              >
-                {isExporting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating PDF...
-                  </>
-                ) : (
-                  <>
-                    <Download className="mr-2 h-4 w-4" />
-                    Export PDF
-                  </>
-                )}
-              </Button>
-            </div>
+          {/* Quick Action Card */}
+          <Card className="border-2 border-blue-200 bg-blue-50">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Sparkles className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                    Ready to Deploy Cookie Consent?
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Click below to automatically generate a complete, ready-to-deploy cookie consent solution based on your scan results. This will create:
+                  </p>
+                  <ul className="text-sm text-gray-700 space-y-1 mb-4">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>Custom banner template with detected cookie categories</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>Widget configuration linked to your domain ({new URL(scannedUrl).hostname})</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>Embed code ready to copy & paste into your website</span>
+                    </li>
+                  </ul>
+                  <div className="flex flex-wrap gap-3">
+                    <Button 
+                      onClick={handleGenerateBanner}
+                      disabled={isGeneratingBanner}
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      {isGeneratingBanner ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Widget...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Generate Cookie Widget
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleExport('pdf')}
+                      disabled={isExporting}
+                    >
+                      {isExporting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Exporting...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Export Report
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Export Options */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Or export scan results:</span>
             <Button 
-              onClick={handleGenerateBanner}
-              disabled={isGeneratingBanner}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('csv')}
+              disabled={isExporting}
             >
-              {isGeneratingBanner ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Consent Banner
-                </>
-              )}
+              <Download className="mr-2 h-3 w-3" />
+              CSV
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm" 
+              onClick={() => handleExport('json')}
+              disabled={isExporting}
+            >
+              <Download className="mr-2 h-3 w-3" />
+              JSON
             </Button>
           </div>
         </>

@@ -68,6 +68,14 @@ export default function DPDPADashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // Auto-refresh every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchDashboardData();
+    }, 30000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
   }, []);
 
   const fetchDashboardData = async () => {

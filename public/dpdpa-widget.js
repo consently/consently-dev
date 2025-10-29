@@ -62,7 +62,7 @@
     return match ? match[1] : window.location.origin;
   }
 
-  // Translate text using LibreTranslate API
+  // Translate text using Google Translate API
   async function translateText(text, targetLang) {
     if (targetLang === 'en') return text;
     
@@ -380,7 +380,7 @@
                   <path d="M7 10l5 5 5-5z"/>
                 </svg>
               </button>
-              <div id="dpdpa-lang-menu" style="display:none;position:absolute;right:0;margin-top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,.15);overflow:hidden;z-index:10;min-width:180px;">
+              <div id="dpdpa-lang-menu" style="display:none;position:absolute;right:0;margin-top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,.15);overflow-y:auto;max-height:400px;z-index:10;min-width:180px;scrollbar-width:thin;scrollbar-color:#cbd5e1 #f1f5f9;">
                 ${(config.supportedLanguages || ['en']).map(code => `
                   <button data-lang="${code}" style="display:flex;gap:10px;align-items:center;white-space:nowrap;width:100%;text-align:left;padding:12px 16px;border:none;background:${code === selectedLanguage ? '#f0f9ff' : '#fff'};cursor:pointer;font-size:14px;font-weight:${code === selectedLanguage ? '600' : '500'};color:${code === selectedLanguage ? '#0369a1' : '#374151'};transition:all 0.15s;">
                     <span style="font-size:18px;">${languageFlag(code)}</span>
@@ -504,7 +504,8 @@
         kn: 'ಕನ್ನಡ',
         ml: 'മലയാളം',
         or: 'ଓଡ଼ିଆ',
-        ur: 'اردو'
+        ur: 'اردو',
+        as: 'অসমীয়া'
       };
       return map[code] || code;
     }

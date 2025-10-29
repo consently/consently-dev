@@ -110,7 +110,7 @@ export default function DPDPAWidgetPage() {
     showBranding: true,
     isActive: true,
     language: 'en',
-    supportedLanguages: ['en', 'hi', 'pa', 'te', 'ta']
+    supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as']
   });
   const [copySuccess, setCopySuccess] = useState(false);
   const [selectedLanguagesForTranslation, setSelectedLanguagesForTranslation] = useState<string[]>([]);
@@ -126,6 +126,9 @@ export default function DPDPAWidgetPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPrivacyNoticeModal, setShowPrivacyNoticeModal] = useState(false);
   const [generatedPrivacyNotice, setGeneratedPrivacyNotice] = useState<string>('');
+  const [previewLanguage, setPreviewLanguage] = useState<string>('en');
+  const [translatedPreviewContent, setTranslatedPreviewContent] = useState<any>(null);
+  const [translatingPreview, setTranslatingPreview] = useState(false);
 
   const themePresets = [
     { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
@@ -544,6 +547,68 @@ export default function DPDPAWidgetPage() {
       "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, (m) => map[m]);
+  };
+  
+  // Translate preview content to selected language
+  const translatePreviewContent = async (targetLang: string) => {
+    if (targetLang === 'en') {
+      setTranslatedPreviewContent(null);
+      return;
+    }
+    
+    setTranslatingPreview(true);
+    
+    try {
+      const textsToTranslate = [
+        config.title,
+        config.message,
+        config.acceptButtonText,
+        config.rejectButtonText,
+        config.customizeButtonText,
+        'Download Privacy Notice',
+        'Proceed to Consent'
+      ];
+      
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          texts: textsToTranslate,
+          target: targetLang,
+          source: 'en'
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.translations) {
+          setTranslatedPreviewContent({
+            title: data.translations[0],
+            message: data.translations[1],
+            acceptButtonText: data.translations[2],
+            rejectButtonText: data.translations[3],
+            customizeButtonText: data.translations[4],
+            downloadButtonText: data.translations[5],
+            proceedButtonText: data.translations[6]
+          });
+          toast.success(`Preview translated to ${targetLang.toUpperCase()}`);
+        }
+      } else {
+        throw new Error('Translation failed');
+      }
+    } catch (error) {
+      console.error('Translation error:', error);
+      toast.error('Failed to translate preview');
+      setTranslatedPreviewContent(null);
+    } finally {
+      setTranslatingPreview(false);
+    }
+  };
+  
+  // Handle preview language change
+  const handlePreviewLanguageChange = async (lang: string) => {
+    setPreviewLanguage(lang);
+    await translatePreviewContent(lang);
   };
 
   const downloadPrivacyNotice = () => {
@@ -1167,6 +1232,7 @@ export default function DPDPAWidgetPage() {
                     { code: 'ml', name: 'Malayalam (മലയാളം)', flag: '🇮🇳' },
                     { code: 'or', name: 'Odia (ଓଡ଼ିଆ)', flag: '🇮🇳' },
                     { code: 'ur', name: 'Urdu (اردو)', flag: '🇮🇳' },
+                    { code: 'as', name: 'Assamese (অসমীয়া)', flag: '🇮🇳' },
                   ].map(lang => (
                     <button
                       key={lang.code}
@@ -1459,12 +1525,20 @@ export default function DPDPAWidgetPage() {
               <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-medium text-gray-500">LIVE PREVIEW</p>
-                  {config.language !== 'en' && (
-                    <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                      <Info className="h-3 w-3" />
-                      <span className="text-xs font-medium">Static preview - Translation works in live widget</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {translatingPreview && (
+                      <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-2 py-1 rounded-md">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-xs font-medium">Translating...</span>
+                      </div>
+                    )}
+                    {!translatingPreview && previewLanguage !== 'en' && (
+                      <div className="flex items-center gap-1.5 bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                        <CheckCircle className="h-3 w-3" />
+                        <span className="text-xs font-medium">Translated</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div 
                   className="shadow-2xl max-w-md mx-auto overflow-hidden"
@@ -1499,20 +1573,21 @@ export default function DPDPAWidgetPage() {
                             </svg>
                           </div>
                         )}
-                        <span className="font-bold text-sm">{config.title}</span>
+                        <span className="font-bold text-sm">{translatingPreview ? '...' : (translatedPreviewContent?.title || config.title)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <select 
-                          value={config.language}
-                          onChange={(e) => setConfig({ ...config, language: e.target.value })}
-                          className="text-xs px-2 py-1 border rounded-lg cursor-pointer bg-white"
-                          style={{ borderColor: '#e5e7eb' }}
+                          value={previewLanguage}
+                          onChange={(e) => handlePreviewLanguageChange(e.target.value)}
+                          disabled={translatingPreview}
+                          className="text-xs px-2 py-1 border rounded-lg cursor-pointer bg-white hover:border-blue-400 transition-colors"
+                          style={{ borderColor: '#e5e7eb', opacity: translatingPreview ? 0.5 : 1 }}
                         >
-                          {(config.supportedLanguages || ['en']).map(code => {
+                          {Array.from(new Set(config.supportedLanguages || ['en'])).map(code => {
                             const langMap: Record<string, {flag: string, name: string}> = {
                               en: { flag: '🇬🇧', name: 'English' },
                               hi: { flag: '🇮🇳', name: 'हिंदी' },
-                              pa: { flag: '🇮🇳', name: 'ਪੰਜਾਬੀ' },
+                              pa: { flag: '🇮🇳', name: '꣪꤂ꤜꢾꢬꥀ' },
                               te: { flag: '🇮🇳', name: 'తెలుగు' },
                               ta: { flag: '🇮🇳', name: 'தமிழ்' },
                               bn: { flag: '🇮🇳', name: 'বাংলা' },
@@ -1521,7 +1596,8 @@ export default function DPDPAWidgetPage() {
                               kn: { flag: '🇮🇳', name: 'ಕನ್ನಡ' },
                               ml: { flag: '🇮🇳', name: 'മലയാളം' },
                               or: { flag: '🇮🇳', name: 'ଓଡ଼ିଆ' },
-                              ur: { flag: '🇮🇳', name: 'اردو' }
+                              ur: { flag: '🇮🇳', name: 'اردو' },
+                              as: { flag: '🇮🇳', name: 'অসমীয়া' }
                             };
                             const lang = langMap[code] || { flag: '🌐', name: code };
                             return <option key={code} value={code}>{lang.flag} {lang.name}</option>;
@@ -1555,7 +1631,7 @@ export default function DPDPAWidgetPage() {
                     {/* Privacy Notice Preview */}
                     <div className="border rounded-lg p-3 mb-3 bg-white" style={{ maxHeight: '120px', overflow: 'hidden', position: 'relative' }}>
                       <h4 className="text-xs font-bold mb-1">Privacy Notice</h4>
-                      <p className="text-xs opacity-70 mb-2">{config.message}</p>
+                      <p className="text-xs opacity-70 mb-2">{translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || config.message)}</p>
                       {config.selectedActivities.length > 0 && (
                         <div className="space-y-1">
                           {config.selectedActivities.slice(0, 2).map((actId, idx) => {
@@ -1597,13 +1673,13 @@ export default function DPDPAWidgetPage() {
                         className="flex-1 px-3 py-2 rounded-lg text-xs font-bold text-white"
                         style={{ backgroundColor: config.theme.primaryColor }}
                       >
-                        Download Privacy Notice
+                        {translatedPreviewContent?.downloadButtonText || 'Download Privacy Notice'}
                       </button>
                       <button
                         className="flex-1 px-3 py-2 rounded-lg text-xs font-bold"
                         style={{ backgroundColor: '#e5e7eb', color: '#6b7280' }}
                       >
-                        Proceed to Consent
+                        {translatedPreviewContent?.proceedButtonText || 'Proceed to Consent'}
                       </button>
                     </div>
 

@@ -164,12 +164,7 @@
       ml: 'മലയാളം',
       or: 'ଓଡ଼ିଆ',
       ur: 'اردو',
-      as: 'অসমীয়া',
-      es: 'Español',
-      fr: 'Français',
-      de: 'Deutsch',
-      pt: 'Português',
-      zh: '中文'
+      as: 'অসমীয়া'
     };
     // Return native name only, never show English language codes
     return map[code] || '';
@@ -189,12 +184,7 @@
       ml: '🇮🇳',
       or: '🇮🇳',
       ur: '🇮🇳',
-      as: '🇮🇳',
-      es: '🇪🇸',
-      fr: '🇫🇷',
-      de: '🇩🇪',
-      pt: '🇵🇹',
-      zh: '🇨🇳'
+      as: '🇮🇳'
     };
     return map[code] || '🌐';
   }

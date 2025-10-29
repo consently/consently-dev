@@ -1049,8 +1049,7 @@ export default function CookieTemplatesPage() {
                 borderRadius: `${config.theme.borderRadius}px`,
                 boxShadow: config.theme.boxShadow ? '0 10px 40px rgba(0,0,0,0.15)' : 'none',
                 fontSize: `${config.theme.fontSize}px`,
-                zIndex: config.zIndex,
-                position: 'relative'
+                zIndex: config.zIndex
               }}
             >
               {/* Language Selector Preview */}

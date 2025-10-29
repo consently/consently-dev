@@ -754,12 +754,7 @@ export default function CookieWidgetPage() {
                                 ml: '🇮🇳 മലയാളം',
                                 or: '🇮🇳 ଓଡ଼ିଆ',
                                 ur: '🇮🇳 اردو',
-                                as: '🇮🇳 অসমীয়া',
-                                es: '🇪🇸 Español',
-                                fr: '🇫🇷 Français',
-                                de: '🇩🇪 Deutsch',
-                                pt: '🇵🇹 Português',
-                                zh: '🇨🇳 中文'
+                                as: '🇮🇳 অসমীয়া'
                               };
                               
                               // Filter to only show selected languages with valid labels
