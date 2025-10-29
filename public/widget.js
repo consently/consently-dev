@@ -73,7 +73,47 @@
 
   let config = Object.assign({}, defaultConfig);
   let configLoaded = false;
+  
+  // Generate or retrieve session ID
+  let sessionId = null;
+  try {
+    sessionId = sessionStorage.getItem('consently_session_id');
+    if (!sessionId) {
+      sessionId = 'ses_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      sessionStorage.setItem('consently_session_id', sessionId);
+      console.log('[Consently] Created new session ID:', sessionId);
+    } else {
+      console.log('[Consently] Loaded existing session ID:', sessionId);
+    }
+  } catch (e) {
+    console.warn('[Consently] sessionStorage not available, using temporary session ID');
+    sessionId = 'ses_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+  
+  // Session-based temporary preference storage (for unsaved selections)
+  let tempPreferences = null;
+  try {
+    const savedTemp = sessionStorage.getItem('consently_temp_prefs');
+    if (savedTemp) {
+      tempPreferences = JSON.parse(savedTemp);
+      console.log('[Consently] Loaded temporary preferences:', tempPreferences);
+    }
+  } catch (e) {
+    console.warn('[Consently] Failed to load temporary preferences');
+  }
+  
+  // Load language from localStorage or default to 'en'
   let selectedLanguage = 'en';
+  try {
+    const savedLang = localStorage.getItem('consently_language');
+    if (savedLang) {
+      selectedLanguage = savedLang;
+      console.log('[Consently] Loaded saved language:', savedLang);
+    }
+  } catch (e) {
+    console.warn('[Consently] localStorage not available for language persistence');
+  }
+  
   let translationCache = {};
 
   // Translation helper functions
@@ -124,6 +164,7 @@
       ml: 'മലയാളം',
       or: 'ଓଡ଼ିଆ',
       ur: 'اردو',
+      as: 'অসমীয়া',
       es: 'Español',
       fr: 'Français',
       de: 'Deutsch',
@@ -147,6 +188,7 @@
       ml: '🇮🇳',
       or: '🇮🇳',
       ur: '🇮🇳',
+      as: '🇮🇳',
       es: '🇪🇸',
       fr: '🇫🇷',
       de: '🇩🇪',
@@ -204,16 +246,19 @@
       }
       
       // API fetches widget config + linked banner template
-      const apiUrl = `${apiBase}/api/cookies/widget-public/${widgetId}`;
+      // Add cache-buster timestamp to ensure fresh config data
+      const cacheBuster = Date.now();
+      const apiUrl = `${apiBase}/api/cookies/widget-public/${widgetId}?_t=${cacheBuster}`;
       
       console.log('[Consently] Fetching widget config + banner template from:', apiUrl);
       
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache' // Request fresh data
         },
-        cache: 'default' // Use browser cache for 5 minutes
+        cache: 'no-store' // Bypass browser cache to get latest settings
       });
       
       if (!response.ok) {
@@ -313,21 +358,53 @@
     // Create banner container
     const banner = document.createElement('div');
     banner.id = 'consently-banner';
+    
+    // Determine positioning based on config.position
+    let positionStyles = '';
+    let maxWidth = '';
+    
+    if (config.position === 'bottom') {
+      positionStyles = 'bottom: 0; left: 0; right: 0;';
+      maxWidth = '';
+    } else if (config.position === 'top') {
+      positionStyles = 'top: 0; left: 0; right: 0;';
+      maxWidth = '';
+    } else if (config.position === 'bottom-left') {
+      positionStyles = 'bottom: 20px; left: 20px;';
+      maxWidth = 'max-width: 400px;';
+    } else if (config.position === 'bottom-right') {
+      positionStyles = 'bottom: 20px; right: 20px;';
+      maxWidth = 'max-width: 400px;';
+    } else if (config.position === 'top-left') {
+      positionStyles = 'top: 20px; left: 20px;';
+      maxWidth = 'max-width: 400px;';
+    } else if (config.position === 'top-right') {
+      positionStyles = 'top: 20px; right: 20px;';
+      maxWidth = 'max-width: 400px;';
+    } else if (config.position === 'center' || config.position === 'center-modal') {
+      positionStyles = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
+      maxWidth = 'max-width: 500px;';
+    } else {
+      // Default to bottom
+      positionStyles = 'bottom: 0; left: 0; right: 0;';
+      maxWidth = '';
+    }
+    
     banner.style.cssText = `
       position: fixed;
-      ${config.position === 'top' ? 'top: 0;' : 'bottom: 0;'}
-      left: 0;
-      right: 0;
+      ${positionStyles}
+      ${maxWidth}
       background-color: ${backgroundColor};
       color: ${textColor};
       padding: 24px;
       padding-top: 48px;
-      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       z-index: ${zIndex};
       font-family: ${fontFamily};
       font-size: ${fontSize}px;
       line-height: 1.5;
-      animation: slideUp 0.3s ease-out;
+      border-radius: ${borderRadius}px;
+      animation: fadeIn 0.3s ease-out;
     `;
 
     // Create banner content
@@ -340,6 +417,14 @@
           }
           to {
             transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
             opacity: 1;
           }
         }
@@ -636,6 +721,14 @@
           console.log('[Consently] Language changed to:', newLang);
           if (newLang !== selectedLanguage) {
             selectedLanguage = newLang;
+            
+            // Save language preference
+            try {
+              localStorage.setItem('consently_language', newLang);
+            } catch (e) {
+              console.warn('[Consently] Failed to save language preference');
+            }
+            
             langMenuBanner.style.display = 'none';
             
             // Remove existing banner and show new one with selected language
@@ -694,6 +787,13 @@
       animation: fadeIn 0.2s ease-out;
     `;
 
+    // Get existing consent to pre-populate checkboxes
+    const existingConsent = CookieManager.get('consently_consent');
+    const existingCategories = existingConsent ? existingConsent.categories || [] : [];
+    
+    // Use temp preferences if available, otherwise use existing consent
+    const preferencesToUse = tempPreferences || existingCategories;
+    
     const categories = [
       { id: 'necessary', name: selectedLanguage !== 'en' ? await translateText('Necessary', selectedLanguage) : 'Necessary', description: selectedLanguage !== 'en' ? await translateText('Essential for website functionality', selectedLanguage) : 'Essential for website functionality', required: true },
       { id: 'analytics', name: selectedLanguage !== 'en' ? await translateText('Analytics', selectedLanguage) : 'Analytics', description: selectedLanguage !== 'en' ? await translateText('Help us understand visitor behavior', selectedLanguage) : 'Help us understand visitor behavior', required: false },
@@ -706,11 +806,13 @@
     
     categories.forEach(cat => {
       if (availableCategories.includes(cat.id) || cat.required) {
+        // Check if this category was previously consented to or temporarily selected
+        const isChecked = cat.required || preferencesToUse.includes(cat.id);
         categoriesHTML += `
           <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
             <label style="display: flex; align-items: start; gap: 12px; cursor: ${cat.required ? 'not-allowed' : 'pointer'};">
               <input type="checkbox" id="cat-${cat.id}" 
-                     ${cat.required ? 'checked disabled' : ''} 
+                     ${cat.required ? 'checked disabled' : (isChecked ? 'checked' : '')} 
                      style="margin-top: 4px; width: 18px; height: 18px;">
               <div style="flex: 1;">
                 <div style="font-weight: 600; margin-bottom: 4px;">
@@ -814,6 +916,14 @@
           const newLang = this.getAttribute('data-lang');
           if (newLang !== selectedLanguage) {
             selectedLanguage = newLang;
+            
+            // Save language preference
+            try {
+              localStorage.setItem('consently_language', newLang);
+            } catch (e) {
+              console.warn('[Consently] Failed to save language preference');
+            }
+            
             langMenu.style.display = 'none';
             
             // Reload modal with new language
@@ -835,8 +945,44 @@
           }
         }
       });
+      
+      // Clear temp preferences since we're saving
+      tempPreferences = null;
+      try {
+        sessionStorage.removeItem('consently_temp_prefs');
+      } catch (e) {}
+      
       modal.remove();
       handleConsent('partial', selectedCategories);
+    });
+    
+    // Save temporary preferences when checkboxes change
+    categories.forEach(cat => {
+      if (!cat.required) {
+        const checkbox = document.getElementById('cat-' + cat.id);
+        if (checkbox) {
+          checkbox.addEventListener('change', function() {
+            const currentSelections = ['necessary'];
+            categories.forEach(c => {
+              if (!c.required) {
+                const cb = document.getElementById('cat-' + c.id);
+                if (cb && cb.checked) {
+                  currentSelections.push(c.id);
+                }
+              }
+            });
+            
+            // Save to session storage
+            tempPreferences = currentSelections;
+            try {
+              sessionStorage.setItem('consently_temp_prefs', JSON.stringify(currentSelections));
+              console.log('[Consently] Saved temporary preferences:', currentSelections);
+            } catch (e) {
+              console.warn('[Consently] Failed to save temporary preferences');
+            }
+          });
+        }
+      }
     });
 
     document.getElementById('consently-close-modal').addEventListener('click', function() {
@@ -957,7 +1103,8 @@
       categories: categories,
       timestamp: Date.now(),
       widgetId: widgetId,
-      domain: window.location.hostname
+      domain: window.location.hostname,
+      sessionId: sessionId
     };
 
     // Save consent to cookie
@@ -1004,6 +1151,7 @@
       widgetId: widgetId,
       status: consentData.status,
       categories: consentData.categories,
+      sessionId: sessionId,
       deviceType: /Mobile|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent) ? 
                   (/Tablet|iPad/i.test(navigator.userAgent) ? 'Tablet' : 'Mobile') : 'Desktop',
       userAgent: navigator.userAgent,

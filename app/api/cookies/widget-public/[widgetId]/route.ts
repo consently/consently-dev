@@ -146,8 +146,9 @@ export async function GET(
     }
 
     // Transform snake_case database fields to camelCase for JavaScript
+    // Priority: Widget settings > Banner template > Defaults
     const config = {
-      // Widget configuration
+      // Widget configuration (highest priority)
       widgetId: widgetConfig.widget_id,
       domain: widgetConfig.domain,
       categories: Array.isArray(widgetConfig.categories) 
@@ -170,43 +171,51 @@ export async function GET(
       layout: banner.layout,
       position: banner.position,
       
-      // Theme configuration (merge banner theme with any widget-specific theme overrides)
+      // Theme configuration - widget theme overrides banner theme
       theme: {
         ...(banner.theme || {}),
-        logoUrl: banner.theme?.logoUrl || null,
-        fontFamily: banner.theme?.fontFamily || 'system-ui, sans-serif',
+        ...(widgetConfig.theme || {}), // Widget theme takes precedence
+        // Explicit fallback chain for logo
+        logoUrl: widgetConfig.theme?.logoUrl || banner.theme?.logoUrl || null,
+        fontFamily: widgetConfig.theme?.fontFamily || banner.theme?.fontFamily || 'system-ui, sans-serif',
       },
       
-      // Supported languages from widget config
-      supportedLanguages: widgetConfig.supported_languages || ['en'],
+      // Supported languages - widget config is authoritative
+      supportedLanguages: Array.isArray(widgetConfig.supported_languages) && widgetConfig.supported_languages.length > 0
+        ? widgetConfig.supported_languages 
+        : ['en'],
       
-      // Content
+      // Content from banner template
       title: banner.title,
       message: banner.message,
       privacyPolicyUrl: banner.privacy_policy_url,
       privacyPolicyText: banner.privacy_policy_text,
       
-      // Button configurations
+      // Button configurations from banner
       acceptButton: banner.accept_button,
       rejectButton: banner.reject_button,
       settingsButton: banner.settings_button,
       
-      // Behavior settings (banner overrides widget if specified)
-      showRejectButton: banner.show_reject_button,
-      showSettingsButton: banner.show_settings_button,
-      autoShow: banner.auto_show,
-      showAfterDelay: banner.show_after_delay,
-      blockContent: banner.block_content,
-      zIndex: banner.z_index,
+      // Behavior settings - prefer widget config, fallback to banner
+      showRejectButton: banner.show_reject_button ?? true,
+      showSettingsButton: banner.show_settings_button ?? true,
+      autoShow: widgetConfig.auto_show ?? banner.auto_show ?? true,
+      showAfterDelay: widgetConfig.show_after_delay ?? banner.show_after_delay ?? 0,
+      blockContent: banner.block_content ?? false,
+      zIndex: banner.z_index ?? 9999,
       customCSS: banner.custom_css,
       customJS: banner.custom_js,
     };
 
-    // Set cache headers for better performance (cache for 5 minutes)
+    // Set cache headers for better performance (cache for 1 minute for faster updates)
     const response = NextResponse.json(config);
-    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    // Reduced from 5 min to 1 min to allow changes to propagate faster
+    // s-maxage=60 (CDN cache 1 min), stale-while-revalidate=120 (2 min grace period)
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120, must-revalidate');
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    // Add timestamp for debugging
+    response.headers.set('X-Config-Timestamp', new Date().toISOString());
     
     return response;
 

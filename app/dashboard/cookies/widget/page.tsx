@@ -126,6 +126,9 @@ export default function CookieWidgetPage() {
   const [linkedBanner, setLinkedBanner] = useState<any>(null);
   const [previewConfig, setPreviewConfig] = useState<any>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewLanguage, setPreviewLanguage] = useState<string>('en');
+  const [translatedPreviewContent, setTranslatedPreviewContent] = useState<any>(null);
+  const [translatingPreview, setTranslatingPreview] = useState(false);
   const [config, setConfig] = useState<WidgetConfig>({
     widgetId: '',
     name: 'My Cookie Widget',
@@ -301,6 +304,65 @@ export default function CookieWidgetPage() {
       setLoadingPreview(false);
     }
   };
+  
+  // Translate preview content to selected language
+  const translatePreviewContent = async (targetLang: string) => {
+    if (targetLang === 'en') {
+      setTranslatedPreviewContent(null);
+      return;
+    }
+    
+    setTranslatingPreview(true);
+    
+    try {
+      const configToTranslate = previewConfig || config;
+      const textsToTranslate = [
+        configToTranslate.title || '🍪 We value your privacy',
+        configToTranslate.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic.',
+        configToTranslate.acceptButton?.text || 'Accept All',
+        configToTranslate.rejectButton?.text || 'Reject All',
+        configToTranslate.settingsButton?.text || 'Cookie Settings'
+      ];
+      
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          texts: textsToTranslate,
+          target: targetLang,
+          source: 'en'
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.translations) {
+          setTranslatedPreviewContent({
+            title: data.translations[0],
+            message: data.translations[1],
+            acceptButtonText: data.translations[2],
+            rejectButtonText: data.translations[3],
+            settingsButtonText: data.translations[4]
+          });
+          toast.success(`Preview translated to ${targetLang.toUpperCase()}`);
+        }
+      } else {
+        throw new Error('Translation failed');
+      }
+    } catch (error) {
+      console.error('Translation error:', error);
+      toast.error('Failed to translate preview');
+      setTranslatedPreviewContent(null);
+    } finally {
+      setTranslatingPreview(false);
+    }
+  };
+  
+  // Handle preview language change
+  const handlePreviewLanguageChange = async (lang: string) => {
+    setPreviewLanguage(lang);
+    await translatePreviewContent(lang);
+  };
 
   const fetchConfig = async () => {
     try {
@@ -376,10 +438,14 @@ export default function CookieWidgetPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: `${config.name} Banner`,
-            description: 'Auto-generated banner template',
+            description: 'Auto-generated banner template - synced with widget config',
             position: 'bottom',
             layout: 'bar',
-            theme: config.theme,
+            theme: {
+              ...config.theme,
+              // Ensure logo URL is included
+              logoUrl: config.theme.logoUrl || ''
+            },
             title: '🍪 We value your privacy',
             message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
             privacyPolicyText: 'Privacy Policy',
@@ -450,6 +516,12 @@ export default function CookieWidgetPage() {
       setSaved(true);
       setError(null);
       toast.success('Configuration saved successfully!');
+      
+      // Show informative message about settings propagation
+      toast.info('Settings will be reflected in the live widget immediately', {
+        duration: 3000,
+        description: 'Theme, language, and behavior settings are now active'
+      });
       
       // Show success message for longer
       setTimeout(() => setSaved(false), 5000);
@@ -664,23 +736,27 @@ export default function CookieWidgetPage() {
                               className="text-lg font-semibold"
                               style={{ color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937' }}
                             >
-                              {previewConfig?.title || '🍪 We value your privacy'}
+                              {translatingPreview ? '...' : (translatedPreviewContent?.title || previewConfig?.title || '🍪 We value your privacy')}
                             </h3>
                             {/* Language Selector */}
                             {(previewConfig?.supportedLanguages || config.supportedLanguages)?.length > 1 && (
                               <select 
-                                className="text-xs px-2 py-1 border rounded-lg"
+                                value={previewLanguage}
+                                onChange={(e) => handlePreviewLanguageChange(e.target.value)}
+                                disabled={translatingPreview}
+                                className="text-xs px-2 py-1 border rounded-lg cursor-pointer hover:border-blue-400 transition-colors"
                                 style={{ 
                                   borderColor: '#e5e7eb',
                                   backgroundColor: 'white',
-                                  color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937'
+                                  color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937',
+                                  opacity: translatingPreview ? 0.5 : 1
                                 }}
                               >
-                                {(previewConfig?.supportedLanguages || config.supportedLanguages).map((lang: string) => {
+                                {Array.from(new Set(previewConfig?.supportedLanguages || config.supportedLanguages)).map((lang: string) => {
                                   const langMap: Record<string, string> = {
                                     en: '🇬🇧 English',
                                     hi: '🇮🇳 हिंदी',
-                                    pa: '🇮🇳 ਪੰਜਾਬੀ',
+                                    pa: '🇮🇳 ꣪꤂ꤜꢾꢬꥀ',
                                     te: '🇮🇳 తెలుగు',
                                     ta: '🇮🇳 தமிழ்',
                                     bn: '🇮🇳 বাংলা',
@@ -689,7 +765,8 @@ export default function CookieWidgetPage() {
                                     kn: '🇮🇳 ಕನ್ನಡ',
                                     ml: '🇮🇳 മലയാളം',
                                     or: '🇮🇳 ଓଡ଼ିଆ',
-                                    ur: '🇮🇳 اردو'
+                                    ur: '🇮🇳 اردو',
+                                    as: '🇮🇳 অসমীয়া'
                                   };
                                   return (
                                     <option key={lang} value={lang}>
@@ -699,6 +776,9 @@ export default function CookieWidgetPage() {
                                 })}
                               </select>
                             )}
+                            {translatingPreview && (
+                              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                            )}
                           </div>
                           <p 
                             className="text-sm"
@@ -707,7 +787,7 @@ export default function CookieWidgetPage() {
                               opacity: 0.9 
                             }}
                           >
-                            {previewConfig?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.'}
+                            {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || previewConfig?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.')}
                           </p>
                           {(previewConfig?.categories || config.categories).length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -737,7 +817,7 @@ export default function CookieWidgetPage() {
                               border: 'none'
                             }}
                           >
-                            {previewConfig?.acceptButton?.text || 'Accept All'}
+                            {translatedPreviewContent?.acceptButtonText || previewConfig?.acceptButton?.text || 'Accept All'}
                           </button>
                           <button 
                             className="px-4 py-2 border-2 text-sm font-medium transition-colors hover:opacity-80"
@@ -748,7 +828,7 @@ export default function CookieWidgetPage() {
                               borderRadius: `${previewConfig?.rejectButton?.borderRadius || config.theme?.borderRadius || 8}px`
                             }}
                           >
-                            {previewConfig?.rejectButton?.text || 'Reject All'}
+                            {translatedPreviewContent?.rejectButtonText || previewConfig?.rejectButton?.text || 'Reject All'}
                           </button>
                           <button 
                             className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
@@ -759,7 +839,7 @@ export default function CookieWidgetPage() {
                               border: 'none'
                             }}
                           >
-                            {previewConfig?.settingsButton?.text || 'Cookie Settings'}
+                            {translatedPreviewContent?.settingsButtonText || previewConfig?.settingsButton?.text || 'Cookie Settings'}
                           </button>
                         </div>
                       </div>
