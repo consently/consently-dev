@@ -103,10 +103,20 @@ type WidgetConfig = {
     borderRadius: number;
     fontFamily?: string;
     logoUrl?: string;
+    // Button-specific colors
+    acceptButtonBg?: string;
+    acceptButtonText?: string;
+    rejectButtonBg?: string;
+    rejectButtonText?: string;
+    rejectButtonBorder?: string;
+    settingsButtonBg?: string;
+    settingsButtonText?: string;
   };
   autoShow: boolean;
   showAfterDelay: number;
   supportedLanguages?: string[];
+  position?: 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+  layout?: 'bar' | 'box' | 'modal' | 'banner';
   // Banner content customization
   bannerContent?: {
     title: string;
@@ -159,6 +169,8 @@ export default function CookieWidgetPage() {
     autoShow: true,
     showAfterDelay: 1000,
     supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr'],
+    position: 'bottom',
+    layout: 'bar',
     bannerContent: {
       title: '🍪 We value your privacy',
       message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
@@ -721,36 +733,26 @@ export default function CookieWidgetPage() {
                   </div>
                 </div>
                 
-                {/* Cookie Banner Preview - Using Actual Config from API */}
+                {/* Cookie Banner Preview - Real-time Local Preview */}
                 <div className="relative">
-                  {previewConfig ? (
-                    <div className="mb-2 px-4 py-2 bg-green-100 border border-green-300 rounded-lg text-xs text-green-800">
-                      <strong>✓ Live Preview:</strong> Showing {previewConfig.bannerName || 'banner'} from API (exactly what users will see)
-                    </div>
-                  ) : config.widgetId ? (
-                    <div className="mb-2 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-xs text-amber-800">
-                      <strong>⚠ Preview Unavailable:</strong> Save your widget first to see the live preview. This shows an approximation using your current theme.
-                    </div>
-                  ) : (
-                    <div className="mb-2 px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-xs text-blue-800">
-                      <strong>ℹ Preview:</strong> This shows how your banner will look based on current settings.
-                    </div>
-                  )}
+                  <div className="mb-2 px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-xs text-blue-800">
+                    <strong>👁️ Live Preview:</strong> Real-time preview of your current settings. Changes appear instantly as you customize.
+                  </div>
                   <div 
                     className="border-t-2 p-6 shadow-lg"
                     style={{
-                      backgroundColor: previewConfig?.theme?.backgroundColor || config.theme?.backgroundColor || '#ffffff',
-                      color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937',
-                      borderRadius: `${previewConfig?.theme?.borderRadius || config.theme?.borderRadius || 0}px`,
-                      fontFamily: previewConfig?.theme?.fontFamily || config.theme?.fontFamily || 'system-ui, sans-serif'
+                      backgroundColor: config.theme?.backgroundColor || '#ffffff',
+                      color: config.theme?.textColor || '#1f2937',
+                      borderRadius: `${config.theme?.borderRadius || 0}px`,
+                      fontFamily: config.theme?.fontFamily || 'system-ui, sans-serif'
                     }}
                   >
                     <div className="max-w-4xl mx-auto">
                       <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
                         <div className="flex-1">
-                          {(previewConfig?.theme?.logoUrl || config.theme?.logoUrl) && (
+                          {config.theme?.logoUrl && (
                             <img 
-                              src={previewConfig?.theme?.logoUrl || config.theme.logoUrl} 
+                              src={config.theme.logoUrl} 
                               alt="Logo" 
                               className="h-8 w-auto mb-3"
                               onError={(e) => e.currentTarget.style.display = 'none'}
@@ -759,13 +761,13 @@ export default function CookieWidgetPage() {
                           <div className="flex items-center gap-2 mb-2">
                             <h3 
                               className="text-lg font-semibold"
-                              style={{ color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937' }}
+                              style={{ color: config.theme?.textColor || '#1f2937' }}
                             >
-                              {translatingPreview ? '...' : (translatedPreviewContent?.title || previewConfig?.title || config.bannerContent?.title || '🍪 We value your privacy')}
+                              {translatingPreview ? '...' : (translatedPreviewContent?.title || config.bannerContent?.title || '🍪 We value your privacy')}
                             </h3>
                             {/* Language Selector - Only show if multiple languages selected */}
                             {(() => {
-                              const supportedLangs = previewConfig?.supportedLanguages || config.supportedLanguages || ['en'];
+                              const supportedLangs = config.supportedLanguages || ['en'];
                               const langMap: Record<string, string> = {
                                 en: '🇬🇧 English',
                                 hi: '🇮🇳 हिंदी',
@@ -796,7 +798,7 @@ export default function CookieWidgetPage() {
                                   style={{ 
                                     borderColor: '#e5e7eb',
                                     backgroundColor: 'white',
-                                    color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937',
+                                    color: config.theme?.textColor || '#1f2937',
                                     opacity: translatingPreview ? 0.5 : 1
                                   }}
                                 >
@@ -815,22 +817,22 @@ export default function CookieWidgetPage() {
                           <p 
                             className="text-sm"
                             style={{ 
-                              color: previewConfig?.theme?.textColor || config.theme?.textColor || '#6b7280',
+                              color: config.theme?.textColor || '#6b7280',
                               opacity: 0.9 
                             }}
                           >
-                            {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || previewConfig?.message || config.bannerContent?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.')}
+                            {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || config.bannerContent?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.')}
                           </p>
-                          {(previewConfig?.categories || config.categories).length > 0 && (
+                          {config.categories.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
-                              {(previewConfig?.categories || config.categories).map((cat: string) => (
+                              {config.categories.map((cat: string) => (
                                 <Badge 
                                   key={cat} 
                                   variant="outline" 
                                   className="text-xs"
                                   style={{
-                                    borderColor: previewConfig?.theme?.primaryColor || config.theme?.primaryColor || '#3b82f6',
-                                    color: previewConfig?.theme?.primaryColor || config.theme?.primaryColor || '#3b82f6'
+                                    borderColor: config.theme?.primaryColor || '#3b82f6',
+                                    color: config.theme?.primaryColor || '#3b82f6'
                                   }}
                                 >
                                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -843,39 +845,39 @@ export default function CookieWidgetPage() {
                           <button 
                             className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-90"
                             style={{
-                              backgroundColor: previewConfig?.acceptButton?.backgroundColor || config.theme?.primaryColor || '#3b82f6',
-                              color: previewConfig?.acceptButton?.textColor || '#ffffff',
-                              borderRadius: `${previewConfig?.acceptButton?.borderRadius || config.theme?.borderRadius || 8}px`,
+                              backgroundColor: config.theme?.acceptButtonBg || config.theme?.primaryColor || '#3b82f6',
+                              color: config.theme?.acceptButtonText || '#ffffff',
+                              borderRadius: `${config.theme?.borderRadius || 8}px`,
                               border: 'none'
                             }}
                           >
-                            {translatedPreviewContent?.acceptButtonText || previewConfig?.acceptButton?.text || config.bannerContent?.acceptButtonText || 'Accept All'}
+                            {translatedPreviewContent?.acceptButtonText || config.bannerContent?.acceptButtonText || 'Accept All'}
                           </button>
                           <button 
                             className="px-4 py-2 border-2 text-sm font-medium transition-colors hover:opacity-80"
                             style={{
-                              borderColor: previewConfig?.rejectButton?.borderColor || config.theme?.primaryColor || '#3b82f6',
-                              color: previewConfig?.rejectButton?.textColor || config.theme?.primaryColor || '#3b82f6',
-                              backgroundColor: previewConfig?.rejectButton?.backgroundColor || 'transparent',
-                              borderRadius: `${previewConfig?.rejectButton?.borderRadius || config.theme?.borderRadius || 8}px`
+                              borderColor: config.theme?.rejectButtonBorder || config.theme?.primaryColor || '#3b82f6',
+                              color: config.theme?.rejectButtonText || config.theme?.primaryColor || '#3b82f6',
+                              backgroundColor: config.theme?.rejectButtonBg || 'transparent',
+                              borderRadius: `${config.theme?.borderRadius || 8}px`
                             }}
                           >
-                            {translatedPreviewContent?.rejectButtonText || previewConfig?.rejectButton?.text || config.bannerContent?.rejectButtonText || 'Reject All'}
+                            {translatedPreviewContent?.rejectButtonText || config.bannerContent?.rejectButtonText || 'Reject All'}
                           </button>
                           <button 
                             className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
                             style={{
-                              backgroundColor: previewConfig?.settingsButton?.backgroundColor || '#f3f4f6',
-                              color: previewConfig?.settingsButton?.textColor || config.theme?.textColor || '#1f2937',
-                              borderRadius: `${previewConfig?.settingsButton?.borderRadius || config.theme?.borderRadius || 8}px`,
+                              backgroundColor: config.theme?.settingsButtonBg || '#f3f4f6',
+                              color: config.theme?.settingsButtonText || config.theme?.textColor || '#1f2937',
+                              borderRadius: `${config.theme?.borderRadius || 8}px`,
                               border: 'none'
                             }}
                           >
-                            {translatedPreviewContent?.settingsButtonText || previewConfig?.settingsButton?.text || config.bannerContent?.settingsButtonText || 'Cookie Settings'}
+                            {translatedPreviewContent?.settingsButtonText || config.bannerContent?.settingsButtonText || 'Cookie Settings'}
                           </button>
                         </div>
                       </div>
-                      {(previewConfig?.showBrandingLink ?? config.showBrandingLink) && (
+                      {config.showBrandingLink && (
                         <div className="mt-4 pt-4 border-t text-center">
                           <a 
                             href="https://www.consently.in" 
@@ -883,7 +885,7 @@ export default function CookieWidgetPage() {
                             rel="noopener noreferrer"
                             className="text-xs hover:underline"
                             style={{ 
-                              color: previewConfig?.theme?.textColor || config.theme?.textColor || '#6b7280',
+                              color: config.theme?.textColor || '#6b7280',
                               opacity: 0.7 
                             }}
                           >
@@ -902,25 +904,18 @@ export default function CookieWidgetPage() {
                   <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-semibold text-blue-900 mb-1">
-                      {previewConfig ? 'Live Configuration (from API)' : 'Current Configuration'}
+                      Current Configuration (Real-time Preview)
                     </h4>
                     <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
-                      <p>• <strong>Domain:</strong> {previewConfig?.domain || config.domain || 'Not set'}</p>
-                      <p>• <strong>Behavior:</strong> {(previewConfig?.behavior || config.behavior) === 'explicit' ? 'Explicit Consent' : 'Opt-Out'}</p>
-                      <p>• <strong>Duration:</strong> {previewConfig?.consentDuration || config.consentDuration} days</p>
-                      <p>• <strong>Categories:</strong> {(previewConfig?.categories || config.categories).length}</p>
-                      <p>• <strong>Position:</strong> {previewConfig?.position || 'bottom'}</p>
-                      <p>• <strong>Layout:</strong> {previewConfig?.layout || 'bar'}</p>
-                      {previewConfig && (
-                        <p className="col-span-2">• <strong>Banner Template:</strong> {previewConfig.bannerName}</p>
-                      )}
+                      <p>• <strong>Domain:</strong> {config.domain || 'Not set'}</p>
+                      <p>• <strong>Behavior:</strong> {config.behavior === 'explicit' ? 'Explicit Consent' : 'Opt-Out'}</p>
+                      <p>• <strong>Duration:</strong> {config.consentDuration} days</p>
+                      <p>• <strong>Categories:</strong> {config.categories.length}</p>
+                      <p>• <strong>Languages:</strong> {config.supportedLanguages?.length || 1} supported</p>
+                      <p>• <strong>Auto-show:</strong> {config.autoShow ? `Yes (${config.showAfterDelay}ms delay)` : 'No'}</p>
                     </div>
                     <p className="mt-3 text-xs text-blue-700">
-                      {previewConfig ? (
-                        '✅ This preview shows exactly what users will see on your website (live from API).'
-                      ) : (
-                        '💡 Save your widget to see the live preview. This shows an approximation based on current settings.'
-                      )}
+                      👁️ This preview updates in real-time as you change settings. Save to apply changes to your live widget.
                     </p>
                   </div>
                 </div>
@@ -1481,10 +1476,10 @@ export default function CookieWidgetPage() {
             </div>
           </div>
 
-          {/* Color Customization */}
+          {/* Base Color Customization */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              Custom Colors
+              Base Colors
             </label>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -1565,6 +1560,126 @@ export default function CookieWidgetPage() {
             </div>
           </div>
 
+          {/* Button Colors Customization */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Button Colors (Optional - overrides base colors)
+            </label>
+            <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              {/* Accept Button */}
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">Accept Button</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Background</label>
+                    <Input
+                      type="color"
+                      value={config.theme?.acceptButtonBg || config.theme?.primaryColor || '#3b82f6'}
+                      onChange={(e) =>
+                        updateConfig({
+                          theme: { ...config.theme, acceptButtonBg: e.target.value }
+                        })
+                      }
+                      className="h-10 cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Text Color</label>
+                    <Input
+                      type="color"
+                      value={config.theme?.acceptButtonText || '#ffffff'}
+                      onChange={(e) =>
+                        updateConfig({
+                          theme: { ...config.theme, acceptButtonText: e.target.value }
+                        })
+                      }
+                      className="h-10 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Reject Button */}
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">Reject Button</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Background</label>
+                    <Input
+                      type="color"
+                      value={config.theme?.rejectButtonBg || 'transparent'}
+                      onChange={(e) =>
+                        updateConfig({
+                          theme: { ...config.theme, rejectButtonBg: e.target.value }
+                        })
+                      }
+                      className="h-10 cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Text Color</label>
+                    <Input
+                      type="color"
+                      value={config.theme?.rejectButtonText || config.theme?.primaryColor || '#3b82f6'}
+                      onChange={(e) =>
+                        updateConfig({
+                          theme: { ...config.theme, rejectButtonText: e.target.value }
+                        })
+                      }
+                      className="h-10 cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Border</label>
+                    <Input
+                      type="color"
+                      value={config.theme?.rejectButtonBorder || config.theme?.primaryColor || '#3b82f6'}
+                      onChange={(e) =>
+                        updateConfig({
+                          theme: { ...config.theme, rejectButtonBorder: e.target.value }
+                        })
+                      }
+                      className="h-10 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Settings Button */}
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">Settings Button</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Background</label>
+                    <Input
+                      type="color"
+                      value={config.theme?.settingsButtonBg || '#f3f4f6'}
+                      onChange={(e) =>
+                        updateConfig({
+                          theme: { ...config.theme, settingsButtonBg: e.target.value }
+                        })
+                      }
+                      className="h-10 cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-600">Text Color</label>
+                    <Input
+                      type="color"
+                      value={config.theme?.settingsButtonText || config.theme?.textColor || '#1f2937'}
+                      onChange={(e) =>
+                        updateConfig({
+                          theme: { ...config.theme, settingsButtonText: e.target.value }
+                        })
+                      }
+                      className="h-10 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Font Family Selection */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -1627,6 +1742,110 @@ export default function CookieWidgetPage() {
           </div>
         </div>
       </Accordion>
+
+      {/* Layout & Position */}
+      <Card className="border-2">
+        <CardHeader className="border-b bg-gradient-to-r from-indigo-50 to-purple-50">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl shadow-lg">
+              <Layout className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Layout & Position</CardTitle>
+              <CardDescription>Choose how and where your banner appears</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6 space-y-6">
+          {/* Position Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Banner Position
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { id: 'bottom', name: 'Bottom', icon: '⬇️', description: 'Full-width bottom bar' },
+                { id: 'top', name: 'Top', icon: '⬆️', description: 'Full-width top bar' },
+                { id: 'bottom-left', name: 'Bottom Left', icon: '↙️', description: 'Corner notification' },
+                { id: 'bottom-right', name: 'Bottom Right', icon: '↘️', description: 'Corner notification' },
+                { id: 'top-left', name: 'Top Left', icon: '↖️', description: 'Corner notification' },
+                { id: 'top-right', name: 'Top Right', icon: '↗️', description: 'Corner notification' },
+                { id: 'center', name: 'Center', icon: '🎯', description: 'Center modal' },
+              ].map((pos) => {
+                const isSelected = config.position === pos.id;
+                return (
+                  <button
+                    key={pos.id}
+                    type="button"
+                    onClick={() => updateConfig({ position: pos.id as any })}
+                    className={`p-4 border-2 rounded-xl transition-all ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                        : 'border-gray-200 hover:border-indigo-300 bg-white'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">{pos.icon}</div>
+                    <p className="text-sm font-semibold text-gray-900">{pos.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{pos.description}</p>
+                    {isSelected && (
+                      <CheckCircle className="h-5 w-5 text-indigo-600 mx-auto mt-2" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Layout Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Banner Layout Style
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { id: 'bar', name: 'Bar', icon: '▬', description: 'Compact horizontal bar', preview: 'Full width, minimal height' },
+                { id: 'banner', name: 'Banner', icon: '▭', description: 'Prominent banner style', preview: 'Full width, more content' },
+                { id: 'box', name: 'Box', icon: '▢', description: 'Contained box design', preview: 'Fixed width, rounded corners' },
+                { id: 'modal', name: 'Modal', icon: '▦', description: 'Overlay modal dialog', preview: 'Center overlay with backdrop' },
+              ].map((layoutOption) => {
+                const isSelected = config.layout === layoutOption.id;
+                return (
+                  <button
+                    key={layoutOption.id}
+                    type="button"
+                    onClick={() => updateConfig({ layout: layoutOption.id as any })}
+                    className={`p-4 border-2 rounded-xl transition-all ${
+                      isSelected
+                        ? 'border-purple-500 bg-purple-50 shadow-md'
+                        : 'border-gray-200 hover:border-purple-300 bg-white'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">{layoutOption.icon}</div>
+                    <p className="text-sm font-semibold text-gray-900">{layoutOption.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{layoutOption.description}</p>
+                    <p className="text-xs text-gray-400 mt-2 italic">{layoutOption.preview}</p>
+                    {isSelected && (
+                      <CheckCircle className="h-5 w-5 text-purple-600 mx-auto mt-2" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Visual Preview Hint */}
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4">
+            <div className="flex gap-3">
+              <Info className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-indigo-900">
+                  <strong>💡 Tip:</strong> The preview above shows how your banner will appear. Position and layout choices affect the visual presentation on your website.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Widget Behavior */}
       <Accordion 
