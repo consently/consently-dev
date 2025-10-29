@@ -3,7 +3,7 @@
  * Production-ready embeddable widget for DPDPA 2023 compliance
  * Displays processing activities and collects granular consent
  * 
- * Usage: <script src="https://your-domain.com/dpdpa-widget.js" data-dpdpa-widget-id="YOUR_WIDGET_ID"></script>
+ * Usage: <script src="https://www.consently.in/dpdpa-widget.js" data-dpdpa-widget-id="YOUR_WIDGET_ID"></script>
  */
 
 (function() {
@@ -15,7 +15,7 @@
   
   if (!widgetId) {
     console.error('[Consently DPDPA] Error: data-dpdpa-widget-id attribute is required');
-    console.error('[Consently DPDPA] Usage: <script src="https://your-domain.com/dpdpa-widget.js" data-dpdpa-widget-id="YOUR_WIDGET_ID"></script>');
+    console.error('[Consently DPDPA] Usage: <script src="https://www.consently.in/dpdpa-widget.js" data-dpdpa-widget-id="YOUR_WIDGET_ID"></script>');
     return;
   }
 
@@ -54,8 +54,8 @@
     if (scriptSrc.includes('localhost')) {
       return 'http://localhost:3000';
     }
-    if (scriptSrc.includes('consently-dev-sigma.vercel.app')) {
-      return 'https://consently-dev-sigma.vercel.app';
+    if (scriptSrc.includes('consently.in')) {
+      return 'https://www.consently.in';
     }
     // Extract domain from script src
     const match = scriptSrc.match(/^(https?:\/\/[^\/]+)/);
@@ -180,10 +180,17 @@
       const apiUrl = `${apiBase}/api/dpdpa/widget-public/${widgetId}`;
       console.log('[Consently DPDPA] Fetching configuration from:', apiUrl);
       
-      const response = await fetch(apiUrl, {
+      // Add cache-buster to ensure fresh data
+      const cacheBuster = Date.now();
+      const apiUrlWithCache = `${apiUrl}?_t=${cacheBuster}`;
+      
+      const response = await fetch(apiUrlWithCache, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'default'
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store'
       });
       
       if (!response.ok) {

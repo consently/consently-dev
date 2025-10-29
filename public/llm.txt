@@ -1,0 +1,74 @@
+# Consently - DPDPA 2023 Consent Manager
+
+## Overview
+Consently is India's premier DPDPA 2023 compliant consent management platform. We help Indian businesses achieve data protection compliance through automated cookie scanning and comprehensive consent management.
+
+## Product Information
+- **Platform**: DPDPA 2023 Consent Management Platform
+- **Target Market**: Indian businesses of all sizes
+- **Core Features**: Automated cookie scanning, multilingual consent banners, DPDPA consent handling, real-time analytics
+- **Languages Supported**: 22 Indian languages (all Schedule 8 languages)
+- **Compliance**: Digital Personal Data Protection Act (DPDPA) 2023
+
+## Key Features
+1. **Automated Cookie Scanning**
+   - Quick Scan: Homepage analysis
+   - Standard Scan: Top 10 URLs
+   - Deep Crawl: 50+ pages
+   - Automatic cookie classification
+   - Instant compliance reports
+
+2. **DPDPA Consent Management**
+   - Pre-loaded templates for various industries
+   - Data processing activity management
+   - Consent recording with audit trails
+   - Withdrawal and preference management
+
+3. **Multilingual Support**
+   - All 22 Schedule 8 Indian languages
+   - Auto-generated consent banners
+   - Regional variations supported
+
+4. **Privacy & Security**
+   - Email tokenization
+   - Data minimization
+   - End-to-end encryption
+   - Privacy by design principles
+
+5. **Analytics & Reporting**
+   - Real-time dashboards
+   - Consent metrics tracking
+   - Exportable reports (CSV/JSON/PDF)
+   - Complete audit logs
+
+## Pricing Plans
+- **Free**: ₹0/month - Quick Scan (homepage only), 5,000 consents/month
+- **Premium**: ₹999/month - Standard Scan (10 URLs), 50,000 consents/month
+- **Enterprise**: ₹2,499/month - Deep Crawl (50+ pages), unlimited consents
+
+## Contact & Support
+- Website: https://www.consently.in
+- Support: Available via dashboard for all users
+- Priority support for Premium and Enterprise customers
+
+## Technical Details
+- **Architecture**: Next.js 15, React 19, TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Hosting**: Vercel (Mumbai region)
+- **CDN**: Vercel Edge Network
+- **Browser Support**: Modern browsers (Chrome, Firefox, Safari, Edge)
+
+## Legal Compliance
+- DPDPA 2023 compliant
+- Data stored in India (Mumbai region)
+- Regular security audits
+- ISO 27001 aligned practices
+
+## For Developers
+- Widget-based integration
+- RESTful API available
+- Comprehensive documentation
+- Webhook support for Enterprise customers
+
+## Last Updated
+October 2025

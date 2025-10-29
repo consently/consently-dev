@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Enterprise plans require custom pricing',
-          message: 'Please contact sales@consently.app for enterprise pricing'
+          message: 'Please contact sales@consently.in for enterprise pricing'
         },
         { status: 400 }
       );

@@ -35,6 +35,7 @@ import {
   Play
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { LogoUploader } from '@/components/ui/logo-uploader';
 
 const COOKIE_CATEGORIES = [
   {
@@ -106,6 +107,14 @@ type WidgetConfig = {
   autoShow: boolean;
   showAfterDelay: number;
   supportedLanguages?: string[];
+  // Banner content customization
+  bannerContent?: {
+    title: string;
+    message: string;
+    acceptButtonText: string;
+    rejectButtonText: string;
+    settingsButtonText: string;
+  };
 };
 
 export default function CookieWidgetPage() {
@@ -115,8 +124,6 @@ export default function CookieWidgetPage() {
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [bannerTemplates, setBannerTemplates] = useState<BannerTemplate[]>([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<'html' | 'wordpress' | 'shopify' | 'wix' | 'react'>('html');
   const [widgetStats, setWidgetStats] = useState<{totalConsents: number; weeklyConsents: number; conversionRate: number} | null>(null);
   const [notifications, setNotifications] = useState<Array<{id: string; type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string}>>([]);
@@ -151,7 +158,14 @@ export default function CookieWidgetPage() {
     },
     autoShow: true,
     showAfterDelay: 1000,
-    supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr']
+    supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr'],
+    bannerContent: {
+      title: '🍪 We value your privacy',
+      message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
+      acceptButtonText: 'Accept All',
+      rejectButtonText: 'Reject All',
+      settingsButtonText: 'Cookie Settings'
+    }
   });
 
   const themePresets = [
@@ -174,7 +188,6 @@ export default function CookieWidgetPage() {
 
   useEffect(() => {
     fetchConfig();
-    fetchBannerTemplates();
     initializeNotifications();
   }, []);
   
@@ -263,23 +276,6 @@ export default function CookieWidgetPage() {
     toast.success(`Applied ${preset.name} theme`);
   };
 
-  const fetchBannerTemplates = async () => {
-    try {
-      setLoadingTemplates(true);
-      const response = await fetch('/api/cookies/banner');
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          setBannerTemplates(result.data);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching banner templates:', error);
-    } finally {
-      setLoadingTemplates(false);
-    }
-  };
 
   // Fetch the merged preview config from the same API endpoint that widget.js uses
   const fetchPreviewConfig = async (widgetId: string) => {
@@ -430,54 +426,62 @@ export default function CookieWidgetPage() {
       // Step 1: Create or update banner template to match widget theme
       let bannerTemplateId = config.bannerTemplateId;
       
+      const bannerPayload = {
+        name: `${config.name} Banner`,
+        description: 'Auto-generated banner template - synced with widget config',
+        position: 'bottom',
+        layout: 'bar',
+        theme: {
+          primaryColor: config.theme.primaryColor || '#3b82f6',
+          secondaryColor: config.theme.primaryColor || '#3b82f6', // Required by schema
+          backgroundColor: config.theme.backgroundColor || '#ffffff',
+          textColor: config.theme.textColor || '#1f2937',
+          fontFamily: config.theme.fontFamily || 'system-ui, sans-serif',
+          fontSize: 14,
+          borderRadius: config.theme.borderRadius || 8,
+          boxShadow: true,
+          logoUrl: config.theme.logoUrl || ''
+        },
+        title: config.bannerContent?.title || '🍪 We value your privacy',
+        message: config.bannerContent?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
+        privacyPolicyText: 'Privacy Policy',
+        acceptButton: {
+          text: config.bannerContent?.acceptButtonText || 'Accept All',
+          backgroundColor: config.theme.primaryColor || '#3b82f6',
+          textColor: '#ffffff',
+          borderRadius: config.theme.borderRadius || 8
+        },
+        rejectButton: {
+          text: config.bannerContent?.rejectButtonText || 'Reject All',
+          backgroundColor: 'transparent',
+          textColor: config.theme.primaryColor || '#3b82f6',
+          borderColor: config.theme.primaryColor || '#3b82f6',
+          borderRadius: config.theme.borderRadius || 8
+        },
+        settingsButton: {
+          text: config.bannerContent?.settingsButtonText || 'Cookie Settings',
+          backgroundColor: '#f3f4f6',
+          textColor: config.theme.textColor || '#1f2937',
+          borderRadius: config.theme.borderRadius || 8
+        },
+        showRejectButton: true,
+        showSettingsButton: true,
+        autoShow: config.autoShow,
+        showAfterDelay: config.showAfterDelay,
+        respectDNT: config.respectDNT,
+        blockContent: false,
+        zIndex: 9999,
+        is_active: true,
+        is_default: false
+      };
+      
       if (!bannerTemplateId) {
-        // Auto-create a banner template for this widget
+        // Create new banner template
         toast.info('Creating banner template...');
         const bannerResponse = await fetch('/api/cookies/banner', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: `${config.name} Banner`,
-            description: 'Auto-generated banner template - synced with widget config',
-            position: 'bottom',
-            layout: 'bar',
-            theme: {
-              ...config.theme,
-              // Ensure logo URL is included
-              logoUrl: config.theme.logoUrl || ''
-            },
-            title: '🍪 We value your privacy',
-            message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
-            privacyPolicyText: 'Privacy Policy',
-            acceptButton: {
-              text: 'Accept All',
-              backgroundColor: config.theme.primaryColor,
-              textColor: '#ffffff',
-              borderRadius: config.theme.borderRadius || 8
-            },
-            rejectButton: {
-              text: 'Reject All',
-              backgroundColor: 'transparent',
-              textColor: config.theme.primaryColor,
-              borderColor: config.theme.primaryColor,
-              borderRadius: config.theme.borderRadius || 8
-            },
-            settingsButton: {
-              text: 'Cookie Settings',
-              backgroundColor: '#f3f4f6',
-              textColor: config.theme.textColor,
-              borderRadius: config.theme.borderRadius || 8
-            },
-            showRejectButton: true,
-            showSettingsButton: true,
-            autoShow: config.autoShow,
-            showAfterDelay: config.showAfterDelay,
-            respectDNT: config.respectDNT,
-            blockContent: false,
-            zIndex: 9999,
-            is_active: true,
-            is_default: false
-          })
+          body: JSON.stringify(bannerPayload)
         });
 
         if (bannerResponse.ok) {
@@ -485,7 +489,28 @@ export default function CookieWidgetPage() {
           if (bannerData.success && bannerData.data) {
             bannerTemplateId = bannerData.data.id;
             toast.success('Banner template created!');
+          } else {
+            console.error('Failed to create banner:', bannerData);
+            throw new Error(bannerData.error || 'Failed to create banner template');
           }
+        } else {
+          const errorData = await bannerResponse.json();
+          console.error('Banner API error:', errorData);
+          throw new Error(errorData.error || 'Failed to create banner template');
+        }
+      } else {
+        // Update existing banner template to keep it in sync with widget settings
+        toast.info('Updating banner template...');
+        const bannerResponse = await fetch(`/api/cookies/banner?id=${bannerTemplateId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bannerPayload)
+        });
+
+        if (bannerResponse.ok) {
+          toast.success('Banner template updated!');
+        } else {
+          console.warn('Failed to update banner, but continuing...');
         }
       }
       
@@ -736,7 +761,7 @@ export default function CookieWidgetPage() {
                               className="text-lg font-semibold"
                               style={{ color: previewConfig?.theme?.textColor || config.theme?.textColor || '#1f2937' }}
                             >
-                              {translatingPreview ? '...' : (translatedPreviewContent?.title || previewConfig?.title || '🍪 We value your privacy')}
+                              {translatingPreview ? '...' : (translatedPreviewContent?.title || previewConfig?.title || config.bannerContent?.title || '🍪 We value your privacy')}
                             </h3>
                             {/* Language Selector - Only show if multiple languages selected */}
                             {(() => {
@@ -794,7 +819,7 @@ export default function CookieWidgetPage() {
                               opacity: 0.9 
                             }}
                           >
-                            {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || previewConfig?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.')}
+                            {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || previewConfig?.message || config.bannerContent?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.')}
                           </p>
                           {(previewConfig?.categories || config.categories).length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -824,7 +849,7 @@ export default function CookieWidgetPage() {
                               border: 'none'
                             }}
                           >
-                            {translatedPreviewContent?.acceptButtonText || previewConfig?.acceptButton?.text || 'Accept All'}
+                            {translatedPreviewContent?.acceptButtonText || previewConfig?.acceptButton?.text || config.bannerContent?.acceptButtonText || 'Accept All'}
                           </button>
                           <button 
                             className="px-4 py-2 border-2 text-sm font-medium transition-colors hover:opacity-80"
@@ -835,7 +860,7 @@ export default function CookieWidgetPage() {
                               borderRadius: `${previewConfig?.rejectButton?.borderRadius || config.theme?.borderRadius || 8}px`
                             }}
                           >
-                            {translatedPreviewContent?.rejectButtonText || previewConfig?.rejectButton?.text || 'Reject All'}
+                            {translatedPreviewContent?.rejectButtonText || previewConfig?.rejectButton?.text || config.bannerContent?.rejectButtonText || 'Reject All'}
                           </button>
                           <button 
                             className="px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
@@ -846,14 +871,14 @@ export default function CookieWidgetPage() {
                               border: 'none'
                             }}
                           >
-                            {translatedPreviewContent?.settingsButtonText || previewConfig?.settingsButton?.text || 'Cookie Settings'}
+                            {translatedPreviewContent?.settingsButtonText || previewConfig?.settingsButton?.text || config.bannerContent?.settingsButtonText || 'Cookie Settings'}
                           </button>
                         </div>
                       </div>
                       {(previewConfig?.showBrandingLink ?? config.showBrandingLink) && (
                         <div className="mt-4 pt-4 border-t text-center">
                           <a 
-                            href="https://consently.app" 
+                            href="https://www.consently.in" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-xs hover:underline"
@@ -1071,30 +1096,6 @@ export default function CookieWidgetPage() {
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <div className="flex items-center gap-2">
-                  <Layout className="h-4 w-4 text-gray-500" />
-                  Banner Template Design
-                </div>
-              </label>
-              <Select
-                value={config.bannerTemplateId || ''}
-                onChange={(e) => updateConfig({ bannerTemplateId: e.target.value || null })}
-                disabled={loadingTemplates}
-              >
-                <option value="">Use Default Banner Template</option>
-                {bannerTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} {template.is_default ? '(Default)' : ''}
-                  </option>
-                ))}
-              </Select>
-              <p className="mt-1 text-xs text-gray-500">
-                Choose which banner design to display. Create templates in the Templates page.
-              </p>
-            </div>
-
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
                 <Badge className="bg-blue-100 text-blue-800">
@@ -1298,6 +1299,128 @@ export default function CookieWidgetPage() {
         </CardContent>
       </Card>
 
+      {/* Banner Content Customization */}
+      <Card className="border-2">
+        <CardHeader className="border-b bg-gradient-to-r from-amber-50 to-orange-50">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl shadow-lg">
+              <FileCode className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Banner Content</CardTitle>
+              <CardDescription>Customize the text and messages shown in your cookie banner</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6 space-y-6">
+          {/* Info Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex gap-3">
+              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-blue-800">
+                  Customize the title, message, and button text that will appear on your cookie consent banner. These changes will be immediately visible in the preview and live widget.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Banner Title
+              </label>
+              <Input
+                type="text"
+                value={config.bannerContent?.title || ''}
+                onChange={(e) => updateConfig({
+                  bannerContent: {
+                    ...config.bannerContent!,
+                    title: e.target.value
+                  }
+                })}
+                placeholder="🍪 We value your privacy"
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-gray-500">Main heading of the cookie banner</p>
+            </div>
+
+            {/* Message */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Banner Message
+              </label>
+              <Textarea
+                value={config.bannerContent?.message || ''}
+                onChange={(e) => updateConfig({
+                  bannerContent: {
+                    ...config.bannerContent!,
+                    message: e.target.value
+                  }
+                })}
+                placeholder="We use cookies to enhance your browsing experience..."
+                rows={4}
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-gray-500">Detailed explanation about cookie usage</p>
+            </div>
+
+            {/* Button Text */}
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Accept Button Text
+                </label>
+                <Input
+                  type="text"
+                  value={config.bannerContent?.acceptButtonText || ''}
+                  onChange={(e) => updateConfig({
+                    bannerContent: {
+                      ...config.bannerContent!,
+                      acceptButtonText: e.target.value
+                    }
+                  })}
+                  placeholder="Accept All"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reject Button Text
+                </label>
+                <Input
+                  type="text"
+                  value={config.bannerContent?.rejectButtonText || ''}
+                  onChange={(e) => updateConfig({
+                    bannerContent: {
+                      ...config.bannerContent!,
+                      rejectButtonText: e.target.value
+                    }
+                  })}
+                  placeholder="Reject All"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Settings Button Text
+                </label>
+                <Input
+                  type="text"
+                  value={config.bannerContent?.settingsButtonText || ''}
+                  onChange={(e) => updateConfig({
+                    bannerContent: {
+                      ...config.bannerContent!,
+                      settingsButtonText: e.target.value
+                    }
+                  })}
+                  placeholder="Cookie Settings"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Appearance & Theme */}
       <Accordion 
         title="Appearance & Theme" 
@@ -1306,6 +1429,21 @@ export default function CookieWidgetPage() {
         className="shadow-sm hover:shadow-md transition-shadow border-2"
       >
         <div className="space-y-6 p-6">
+          {/* Info Banner */}
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl p-4">
+            <div className="flex gap-3">
+              <Info className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-purple-900 mb-1">
+                  🎨 Banner Design Auto-Generated
+                </h4>
+                <p className="text-sm text-purple-800">
+                  Your banner design is automatically created based on the theme settings below. When you save, a banner template will be generated with your custom colors, fonts, and styling. The preview shows exactly what your visitors will see.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Theme Presets */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -1452,35 +1590,17 @@ export default function CookieWidgetPage() {
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
               Brand Logo (Optional)
-              <Tooltip content="Upload your logo to display in the widget header. Recommended size: 120x40px, PNG or SVG format." />
+              <Tooltip content="Upload your logo to display in the widget header. Drag & drop or enter a URL. Recommended: 120x40px, PNG or SVG." />
             </label>
-            <div className="flex items-center gap-3">
-              {config.theme?.logoUrl && (
-                <div className="relative">
-                  <img src={config.theme.logoUrl} alt="Logo" className="h-10 w-auto border border-gray-200 rounded" />
-                  <button
-                    onClick={() => updateConfig({ theme: { ...config.theme, logoUrl: '' } })}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                  >
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-              <Input
-                type="url"
-                value={config.theme?.logoUrl || ''}
-                onChange={(e) =>
-                  updateConfig({
-                    theme: { ...config.theme, logoUrl: e.target.value }
-                  })
-                }
-                placeholder="https://example.com/logo.png"
-                className="flex-1 transition-all focus:ring-2 focus:ring-purple-500 font-mono text-xs"
-              />
-            </div>
-            <p className="text-xs text-gray-500">Enter a URL to your logo image</p>
+            <LogoUploader
+              value={config.theme?.logoUrl || ''}
+              onChange={(url) =>
+                updateConfig({
+                  theme: { ...config.theme, logoUrl: url }
+                })
+              }
+              maxSizeMB={2}
+            />
           </div>
 
           {/* Border Radius */}

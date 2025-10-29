@@ -68,7 +68,7 @@ export async function sendEmail(
     // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     // await sgMail.send({
     //   to: recipientEmail,
-    //   from: 'noreply@consently.app',
+    //   from: 'noreply@consently.in',
     //   subject: subject,
     //   html: body,
     // });

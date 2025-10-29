@@ -28,7 +28,6 @@ const navigation = [
     icon: Cookie,
     children: [
       { name: 'Scanner', href: '/dashboard/cookies/scan' },
-      { name: 'Templates', href: '/dashboard/cookies/templates' },
       { name: 'Widget Settings', href: '/dashboard/cookies/widget' },
     ],
   },

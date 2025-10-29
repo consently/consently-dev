@@ -99,13 +99,32 @@ export async function GET(
       version: '1.0.0'
     };
 
-    // Set cache headers (cache for 5 minutes)
+    // Generate ETag for cache validation
+    const configString = JSON.stringify(response);
+    const etag = `"${Buffer.from(configString).toString('base64').substring(0, 32)}"`;
+    
+    // Check If-None-Match header for conditional requests
+    const requestEtag = request.headers.get('If-None-Match');
+    if (requestEtag === etag) {
+      return new NextResponse(null, { 
+        status: 304,
+        headers: {
+          'ETag': etag,
+          'Cache-Control': 'public, max-age=60, must-revalidate',
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+    
+    // Set cache headers (cache for 1 minute for faster updates)
     return NextResponse.json(response, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120, must-revalidate',
+        'ETag': etag,
+        'Last-Modified': new Date().toUTCString(),
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, If-None-Match',
       }
     });
 

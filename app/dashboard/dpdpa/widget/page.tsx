@@ -34,6 +34,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { LogoUploader } from '@/components/ui/logo-uploader';
 
 interface ProcessingActivity {
   id: string;
@@ -1442,36 +1443,18 @@ export default function DPDPAWidgetPage() {
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Brand Logo (Optional)
-                  <Tooltip content="Upload your logo to display in the widget header. Recommended size: 120x40px, PNG or SVG format." />
+                  <Tooltip content="Upload your logo to display in the widget header. Drag & drop or enter a URL. Recommended: 120x40px, PNG or SVG." />
                 </label>
-                <div className="flex items-center gap-3">
-                  {config.theme.logoUrl && (
-                    <div className="relative">
-                      <img src={config.theme.logoUrl} alt="Logo" className="h-10 w-auto border border-gray-200 rounded" />
-                      <button
-                        onClick={() => setConfig({ ...config, theme: { ...config.theme, logoUrl: '' } })}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                      >
-                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
-                  <Input
-                    type="url"
-                    value={config.theme.logoUrl || ''}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        theme: { ...config.theme, logoUrl: e.target.value }
-                      })
-                    }
-                    placeholder="https://example.com/logo.png"
-                    className="flex-1 transition-all focus:ring-2 focus:ring-purple-500 font-mono text-xs"
-                  />
-                </div>
-                <p className="text-xs text-gray-500">Enter a URL to your logo image</p>
+                <LogoUploader
+                  value={config.theme.logoUrl || ''}
+                  onChange={(url) =>
+                    setConfig({
+                      ...config,
+                      theme: { ...config.theme, logoUrl: url }
+                    })
+                  }
+                  maxSizeMB={2}
+                />
               </div>
 
               {/* Button Text & Styling */}
@@ -1692,7 +1675,7 @@ export default function DPDPAWidgetPage() {
                     {config.showBranding && (
                       <div className="pt-2 border-t border-gray-200 text-center">
                         <a 
-                          href="https://consently.app" 
+                          href="https://www.consently.in" 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-xs text-gray-500 hover:text-gray-700 transition-colors inline-flex items-center gap-1"

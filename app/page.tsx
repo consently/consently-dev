@@ -14,8 +14,51 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Consently',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    offers: [
+      {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'INR',
+        name: 'Free Plan',
+      },
+      {
+        '@type': 'Offer',
+        price: '999',
+        priceCurrency: 'INR',
+        name: 'Premium Plan',
+      },
+      {
+        '@type': 'Offer',
+        price: '2499',
+        priceCurrency: 'INR',
+        name: 'Enterprise Plan',
+      },
+    ],
+    description:
+      'DPDPA 2023 compliant consent management platform for Indian businesses. Automate cookie consent, data processing consent, and compliance reporting.',
+    url: 'https://www.consently.in',
+    inLanguage: ['en', 'hi'],
+    featureList: [
+      'Automated Cookie Scanning',
+      'DPDPA Consent Handling',
+      '22 Indian Languages Support',
+      'Real-time Analytics',
+      'Audit Trail & Reports',
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-blue-50">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Navigation */}
       <nav className="border-b border-blue-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -90,10 +90,11 @@
     sessionId = 'ses_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
   
-  // Session-based temporary preference storage (for unsaved selections)
+  // Persistent preference storage (survives page reloads)
+  // Use localStorage instead of sessionStorage so preferences persist across sessions
   let tempPreferences = null;
   try {
-    const savedTemp = sessionStorage.getItem('consently_temp_prefs');
+    const savedTemp = localStorage.getItem('consently_temp_prefs');
     if (savedTemp) {
       tempPreferences = JSON.parse(savedTemp);
       console.log('[Consently] Loaded temporary preferences:', tempPreferences);
@@ -241,22 +242,29 @@
       const cacheBuster = Date.now();
       const apiUrl = `${apiBase}/api/cookies/widget-public/${widgetId}?_t=${cacheBuster}`;
       
-      console.log('[Consently] Fetching widget config + banner template from:', apiUrl);
+      console.log('[Consently] 📡 Fetching widget config from:', apiUrl);
+      console.log('[Consently] Widget ID:', widgetId);
       
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Cache-Control': 'no-cache' // Request fresh data
         },
         cache: 'no-store' // Bypass browser cache to get latest settings
       });
       
+      console.log('[Consently] API response status:', response.status, response.statusText);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[Consently] API error response:', errorText);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log('[Consently] Received config data:', data);
       
       if (data && (data.widgetId || data.bannerId)) {
         // API returns merged widget config + banner template
@@ -265,16 +273,21 @@
         config.apiEndpoint = '/api/consent/record';
         config.apiBase = apiBase;
         configLoaded = true;
-        console.log('[Consently] Configuration loaded successfully');
+        console.log('[Consently] ✅ Configuration loaded successfully');
         console.log('[Consently] Widget ID:', config.widgetId);
         console.log('[Consently] Banner:', config.bannerName || 'Default');
+        console.log('[Consently] Categories:', config.categories);
+        console.log('[Consently] Supported Languages:', config.supportedLanguages);
+        console.log('[Consently] Theme:', config.theme);
         return true;
       } else {
+        console.error('[Consently] Invalid API response structure:', data);
         throw new Error('Invalid configuration response');
       }
     } catch (error) {
-      console.error('[Consently] Failed to load configuration:', error);
-      console.log('[Consently] Using default configuration');
+      console.error('[Consently] ❌ Failed to load configuration:', error);
+      console.error('[Consently] Error details:', error.message);
+      console.log('[Consently] ⚠️  Using default configuration');
       config.widgetId = widgetId;
       config.apiEndpoint = '/api/consent/record';
       config.apiBase = window.location.origin;
@@ -645,7 +658,7 @@
       </div>
       ${config.showBrandingLink !== false ? `
         <div class="consently-branding">
-          <a href="https://consently.app" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.consently.in" target="_blank" rel="noopener noreferrer">
             Powered by <strong>Consently</strong>
           </a>
         </div>
@@ -957,7 +970,7 @@
       // Clear temp preferences since we're saving
       tempPreferences = null;
       try {
-        sessionStorage.removeItem('consently_temp_prefs');
+        localStorage.removeItem('consently_temp_prefs');
       } catch (e) {}
       
       modal.remove();
@@ -980,10 +993,10 @@
               }
             });
             
-            // Save to session storage
+            // Save to localStorage for persistence
             tempPreferences = currentSelections;
             try {
-              sessionStorage.setItem('consently_temp_prefs', JSON.stringify(currentSelections));
+              localStorage.setItem('consently_temp_prefs', JSON.stringify(currentSelections));
               console.log('[Consently] Saved temporary preferences:', currentSelections);
             } catch (e) {
               console.warn('[Consently] Failed to save temporary preferences');
@@ -994,11 +1007,49 @@
     });
 
     document.getElementById('consently-close-modal').addEventListener('click', function() {
+      // Save current selections as temp preferences before closing
+      const currentSelections = ['necessary'];
+      categories.forEach(cat => {
+        if (!cat.required) {
+          const checkbox = document.getElementById('cat-' + cat.id);
+          if (checkbox && checkbox.checked) {
+            currentSelections.push(cat.id);
+          }
+        }
+      });
+      
+      tempPreferences = currentSelections;
+      try {
+        localStorage.setItem('consently_temp_prefs', JSON.stringify(currentSelections));
+        console.log('[Consently] Saved temporary preferences on close:', currentSelections);
+      } catch (e) {
+        console.warn('[Consently] Failed to save temporary preferences on close');
+      }
+      
       modal.remove();
     });
 
       modal.addEventListener('click', function(e) {
         if (e.target === modal) {
+          // Save current selections as temp preferences before closing
+          const currentSelections = ['necessary'];
+          categories.forEach(cat => {
+            if (!cat.required) {
+              const checkbox = document.getElementById('cat-' + cat.id);
+              if (checkbox && checkbox.checked) {
+                currentSelections.push(cat.id);
+              }
+            }
+          });
+          
+          tempPreferences = currentSelections;
+          try {
+            localStorage.setItem('consently_temp_prefs', JSON.stringify(currentSelections));
+            console.log('[Consently] Saved temporary preferences on backdrop click:', currentSelections);
+          } catch (e) {
+            console.warn('[Consently] Failed to save temporary preferences on backdrop click');
+          }
+          
           modal.remove();
         }
       });
@@ -1106,6 +1157,14 @@
 
   // Handle consent decision
   function handleConsent(status, categories) {
+    console.log('[Consently] handleConsent called with:', { status, categories });
+    
+    // Validate inputs
+    if (!status || !Array.isArray(categories)) {
+      console.error('[Consently] Invalid consent data:', { status, categories });
+      return;
+    }
+    
     const consentData = {
       status: status,
       categories: categories,
@@ -1115,17 +1174,20 @@
       sessionId: sessionId
     };
 
-    // Save consent to cookie
+    console.log('[Consently] Saving consent data:', consentData);
+
+    // Save consent to cookie (primary storage)
     const consentDuration = config.consentDuration || 365;
     CookieManager.set('consently_consent', consentData, consentDuration);
+    console.log('[Consently] Consent saved to cookie');
 
-    // Send consent to server
+    // Send consent to server (async, don't block UI)
     sendConsentToServer(consentData);
 
-    // Apply consent
+    // Apply consent (enable/disable tracking)
     applyConsent(consentData);
 
-    // Remove banner
+    // Remove banner with animation
     const banner = document.getElementById('consently-banner');
     if (banner) {
       banner.style.animation = 'slideUp 0.3s ease-out reverse';
@@ -1141,10 +1203,10 @@
     // Show cookie preferences icon
     showCookiePreferencesIcon();
 
-    // Trigger custom event
+    // Trigger custom event for integrations
     window.dispatchEvent(new CustomEvent('consentlyConsent', { detail: consentData }));
     
-    console.log('[Consently] Consent recorded:', status, categories);
+    console.log('[Consently] ✓ Consent recorded successfully:', status, categories);
   }
 
 
@@ -1154,11 +1216,17 @@
     const apiEndpoint = config.apiEndpoint || '/api/consent/record';
     const apiUrl = apiBase + apiEndpoint;
     
+    // Validate widget ID before sending
+    if (!widgetId || widgetId === '') {
+      console.error('[Consently] Cannot send consent: widget ID is missing');
+      return;
+    }
+    
     const data = {
       consentId: 'cns_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
       widgetId: widgetId,
       status: consentData.status,
-      categories: consentData.categories,
+      categories: consentData.categories || ['necessary'],
       sessionId: sessionId,
       deviceType: /Mobile|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent) ? 
                   (/Tablet|iPad/i.test(navigator.userAgent) ? 'Tablet' : 'Mobile') : 'Desktop',
@@ -1166,35 +1234,59 @@
       language: navigator.language || 'en'
     };
 
-    console.log('[Consently] Sending consent to:', apiUrl);
+    console.log('[Consently] 📤 Sending consent to:', apiUrl);
     console.log('[Consently] Payload:', JSON.stringify(data, null, 2));
 
     // Always use fetch for better error handling and debugging
     fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: JSON.stringify(data),
       keepalive: true // Important for page unload scenarios
     })
     .then(function(response) {
-      console.log('[Consently] Response status:', response.status);
+      console.log('[Consently] 📥 Response status:', response.status, response.statusText);
+      
+      // Clone response for error handling
+      const responseClone = response.clone();
+      
       if (!response.ok) {
-        console.error('[Consently] Server returned error:', response.status, response.statusText);
+        // Try to get error details
+        return responseClone.text().then(function(text) {
+          console.error('[Consently] ❌ Server error response:', text);
+          try {
+            const json = JSON.parse(text);
+            console.error('[Consently] Error details:', json);
+            throw new Error(json.error || json.details || 'Server error');
+          } catch (e) {
+            throw new Error('Server returned ' + response.status + ': ' + text);
+          }
+        });
       }
+      
       return response.json();
     })
     .then(function(result) {
-      console.log('[Consently] Server response:', result);
-      if (result && !result.success) {
-        console.error('[Consently] Failed to record consent:', result.error);
+      console.log('[Consently] 📥 Server response:', result);
+      if (result && result.success) {
+        console.log('[Consently] ✅ Consent recorded successfully on server');
+      } else if (result && !result.success) {
+        console.error('[Consently] ❌ Failed to record consent:', result.error);
         if (result.details) {
           console.error('[Consently] Error details:', result.details);
         }
       }
     })
     .catch(function(err) {
-      console.error('[Consently] Failed to record consent:', err);
-      console.error('[Consently] Error details:', err.message, err.stack);
+      console.error('[Consently] ❌ Failed to record consent:', err);
+      console.error('[Consently] Error details:', err.message);
+      if (err.stack) {
+        console.error('[Consently] Stack trace:', err.stack);
+      }
+      // Don't throw - consent is still saved locally in cookie
     });
   }
 
