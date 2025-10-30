@@ -471,7 +471,17 @@ export default function CookieScanPage() {
         theme: bannerConfig.theme,
         autoShow: true,
         showAfterDelay: 1000,
-        supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr']
+        supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr'],
+        // IMPORTANT: Store position, layout, and content in widget config so they can be customized
+        position: bannerConfig.position,
+        layout: bannerConfig.layout,
+        bannerContent: {
+          title: bannerConfig.title,
+          message: bannerConfig.message,
+          acceptButtonText: bannerConfig.acceptButton.text,
+          rejectButtonText: bannerConfig.rejectButton.text,
+          settingsButtonText: bannerConfig.settingsButton.text
+        }
       };
 
       const widgetResponse = await fetch('/api/cookies/widget-config', {

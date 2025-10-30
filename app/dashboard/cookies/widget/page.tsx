@@ -434,6 +434,15 @@ export default function CookieWidgetPage() {
     setSaving(true);
     setError(null);
     
+    // Log what we're about to save
+    console.log('[Widget Save] Starting save with config:', {
+      position: config.position,
+      layout: config.layout,
+      bannerContent: config.bannerContent,
+      theme: config.theme,
+      widgetId: config.widgetId
+    });
+    
     try {
       // Step 1: Create or update banner template to match widget theme
       let bannerTemplateId = config.bannerTemplateId;
@@ -527,13 +536,22 @@ export default function CookieWidgetPage() {
       }
       
       // Step 2: Save widget configuration with linked banner
+      const widgetPayload = {
+        ...config,
+        bannerTemplateId: bannerTemplateId
+      };
+      
+      console.log('[Widget Save] Saving widget config:', {
+        position: widgetPayload.position,
+        layout: widgetPayload.layout,
+        bannerContent: widgetPayload.bannerContent,
+        bannerTemplateId
+      });
+      
       const response = await fetch('/api/cookies/widget-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...config,
-          bannerTemplateId: bannerTemplateId
-        })
+        body: JSON.stringify(widgetPayload)
       });
 
       const data = await response.json();

@@ -168,8 +168,9 @@ export async function GET(
       // Banner template design (merged with widget settings)
       bannerId: banner.id,
       bannerName: banner.name,
-      layout: banner.layout,
-      position: banner.position,
+      // Position and layout - widget config overrides banner template
+      layout: widgetConfig.layout || banner.layout || 'bar',
+      position: widgetConfig.position || banner.position || 'bottom',
       
       // Theme configuration - widget theme overrides banner theme
       theme: {
@@ -185,16 +186,25 @@ export async function GET(
         ? widgetConfig.supported_languages 
         : ['en'],
       
-      // Content from banner template
-      title: banner.title,
-      message: banner.message,
+      // Content - widget banner_content overrides banner template
+      title: widgetConfig.banner_content?.title || banner.title,
+      message: widgetConfig.banner_content?.message || banner.message,
       privacyPolicyUrl: banner.privacy_policy_url,
       privacyPolicyText: banner.privacy_policy_text,
       
-      // Button configurations from banner
-      acceptButton: banner.accept_button,
-      rejectButton: banner.reject_button,
-      settingsButton: banner.settings_button,
+      // Button configurations - widget banner_content overrides banner template
+      acceptButton: {
+        ...banner.accept_button,
+        text: widgetConfig.banner_content?.acceptButtonText || banner.accept_button?.text || 'Accept All'
+      },
+      rejectButton: {
+        ...banner.reject_button,
+        text: widgetConfig.banner_content?.rejectButtonText || banner.reject_button?.text || 'Reject All'
+      },
+      settingsButton: {
+        ...banner.settings_button,
+        text: widgetConfig.banner_content?.settingsButtonText || banner.settings_button?.text || 'Cookie Settings'
+      },
       
       // Behavior settings - prefer widget config, fallback to banner
       showRejectButton: banner.show_reject_button ?? true,
@@ -211,11 +221,27 @@ export async function GET(
     const response = NextResponse.json(config);
     // Reduced from 5 min to 1 min to allow changes to propagate faster
     // s-maxage=60 (CDN cache 1 min), stale-while-revalidate=120 (2 min grace period)
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120, must-revalidate');
+    // In development, disable cache completely for testing
+    const isDev = process.env.NODE_ENV === 'development';
+    response.headers.set('Cache-Control', isDev 
+      ? 'no-cache, no-store, must-revalidate' 
+      : 'public, s-maxage=60, stale-while-revalidate=120, must-revalidate');
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    // Add timestamp for debugging
+    // Add timestamp and debug info for troubleshooting
     response.headers.set('X-Config-Timestamp', new Date().toISOString());
+    response.headers.set('X-Widget-Position', config.position);
+    response.headers.set('X-Widget-Layout', config.layout);
+    response.headers.set('X-Widget-Source', widgetConfig.banner_template_id ? 'widget+banner' : 'widget-only');
+    
+    // Log critical config for debugging
+    console.log('[Widget API] Returning config:', {
+      widgetId,
+      position: config.position,
+      layout: config.layout,
+      title: config.title?.substring(0, 50),
+      hasTemplate: !!widgetConfig.banner_template_id
+    });
     
     return response;
 
