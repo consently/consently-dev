@@ -215,6 +215,9 @@ export async function POST(request: NextRequest) {
     const deviceType = body.metadata?.deviceType || detectDeviceType(userAgent);
     const browser = body.metadata?.browser || extractBrowserInfo(userAgent);
     const os = body.metadata?.os || extractOSInfo(userAgent);
+    const country = body.metadata?.country || 'Unknown';
+    const language = body.metadata?.language || request.headers.get('accept-language')?.split(',')[0] || 'en';
+    const referrer = body.metadata?.referrer || request.headers.get('referer') || null;
 
     // Calculate expiration date
     const consentDuration = body.consentDuration || widgetConfig.consent_duration || 365;
@@ -252,9 +255,9 @@ export async function POST(request: NextRequest) {
           device_type: deviceType,
           browser: browser,
           os: os,
-          country: body.metadata?.country || null,
-          language: body.metadata?.language || null,
-          referrer: body.metadata?.referrer || null,
+          country: country,
+          language: language,
+          referrer: referrer,
           last_updated: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),
           widget_version: '1.0.0'
@@ -290,9 +293,9 @@ export async function POST(request: NextRequest) {
           device_type: deviceType,
           browser: browser,
           os: os,
-          country: body.metadata?.country || null,
-          language: body.metadata?.language || null,
-          referrer: body.metadata?.referrer || null,
+          country: country,
+          language: language,
+          referrer: referrer,
           consent_timestamp: new Date().toISOString(),
           last_updated: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),

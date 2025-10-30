@@ -22,20 +22,21 @@ import { Toaster, toast } from 'sonner';
 import { useUserStore } from '@/lib/stores/useUserStore';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   {
     name: 'Cookie Consent',
     icon: Cookie,
     children: [
-      { name: 'Scanner', href: '/dashboard/cookies/scan' },
+      { name: 'Overview', href: '/dashboard/cookies' },
+      { name: 'Cookie Scanner', href: '/dashboard/cookies/scan' },
       { name: 'Widget Settings', href: '/dashboard/cookies/widget' },
+      { name: 'Consent Records', href: '/dashboard/cookies/records' },
     ],
   },
   {
     name: 'DPDPA Consent',
     icon: FileText,
     children: [
-      { name: 'Dashboard', href: '/dashboard/dpdpa' },
+      { name: 'Overview', href: '/dashboard/dpdpa' },
       { name: 'Processing Activities', href: '/dashboard/dpdpa/activities' },
       { name: 'Widget Configuration', href: '/dashboard/dpdpa/widget' },
       { name: 'Consent Records', href: '/dashboard/dpdpa/records' },
@@ -122,7 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-            <Link href="/dashboard" className="flex items-center space-x-2">
+            <Link href="/dashboard/cookies" className="flex items-center space-x-2">
               <Shield className="h-8 w-8 text-blue-600" />
               <span className="text-xl font-bold text-gray-900">Consently</span>
             </Link>

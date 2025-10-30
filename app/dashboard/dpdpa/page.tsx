@@ -127,9 +127,9 @@ export default function DPDPADashboardPage() {
           id: c.id,
           timestamp: c.consent_timestamp || c.created_at,
           status: c.consent_status || c.status,
-          deviceType: c.device_type || 'desktop',
+          deviceType: c.device_type || 'Desktop',
           country: c.country || 'Unknown',
-          ipAddress: c.ip_address,
+          ipAddress: c.ip_address || 'N/A',
         })));
       }
 
