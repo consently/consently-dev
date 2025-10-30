@@ -285,10 +285,17 @@
           // Refresh the banner if it's currently visible
           if (isBannerVisible) {
             const existingBanner = document.getElementById('consently-banner');
+            const existingBackdrop = document.getElementById('consently-backdrop');
             if (existingBanner) {
               existingBanner.remove();
-              await showConsentBanner();
             }
+            if (existingBackdrop) {
+              existingBackdrop.remove();
+            }
+            await showConsentBanner();
+          } else {
+            // If banner is not visible but config changed, log for debugging
+            console.log('[Consently] Config updated (banner hidden). Changes will apply on next show.');
           }
           return true;
         }
@@ -341,6 +348,8 @@
     await fetchBannerConfig();
 
     const existingConsent = CookieManager.get('consently_consent');
+    const isPreviewMode = window.location.hostname.includes('consently.in') || 
+                          window.location.hostname.includes('localhost');
     
     if (config.respectDNT && navigator.doNotTrack === '1') {
       console.log('[Consently] DNT enabled');
@@ -354,6 +363,21 @@
         applyConsent(existingConsent);
         // Start polling even if consent exists (for testing/preview purposes)
         startConfigPolling();
+        
+        // Show floating consent button for users to manage preferences
+        showConsentButton();
+        
+        // In preview mode, always show the banner for testing
+        if (isPreviewMode) {
+          console.log('[Consently] Preview mode detected - showing banner for testing');
+          if (config.autoShow) {
+            if (config.showAfterDelay > 0) {
+              setTimeout(showConsentBanner, config.showAfterDelay);
+            } else {
+              showConsentBanner();
+            }
+          }
+        }
         return;
       }
     }
@@ -377,6 +401,28 @@
     }
     
     isBannerVisible = true;
+    
+    // Check if we need a backdrop for modal/center layouts
+    const position = config.position || 'bottom';
+    const layout = config.layout || 'bar';
+    const needsBackdrop = (position === 'center' || position === 'center-modal' || layout === 'modal');
+    
+    // Create backdrop if needed
+    if (needsBackdrop) {
+      const backdrop = document.createElement('div');
+      backdrop.id = 'consently-backdrop';
+      backdrop.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: ${(config.zIndex || 9999) - 1};
+        animation: fadeIn 0.3s ease-out;
+      `;
+      document.body.appendChild(backdrop);
+    }
 
     const theme = config.theme || {};
     const primaryColor = theme.primaryColor || '#3b82f6';
@@ -405,23 +451,75 @@
     
     let positionStyles = '';
     let maxWidth = '';
+    let layoutStyles = '';
     
-    if (config.position === 'bottom') {
-      positionStyles = 'bottom: 0; left: 0; right: 0;';
-    } else if (config.position === 'bottom-right') {
-      positionStyles = 'bottom: 20px; right: 20px;';
-      maxWidth = 'max-width: 400px;';
-    } else {
-      positionStyles = 'bottom: 0; left: 0; right: 0;';
+    // Handle position
+    const position = config.position || 'bottom';
+    switch (position) {
+      case 'top':
+        positionStyles = 'top: 0; left: 0; right: 0;';
+        break;
+      case 'bottom':
+        positionStyles = 'bottom: 0; left: 0; right: 0;';
+        break;
+      case 'top-left':
+        positionStyles = 'top: 20px; left: 20px;';
+        maxWidth = 'max-width: 400px;';
+        break;
+      case 'top-right':
+        positionStyles = 'top: 20px; right: 20px;';
+        maxWidth = 'max-width: 400px;';
+        break;
+      case 'bottom-left':
+        positionStyles = 'bottom: 20px; left: 20px;';
+        maxWidth = 'max-width: 400px;';
+        break;
+      case 'bottom-right':
+        positionStyles = 'bottom: 20px; right: 20px;';
+        maxWidth = 'max-width: 400px;';
+        break;
+      case 'center':
+      case 'center-modal':
+        positionStyles = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
+        maxWidth = 'max-width: 600px;';
+        layoutStyles = 'min-height: 200px;';
+        break;
+      default:
+        positionStyles = 'bottom: 0; left: 0; right: 0;';
+    }
+    
+    // Handle layout
+    const layout = config.layout || 'bar';
+    switch (layout) {
+      case 'bar':
+        // Compact horizontal bar
+        layoutStyles += 'padding: 16px 24px;';
+        break;
+      case 'banner':
+        // Prominent banner with more padding
+        layoutStyles += 'padding: 24px;';
+        break;
+      case 'box':
+        // Contained box design
+        maxWidth = 'max-width: 500px;';
+        layoutStyles += 'padding: 24px; margin: 20px;';
+        break;
+      case 'modal':
+        // Modal overlay
+        maxWidth = 'max-width: 600px;';
+        layoutStyles += 'padding: 32px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);';
+        break;
+      default:
+        layoutStyles += 'padding: 24px;';
     }
     
     banner.style.cssText = `
       position: fixed;
       ${positionStyles}
       ${maxWidth}
+      ${layoutStyles}
       background-color: ${backgroundColor};
       color: ${textColor};
-      padding: 24px;
       padding-top: 48px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       z-index: ${zIndex};
@@ -429,7 +527,7 @@
       font-size: ${fontSize}px;
       line-height: 1.5;
       border-radius: ${borderRadius}px;
-      animation: slideUp 0.3s ease-out;
+      animation: ${position === 'top' ? 'slideDown' : position.includes('center') ? 'fadeIn' : 'slideUp'} 0.3s ease-out;
     `;
 
     banner.innerHTML = `
@@ -437,6 +535,14 @@
         @keyframes slideUp {
           from { transform: translateY(100%); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideDown {
+          from { transform: translateY(-100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
         .consently-btn {
           padding: 10px 20px;
@@ -698,11 +804,15 @@
 
   // Handle consent
   function handleConsent(status, categories) {
+    // Generate unique consent ID
+    const consentId = 'con_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
     const consentData = {
       status: status,
       categories: categories,
       timestamp: Date.now(),
-      widgetId: widgetId
+      widgetId: widgetId,
+      consentId: consentId
     };
 
     CookieManager.set('consently_consent', consentData, 365);
@@ -718,11 +828,25 @@
       isBannerVisible = false;
     }
     
+    const backdrop = document.getElementById('consently-backdrop');
+    if (backdrop) backdrop.remove();
+    
     const modal = document.getElementById('consently-modal');
     if (modal) modal.remove();
 
     applyConsent(consentData);
     recordConsent(consentData);
+    
+    // Show floating consent management button after consent is given
+    setTimeout(() => {
+      showConsentButton();
+    }, 1000);
+    
+    // Continue polling for config updates even after consent is given
+    // This allows testing/preview to work properly
+    if (!configPollingInterval) {
+      startConfigPolling();
+    }
   }
 
   // Apply consent
@@ -741,7 +865,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           widgetId: widgetId,
-          consentId: 'con_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+          consentId: consent.consentId || 'con_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
           status: consent.status,
           categories: consent.categories,
           deviceType: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
@@ -801,6 +925,8 @@
     // Load saved preferences from cookie (not temp prefs)
     const existingConsent = CookieManager.get('consently_consent');
     const existingCategories = existingConsent ? existingConsent.categories || ['necessary'] : ['necessary'];
+    const consentId = existingConsent ? (existingConsent.consentId || 'N/A') : 'N/A';
+    const consentDate = existingConsent && existingConsent.timestamp ? new Date(existingConsent.timestamp).toLocaleString() : 'N/A';
     console.log('[Consently] Loading preferences:', existingCategories);
     
     const categories = [
@@ -901,6 +1027,17 @@
           ${modalDescription}
         </p>
         ${categoriesHTML}
+        ${existingConsent ? `
+        <div style="margin-top: 16px; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+          <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">📋 Your Consent Record</div>
+          <div style="font-size: 11px; color: #374151; margin-bottom: 4px;">
+            <strong>Consent ID:</strong> <span style="font-family: monospace; user-select: all; cursor: text;" title="Click to select">${consentId}</span>
+          </div>
+          <div style="font-size: 11px; color: #374151;">
+            <strong>Given on:</strong> ${consentDate}
+          </div>
+        </div>
+        ` : ''}
         <div style="display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
           <button id="consently-save-settings" class="consently-btn consently-btn-primary" style="flex: 1;">
             ${saveButtonText}
@@ -993,6 +1130,241 @@
     }
   }
 
+  // Show floating consent management button
+  function showConsentButton() {
+    // Don't show if button already exists
+    if (document.getElementById('consently-float-btn')) return;
+    
+    const existingConsent = CookieManager.get('consently_consent');
+    // Only show if user has given consent
+    if (!existingConsent || !existingConsent.timestamp) return;
+    
+    // Get consent ID from the consent data or generate from timestamp
+    const consentId = existingConsent.consentId || `con_${existingConsent.timestamp}_${Math.random().toString(36).substr(2, 5)}`;
+    
+    const button = document.createElement('div');
+    button.id = 'consently-float-btn';
+    button.innerHTML = `
+      <style>
+        #consently-float-btn {
+          position: fixed;
+          bottom: 20px;
+          left: 20px;
+          z-index: 9998;
+          cursor: pointer;
+        }
+        .consently-float-trigger {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 50px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          font-size: 14px;
+          font-weight: 500;
+          color: #1f2937;
+          transition: all 0.2s;
+          font-family: system-ui, sans-serif;
+        }
+        .consently-float-trigger:hover {
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+          transform: translateY(-2px);
+        }
+        .consently-float-menu {
+          display: none;
+          position: absolute;
+          bottom: 100%;
+          left: 0;
+          margin-bottom: 8px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+          overflow: hidden;
+          min-width: 200px;
+        }
+        .consently-float-menu.show {
+          display: block;
+          animation: slideUpFade 0.2s ease-out;
+        }
+        @keyframes slideUpFade {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .consently-float-menu button {
+          width: 100%;
+          text-align: left;
+          padding: 12px 16px;
+          border: none;
+          background: white;
+          cursor: pointer;
+          font-size: 14px;
+          color: #374151;
+          transition: background 0.15s;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .consently-float-menu button:hover {
+          background: #f3f4f6;
+        }
+        .consently-float-menu button:not(:last-child) {
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .consently-float-menu button.revoke {
+          color: #dc2626;
+        }
+        .consently-float-menu button.revoke:hover {
+          background: #fef2f2;
+        }
+      </style>
+      <div class="consently-float-trigger">
+        ${CONSENTLY_LOGO_SVG}
+        <span>Cookie Preferences</span>
+      </div>
+      <div class="consently-float-menu" id="consently-float-menu">
+        <button id="consently-manage-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
+          </svg>
+          Manage Preferences
+        </button>
+        <button id="consently-revoke-btn" class="revoke">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          Revoke Consent
+        </button>
+        <div style="padding: 12px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+          <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Your Consent ID:</div>
+          <div style="font-family: monospace; font-size: 10px; color: #374151; word-break: break-all; user-select: all; cursor: text;" title="Click to select">${consentId}</div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(button);
+    
+    // Toggle menu
+    const trigger = button.querySelector('.consently-float-trigger');
+    const menu = document.getElementById('consently-float-menu');
+    
+    trigger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      menu.classList.toggle('show');
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!button.contains(e.target)) {
+        menu.classList.remove('show');
+      }
+    });
+    
+    // Manage preferences
+    document.getElementById('consently-manage-btn').addEventListener('click', function() {
+      menu.classList.remove('show');
+      showSettingsModal();
+    });
+    
+    // Revoke consent
+    document.getElementById('consently-revoke-btn').addEventListener('click', function() {
+      menu.classList.remove('show');
+      revokeConsent();
+    });
+  }
+
+  // Revoke consent function
+  function revokeConsent() {
+    // Generate unique consent ID for revocation
+    const consentId = 'con_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    const consentData = {
+      status: 'revoked',
+      categories: ['necessary'], // Only keep necessary cookies
+      timestamp: Date.now(),
+      widgetId: widgetId,
+      consentId: consentId
+    };
+    
+    // Update cookie
+    CookieManager.set('consently_consent', consentData, 365);
+    
+    // Record the revocation
+    recordConsent(consentData);
+    applyConsent(consentData);
+    
+    // Remove the floating button
+    const floatBtn = document.getElementById('consently-float-btn');
+    if (floatBtn) floatBtn.remove();
+    
+    console.log('[Consently] Consent revoked');
+    
+    // Show banner again if autoShow is enabled
+    if (config.autoShow) {
+      setTimeout(() => {
+        showConsentBanner();
+      }, 500);
+    }
+  }
+
+  // Expose global API for programmatic control
+  window.Consently = window.Consently || {};
+  window.Consently[widgetId] = {
+    // Show the banner again (useful for preview/testing)
+    show: function() {
+      if (!document.getElementById('consently-banner')) {
+        showConsentBanner();
+      }
+    },
+    // Hide the banner
+    hide: function() {
+      const banner = document.getElementById('consently-banner');
+      const backdrop = document.getElementById('consently-backdrop');
+      if (banner) banner.remove();
+      if (backdrop) backdrop.remove();
+      isBannerVisible = false;
+    },
+    // Open settings modal
+    openSettings: function() {
+      showSettingsModal();
+    },
+    // Reset consent (clear cookie)
+    reset: function() {
+      CookieManager.delete('consently_consent');
+      console.log('[Consently] Consent reset');
+      if (config.autoShow) {
+        this.show();
+      }
+    },
+    // Revoke consent
+    revoke: function() {
+      revokeConsent();
+    },
+    // Get current consent status
+    getConsent: function() {
+      return CookieManager.get('consently_consent');
+    },
+    // Show floating consent button
+    showButton: function() {
+      showConsentButton();
+    },
+    // Hide floating consent button
+    hideButton: function() {
+      const btn = document.getElementById('consently-float-btn');
+      if (btn) btn.remove();
+    },
+    // Check if in preview mode (on consently.in domain)
+    isPreviewMode: function() {
+      return window.location.hostname.includes('consently.in') || 
+             window.location.hostname.includes('localhost');
+    }
+  };
+  
   // Start the widget
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

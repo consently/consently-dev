@@ -38,7 +38,18 @@ const bannerLayoutSchema = z.enum([
   'floating'
 ]);
 
-const hexColorSchema = z.string().regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, 'Must be a valid hex color');
+const hexColorSchema = z.string().refine(
+  (val) => {
+    // Allow hex colors
+    if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(val)) return true;
+    // Allow transparent
+    if (val === 'transparent') return true;
+    // Allow other common CSS color keywords
+    const cssColors = ['inherit', 'currentColor', 'initial', 'unset'];
+    return cssColors.includes(val);
+  },
+  { message: 'Must be a valid hex color, "transparent", or CSS color keyword' }
+);
 
 const buttonStyleSchema = z.object({
   text: z.string().min(1),

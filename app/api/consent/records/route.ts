@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact' })
       .eq('user_id', user.id);
 
-    // Apply search filter
+    // Apply search filter (search by email or consent_id)
     if (search) {
-      query = query.ilike('visitor_email', `%${search}%`);
+      query = query.or(`visitor_email.ilike.%${search}%,consent_id.ilike.%${search}%`);
     }
 
     // Apply status filter

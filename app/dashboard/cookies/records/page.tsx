@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import { Search, Download, CheckCircle2, XCircle, AlertCircle, Globe, Monitor, Smartphone } from 'lucide-react';
+import { Search, Download, CheckCircle2, XCircle, AlertCircle, Globe, Monitor, Smartphone, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -14,6 +14,7 @@ interface ConsentRecord {
   consent_id: string;
   visitor_email: string | null;
   status: 'accepted' | 'rejected' | 'partial' | 'revoked';
+  categories?: string[];
   created_at: string;
   ip_address?: string | null;
   device_type?: string | null;
@@ -48,6 +49,7 @@ export default function CookieConsentRecordsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState('30d');
   const [totalRecords, setTotalRecords] = useState(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Fetch records on mount and when filters change
   useEffect(() => {
@@ -82,14 +84,26 @@ export default function CookieConsentRecordsPage() {
     }
   };
 
+  const handleCopyConsentId = async (consentId: string) => {
+    try {
+      await navigator.clipboard.writeText(consentId);
+      setCopiedId(consentId);
+      toast.success('Consent ID copied to clipboard');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      toast.error('Failed to copy consent ID');
+    }
+  };
+
   const handleExport = () => {
     const csv = [
-      ['ID', 'Consent ID', 'Email', 'Status', 'Timestamp', 'IP Address', 'Device', 'Language'],
+      ['ID', 'Consent ID', 'Email', 'Status', 'Categories', 'Timestamp', 'IP Address', 'Device', 'Language'],
       ...records.map((r) => [
         r.id,
         r.consent_id,
         r.visitor_email || 'N/A',
         r.status,
+        r.categories?.join(', ') || 'N/A',
         r.created_at,
         r.ip_address || 'N/A',
         r.device_type || 'N/A',
@@ -167,17 +181,24 @@ export default function CookieConsentRecordsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Filter Records</CardTitle>
+          <CardDescription>
+            Search by visitor email or consent ID. Click the copy icon next to any consent ID to copy it.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
-              <Input
-                type="text"
-                placeholder="Search by email or consent ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                label="Search"
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by email or consent ID (e.g., con_1735558473829_a7k2p)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  label="Search"
+                  className="pl-10"
+                />
+              </div>
             </div>
             <Select
               value={statusFilter}
@@ -228,6 +249,7 @@ export default function CookieConsentRecordsPage() {
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Consent ID</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Email</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Categories</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Device</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">IP Address</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Timestamp</th>
@@ -236,7 +258,7 @@ export default function CookieConsentRecordsPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center">
+                    <td colSpan={7} className="p-8 text-center">
                       <div className="flex justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
@@ -244,14 +266,29 @@ export default function CookieConsentRecordsPage() {
                   </tr>
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                    <td colSpan={7} className="p-8 text-center text-gray-500">
                       No records found
                     </td>
                   </tr>
                 ) : (
                   records.map((record) => (
                     <tr key={record.id} className="border-b transition-colors hover:bg-gray-50/50">
-                      <td className="p-4 align-middle font-mono text-sm">{record.consent_id}</td>
+                      <td className="p-4 align-middle">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm text-gray-700">{record.consent_id}</span>
+                          <button
+                            onClick={() => handleCopyConsentId(record.consent_id)}
+                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                            title="Copy Consent ID"
+                          >
+                            {copiedId === record.consent_id ? (
+                              <Check className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5 text-gray-400" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
                       <td className="p-4 align-middle font-medium">{record.visitor_email || 'Anonymous'}</td>
                       <td className="p-4 align-middle">
                         <div className="flex items-center gap-2">
@@ -263,6 +300,22 @@ export default function CookieConsentRecordsPage() {
                           >
                             {record.status}
                           </span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle">
+                        <div className="flex flex-wrap gap-1">
+                          {record.categories && record.categories.length > 0 ? (
+                            record.categories.map((cat) => (
+                              <span
+                                key={cat}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                {cat}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-sm text-gray-400">None</span>
+                          )}
                         </div>
                       </td>
                       <td className="p-4 align-middle">

@@ -441,8 +441,8 @@ export default function CookieWidgetPage() {
       const bannerPayload = {
         name: `${config.name} Banner`,
         description: 'Auto-generated banner template - synced with widget config',
-        position: 'bottom',
-        layout: 'bar',
+        position: config.position || 'bottom',
+        layout: config.layout || 'bar',
         theme: {
           primaryColor: config.theme.primaryColor || '#3b82f6',
           secondaryColor: config.theme.primaryColor || '#3b82f6', // Required by schema
