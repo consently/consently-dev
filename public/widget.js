@@ -30,6 +30,8 @@
   // State management
   let isTranslating = false;
   let languageChangeInProgress = false;
+  let configPollingInterval = null;
+  let lastConfigHash = null;
   
   // Default configuration
   const defaultConfig = {
@@ -74,6 +76,7 @@
 
   let config = Object.assign({}, defaultConfig);
   let configLoaded = false;
+  let isBannerVisible = false;
   
   // Generate or retrieve session ID
   let sessionId = null;
@@ -210,8 +213,29 @@
     };
   }
 
+  // Simple hash function for config comparison
+  function hashConfig(configObj) {
+    const str = JSON.stringify({
+      theme: configObj.theme,
+      title: configObj.title,
+      message: configObj.message,
+      position: configObj.position,
+      layout: configObj.layout,
+      acceptButton: configObj.acceptButton,
+      rejectButton: configObj.rejectButton,
+      settingsButton: configObj.settingsButton
+    });
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash;
+  }
+
   // Fetch widget configuration
-  async function fetchBannerConfig() {
+  async function fetchBannerConfig(isPolling = false) {
     try {
       const scriptSrc = currentScript.src;
       let apiBase;
@@ -226,7 +250,9 @@
       const cacheBuster = Date.now();
       const apiUrl = `${apiBase}/api/cookies/widget-public/${widgetId}?_t=${cacheBuster}`;
       
-      console.log('[Consently] Fetching config from:', apiUrl);
+      if (!isPolling) {
+        console.log('[Consently] Fetching config from:', apiUrl);
+      }
       
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -245,22 +271,68 @@
       const data = await response.json();
       
       if (data && (data.widgetId || data.bannerId)) {
+        const newConfigHash = hashConfig(data);
+        
+        // Check if config has changed
+        if (isPolling && lastConfigHash !== null && newConfigHash !== lastConfigHash) {
+          console.log('[Consently] 🔄 Configuration updated! Refreshing widget...');
+          config = Object.assign({}, defaultConfig, data);
+          config.widgetId = widgetId;
+          config.apiEndpoint = '/api/consent/record';
+          config.apiBase = apiBase;
+          lastConfigHash = newConfigHash;
+          
+          // Refresh the banner if it's currently visible
+          if (isBannerVisible) {
+            const existingBanner = document.getElementById('consently-banner');
+            if (existingBanner) {
+              existingBanner.remove();
+              await showConsentBanner();
+            }
+          }
+          return true;
+        }
+        
         config = Object.assign({}, defaultConfig, data);
         config.widgetId = widgetId;
         config.apiEndpoint = '/api/consent/record';
         config.apiBase = apiBase;
+        lastConfigHash = newConfigHash;
         configLoaded = true;
-        console.log('[Consently] ✅ Configuration loaded');
+        
+        if (!isPolling) {
+          console.log('[Consently] ✅ Configuration loaded');
+        }
         return true;
       } else {
         throw new Error('Invalid configuration');
       }
     } catch (error) {
-      console.error('[Consently] Failed to load config:', error);
+      if (!isPolling) {
+        console.error('[Consently] Failed to load config:', error);
+      }
       config.widgetId = widgetId;
       config.apiEndpoint = '/api/consent/record';
       config.apiBase = window.location.origin;
       return false;
+    }
+  }
+  
+  // Start polling for config updates
+  function startConfigPolling() {
+    // Poll every 5 seconds for config changes
+    configPollingInterval = setInterval(async () => {
+      await fetchBannerConfig(true);
+    }, 5000);
+    console.log('[Consently] 🔄 Auto-sync enabled - checking for updates every 5 seconds');
+  }
+  
+  // Stop polling
+  function stopConfigPolling() {
+    if (configPollingInterval) {
+      clearInterval(configPollingInterval);
+      configPollingInterval = null;
+      console.log('[Consently] Auto-sync disabled');
     }
   }
 
@@ -280,6 +352,8 @@
       if (consentAge < 365) {
         console.log('[Consently] Valid consent found');
         applyConsent(existingConsent);
+        // Start polling even if consent exists (for testing/preview purposes)
+        startConfigPolling();
         return;
       }
     }
@@ -291,6 +365,9 @@
         showConsentBanner();
       }
     }
+    
+    // Start polling for config updates
+    startConfigPolling();
   }
 
   // Show consent banner with Consently logo
@@ -298,6 +375,8 @@
     if (document.getElementById('consently-banner') || isTranslating) {
       return;
     }
+    
+    isBannerVisible = true;
 
     const theme = config.theme || {};
     const primaryColor = theme.primaryColor || '#3b82f6';
@@ -634,7 +713,10 @@
     } catch (e) {}
 
     const banner = document.getElementById('consently-banner');
-    if (banner) banner.remove();
+    if (banner) {
+      banner.remove();
+      isBannerVisible = false;
+    }
     
     const modal = document.getElementById('consently-modal');
     if (modal) modal.remove();
