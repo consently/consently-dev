@@ -49,8 +49,6 @@ export interface Database {
           id: string;
           user_id: string;
           consent_id: string;
-          visitor_email: string;
-          tokenized_email: string;
           consent_type: 'cookie' | 'dpdpa';
           status: 'accepted' | 'rejected' | 'partial' | 'revoked';
           categories: Json;
@@ -65,8 +63,6 @@ export interface Database {
           id?: string;
           user_id: string;
           consent_id: string;
-          visitor_email: string;
-          tokenized_email: string;
           consent_type: 'cookie' | 'dpdpa';
           status: 'accepted' | 'rejected' | 'partial' | 'revoked';
           categories: Json;
@@ -81,8 +77,6 @@ export interface Database {
           id?: string;
           user_id?: string;
           consent_id?: string;
-          visitor_email?: string;
-          tokenized_email?: string;
           consent_type?: 'cookie' | 'dpdpa';
           status?: 'accepted' | 'rejected' | 'partial' | 'revoked';
           categories?: Json;

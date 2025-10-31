@@ -132,8 +132,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // search by email or consent id
-      query = query.or(`visitor_email.ilike.%${search}%,id.eq.${search}`);
+      // search by consent id
+      query = query.eq('id', search);
     }
 
     if (status !== 'all') {
@@ -248,7 +248,6 @@ export async function POST(request: NextRequest) {
           accepted_activities: body.acceptedActivities || [],
           rejected_activities: body.rejectedActivities || [],
           activity_consents: body.activityConsents || {},
-          visitor_email: body.visitorEmail || null,
           visitor_email_hash: visitorEmailHash,
           ip_address: ipAddress,
           user_agent: userAgent,
@@ -282,7 +281,6 @@ export async function POST(request: NextRequest) {
         .insert({
           widget_id: body.widgetId,
           visitor_id: body.visitorId,
-          visitor_email: body.visitorEmail || null,
           visitor_email_hash: visitorEmailHash,
           consent_status: body.consentStatus,
           accepted_activities: body.acceptedActivities || [],

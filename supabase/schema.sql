@@ -23,8 +23,6 @@ CREATE TABLE IF NOT EXISTS consent_records (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   consent_id TEXT NOT NULL UNIQUE,
-  visitor_email TEXT NOT NULL,
-  tokenized_email TEXT NOT NULL,
   consent_type TEXT NOT NULL CHECK (consent_type IN ('cookie', 'dpdpa')),
   status TEXT NOT NULL CHECK (status IN ('accepted', 'rejected', 'partial', 'revoked')),
   categories JSONB DEFAULT '{}',

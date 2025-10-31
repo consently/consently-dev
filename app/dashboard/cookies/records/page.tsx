@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 interface ConsentRecord {
   id: string;
   consent_id: string;
-  visitor_email: string | null;
   status: 'accepted' | 'rejected' | 'partial' | 'revoked';
   categories?: string[];
   created_at: string;
@@ -97,11 +96,10 @@ export default function CookieConsentRecordsPage() {
 
   const handleExport = () => {
     const csv = [
-      ['ID', 'Session ID', 'Email', 'Status', 'Categories', 'Timestamp', 'IP Address', 'Device', 'Language'],
+      ['ID', 'Session ID', 'Status', 'Categories', 'Timestamp', 'IP Address', 'Device', 'Language'],
       ...records.map((r) => [
         r.id,
         r.consent_id,
-        r.visitor_email || 'N/A',
         r.status,
         r.categories?.join(', ') || 'N/A',
         r.created_at,
@@ -182,7 +180,7 @@ export default function CookieConsentRecordsPage() {
         <CardHeader>
           <CardTitle>Filter Records</CardTitle>
           <CardDescription>
-            Search by visitor email or session ID. Click the copy icon next to any session ID to copy it.
+            Search by session ID. Click the copy icon next to any session ID to copy it.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -192,7 +190,7 @@ export default function CookieConsentRecordsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="text"
-                  placeholder="Search by email or session ID (e.g., con_1735558473829_a7k2p)..."
+                  placeholder="Search by session ID (e.g., con_1735558473829_a7k2p)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   label="Search"
@@ -247,7 +245,6 @@ export default function CookieConsentRecordsPage() {
               <thead className="border-b bg-gray-50/50">
                 <tr>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Session ID</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Email</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Categories</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Device</th>
@@ -258,7 +255,7 @@ export default function CookieConsentRecordsPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center">
+                    <td colSpan={6} className="p-8 text-center">
                       <div className="flex justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
@@ -266,7 +263,7 @@ export default function CookieConsentRecordsPage() {
                   </tr>
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
                       No records found
                     </td>
                   </tr>
@@ -289,7 +286,6 @@ export default function CookieConsentRecordsPage() {
                           </button>
                         </div>
                       </td>
-                      <td className="p-4 align-middle font-medium">{record.visitor_email || 'Anonymous'}</td>
                       <td className="p-4 align-middle">
                         <div className="flex items-center gap-2">
                           {statusIcons[record.status]}

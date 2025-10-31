@@ -124,7 +124,6 @@ export async function POST(request: NextRequest) {
 
     // Generate a visitor identifier (using IP + User Agent + Domain)
     const visitorIdentifier = `${ipAddress}-${requestUserAgent.substring(0, 50)}-${widgetConfig.domain}`;
-    const visitorEmail = `visitor@${widgetConfig.domain}`;
     const tokenizedEmail = tokenizeEmail(visitorIdentifier);
 
     // Insert consent record in both tables for compatibility
@@ -163,8 +162,6 @@ export async function POST(request: NextRequest) {
         {
           user_id: widgetConfig.user_id,
           consent_id: consentId,
-          visitor_email: visitorEmail,
-          tokenized_email: tokenizedEmail,
           consent_type: 'cookie',
           status,
           categories: categories || ['necessary'],

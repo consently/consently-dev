@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 
 interface ConsentRecord {
   id: string; // unique session ID
-  visitor_email: string | null;
   consent_status: 'accepted' | 'rejected' | 'partial' | 'revoked';
   consent_timestamp: string;
   ip_address?: string | null;
@@ -80,10 +79,9 @@ const fetchRecords = async () => {
   const handleExport = () => {
     // Implement CSV export
     const csv = [
-      ['ID', 'Email', 'Status', 'Timestamp', 'IP Address', 'Device'],
+      ['ID', 'Status', 'Timestamp', 'IP Address', 'Device'],
       ...records.map((r) => [
         r.id,
-        r.visitor_email,
         r.consent_status,
         r.consent_timestamp,
         r.ip_address || 'N/A',
@@ -155,7 +153,7 @@ const fetchRecords = async () => {
             <div className="md:col-span-2">
               <Input
                 type="text"
-placeholder="Search by email or session ID..."
+                placeholder="Search by session ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 label="Search"
@@ -217,8 +215,7 @@ placeholder="Search by email or session ID..."
             <table className="w-full">
               <thead className="border-b bg-gray-50/50">
                 <tr>
-<th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Session ID</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Email</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Session ID</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Timestamp</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">IP Address</th>
@@ -228,7 +225,7 @@ placeholder="Search by email or session ID..."
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center">
+                    <td colSpan={5} className="p-8 text-center">
                       <div className="flex justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
@@ -236,7 +233,7 @@ placeholder="Search by email or session ID..."
                   </tr>
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                    <td colSpan={5} className="p-8 text-center text-gray-500">
                       No records found
                     </td>
                   </tr>
@@ -244,7 +241,6 @@ placeholder="Search by email or session ID..."
 records.map((record) => (
                     <tr key={record.id} className="border-b transition-colors hover:bg-gray-50/50">
                       <td className="p-4 align-middle font-mono text-sm">{record.id}</td>
-                      <td className="p-4 align-middle font-medium">{record.visitor_email || 'N/A'}</td>
                       <td className="p-4 align-middle">
                         <div className="flex items-center gap-2">
                           {statusIcons[record.consent_status]}
