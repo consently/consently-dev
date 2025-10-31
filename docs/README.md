@@ -187,7 +187,7 @@ Returns a complete DPDPA-compliant privacy notice you can:
 │  6. USER: Provides Consent                              │
 │     - Accepts some activities                           │
 │     - Rejects others                                    │
-│     - Gets unique consent ID                            │
+│     - Gets unique session ID                            │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
@@ -202,7 +202,7 @@ Returns a complete DPDPA-compliant privacy notice you can:
 ┌─────────────────────────────────────────────────────────┐
 │  8. ADMIN: Monitor Dashboard                            │
 │     - View all consents                                 │
-│     - Search by consent ID or email                     │
+│     - Search by session ID or email                     │
 │     - Export compliance reports                         │
 │     - Handle grievances                                 │
 └─────────────────────────────────────────────────────────┘
@@ -218,7 +218,7 @@ Returns a complete DPDPA-compliant privacy notice you can:
 - ✅ Widget configuration with activity selection
 - ✅ Live consent widget (modal/banner/slide-in)
 - ✅ Granular per-activity consent
-- ✅ Unique consent IDs
+- ✅ Unique session IDs
 - ✅ Consent records with search
 - ✅ Privacy notice generator
 - ✅ Grievance management
@@ -239,7 +239,7 @@ Returns a complete DPDPA-compliant privacy notice you can:
 - ✅ Configure multiple widgets
 - ✅ Preview widget appearance
 - ✅ View consent records
-- ✅ Search by consent ID or email
+- ✅ Search by session ID or email
 - ✅ Export reports
 - ✅ Track grievances
 - ✅ Activity-level analytics

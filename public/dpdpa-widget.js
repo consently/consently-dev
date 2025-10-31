@@ -519,7 +519,7 @@
 
     function languageFlag(code) {
       const map = { 
-        en: '🇬🇧', 
+        en: '🇮🇳', 
         hi: '🇮🇳', 
         pa: '🇮🇳', 
         te: '🇮🇳', 

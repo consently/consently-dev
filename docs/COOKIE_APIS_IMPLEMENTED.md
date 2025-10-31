@@ -285,7 +285,7 @@ Log consent with optional receipt generation.
 **Single Consent Log:**
 ```json
 {
-  "consent_id": "consent_1697211234",
+  "consent_id": "consent_1697211234",  // Session ID
   "visitor_token": "visitor_abc123",
   "consent_type": "cookie",
   "status": "accepted",
@@ -402,7 +402,7 @@ GET /api/cookies/consent-log?status=accepted&consent_type=cookie&limit=20&offset
   "data": [
     {
       "id": "uuid-123",
-      "consent_id": "consent_1697211234",
+      "consent_id": "consent_1697211234",  // Session ID
       "visitor_token": "visitor_abc123",
       "status": "accepted",
       "categories": ["necessary", "analytics"],
@@ -557,7 +557,7 @@ const response = await fetch('/api/cookies/consent-log', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    consent_id: `consent_${Date.now()}`,
+    consent_id: `consent_${Date.now()}`,  // Session ID
     visitor_token: getVisitorToken(),
     consent_type: 'cookie',
     status: 'accepted',
@@ -590,7 +590,7 @@ const response = await fetch('/api/cookies/consent-log', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     logs: visitors.map(v => ({
-      consent_id: v.id,
+      consent_id: v.id,  // Session ID
       visitor_token: v.token,
       consent_type: 'cookie',
       status: v.accepted ? 'accepted' : 'rejected',

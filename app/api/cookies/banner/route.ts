@@ -92,6 +92,26 @@ const bannerConfigSchema = z.object({
     }
   }),
   privacyPolicyText: z.string().optional().or(z.literal('')).default('Privacy Policy'),
+  cookiePolicyUrl: z.string().optional().transform(val => {
+    if (!val || val.trim() === '') return undefined;
+    try {
+      new URL(val);
+      return val;
+    } catch {
+      throw new Error('Invalid URL format');
+    }
+  }),
+  cookiePolicyText: z.string().optional().or(z.literal('')).default('Cookie Policy'),
+  termsUrl: z.string().optional().transform(val => {
+    if (!val || val.trim() === '') return undefined;
+    try {
+      new URL(val);
+      return val;
+    } catch {
+      throw new Error('Invalid URL format');
+    }
+  }),
+  termsText: z.string().optional().or(z.literal('')).default('Terms & Conditions'),
   
   // Buttons
   acceptButton: buttonStyleSchema,
@@ -131,6 +151,10 @@ function transformBannerToCamelCase(banner: any) {
     message: banner.message,
     privacyPolicyUrl: banner.privacy_policy_url,
     privacyPolicyText: banner.privacy_policy_text,
+    cookiePolicyUrl: banner.cookie_policy_url,
+    cookiePolicyText: banner.cookie_policy_text,
+    termsUrl: banner.terms_url,
+    termsText: banner.terms_text,
     acceptButton: banner.accept_button,
     rejectButton: banner.reject_button,
     settingsButton: banner.settings_button,
@@ -304,6 +328,10 @@ export async function POST(request: NextRequest) {
       message: config.message,
       privacy_policy_url: config.privacyPolicyUrl,
       privacy_policy_text: config.privacyPolicyText,
+      cookie_policy_url: config.cookiePolicyUrl,
+      cookie_policy_text: config.cookiePolicyText,
+      terms_url: config.termsUrl,
+      terms_text: config.termsText,
       accept_button: config.acceptButton,
       reject_button: config.rejectButton,
       settings_button: config.settingsButton,
@@ -453,6 +481,10 @@ export async function PUT(request: NextRequest) {
     if (config.message !== undefined) dbUpdates.message = config.message;
     if (config.privacyPolicyUrl !== undefined) dbUpdates.privacy_policy_url = config.privacyPolicyUrl;
     if (config.privacyPolicyText !== undefined) dbUpdates.privacy_policy_text = config.privacyPolicyText;
+    if (config.cookiePolicyUrl !== undefined) dbUpdates.cookie_policy_url = config.cookiePolicyUrl;
+    if (config.cookiePolicyText !== undefined) dbUpdates.cookie_policy_text = config.cookiePolicyText;
+    if (config.termsUrl !== undefined) dbUpdates.terms_url = config.termsUrl;
+    if (config.termsText !== undefined) dbUpdates.terms_text = config.termsText;
     if (config.acceptButton !== undefined) dbUpdates.accept_button = config.acceptButton;
     if (config.rejectButton !== undefined) dbUpdates.reject_button = config.rejectButton;
     if (config.settingsButton !== undefined) dbUpdates.settings_button = config.settingsButton;

@@ -88,16 +88,16 @@ export default function CookieConsentRecordsPage() {
     try {
       await navigator.clipboard.writeText(consentId);
       setCopiedId(consentId);
-      toast.success('Consent ID copied to clipboard');
+      toast.success('Session ID copied to clipboard');
       setTimeout(() => setCopiedId(null), 2000);
     } catch (error) {
-      toast.error('Failed to copy consent ID');
+      toast.error('Failed to copy Session ID');
     }
   };
 
   const handleExport = () => {
     const csv = [
-      ['ID', 'Consent ID', 'Email', 'Status', 'Categories', 'Timestamp', 'IP Address', 'Device', 'Language'],
+      ['ID', 'Session ID', 'Email', 'Status', 'Categories', 'Timestamp', 'IP Address', 'Device', 'Language'],
       ...records.map((r) => [
         r.id,
         r.consent_id,
@@ -182,7 +182,7 @@ export default function CookieConsentRecordsPage() {
         <CardHeader>
           <CardTitle>Filter Records</CardTitle>
           <CardDescription>
-            Search by visitor email or consent ID. Click the copy icon next to any consent ID to copy it.
+            Search by visitor email or session ID. Click the copy icon next to any session ID to copy it.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -192,7 +192,7 @@ export default function CookieConsentRecordsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="text"
-                  placeholder="Search by email or consent ID (e.g., con_1735558473829_a7k2p)..."
+                  placeholder="Search by email or session ID (e.g., con_1735558473829_a7k2p)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   label="Search"
@@ -246,7 +246,7 @@ export default function CookieConsentRecordsPage() {
             <table className="w-full">
               <thead className="border-b bg-gray-50/50">
                 <tr>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Consent ID</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Session ID</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Email</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Categories</th>
@@ -279,7 +279,7 @@ export default function CookieConsentRecordsPage() {
                           <button
                             onClick={() => handleCopyConsentId(record.consent_id)}
                             className="p-1 hover:bg-gray-100 rounded transition-colors"
-                            title="Copy Consent ID"
+                            title="Copy Session ID"
                           >
                             {copiedId === record.consent_id ? (
                               <Check className="h-3.5 w-3.5 text-green-600" />

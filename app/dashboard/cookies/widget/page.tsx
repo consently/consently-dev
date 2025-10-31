@@ -40,26 +40,20 @@ import { LogoUploader } from '@/components/ui/logo-uploader';
 const COOKIE_CATEGORIES = [
   {
     id: 'necessary',
-    name: 'Necessary',
+    name: 'Strictly necessary cookies',
     description: 'Essential cookies required for website functionality',
     required: true
   },
   {
     id: 'analytics',
-    name: 'Analytics',
+    name: 'Performance',
     description: 'Cookies that help us understand how visitors interact with the website',
     required: false
   },
   {
     id: 'marketing',
-    name: 'Marketing',
+    name: 'Targeting',
     description: 'Cookies used to deliver targeted advertising',
-    required: false
-  },
-  {
-    id: 'preferences',
-    name: 'Preferences',
-    description: 'Cookies that remember your preferences and settings',
     required: false
   },
   {
@@ -124,6 +118,12 @@ type WidgetConfig = {
     acceptButtonText: string;
     rejectButtonText: string;
     settingsButtonText: string;
+    privacyPolicyUrl?: string;
+    privacyPolicyText?: string;
+    cookiePolicyUrl?: string;
+    cookiePolicyText?: string;
+    termsUrl?: string;
+    termsText?: string;
   };
 };
 
@@ -465,7 +465,12 @@ export default function CookieWidgetPage() {
         },
         title: config.bannerContent?.title || '🍪 We value your privacy',
         message: config.bannerContent?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
-        privacyPolicyText: 'Privacy Policy',
+        privacyPolicyUrl: config.bannerContent?.privacyPolicyUrl || undefined,
+        privacyPolicyText: config.bannerContent?.privacyPolicyText || 'Privacy Policy',
+        cookiePolicyUrl: config.bannerContent?.cookiePolicyUrl || undefined,
+        cookiePolicyText: config.bannerContent?.cookiePolicyText || 'Cookie Policy',
+        termsUrl: config.bannerContent?.termsUrl || undefined,
+        termsText: config.bannerContent?.termsText || 'Terms & Conditions',
         acceptButton: {
           text: config.bannerContent?.acceptButtonText || 'Accept All',
           backgroundColor: config.theme.primaryColor || '#3b82f6',
@@ -1428,6 +1433,135 @@ export default function CookieWidgetPage() {
                   })}
                   placeholder="Cookie Settings"
                 />
+              </div>
+            </div>
+
+            {/* Policy Links Section */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  Policy Links (Optional)
+                </h3>
+                <p className="text-xs text-gray-600 mt-1">
+                  Add links to your privacy policy, cookie policy, and terms & conditions. These will appear in the cookie banner.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Privacy Policy */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Privacy Policy URL
+                    </label>
+                    <Input
+                      type="url"
+                      value={config.bannerContent?.privacyPolicyUrl || ''}
+                      onChange={(e) => updateConfig({
+                        bannerContent: {
+                          ...config.bannerContent!,
+                          privacyPolicyUrl: e.target.value
+                        }
+                      })}
+                      placeholder="https://yoursite.com/privacy-policy"
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Link Text
+                    </label>
+                    <Input
+                      type="text"
+                      value={config.bannerContent?.privacyPolicyText || 'Privacy Policy'}
+                      onChange={(e) => updateConfig({
+                        bannerContent: {
+                          ...config.bannerContent!,
+                          privacyPolicyText: e.target.value
+                        }
+                      })}
+                      placeholder="Privacy Policy"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* Cookie Policy */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cookie Policy URL
+                    </label>
+                    <Input
+                      type="url"
+                      value={config.bannerContent?.cookiePolicyUrl || ''}
+                      onChange={(e) => updateConfig({
+                        bannerContent: {
+                          ...config.bannerContent!,
+                          cookiePolicyUrl: e.target.value
+                        }
+                      })}
+                      placeholder="https://yoursite.com/cookie-policy"
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Link Text
+                    </label>
+                    <Input
+                      type="text"
+                      value={config.bannerContent?.cookiePolicyText || 'Cookie Policy'}
+                      onChange={(e) => updateConfig({
+                        bannerContent: {
+                          ...config.bannerContent!,
+                          cookiePolicyText: e.target.value
+                        }
+                      })}
+                      placeholder="Cookie Policy"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* Terms & Conditions */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Terms & Conditions URL
+                    </label>
+                    <Input
+                      type="url"
+                      value={config.bannerContent?.termsUrl || ''}
+                      onChange={(e) => updateConfig({
+                        bannerContent: {
+                          ...config.bannerContent!,
+                          termsUrl: e.target.value
+                        }
+                      })}
+                      placeholder="https://yoursite.com/terms"
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Link Text
+                    </label>
+                    <Input
+                      type="text"
+                      value={config.bannerContent?.termsText || 'Terms & Conditions'}
+                      onChange={(e) => updateConfig({
+                        bannerContent: {
+                          ...config.bannerContent!,
+                          termsText: e.target.value
+                        }
+                      })}
+                      placeholder="Terms & Conditions"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

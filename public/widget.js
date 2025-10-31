@@ -453,8 +453,7 @@
     let maxWidth = '';
     let layoutStyles = '';
     
-    // Handle position
-    const position = config.position || 'bottom';
+    // Handle position (already declared above)
     switch (position) {
       case 'top':
         positionStyles = 'top: 0; left: 0; right: 0;';
@@ -488,8 +487,7 @@
         positionStyles = 'bottom: 0; left: 0; right: 0;';
     }
     
-    // Handle layout
-    const layout = config.layout || 'bar';
+    // Handle layout (already declared above)
     switch (layout) {
       case 'bar':
         // Compact horizontal bar
@@ -897,7 +895,7 @@
 
       // Translate modal text
       isTranslating = true;
-      const modalTitle = await translateText('Cookie Settings', selectedLanguage);
+      const modalTitle = await translateText('Preferences', selectedLanguage);
       const modalDescription = await translateText('Manage your cookie preferences. Some cookies are necessary for the website to function.', selectedLanguage);
       const saveButtonText = await translateText('Save Preferences', selectedLanguage);
       const cancelButtonText = await translateText('Cancel', selectedLanguage);
@@ -930,14 +928,13 @@
     console.log('[Consently] Loading preferences:', existingCategories);
     
     const categories = [
-      { id: 'necessary', name: await translateText('Necessary', selectedLanguage), description: await translateText('Essential for website functionality', selectedLanguage), required: true },
-      { id: 'analytics', name: await translateText('Analytics', selectedLanguage), description: await translateText('Help us understand visitor behavior', selectedLanguage), required: false },
-      { id: 'marketing', name: await translateText('Marketing', selectedLanguage), description: await translateText('Used for targeted advertising', selectedLanguage), required: false },
-      { id: 'preferences', name: await translateText('Preferences', selectedLanguage), description: await translateText('Remember your settings', selectedLanguage), required: false }
+      { id: 'necessary', name: await translateText('Strictly necessary cookies', selectedLanguage), description: await translateText('Essential for website functionality', selectedLanguage), required: true },
+      { id: 'analytics', name: await translateText('Performance', selectedLanguage), description: await translateText('Help us understand visitor behavior', selectedLanguage), required: false },
+      { id: 'marketing', name: await translateText('Targeting', selectedLanguage), description: await translateText('Used for targeted advertising', selectedLanguage), required: false }
     ];
 
     let categoriesHTML = '';
-    const availableCategories = config.categories || ['necessary', 'analytics', 'marketing', 'preferences'];
+    const availableCategories = config.categories || ['necessary', 'analytics', 'marketing'];
     
     categories.forEach(cat => {
       if (availableCategories.includes(cat.id) || cat.required) {
@@ -1156,17 +1153,15 @@
         .consently-float-trigger {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
+          justify-content: center;
+          padding: 12px;
           background: white;
           border: 1px solid #e5e7eb;
-          border-radius: 50px;
+          border-radius: 50%;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          font-size: 14px;
-          font-weight: 500;
-          color: #1f2937;
           transition: all 0.2s;
-          font-family: system-ui, sans-serif;
+          width: 48px;
+          height: 48px;
         }
         .consently-float-trigger:hover {
           box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
@@ -1220,9 +1215,8 @@
           background: #fef2f2;
         }
       </style>
-      <div class="consently-float-trigger">
+      <div class="consently-float-trigger" title="Cookie Preferences">
         ${CONSENTLY_LOGO_SVG}
-        <span>Cookie Preferences</span>
       </div>
       <div class="consently-float-menu" id="consently-float-menu">
         <button id="consently-manage-btn">
@@ -1230,7 +1224,7 @@
             <circle cx="12" cy="12" r="3"/>
             <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
           </svg>
-          Manage Preferences
+          Preferences
         </button>
         <button id="consently-revoke-btn" class="revoke">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

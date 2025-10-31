@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 interface ConsentRecord {
-  id: string; // unique consent ID
+  id: string; // unique session ID
   visitor_email: string | null;
   consent_status: 'accepted' | 'rejected' | 'partial' | 'revoked';
   consent_timestamp: string;
@@ -155,7 +155,7 @@ const fetchRecords = async () => {
             <div className="md:col-span-2">
               <Input
                 type="text"
-placeholder="Search by email or consent ID..."
+placeholder="Search by email or session ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 label="Search"
@@ -217,7 +217,7 @@ placeholder="Search by email or consent ID..."
             <table className="w-full">
               <thead className="border-b bg-gray-50/50">
                 <tr>
-<th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Consent ID</th>
+<th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Session ID</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Email</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Timestamp</th>

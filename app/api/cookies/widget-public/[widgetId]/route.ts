@@ -92,57 +92,126 @@ export async function GET(
       banner = recentBanner;
     }
 
-    // If still no banner, create default configuration inline
-    if (!banner) {
-      console.warn('No banner template found, using default configuration');
-      banner = {
-        id: 'default',
-        name: 'Default Banner',
-        layout: 'bar',
-        position: 'bottom',
-        theme: {
-          primaryColor: '#3b82f6',
-          secondaryColor: '#1e40af',
-          backgroundColor: '#ffffff',
-          textColor: '#1f2937',
-          fontFamily: 'system-ui, sans-serif',
-          fontSize: 14,
-          borderRadius: 8,
-          boxShadow: true
-        },
-        title: 'We value your privacy',
-        message: 'We use cookies to enhance your browsing experience and analyze our traffic.',
-        privacy_policy_url: null,
-        privacy_policy_text: 'Privacy Policy',
-        accept_button: {
-          text: 'Accept All',
-          backgroundColor: '#3b82f6',
-          textColor: '#ffffff',
-          borderRadius: 8
-        },
-        reject_button: {
-          text: 'Reject All',
-          backgroundColor: 'transparent',
-          textColor: '#3b82f6',
-          borderColor: '#3b82f6',
-          borderRadius: 8
-        },
-        settings_button: {
-          text: 'Cookie Settings',
-          backgroundColor: '#f3f4f6',
-          textColor: '#1f2937',
-          borderRadius: 8
-        },
-        show_reject_button: true,
-        show_settings_button: true,
-        auto_show: true,
-        show_after_delay: 0,
-        respect_dnt: false,
-        block_content: false,
-        z_index: 9999,
-        custom_css: null,
-        custom_js: null
-      };
+    // If still no banner, create a default one for the user
+    if (!banner && widgetConfig.user_id) {
+      console.warn('No banner template found, creating default banner for user:', widgetConfig.user_id);
+      
+      // Create a default banner template in the database
+      const { data: newBanner, error: createError } = await supabase
+        .from('banner_configs')
+        .insert({
+          user_id: widgetConfig.user_id,
+          name: 'Default Cookie Consent Banner',
+          description: 'Auto-generated default banner template',
+          position: 'bottom',
+          layout: 'bar',
+          theme: {
+            primaryColor: '#3b82f6',
+            secondaryColor: '#1e40af',
+            backgroundColor: '#ffffff',
+            textColor: '#1f2937',
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: 14,
+            borderRadius: 8,
+            boxShadow: true
+          },
+          title: 'Cookie Consent',
+          message: 'We use cookies to improve your experience on our website. By browsing this website, you agree to our use of cookies.',
+          privacy_policy_url: null,
+          privacy_policy_text: 'Privacy Policy',
+          accept_button: {
+            text: 'Accept All',
+            backgroundColor: '#3b82f6',
+            textColor: '#ffffff',
+            borderRadius: 8
+          },
+          reject_button: {
+            text: 'Reject All',
+            backgroundColor: '#ffffff',
+            textColor: '#3b82f6',
+            borderColor: '#3b82f6',
+            borderRadius: 8
+          },
+          settings_button: {
+            text: 'Cookie Settings',
+            backgroundColor: '#f3f4f6',
+            textColor: '#1f2937',
+            borderRadius: 8
+          },
+          show_reject_button: true,
+          show_settings_button: true,
+          auto_show: true,
+          show_after_delay: 0,
+          respect_dnt: false,
+          block_content: false,
+          z_index: 9999,
+          is_active: true,
+          is_default: true
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('Failed to create default banner:', createError);
+        // Fall back to inline default if DB insert fails
+        banner = {
+          id: 'default',
+          name: 'Default Banner',
+          layout: 'bar',
+          position: 'bottom',
+          theme: {
+            primaryColor: '#3b82f6',
+            secondaryColor: '#1e40af',
+            backgroundColor: '#ffffff',
+            textColor: '#1f2937',
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: 14,
+            borderRadius: 8,
+            boxShadow: true
+          },
+          title: 'Cookie Consent',
+          message: 'We use cookies to improve your experience on our website. By browsing this website, you agree to our use of cookies.',
+          privacy_policy_url: null,
+          privacy_policy_text: 'Privacy Policy',
+          accept_button: {
+            text: 'Accept All',
+            backgroundColor: '#3b82f6',
+            textColor: '#ffffff',
+            borderRadius: 8
+          },
+          reject_button: {
+            text: 'Reject All',
+            backgroundColor: 'transparent',
+            textColor: '#3b82f6',
+            borderColor: '#3b82f6',
+            borderRadius: 8
+          },
+          settings_button: {
+            text: 'Cookie Settings',
+            backgroundColor: '#f3f4f6',
+            textColor: '#1f2937',
+            borderRadius: 8
+          },
+          show_reject_button: true,
+          show_settings_button: true,
+          auto_show: true,
+          show_after_delay: 0,
+          respect_dnt: false,
+          block_content: false,
+          z_index: 9999,
+          custom_css: null,
+          custom_js: null
+        };
+      } else {
+        banner = newBanner;
+        console.log('Created default banner with ID:', newBanner.id);
+        
+        // Link the newly created banner to this widget
+        await supabase
+          .from('widget_configs')
+          .update({ banner_template_id: newBanner.id })
+          .eq('widget_id', widgetConfig.widget_id);
+      }
     }
 
     // Transform snake_case database fields to camelCase for JavaScript

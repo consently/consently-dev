@@ -1221,7 +1221,7 @@ export default function DPDPAWidgetPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { code: 'en', name: 'English', flag: '🇬🇧' },
+                    { code: 'en', name: 'English', flag: '🇮🇳' },
                     { code: 'hi', name: 'Hindi (हिंदी)', flag: '🇮🇳' },
                     { code: 'pa', name: 'Punjabi (ਪੰਜਾਬੀ)', flag: '🇮🇳' },
                     { code: 'te', name: 'Telugu (తెలుగు)', flag: '🇮🇳' },

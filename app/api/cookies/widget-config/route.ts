@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 // Define types for better type safety
 type WidgetConfigData = {
   widgetId: string;
+  name?: string;
   domain: string;
   categories?: string[];
   behavior?: string;
@@ -26,6 +27,15 @@ type WidgetConfigData = {
   supportedLanguages?: string[];
   autoShow?: boolean;
   showAfterDelay?: number;
+  position?: string;
+  layout?: string;
+  bannerContent?: {
+    title?: string;
+    message?: string;
+    acceptButtonText?: string;
+    rejectButtonText?: string;
+    settingsButtonText?: string;
+  };
 };
 
 export async function POST(request: NextRequest) {
@@ -138,6 +148,7 @@ export async function POST(request: NextRequest) {
     const dbData = {
       user_id: user.id,
       widget_id: config.widgetId,
+      name: config.name || 'My Cookie Widget',
       domain: config.domain,
       categories: config.categories || ['necessary'], // Ensure it's an array
       behavior: config.behavior || 'explicit',
@@ -152,7 +163,10 @@ export async function POST(request: NextRequest) {
       theme: config.theme || null,
       supported_languages: config.supportedLanguages || ['en'],
       auto_show: config.autoShow ?? true,
-      show_after_delay: config.showAfterDelay ?? 1000
+      show_after_delay: config.showAfterDelay ?? 1000,
+      position: config.position || 'bottom',
+      layout: config.layout || 'bar',
+      banner_content: config.bannerContent || null
     };
 
     console.log('Database data:', JSON.stringify(dbData, null, 2));
@@ -163,6 +177,7 @@ export async function POST(request: NextRequest) {
         .from('widget_configs')
         .update({
           widget_id: dbData.widget_id,
+          name: dbData.name,
           domain: dbData.domain,
           categories: dbData.categories,
           behavior: dbData.behavior,
@@ -178,6 +193,9 @@ export async function POST(request: NextRequest) {
           supported_languages: dbData.supported_languages,
           auto_show: dbData.auto_show,
           show_after_delay: dbData.show_after_delay,
+          position: dbData.position,
+          layout: dbData.layout,
+          banner_content: dbData.banner_content,
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id);
@@ -281,6 +299,7 @@ export async function GET() {
     // Map database fields to frontend format
     const config = {
       widgetId: data.widget_id,
+      name: data.name || 'My Cookie Widget',
       domain: data.domain,
       categories: Array.isArray(data.categories) ? data.categories : ['necessary'],
       behavior: data.behavior === 'implicit' ? 'explicit' : data.behavior,
@@ -300,7 +319,16 @@ export async function GET() {
       },
       supportedLanguages: Array.isArray(data.supported_languages) ? data.supported_languages : ['en'],
       autoShow: data.auto_show ?? true,
-      showAfterDelay: data.show_after_delay ?? 1000
+      showAfterDelay: data.show_after_delay ?? 1000,
+      position: data.position || 'bottom',
+      layout: data.layout || 'bar',
+      bannerContent: data.banner_content || {
+        title: '🍪 We value your privacy',
+        message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
+        acceptButtonText: 'Accept All',
+        rejectButtonText: 'Reject All',
+        settingsButtonText: 'Cookie Settings'
+      }
     };
 
     console.log('Returning config:', JSON.stringify(config, null, 2));
