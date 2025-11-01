@@ -162,7 +162,7 @@
 
   function languageFlag(code) {
     const map = { 
-      en: '🇬🇧', hi: '🇮🇳', pa: '🇮🇳', te: '🇮🇳', ta: '🇮🇳',
+      en: '🇮🇳', hi: '🇮🇳', pa: '🇮🇳', te: '🇮🇳', ta: '🇮🇳',
       bn: '🇮🇳', mr: '🇮🇳', gu: '🇮🇳', kn: '🇮🇳', ml: '🇮🇳',
       or: '🇮🇳', ur: '🇮🇳', as: '🇮🇳'
     };
@@ -705,7 +705,7 @@
       <div class="consently-container">
         <div class="consently-content">
           <h3 class="consently-title">
-            ${CONSENTLY_LOGO_SVG}
+            ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" style="height: 24px; width: auto; object-fit: contain;" onerror="this.style.display='none'">` : CONSENTLY_LOGO_SVG}
             <span>${title}</span>
           </h3>
           <p class="consently-message">${message}</p>
@@ -989,7 +989,7 @@
       <div class="consently-modal-content">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="margin: 0; font-size: 24px; color: #1f2937; display: flex; align-items: center; gap: 8px;">
-            ${CONSENTLY_LOGO_SVG}
+            ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" style="height: 24px; width: auto; object-fit: contain;" onerror="this.style.display='none'">` : CONSENTLY_LOGO_SVG}
             <span>${modalTitle}</span>
           </h2>
           ${(() => {

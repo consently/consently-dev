@@ -792,7 +792,7 @@ export default function CookieWidgetPage() {
                             {(() => {
                               const supportedLangs = config.supportedLanguages || ['en'];
                               const langMap: Record<string, string> = {
-                                en: '🇬🇧 English',
+                                en: '🇮🇳 English',
                                 hi: '🇮🇳 हिंदी',
                                 pa: '🇮🇳 ਪੰਜਾਬੀ',
                                 te: '🇮🇳 తెలుగు',
