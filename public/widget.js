@@ -713,6 +713,19 @@
             <span>${title}</span>
           </h3>
           <p class="consently-message">${message}</p>
+          ${(() => {
+            const links = [];
+            if (config.privacyPolicyUrl) {
+              links.push(`<a href="${config.privacyPolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${config.privacyPolicyText || 'Privacy Policy'}</a>`);
+            }
+            if (config.cookiePolicyUrl) {
+              links.push(`<a href="${config.cookiePolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${config.cookiePolicyText || 'Cookie Policy'}</a>`);
+            }
+            if (config.termsUrl) {
+              links.push(`<a href="${config.termsUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${config.termsText || 'Terms'}</a>`);
+            }
+            return links.length > 0 ? `<p class="consently-links" style="margin-top: 8px; font-size: 12px; opacity: 0.8;">${links.join(' • ')}</p>` : '';
+          })()}
         </div>
         <div class="consently-actions">
           <button id="consently-accept" class="consently-btn consently-btn-primary">

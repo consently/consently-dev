@@ -258,8 +258,12 @@ export async function GET(
       // Content - widget banner_content overrides banner template
       title: widgetConfig.banner_content?.title || banner.title,
       message: widgetConfig.banner_content?.message || banner.message,
-      privacyPolicyUrl: banner.privacy_policy_url,
-      privacyPolicyText: banner.privacy_policy_text,
+      privacyPolicyUrl: widgetConfig.banner_content?.privacyPolicyUrl || banner.privacy_policy_url,
+      privacyPolicyText: widgetConfig.banner_content?.privacyPolicyText || banner.privacy_policy_text || 'Privacy Policy',
+      cookiePolicyUrl: widgetConfig.banner_content?.cookiePolicyUrl || banner.cookie_policy_url,
+      cookiePolicyText: widgetConfig.banner_content?.cookiePolicyText || banner.cookie_policy_text || 'Cookie Policy',
+      termsUrl: widgetConfig.banner_content?.termsUrl || banner.terms_url,
+      termsText: widgetConfig.banner_content?.termsText || banner.terms_text || 'Terms & Conditions',
       
       // Button configurations - widget banner_content overrides banner template
       acceptButton: {
