@@ -433,6 +433,9 @@
     const borderRadius = theme.borderRadius || 8;
     const zIndex = config.zIndex || 9999;
     
+    // Debug: Log logo URL
+    console.log('[Consently] Logo URL:', theme.logoUrl);
+    
     const acceptButton = config.acceptButton || {};
     const rejectButton = config.rejectButton || {};
     const settingsButton = config.settingsButton || {};
