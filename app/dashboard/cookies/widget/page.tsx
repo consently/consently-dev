@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -423,11 +423,13 @@ export default function CookieWidgetPage() {
     return errors;
   };
 
-  const handleSave = async () => {
+  const handleSave = async (silent = false) => {
     // Validate configuration
     const validationErrors = validateConfig();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join(', '));
+      if (!silent) {
+        setError(validationErrors.join(', '));
+      }
       return;
     }
 
@@ -575,13 +577,18 @@ export default function CookieWidgetPage() {
 
       setSaved(true);
       setError(null);
-      toast.success('Configuration saved successfully!');
+      setHasUnsavedChanges(false);
+      setLastSaved(new Date());
       
-      // Show informative message about settings propagation
-      toast.info('Settings will be reflected in the live widget immediately', {
-        duration: 3000,
-        description: 'Theme, language, and behavior settings are now active'
-      });
+      if (!silent) {
+        toast.success('Configuration saved successfully!');
+        
+        // Show informative message about settings propagation
+        toast.info('Settings will be reflected in the live widget immediately', {
+          duration: 3000,
+          description: 'Theme, language, and behavior settings are now active'
+        });
+      }
       
       // Show success message for longer
       setTimeout(() => setSaved(false), 5000);
@@ -681,7 +688,7 @@ export default function CookieWidgetPage() {
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3">
         <Button 
-          onClick={handleSave} 
+          onClick={() => handleSave()} 
           disabled={saving || loading}
           className="bg-blue-600 hover:bg-blue-700 text-white"
         >
@@ -863,6 +870,65 @@ export default function CookieWidgetPage() {
                               ))}
                             </div>
                           )}
+                          {/* Privacy links */}
+                          {(() => {
+                            const links = [];
+                            if (config.bannerContent?.privacyPolicyUrl) {
+                              links.push(
+                                <a 
+                                  key="privacy"
+                                  href={config.bannerContent.privacyPolicyUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: config.theme?.primaryColor || '#3b82f6', textDecoration: 'underline' }}
+                                  className="text-xs hover:opacity-80"
+                                >
+                                  {config.bannerContent.privacyPolicyText || 'Privacy Policy'}
+                                </a>
+                              );
+                            }
+                            if (config.bannerContent?.cookiePolicyUrl) {
+                              links.push(
+                                <a 
+                                  key="cookie"
+                                  href={config.bannerContent.cookiePolicyUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: config.theme?.primaryColor || '#3b82f6', textDecoration: 'underline' }}
+                                  className="text-xs hover:opacity-80"
+                                >
+                                  {config.bannerContent.cookiePolicyText || 'Cookie Policy'}
+                                </a>
+                              );
+                            }
+                            if (config.bannerContent?.termsUrl) {
+                              links.push(
+                                <a 
+                                  key="terms"
+                                  href={config.bannerContent.termsUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: config.theme?.primaryColor || '#3b82f6', textDecoration: 'underline' }}
+                                  className="text-xs hover:opacity-80"
+                                >
+                                  {config.bannerContent.termsText || 'Terms'}
+                                </a>
+                              );
+                            }
+                            
+                            if (links.length === 0) return null;
+                            
+                            return (
+                              <p className="mt-3 text-xs flex flex-wrap gap-2 items-center" style={{ opacity: 0.8 }}>
+                                {links.map((link, i) => (
+                                  <Fragment key={i}>
+                                    {link}
+                                    {i < links.length - 1 && <span className="mx-1">•</span>}
+                                  </Fragment>
+                                ))}
+                              </p>
+                            );
+                          })()}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button 

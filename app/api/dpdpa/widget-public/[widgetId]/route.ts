@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 
 /**
  * Public API endpoint to fetch DPDPA widget configuration
@@ -11,6 +12,31 @@ export async function GET(
   { params }: { params: Promise<{ widgetId: string }> }
 ) {
   try {
+    // Apply rate limiting for widget config fetching
+    const rateLimitResult = checkRateLimit({
+      max: 200, // 200 requests per minute per IP (lenient for public widget)
+      window: 60000, // 1 minute
+      identifier: getClientIdentifier(request.headers),
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded',
+          retryAfter: rateLimitResult.retryAfter 
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': (rateLimitResult.retryAfter || 60).toString(),
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      );
+    }
+
     const { widgetId } = await params;
 
     if (!widgetId) {

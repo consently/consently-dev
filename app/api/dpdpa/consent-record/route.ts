@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
+import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 
 /**
  * Public API endpoint to record DPDPA consent
@@ -169,6 +170,31 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting to prevent abuse
+    const rateLimitResult = checkRateLimit({
+      max: 100, // 100 consent records per minute per IP
+      window: 60000, // 1 minute
+      identifier: getClientIdentifier(request.headers),
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded. Please try again later.',
+          retryAfter: rateLimitResult.retryAfter 
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': (rateLimitResult.retryAfter || 60).toString(),
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      );
+    }
+
     const body: ConsentRecordRequest = await request.json();
 
     // Validate required fields

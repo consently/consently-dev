@@ -77,15 +77,25 @@ const fetchRecords = async () => {
   };
 
   const handleExport = () => {
-    // Implement CSV export
+    // Helper function to escape CSV fields
+    const escapeCSV = (value: string | null | undefined): string => {
+      if (!value) return 'N/A';
+      const stringValue = String(value);
+      // If the value contains comma, quote, or newline, wrap it in quotes and escape internal quotes
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
     const csv = [
       ['ID', 'Status', 'Timestamp', 'IP Address', 'Device'],
       ...records.map((r) => [
-        r.id,
-        r.consent_status,
-        r.consent_timestamp,
-        r.ip_address || 'N/A',
-        r.device_type || 'N/A',
+        escapeCSV(r.id),
+        escapeCSV(r.consent_status),
+        escapeCSV(r.consent_timestamp),
+        escapeCSV(r.ip_address),
+        escapeCSV(r.device_type),
       ]),
     ]
       .map((row) => row.join(','))
@@ -96,7 +106,7 @@ const fetchRecords = async () => {
     const a = document.createElement('a');
     a.href = url;
     a.download = `consent-records-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
+    toast.success('Records exported successfully');
   };
 
   return (

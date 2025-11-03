@@ -14,6 +14,7 @@ import { Search, Loader2, CheckCircle, AlertCircle, Download, Sparkles } from 'l
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { BannerCustomizationModal } from '@/components/cookie/BannerCustomizationModal';
 
 interface ScannedCookie {
   id: string;
@@ -43,6 +44,7 @@ export default function CookieScanPage() {
   const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
   const [scanHistory, setScanHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [scanMetrics, setScanMetrics] = useState<{
     pagesScanned: number;
     complianceScore: number;
@@ -336,63 +338,71 @@ export default function CookieScanPage() {
   };
 
   /**
-   * Generate consent banner with detected cookies
-   * Also creates widget configuration and provides embed code
+   * Open customization modal for interactive banner configuration
    */
-  const handleGenerateBanner = async () => {
+  const handleGenerateBanner = () => {
+    setShowCustomizationModal(true);
+  };
+
+  /**
+   * Handle saving the customized banner configuration
+   * Creates both banner template and widget config with user's custom settings
+   */
+  const handleSaveCustomBanner = async (customConfig: any) => {
     setIsGeneratingBanner(true);
     try {
-      // Prepare banner configuration based on scan results using new API format
-      const categoriesFound = getCategoriesUsed();
       const hostname = new URL(scannedUrl).hostname;
       
+      // Step 1: Create banner template with custom configuration
       const bannerConfig = {
         name: `Cookie Banner for ${hostname}`,
-        description: `Generated from cookie scan of ${scannedUrl}`,
-        layout: 'bar',
-        position: 'bottom',
+        description: `Custom banner from cookie scan of ${scannedUrl}`,
+        layout: customConfig.layout,
+        position: customConfig.position,
         
-        // Theme configuration
+        // Theme configuration from user input
         theme: {
-          primaryColor: '#3b82f6',
-          secondaryColor: '#1e40af',
-          backgroundColor: '#ffffff',
-          textColor: '#1f2937',
-          fontFamily: 'system-ui, sans-serif',
+          primaryColor: customConfig.primaryColor,
+          secondaryColor: customConfig.primaryColor,
+          backgroundColor: customConfig.backgroundColor,
+          textColor: customConfig.textColor,
+          fontFamily: customConfig.fontFamily,
           fontSize: 14,
-          borderRadius: 8,
+          borderRadius: customConfig.borderRadius,
           boxShadow: true
         },
         
-        // Content
-        title: '🍪 We value your privacy',
-        message: `This website uses cookies to enhance your experience. We have detected ${scannedCookies.length} cookies across ${categoriesFound.length} categories. Please review and customize your preferences.`,
-        privacyPolicyUrl: '',
-        privacyPolicyText: 'Privacy Policy',
+        // Content from user input
+        title: customConfig.title,
+        message: customConfig.message,
+        privacyPolicyUrl: customConfig.privacyPolicyUrl || undefined,
+        privacyPolicyText: customConfig.privacyPolicyText || 'Privacy Policy',
+        cookiePolicyUrl: customConfig.cookiePolicyUrl || undefined,
+        cookiePolicyText: customConfig.cookiePolicyText || 'Cookie Policy',
         
-        // Button configurations
+        // Button configurations from user input
         acceptButton: {
-          text: 'Accept All',
-          backgroundColor: '#3b82f6',
+          text: customConfig.acceptButtonText,
+          backgroundColor: customConfig.primaryColor,
           textColor: '#ffffff',
-          borderRadius: 6,
+          borderRadius: customConfig.borderRadius,
           fontSize: 14,
           fontWeight: 'semibold'
         },
         rejectButton: {
-          text: 'Reject All',
-          backgroundColor: '#ffffff',
-          textColor: '#3b82f6',
-          borderColor: '#3b82f6',
-          borderRadius: 6,
+          text: customConfig.rejectButtonText,
+          backgroundColor: 'transparent',
+          textColor: customConfig.primaryColor,
+          borderColor: customConfig.primaryColor,
+          borderRadius: customConfig.borderRadius,
           fontSize: 14,
           fontWeight: 'medium'
         },
         settingsButton: {
-          text: 'Cookie Settings',
+          text: customConfig.settingsButtonText,
           backgroundColor: '#f3f4f6',
-          textColor: '#1f2937',
-          borderRadius: 6,
+          textColor: customConfig.textColor,
+          borderRadius: customConfig.borderRadius,
           fontSize: 14,
           fontWeight: 'normal'
         },
@@ -411,9 +421,9 @@ export default function CookieScanPage() {
         is_default: false
       };
 
-      console.log('Step 1: Creating banner configuration...');
+      console.log('Creating custom banner configuration...');
 
-      // Step 1: Save banner configuration
+      // Save banner configuration
       const bannerResponse = await fetch('/api/cookies/banner', {
         method: 'POST',
         headers: {
@@ -425,13 +435,8 @@ export default function CookieScanPage() {
       const bannerResult = await bannerResponse.json();
 
       if (!bannerResponse.ok) {
-        console.error('Banner API Error:', {
-          status: bannerResponse.status,
-          statusText: bannerResponse.statusText,
-          result: bannerResult
-        });
+        console.error('Banner API Error:', bannerResult);
         
-        // Show detailed error message if available
         let errorMessage = 'Failed to create banner configuration';
         if (bannerResult.error) {
           errorMessage = bannerResult.error;
@@ -449,16 +454,16 @@ export default function CookieScanPage() {
         throw new Error('Banner created but no ID returned');
       }
 
-      toast.success('✓ Banner template created!');
-      console.log('Step 2: Creating widget configuration...');
+      toast.success('✓ Custom banner template created!');
+      console.log('Creating widget configuration...');
 
-      // Step 2: Create widget configuration and link it to the banner
+      // Step 2: Create widget configuration with custom settings
       const widgetId = 'cnsty_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
       const widgetConfig = {
         widgetId: widgetId,
         name: `Widget for ${hostname}`,
         domain: hostname,
-        categories: categoriesFound.length > 0 ? categoriesFound : ['necessary'],
+        categories: customConfig.categories,
         behavior: 'explicit',
         consentDuration: 365,
         showBrandingLink: true,
@@ -466,21 +471,30 @@ export default function CookieScanPage() {
         respectDNT: false,
         gdprApplies: true,
         autoBlock: [],
-        language: 'en',
-        bannerTemplateId: bannerId, // Link to the banner we just created
-        theme: bannerConfig.theme,
+        language: customConfig.languages[0] || 'en',
+        bannerTemplateId: bannerId,
+        theme: {
+          primaryColor: customConfig.primaryColor,
+          backgroundColor: customConfig.backgroundColor,
+          textColor: customConfig.textColor,
+          borderRadius: customConfig.borderRadius,
+          fontFamily: customConfig.fontFamily
+        },
         autoShow: true,
         showAfterDelay: 1000,
-        supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr'],
-        // IMPORTANT: Store position, layout, and content in widget config so they can be customized
-        position: bannerConfig.position,
-        layout: bannerConfig.layout,
+        supportedLanguages: customConfig.languages,
+        position: customConfig.position,
+        layout: customConfig.layout,
         bannerContent: {
-          title: bannerConfig.title,
-          message: bannerConfig.message,
-          acceptButtonText: bannerConfig.acceptButton.text,
-          rejectButtonText: bannerConfig.rejectButton.text,
-          settingsButtonText: bannerConfig.settingsButton.text
+          title: customConfig.title,
+          message: customConfig.message,
+          acceptButtonText: customConfig.acceptButtonText,
+          rejectButtonText: customConfig.rejectButtonText,
+          settingsButtonText: customConfig.settingsButtonText,
+          privacyPolicyUrl: customConfig.privacyPolicyUrl,
+          privacyPolicyText: customConfig.privacyPolicyText,
+          cookiePolicyUrl: customConfig.cookiePolicyUrl,
+          cookiePolicyText: customConfig.cookiePolicyText
         }
       };
 
@@ -499,8 +513,8 @@ export default function CookieScanPage() {
         throw new Error(widgetResult.error || 'Failed to create widget configuration');
       }
 
-      toast.success('✓ Widget configuration created!');
-      console.log('Step 3: Complete! Widget ID:', widgetId);
+      toast.success('✓ Widget configuration saved!');
+      console.log('Complete! Widget ID:', widgetId);
 
       // Show success message with embed code
       const origin = window.location.origin;
@@ -521,7 +535,7 @@ export default function CookieScanPage() {
 
     } catch (error) {
       console.error('Banner generation error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to generate banner');
+      throw error; // Re-throw so modal can handle it
     } finally {
       setIsGeneratingBanner(false);
     }
@@ -537,6 +551,14 @@ export default function CookieScanPage() {
 
   return (
     <div className="space-y-6">
+      {/* Banner Customization Modal */}
+      <BannerCustomizationModal
+        open={showCustomizationModal}
+        onClose={() => setShowCustomizationModal(false)}
+        onSave={handleSaveCustomBanner}
+        scannedUrl={scannedUrl}
+        scannedCookies={scannedCookies}
+      />
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Cookie Scanner</h1>
@@ -800,20 +822,24 @@ export default function CookieScanPage() {
                     Ready to Deploy Cookie Consent?
                   </h3>
                   <p className="text-sm text-gray-600 mb-3">
-                    Click below to automatically generate a complete, ready-to-deploy cookie consent solution based on your scan results. This will create:
+                    Customize your cookie consent banner with your own content, theme, and appearance. Create a professional, GDPR-compliant widget that matches your brand:
                   </p>
                   <ul className="text-sm text-gray-700 space-y-1 mb-4">
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span>Custom banner template with detected cookie categories</span>
+                      <span>Customize banner content, theme colors, fonts, and layout</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span>Widget configuration linked to your domain ({new URL(scannedUrl).hostname})</span>
+                      <span>Live preview updates in real-time as you customize</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span>Embed code ready to copy & paste into your website</span>
+                      <span>Multi-language support with auto-translation</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>Ready-to-deploy widget for {new URL(scannedUrl).hostname}</span>
                     </li>
                   </ul>
                   <div className="flex flex-wrap gap-3">
@@ -831,7 +857,7 @@ export default function CookieScanPage() {
                       ) : (
                         <>
                           <Sparkles className="mr-2 h-4 w-4" />
-                          Generate Cookie Widget
+                          Customize & Generate Banner
                         </>
                       )}
                     </Button>

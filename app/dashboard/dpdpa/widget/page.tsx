@@ -1504,7 +1504,7 @@ export default function DPDPAWidgetPage() {
                 </div>
               </div>
 
-              {/* Live Preview - Updated to match new widget design */}
+              {/* Live Preview - Updated to match new visitor-facing widget design */}
               <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-medium text-gray-500">LIVE PREVIEW</p>
@@ -1531,160 +1531,176 @@ export default function DPDPAWidgetPage() {
                     borderRadius: `${config.theme.borderRadius}px`
                   }}
                 >
-                  {/* Header */}
-                  <div className="p-4 border-b" style={{ borderColor: '#e5e7eb' }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
+                  {/* Header - Matching New Design */}
+                  <div className="p-5 border-b bg-gradient-to-b from-white to-gray-50" style={{ borderColor: '#e5e7eb' }}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
                         {config.theme.logoUrl ? (
                           <img 
                             src={config.theme.logoUrl} 
                             alt="Brand Logo" 
                             className="h-8 w-auto object-contain"
                             onError={(e) => {
-                              // Fallback to icon if image fails to load
                               e.currentTarget.style.display = 'none';
                             }}
                           />
                         ) : (
                           <div 
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+                            className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
                             style={{ backgroundColor: config.theme.primaryColor }}
                           >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M9 11l3 3L22 4"/>
-                              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                            </svg>
+                            C
                           </div>
                         )}
-                        <span className="font-bold text-sm">{translatingPreview ? '...' : (translatedPreviewContent?.title || config.title)}</span>
+                        <div>
+                          <h2 className="font-bold text-lg m-0" style={{ letterSpacing: '-0.01em' }}>NOTICE</h2>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         <select 
                           value={previewLanguage}
                           onChange={(e) => handlePreviewLanguageChange(e.target.value)}
                           disabled={translatingPreview}
-                          className="text-xs px-2 py-1 border rounded-lg cursor-pointer bg-white hover:border-blue-400 transition-colors"
-                          style={{ borderColor: '#e5e7eb', opacity: translatingPreview ? 0.5 : 1 }}
+                          className="text-xs px-2 py-1.5 border rounded-lg cursor-pointer bg-white hover:border-blue-400 transition-colors"
+                          style={{ borderColor: '#e5e7eb', opacity: translatingPreview ? 0.5 : 1, fontSize: '11px' }}
                         >
                           {Array.from(new Set(config.supportedLanguages || ['en'])).map(code => {
-                            const langMap: Record<string, {flag: string, name: string}> = {
-                              en: { flag: '🇬🇧', name: 'English' },
-                              hi: { flag: '🇮🇳', name: 'हिंदी' },
-                              pa: { flag: '🇮🇳', name: '꣪꤂ꤜꢾꢬꥀ' },
-                              te: { flag: '🇮🇳', name: 'తెలుగు' },
-                              ta: { flag: '🇮🇳', name: 'தமிழ்' },
-                              bn: { flag: '🇮🇳', name: 'বাংলা' },
-                              mr: { flag: '🇮🇳', name: 'मराठी' },
-                              gu: { flag: '🇮🇳', name: 'ગુજરાતી' },
-                              kn: { flag: '🇮🇳', name: 'ಕನ್ನಡ' },
-                              ml: { flag: '🇮🇳', name: 'മലയാളം' },
-                              or: { flag: '🇮🇳', name: 'ଓଡ଼ିଆ' },
-                              ur: { flag: '🇮🇳', name: 'اردو' },
-                              as: { flag: '🇮🇳', name: 'অসমীয়া' }
+                            const langMap: Record<string, {name: string}> = {
+                              en: { name: 'English' },
+                              hi: { name: 'हिंदी' },
+                              pa: { name: 'ਪੰਜਾਬੀ' },
+                              te: { name: 'తెలుగు' },
+                              ta: { name: 'தமிழ்' },
+                              bn: { name: 'বাংলা' },
+                              mr: { name: 'मराठी' },
+                              gu: { name: 'ગુજરાતી' },
+                              kn: { name: 'ಕನ್ನಡ' },
+                              ml: { name: 'മലയാളം' },
+                              or: { name: 'ଓଡ଼ିଆ' },
+                              ur: { name: 'اردو' },
+                              as: { name: 'অসমীয়া' }
                             };
-                            const lang = langMap[code] || { flag: '🌐', name: code };
-                            return <option key={code} value={code}>{lang.flag} {lang.name}</option>;
+                            const lang = langMap[code] || { name: code };
+                            return <option key={code} value={code}>{lang.name}</option>;
                           })}
                         </select>
                       </div>
                     </div>
-                    <div 
-                      className="text-xs font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5"
-                      style={{ backgroundColor: '#e0e7ff', color: '#1e3a8a' }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#10b981' }}></span>
-                      Fully compliant with DPDPA 2023
-                    </div>
                   </div>
 
-                  {/* Requirements Box */}
-                  <div className="p-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                      <div className="text-xs font-semibold text-blue-900 mb-2">
-                        DPDPA 2023 requires you to read and download the privacy notice
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-gray-400">
-                          <path d="M20 6L9 17l-5-5"/>
-                        </svg>
-                        <span>Scroll down to read the privacy notice</span>
-                      </div>
-                    </div>
+                  {/* Main Content - Matching New Design */}
+                  <div className="p-5">
+                    <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+                      {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || config.message)}
+                    </p>
 
-                    {/* Privacy Notice Preview */}
-                    <div className="border rounded-lg p-3 mb-3 bg-white" style={{ maxHeight: '120px', overflow: 'hidden', position: 'relative' }}>
-                      <h4 className="text-xs font-bold mb-1">Privacy Notice</h4>
-                      <p className="text-xs opacity-70 mb-2">{translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || config.message)}</p>
-                      {config.selectedActivities.length > 0 && (
-                        <div className="space-y-1">
-                          {config.selectedActivities.slice(0, 2).map((actId, idx) => {
-                            const activity = activities.find(a => a.id === actId);
-                            return activity ? (
-                              <div key={actId} className="text-xs opacity-50">
-                                {idx + 1}. {activity.activity_name}
+                    {/* Activities with Checkboxes */}
+                    {config.selectedActivities.length > 0 && (
+                      <div className="space-y-3 mb-4">
+                        {config.selectedActivities.slice(0, 2).map((actId) => {
+                          const activity = activities.find(a => a.id === actId);
+                          if (!activity) return null;
+                          return (
+                            <div key={actId} className="border rounded-lg p-3 bg-white" style={{ borderColor: '#e5e7eb' }}>
+                              <div className="flex items-start gap-2.5">
+                                <input 
+                                  type="checkbox" 
+                                  className="mt-0.5" 
+                                  style={{ 
+                                    width: '16px', 
+                                    height: '16px',
+                                    accentColor: config.theme.primaryColor 
+                                  }} 
+                                />
+                                <div className="flex-1">
+                                  <h4 className="text-xs font-semibold mb-1.5">{activity.activity_name}</h4>
+                                  <div>
+                                    <div className="text-[10px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Data Categories</div>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      {activity.data_attributes.slice(0, 4).map((attr, i) => (
+                                        <div key={i} className="text-[10px] px-2 py-1 bg-gray-50 border border-gray-200 rounded" style={{ fontSize: '10px' }}>
+                                          {attr}
+                                        </div>
+                                      ))}
+                                      {activity.data_attributes.length > 4 && (
+                                        <div className="text-[10px] px-2 py-1 bg-gray-50 border border-gray-200 rounded font-medium" style={{ fontSize: '10px' }}>
+                                          +{activity.data_attributes.length - 4} more
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            ) : null;
-                          })}
-                          {config.selectedActivities.length > 2 && (
-                            <div className="text-xs opacity-50">... and {config.selectedActivities.length - 2} more</div>
-                          )}
-                        </div>
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent"></div>
-                    </div>
-
-                    {/* Preview Full Notice Button */}
-                    <button
-                      onClick={generatePrivacyNoticePreview}
-                      disabled={config.selectedActivities.length === 0}
-                      className="w-full mb-3 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all"
-                      style={{ 
-                        backgroundColor: config.selectedActivities.length > 0 ? config.theme.primaryColor : '#e5e7eb',
-                        color: config.selectedActivities.length > 0 ? '#fff' : '#6b7280',
-                        cursor: config.selectedActivities.length > 0 ? 'pointer' : 'not-allowed',
-                        opacity: config.selectedActivities.length > 0 ? 1 : 0.6
-                      }}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      Preview Full Privacy Notice
-                    </button>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 mb-3">
-                      <button
-                        onClick={downloadPrivacyNotice}
-                        className="flex-1 px-3 py-2 rounded-lg text-xs font-bold text-white"
-                        style={{ backgroundColor: config.theme.primaryColor }}
-                      >
-                        {translatedPreviewContent?.downloadButtonText || 'Download Privacy Notice'}
-                      </button>
-                      <button
-                        className="flex-1 px-3 py-2 rounded-lg text-xs font-bold"
-                        style={{ backgroundColor: '#e5e7eb', color: '#6b7280' }}
-                      >
-                        {translatedPreviewContent?.proceedButtonText || 'Proceed to Consent'}
-                      </button>
-                    </div>
-
-                    {/* Warning Message */}
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 mb-3">
-                      <p className="text-xs text-red-600">⚠ Please complete both requirements to proceed</p>
-                    </div>
-
-                    {/* Powered by Consently */}
-                    {config.showBranding && (
-                      <div className="pt-2 border-t border-gray-200 text-center">
-                        <a 
-                          href="https://www.consently.in" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors inline-flex items-center gap-1"
-                        >
-                          Powered by <span className="font-semibold">Consently</span>
-                        </a>
+                            </div>
+                          );
+                        })}
+                        {config.selectedActivities.length > 2 && (
+                          <div className="text-xs text-gray-500 text-center py-2">
+                            ... and {config.selectedActivities.length - 2} more activities
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    {/* Manage Consent Text */}
+                    <div className="p-2.5 bg-gray-50 rounded-lg mb-3">
+                      <p className="text-[10px] text-gray-600 m-0 leading-relaxed">
+                        You can manage your consent from the preference centre in your account.
+                      </p>
+                    </div>
+
+                    {/* Footer Links */}
+                    <div className="p-2.5 bg-gray-50 rounded-lg mb-3">
+                      <p className="text-[10px] text-gray-600 m-0 leading-relaxed">
+                        If you have any grievances with how we process your personal data click <a href="#" style={{ color: config.theme.primaryColor }} className="underline font-medium">here</a>. If we are unable to resolve your grievance, you can also make a complaint to the Data Protection Board by clicking <a href="#" style={{ color: config.theme.primaryColor }} className="underline font-medium">here</a>.
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Footer Actions - Matching New Design */}
+                  <div className="px-5 py-3.5 border-t bg-gray-50 flex gap-2 items-center" style={{ borderColor: '#e5e7eb' }}>
+                    <button
+                      onClick={downloadPrivacyNotice}
+                      className="p-2 bg-white border rounded-lg transition-all hover:shadow-sm"
+                      style={{ borderColor: '#e5e7eb' }}
+                      title="Download"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                    </button>
+                    <div className="flex-1 flex gap-2">
+                      <button
+                        className="flex-1 px-3 py-2 rounded-lg text-[10px] font-bold bg-gray-200 transition-all hover:bg-gray-300"
+                        style={{ color: config.theme.textColor }}
+                      >
+                        Accept selected
+                      </button>
+                      <button
+                        className="flex-1 px-3 py-2 rounded-lg text-[10px] font-bold text-white transition-all hover:opacity-90"
+                        style={{ backgroundColor: config.theme.primaryColor }}
+                      >
+                        Accept all
+                      </button>
+                      <button
+                        className="flex-1 px-3 py-2 rounded-lg text-[10px] font-bold bg-white border transition-all hover:bg-gray-50"
+                        style={{ borderColor: '#e5e7eb', color: config.theme.textColor }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Powered by Consently */}
+                  {config.showBranding && (
+                    <div className="px-5 py-2 text-center border-t bg-gray-50" style={{ borderColor: '#e5e7eb' }}>
+                      <p className="text-[10px] text-gray-400 m-0">
+                        Powered by <a href="https://consently.in" target="_blank" rel="noopener noreferrer" className="font-semibold" style={{ color: config.theme.primaryColor }}>Consently</a>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

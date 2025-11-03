@@ -95,17 +95,28 @@ export default function CookieConsentRecordsPage() {
   };
 
   const handleExport = () => {
+    // Helper function to escape CSV fields
+    const escapeCSV = (value: string | null | undefined): string => {
+      if (!value) return 'N/A';
+      const stringValue = String(value);
+      // If the value contains comma, quote, or newline, wrap it in quotes and escape internal quotes
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
     const csv = [
       ['ID', 'Session ID', 'Status', 'Categories', 'Timestamp', 'IP Address', 'Device', 'Language'],
       ...records.map((r) => [
-        r.id,
-        r.consent_id,
-        r.status,
-        r.categories?.join(', ') || 'N/A',
-        r.created_at,
-        r.ip_address || 'N/A',
-        r.device_type || 'N/A',
-        r.language || 'N/A',
+        escapeCSV(r.id),
+        escapeCSV(r.consent_id),
+        escapeCSV(r.status),
+        escapeCSV(r.categories?.join(', ')),
+        escapeCSV(r.created_at),
+        escapeCSV(r.ip_address),
+        escapeCSV(r.device_type),
+        escapeCSV(r.language),
       ]),
     ]
       .map((row) => row.join(','))

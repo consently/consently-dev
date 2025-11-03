@@ -5,11 +5,21 @@ import { z } from 'zod';
 
 // Validation schema for processing activity
 const activitySchema = z.object({
-  activity_name: z.string().min(3, 'Activity name must be at least 3 characters'),
-  industry: z.string().min(2, 'Industry is required'),
-  data_attributes: z.array(z.string()).min(1, 'At least one data attribute is required'),
-  purpose: z.string().min(10, 'Purpose must be at least 10 characters'),
-  retention_period: z.string().min(1, 'Retention period is required'),
+  activity_name: z.string()
+    .min(3, 'Activity name must be at least 3 characters')
+    .max(200, 'Activity name must not exceed 200 characters'),
+  industry: z.string()
+    .min(2, 'Industry is required')
+    .max(100, 'Industry must not exceed 100 characters'),
+  data_attributes: z.array(z.string().max(100, 'Data attribute too long'))
+    .min(1, 'At least one data attribute is required')
+    .max(50, 'Cannot have more than 50 data attributes'),
+  purpose: z.string()
+    .min(10, 'Purpose must be at least 10 characters')
+    .max(2000, 'Purpose must not exceed 2000 characters'),
+  retention_period: z.string()
+    .min(1, 'Retention period is required')
+    .max(200, 'Retention period must not exceed 200 characters'),
   data_processors: z.any(),
   is_active: z.boolean().optional(),
 });

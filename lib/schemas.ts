@@ -97,16 +97,19 @@ export const cookieScanSchema = z.object({
   scanDepth: z.enum(['shallow', 'medium', 'deep']),
 });
 
-// Processing Activity Schema - Form Input
+// Processing Activity Schema - Form Input (New structured format)
 export const processingActivityFormSchema = z.object({
   name: z.string().min(3, 'Activity name is required'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
+  purposes: z.object({
+    selectedPurposes: z.array(z.string()).min(1, 'Select at least one purpose'),
+    customDescription: z.string().optional(),
+  }),
   industry: z.enum(['e-commerce', 'banking', 'healthcare', 'education', 'real-estate', 'travel', 'telecom', 'other']),
   legalBasis: z.enum(['consent', 'contract', 'legal-obligation', 'legitimate-interest']),
-  dataCategories: z.string().min(1, 'Data categories are required'),
+  dataCategories: z.array(z.string()).min(1, 'Data categories are required'),
   retentionPeriod: z.string().min(1, 'Retention period is required'),
-  dataSources: z.string().min(1, 'Data sources are required'),
-  dataRecipients: z.string().optional(),
+  dataSources: z.array(z.string()).min(1, 'Data sources are required'),
+  dataRecipients: z.array(z.string()).optional(),
 });
 
 // Processing Activity Schema - For backward compatibility

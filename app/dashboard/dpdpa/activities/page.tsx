@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Modal } from '@/components/ui/modal';
+import { TagInput } from '@/components/ui/tag-input';
+import { MultiPurposeSelector, COMMON_PURPOSES } from '@/components/ui/multi-purpose-selector';
 import { processingActivitySchema, type ProcessingActivityInput } from '@/lib/schemas';
+import { 
+  COMMON_DATA_CATEGORIES, 
+  DATA_SOURCES_SUGGESTIONS,
+  DATA_RECIPIENTS_SUGGESTIONS 
+} from '@/lib/data-categories';
 import { 
   industryTemplates, 
   getLegalBasisLabel, 
@@ -76,17 +83,21 @@ export default function ProcessingActivitiesPage() {
     reset,
     setValue,
     watch,
+    control,
   } = useForm<ProcessingActivityInput>({
     resolver: zodResolver(processingActivitySchema),
     defaultValues: {
       name: '',
-      description: '',
+      purposes: {
+        selectedPurposes: [],
+        customDescription: '',
+      },
       industry: 'e-commerce',
       legalBasis: 'consent',
-      dataCategories: '',
+      dataCategories: [],
       retentionPeriod: '',
-      dataSources: '',
-      dataRecipients: '',
+      dataSources: [],
+      dataRecipients: [],
     },
   });
 
@@ -128,9 +139,21 @@ export default function ProcessingActivitiesPage() {
   const onSubmit = async (data: ProcessingActivityInput) => {
     setIsLoading(true);
     try {
+      // Convert purposes to a readable string for backend storage
+      const purposeLabels = data.purposes.selectedPurposes.map(purposeId => {
+        const allPurposes = COMMON_PURPOSES[data.industry] || [];
+        const purpose = allPurposes.find(p => p.id === purposeId);
+        return purpose ? purpose.label : purposeId;
+      });
+      
+      let purposeText = purposeLabels.join(', ');
+      if (data.purposes.customDescription) {
+        purposeText += (purposeText ? '. ' : '') + data.purposes.customDescription;
+      }
+      
       const payload = {
         activity_name: data.name,
-        purpose: data.description,
+        purpose: purposeText,
         industry: data.industry,
         data_attributes: data.dataCategories,
         retention_period: data.retentionPeriod,
@@ -187,11 +210,20 @@ export default function ProcessingActivitiesPage() {
   const handleEdit = (activity: ProcessingActivity) => {
     setEditingActivity(activity);
     setValue('name', activity.activity_name);
-    setValue('description', activity.purpose);
+    
+    // Parse the purpose text back to structured format (best effort)
+    // Since we're storing as text, we can't perfectly reverse engineer the selection
+    // So we'll put the full text in customDescription
+    setValue('purposes', {
+      selectedPurposes: [],
+      customDescription: activity.purpose,
+    });
+    
     setValue('industry', activity.industry as any);
-    setValue('dataCategories', activity.data_attributes.join(', '));
+    setValue('dataCategories', activity.data_attributes);
     setValue('retentionPeriod', activity.retention_period);
-    setValue('dataSources', activity.data_processors?.sources?.join(', ') || '');
+    setValue('dataSources', activity.data_processors?.sources || []);
+    setValue('dataRecipients', []);
     setModalOpen(true);
   };
 
@@ -607,15 +639,6 @@ export default function ProcessingActivitiesPage() {
             required
           />
 
-          <Textarea
-            {...register('description')}
-            label="Purpose & Description"
-            placeholder="Describe the purpose and scope of this data processing activity..."
-            error={errors.description?.message}
-            rows={4}
-            required
-          />
-
           <div className="grid grid-cols-2 gap-4">
             <Select
               {...register('industry')}
@@ -644,13 +667,36 @@ export default function ProcessingActivitiesPage() {
             />
           </div>
 
-          <Input
-            {...register('dataCategories')}
-            label="Data Categories"
-            placeholder="Email, Name, Phone Number, Address (comma separated)"
-            helperText="Enter data categories separated by commas"
-            error={errors.dataCategories?.message}
-            required
+          <Controller
+            name="purposes"
+            control={control}
+            render={({ field }) => (
+              <MultiPurposeSelector
+                value={field.value}
+                onChange={field.onChange}
+                predefinedPurposes={COMMON_PURPOSES[watch('industry')] || COMMON_PURPOSES['other']}
+                label="Purpose & Description"
+                error={errors.purposes?.selectedPurposes?.message || errors.purposes?.customDescription?.message}
+                required
+              />
+            )}
+          />
+
+          <Controller
+            name="dataCategories"
+            control={control}
+            render={({ field }) => (
+              <TagInput
+                value={field.value}
+                onChange={field.onChange}
+                label="Data Categories"
+                placeholder="Type and press Enter to add (e.g., Email, Name, Phone Number)"
+                suggestions={COMMON_DATA_CATEGORIES}
+                helperText="Add data categories one at a time. Start typing to see suggestions."
+                error={errors.dataCategories?.message}
+                required
+              />
+            )}
           />
 
           <Input
@@ -661,21 +707,37 @@ export default function ProcessingActivitiesPage() {
             required
           />
 
-          <Input
-            {...register('dataSources')}
-            label="Data Sources"
-            placeholder="Website forms, API, Mobile app, Third-party providers (comma separated)"
-            helperText="Enter data sources separated by commas"
-            error={errors.dataSources?.message}
-            required
+          <Controller
+            name="dataSources"
+            control={control}
+            render={({ field }) => (
+              <TagInput
+                value={field.value}
+                onChange={field.onChange}
+                label="Data Sources"
+                placeholder="Type and press Enter to add (e.g., Website, Mobile App)"
+                suggestions={DATA_SOURCES_SUGGESTIONS}
+                helperText="Add data sources one at a time. Start typing to see suggestions."
+                error={errors.dataSources?.message}
+                required
+              />
+            )}
           />
 
-          <Input
-            {...register('dataRecipients')}
-            label="Data Recipients (Optional)"
-            placeholder="Analytics providers, Marketing platforms (comma separated)"
-            helperText="Enter data recipients separated by commas"
-            error={errors.dataRecipients?.message}
+          <Controller
+            name="dataRecipients"
+            control={control}
+            render={({ field }) => (
+              <TagInput
+                value={field.value || []}
+                onChange={field.onChange}
+                label="Data Recipients (Optional)"
+                placeholder="Type and press Enter to add (e.g., Analytics Providers)"
+                suggestions={DATA_RECIPIENTS_SUGGESTIONS}
+                helperText="Add data recipients one at a time. Start typing to see suggestions."
+                error={errors.dataRecipients?.message}
+              />
+            )}
           />
 
           <div className="flex justify-end gap-4 pt-4 border-t">

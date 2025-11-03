@@ -714,6 +714,38 @@
           </h3>
           <p class="consently-message">${message}</p>
           ${(() => {
+            // Category chips - matching preview
+            if (!config.categories || config.categories.length === 0) return '';
+            
+            const categoryNames = {
+              necessary: 'Necessary',
+              preferences: 'Preferences',
+              analytics: 'Analytics',
+              marketing: 'Marketing',
+              social: 'Social'
+            };
+            
+            return `
+              <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+                ${config.categories.map(cat => {
+                  const name = categoryNames[cat] || cat.charAt(0).toUpperCase() + cat.slice(1);
+                  return `<span style="
+                    display: inline-flex;
+                    align-items: center;
+                    padding: 4px 10px;
+                    font-size: 11px;
+                    font-weight: 500;
+                    border: 1px solid ${primaryColor};
+                    color: ${primaryColor};
+                    background: transparent;
+                    border-radius: 12px;
+                    text-transform: capitalize;
+                  ">${name}</span>`;
+                }).join('')}
+              </div>
+            `;
+          })()}
+          ${(() => {
             const links = [];
             if (config.privacyPolicyUrl) {
               links.push(`<a href="${config.privacyPolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${config.privacyPolicyText || 'Privacy Policy'}</a>`);
@@ -743,6 +775,20 @@
           ` : ''}
         </div>
       </div>
+      ${config.showBrandingLink ? `
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1); text-align: center;">
+          <a 
+            href="https://www.consently.in" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style="font-size: 12px; color: ${theme.textColor || '#6b7280'}; opacity: 0.7; text-decoration: none; transition: opacity 0.15s;"
+            onmouseover="this.style.opacity='1'"
+            onmouseout="this.style.opacity='0.7'"
+          >
+            Powered by <span style="font-weight: 600;">Consently</span>
+          </a>
+        </div>
+      ` : ''}
     `;
 
     document.body.appendChild(banner);

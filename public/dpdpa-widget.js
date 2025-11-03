@@ -300,7 +300,8 @@
     }
 
     const theme = config.theme || {};
-    const primaryColor = theme.primaryColor || '#3b82f6';
+    // Use the trustworthy blue color from consently theme
+    const primaryColor = theme.primaryColor || '#4c8bf5'; // hsl(217 91% 60%) converted to hex
     const backgroundColor = theme.backgroundColor || '#ffffff';
     const textColor = theme.textColor || '#1f2937';
     const borderRadius = theme.borderRadius || 12;
@@ -360,143 +361,142 @@
     // Build widget HTML
     function buildWidgetHTML() {
       return `
-      <div style="padding: 24px 24px 0 24px; overflow-y: auto; flex: 1;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:${primaryColor};color:white;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            </div>
-            <div>
-              <div style="font-size:18px;font-weight:700;color:${textColor};margin:0;">${escapeHtml(t.consentManager)}</div>
-              <div style="margin-top:6px;background:#e0e7ff;color:#1e3a8a;border-radius:9999px;padding:6px 10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                <span style="width:8px;height:8px;border-radius:9999px;background:#10b981;"></span>
-                ${escapeHtml(t.compliantWith)}
+      <!-- Header Section -->
+      <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; background: linear-gradient(to bottom, #ffffff, #f8fafc);">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            ${config.theme.logoUrl ? `
+              <img src="${escapeHtml(config.theme.logoUrl)}" alt="Logo" style="height: 32px; width: auto; object-fit: contain;" />
+            ` : `
+              <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: ${primaryColor}; color: white; font-weight: 700; font-size: 16px;">
+                C
               </div>
+            `}
+            <div>
+              <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">NOTICE</h2>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="position:relative;">
-              <button id="dpdpa-lang-btn" style="display:flex;align-items:center;gap:8px;padding:10px 16px;border:none;border-radius:10px;background:#3b82f6;color:#fff;cursor:pointer;font-weight:600;font-size:14px;box-shadow:0 2px 4px rgba(59,130,246,0.3);transition:all 0.2s;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <!-- Language Selector with Radio Layout -->
+            <div style="position: relative;">
+              <button id="dpdpa-lang-btn" style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; color: ${textColor}; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="2" y1="12" x2="22" y2="12"/>
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                <span>${languageLabel(selectedLanguage)}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.8;">
+                <span style="font-size: 13px;">${languageLabel(selectedLanguage)}</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5;">
                   <path d="M7 10l5 5 5-5z"/>
                 </svg>
               </button>
-              <div id="dpdpa-lang-menu" style="display:none;position:absolute;right:0;margin-top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,.15);overflow-y:auto;max-height:400px;z-index:10;min-width:180px;scrollbar-width:thin;scrollbar-color:#cbd5e1 #f1f5f9;">
-                ${(config.supportedLanguages || ['en']).map(code => `
-                  <button data-lang="${code}" style="display:flex;gap:10px;align-items:center;white-space:nowrap;width:100%;text-align:left;padding:12px 16px;border:none;background:${code === selectedLanguage ? '#f0f9ff' : '#fff'};cursor:pointer;font-size:14px;font-weight:${code === selectedLanguage ? '600' : '500'};color:${code === selectedLanguage ? '#0369a1' : '#374151'};transition:all 0.15s;">
-                    <span style="font-size:18px;">${languageFlag(code)}</span>
-                    <span>${languageLabel(code)}</span>
-                    ${code === selectedLanguage ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-left:auto;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
-                  </button>
-                `).join('')}
+              <div id="dpdpa-lang-menu" style="display: none; position: absolute; right: 0; margin-top: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); padding: 8px; z-index: 10; min-width: 200px; max-height: 320px; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                  ${(config.supportedLanguages || ['en']).map(code => `
+                    <button data-lang="${code}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 6px; border: none; background: ${code === selectedLanguage ? '#dbeafe' : '#f9fafb'}; border-radius: 6px; cursor: pointer; transition: all 0.15s; position: relative;">
+                      ${code === selectedLanguage ? '<span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: ' + primaryColor + '; border-radius: 50%;"></span>' : ''}
+                      <span style="font-size: 11px; font-weight: ${code === selectedLanguage ? '600' : '500'}; color: ${code === selectedLanguage ? primaryColor : '#6b7280'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${languageLabel(code)}</span>
+                    </button>
+                  `).join('')}
+                </div>
               </div>
             </div>
-            <button id="dpdpa-close-btn" style="background: none; border: none; cursor: pointer; padding: 8px; opacity: 0.6; transition: opacity 0.2s;" aria-label="Close">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            <button id="dpdpa-close-btn" style="background: none; border: none; cursor: pointer; padding: 6px; opacity: 0.5; transition: opacity 0.2s; border-radius: 6px;" aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
 
-        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px 14px 0 14px;margin-bottom:16px;background:#f8fafc;">
-          <div style="background:#e0e7ff;color:#1e3a8a;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;">${escapeHtml(t.requirementsTitle)}</div>
-          <div style="display:flex;gap:12px;align-items:center;padding:12px 2px;color:#334155;font-size:13px;">
-            <div id="dpdpa-read-status" style="display:flex;align-items:center;gap:6px;">
-              <span id="dpdpa-read-icon" style="color:#94a3b8;">✔</span>
-              <span>${escapeHtml(t.scrollInstruction)}</span>
-            </div>
-          </div>
-        </div>
+      </div>
+      
+      <!-- Main Content Section -->
+      <div style="padding: 20px 24px; overflow-y: auto; flex: 1;">
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+          We process your personal data only when necessary to provide our banking services. By clicking on the 'Accept all' button below, you consent to process your personal data for the following purposes:
+        </p>
 
-        <div id="dpdpa-notice-container" style="border:1px solid #e5e7eb;border-radius:12px;padding:0;max-height:300px;overflow:auto;margin-bottom:16px;">
-          <div style="padding:16px;">
-            ${noticeHTML}
-          </div>
-        </div>
-
-        <div id="dpdpa-actions-gate" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;">
-          <button id="dpdpa-download-notice" style="padding:10px 16px;background:${primaryColor};color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;">${escapeHtml(t.downloadButton)}</button>
-          <button id="dpdpa-proceed-consent" disabled style="padding:10px 16px;background:#e5e7eb;color:#6b7280;border:none;border-radius:10px;cursor:not-allowed;font-weight:700;">${escapeHtml(t.proceedButton)}</button>
-        </div>
-        <div id="dpdpa-requirements-msg" style="display:block;color:#ef4444;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:16px;">${escapeHtml(t.warningMessage)}</div>
-
-        <div id="dpdpa-consent-section" style="display:none; margin-bottom: 24px;">
-          <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 16px 0; color: ${textColor};">${escapeHtml(t.processingActivities)}</h3>
-          <p style="font-size: 13px; color: ${textColor}; opacity: 0.7; margin: 0 0 16px 0;">${escapeHtml(t.processingDescription)}</p>
-          <div id="dpdpa-activities-list" style="display: flex; flex-direction: column; gap: 12px;">
-            ${activities.map((activity) => `
-              <div class="dpdpa-activity-item" style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px; transition: border-color 0.2s;">
-                <div style="display: flex; align-items: start; justify-content: space-between;">
-                  <div style="flex: 1; padding-right: 16px;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                      <h4 style="font-size: 15px; font-weight: 600; margin: 0; color: ${textColor};">${escapeHtml(activity.activity_name)}</h4>
-                      <span style="font-size: 11px; padding: 2px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-weight: 500;">${escapeHtml(activity.industry || 'General')}</span>
-                    </div>
-                    <p style="font-size: 13px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0 0 12px 0;">${escapeHtml(activity.purpose)}</p>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 12px;">
-                      <div>
-                        <div style="font-weight: 600; color: ${textColor}; opacity: 0.7; margin-bottom: 4px;">${escapeHtml(t.dataAttributes)}</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                          ${activity.data_attributes.slice(0, 3).map(attr => `<span style=\"padding: 2px 8px; background: #f3f4f6; color: ${textColor}; border-radius: 4px; font-size: 11px;\">${escapeHtml(attr)}</span>`).join('')}
-                          ${activity.data_attributes.length > 3 ? `<span style=\"padding: 2px 8px; background: #f3f4f6; color: ${textColor}; border-radius: 4px; font-size: 11px;\">+${activity.data_attributes.length - 3} more</span>` : ''}
-                        </div>
-                      </div>
-                      <div>
-                        <div style="font-weight: 600; color: ${textColor}; opacity: 0.7; margin-bottom: 4px;">${escapeHtml(t.retentionPeriod)}</div>
-                        <div style="color: ${textColor}; opacity: 0.9;">${escapeHtml(activity.retention_period)}</div>
-                      </div>
-                    </div>
+        <!-- Processing Activities List -->
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
+          ${activities.map((activity) => `
+            <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; background: white; transition: all 0.2s;">
+              <div style="display: flex; align-items: start; gap: 12px;">
+                <!-- Checkbox -->
+                <label style="display: flex; align-items: center; cursor: pointer; padding-top: 2px;">
+                  <input type="checkbox" class="activity-checkbox" data-activity-id="${activity.id}" style="width: 18px; height: 18px; cursor: pointer; accent-color: ${primaryColor};" />
+                </label>
+                
+                <!-- Activity Details -->
+                <div style="flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <h4 style="font-size: 15px; font-weight: 600; margin: 0; color: ${textColor};">${escapeHtml(activity.activity_name)}</h4>
                   </div>
-                  <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <button class="dpdpa-activity-accept" data-activity-id="${activity.id}" style="padding: 8px 16px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.2s; white-space: nowrap;">${escapeHtml(t.acceptButton)}</button>
-                    <button class="dpdpa-activity-reject" data-activity-id="${activity.id}" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.2s; white-space: nowrap;">${escapeHtml(t.rejectButton)}</button>
+                  
+                  <!-- Data Categories Section -->
+                  <div style="margin-bottom: 10px;">
+                    <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.02em;">Data Categories</div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px; color: ${textColor};">
+                      ${activity.data_attributes.slice(0, 6).map(attr => `
+                        <div style="padding: 6px 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">${escapeHtml(attr)}</div>
+                      `).join('')}
+                      ${activity.data_attributes.length > 6 ? `<div style="padding: 6px 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; font-weight: 500;">+${activity.data_attributes.length - 6} more</div>` : ''}
+                    </div>
                   </div>
                 </div>
-                <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
               </div>
-            `).join('')}
-          </div>
+              <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
+            </div>
+          `).join('')}
         </div>
 
-        ${config.showDataSubjectsRights ? `
-          <div style="background: #f9fafb; border-left: 4px solid ${primaryColor}; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
-            <h4 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; color: ${textColor};">${escapeHtml(t.yourDataRights)}</h4>
-            <p style="font-size: 12px; line-height: 1.5; color: ${textColor}; opacity: 0.8; margin: 0 8px 0 0;">${escapeHtml(t.dataRightsText)}</p>
-            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-              <button id="dpdpa-withdraw-btn" style="padding:6px 10px; background:#f59e0b; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">${escapeHtml(t.withdrawConsent)}</button>
-              <button id="dpdpa-grievance-btn" style="padding:6px 10px; background:#374151; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">${escapeHtml(t.raiseGrievance)}</button>
-            </div>
-          </div>
-        ` : ''}
+        <!-- Manage Consent Text -->
+        <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
+          <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+            You can manage your consent from the preference centre in your account.
+          </p>
+        </div>
+        
+        <!-- Footer Links -->
+        <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+            If you have any grievances with how we process your personal data click <a href="#" id="dpdpa-grievance-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">here</a>. If we are unable to resolve your grievance, you can also make a complaint to the Data Protection Board by clicking <a href="#" id="dpdpa-dpb-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">here</a>.
+          </p>
+        </div>
       </div>
 
-      <div id="dpdpa-consent-actions" style="display:none;padding: 16px 24px; border-top: 1px solid #e5e7eb; gap: 12px; justify-content: flex-end; background: #f9fafb;">
-        <button id="dpdpa-reject-all-btn" style="padding: 12px 24px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s;">${escapeHtml(t.rejectAll)}</button>
-        <button id="dpdpa-accept-all-btn" style="padding: 12px 24px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">${escapeHtml(t.acceptAll)}</button>
+      <!-- Footer Actions -->
+      <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #fafbfc; display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+        <button id="dpdpa-download-icon" style="padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Download Privacy Notice">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+        <div style="flex: 1; display: flex; gap: 10px;">
+          <button id="dpdpa-accept-selected-btn" style="flex: 1; padding: 12px 20px; background: #f3f4f6; color: ${textColor}; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">
+            Accept selected
+          </button>
+          <button id="dpdpa-accept-all-btn" style="flex: 1; padding: 12px 20px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+            Accept all
+          </button>
+          <button id="dpdpa-cancel-btn" style="flex: 1; padding: 12px 20px; background: white; color: ${textColor}; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">
+            Cancel
+          </button>
+        </div>
       </div>
+      
+      <!-- Powered by Consently -->
+      ${config.showBranding !== false ? `
+        <div style="padding: 8px 24px; text-align: center; border-top: 1px solid #e5e7eb; background: #fafbfc;">
+          <p style="margin: 0; font-size: 11px; color: #9ca3af;">
+            Powered by <a href="https://consently.in" target="_blank" style="color: ${primaryColor}; font-weight: 600; text-decoration: none;">Consently</a>
+          </p>
+        </div>
+      ` : ''}
     `;
     }
     
     widget.innerHTML = buildWidgetHTML();
-
-    function updateProceedState() {
-      const proceedBtn = widget.querySelector('#dpdpa-proceed-consent');
-      const readIcon = widget.querySelector('#dpdpa-read-icon');
-      const reqMsg = widget.querySelector('#dpdpa-requirements-msg');
-      if (readComplete && downloadComplete) {
-        proceedBtn.removeAttribute('disabled');
-        proceedBtn.style.background = primaryColor;
-        proceedBtn.style.color = '#fff';
-        proceedBtn.style.cursor = 'pointer';
-        if (reqMsg) reqMsg.style.display = 'none';
-      }
-      if (readIcon) readIcon.style.color = readComplete ? '#10b981' : '#94a3b8';
-    }
 
     function languageLabel(code) {
       const map = { 
@@ -546,6 +546,9 @@
       widget.style.opacity = '1';
     });
 
+    // Store reference to global click handler to cleanup later
+    let globalClickHandler = null;
+
     // Attach event listeners
     attachEventListeners(overlay, widget);
 
@@ -555,6 +558,12 @@
       widget.style.opacity = '0.6';
       widget.style.pointerEvents = 'none';
       
+      // Remove old global click handler before rebuilding
+      if (globalClickHandler) {
+        document.removeEventListener('click', globalClickHandler);
+        globalClickHandler = null;
+      }
+      
       // Fetch translations
       t = await getTranslation(selectedLanguage);
       
@@ -563,8 +572,6 @@
       attachEventListeners(overlay, widget);
       // Re-setup gated interactions
       setupGatedInteractions();
-      // Restore state
-      updateProceedState();
       
       // Remove loading
       widget.style.opacity = '1';
@@ -573,37 +580,10 @@
 
     // Setup gated interactions
     function setupGatedInteractions() {
-      const noticeContainer = widget.querySelector('#dpdpa-notice-container');
-      noticeContainer.addEventListener('scroll', () => {
-        const atBottom = noticeContainer.scrollTop + noticeContainer.clientHeight >= noticeContainer.scrollHeight - 10;
-        if (atBottom) { readComplete = true; updateProceedState(); }
-      });
-
-      widget.querySelector('#dpdpa-download-notice').addEventListener('click', async () => {
-        try {
-          const blob = new Blob([noticeHTML], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `privacy-notice-${new Date().toISOString().split('T')[0]}.html`;
-          a.click();
-          URL.revokeObjectURL(url);
-          downloadComplete = true;
-          updateProceedState();
-        } catch (e) {}
-      });
-
-      widget.querySelector('#dpdpa-proceed-consent').addEventListener('click', () => {
-        if (!(readComplete && downloadComplete)) return;
-        widget.querySelector('#dpdpa-consent-section').style.display = 'block';
-        const actions = widget.querySelector('#dpdpa-consent-actions');
-        if (actions) actions.style.display = 'flex';
-        const target = widget.querySelector('#dpdpa-consent-section');
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-
       const langBtn = widget.querySelector('#dpdpa-lang-btn');
       const langMenu = widget.querySelector('#dpdpa-lang-menu');
+      
+      if (!langBtn || !langMenu) return; // Safety check
       
       // Hover effect
       langBtn.addEventListener('mouseenter', () => {
@@ -621,12 +601,14 @@
         langMenu.style.display = langMenu.style.display === 'none' || !langMenu.style.display ? 'block' : 'none';
       });
       
-      // Close on outside click
-      document.addEventListener('click', (e) => {
+      // Close on outside click - Store reference to remove later
+      globalClickHandler = (e) => {
         if (!langBtn.contains(e.target) && !langMenu.contains(e.target)) {
           langMenu.style.display = 'none';
         }
-      });
+      };
+      document.addEventListener('click', globalClickHandler);
+      
       langMenu.querySelectorAll('button[data-lang]').forEach(b => {
         // Hover effects
         b.addEventListener('mouseenter', () => {
@@ -656,56 +638,90 @@
   function attachEventListeners(overlay, widget) {
     // Close button
     const closeBtn = widget.querySelector('#dpdpa-close-btn');
-    closeBtn.addEventListener('click', () => {
-      hideWidget(overlay);
-    });
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        hideWidget(overlay);
+      });
+    }
 
-    // Accept individual activity
-    const acceptBtns = widget.querySelectorAll('.dpdpa-activity-accept');
-    acceptBtns.forEach(btn => {
-      btn.addEventListener('click', function() {
+    // Checkboxes for activities
+    const checkboxes = widget.querySelectorAll('.activity-checkbox');
+    checkboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
         const activityId = this.getAttribute('data-activity-id');
-        setActivityConsent(activityId, 'accepted');
-        updateActivityUI(activityId, 'accepted');
+        const item = this.closest('.dpdpa-activity-item');
+        if (this.checked) {
+          setActivityConsent(activityId, 'accepted');
+          item.style.borderColor = primaryColor;
+          item.style.background = `${primaryColor}08`;
+        } else {
+          setActivityConsent(activityId, 'rejected');
+          item.style.borderColor = '#e5e7eb';
+          item.style.background = 'white';
+        }
       });
     });
 
-    // Reject individual activity
-    const rejectBtns = widget.querySelectorAll('.dpdpa-activity-reject');
-    rejectBtns.forEach(btn => {
-      btn.addEventListener('click', function() {
-        const activityId = this.getAttribute('data-activity-id');
-        setActivityConsent(activityId, 'rejected');
-        updateActivityUI(activityId, 'rejected');
+    // Download icon button
+    const downloadIcon = widget.querySelector('#dpdpa-download-icon');
+    if (downloadIcon) {
+      downloadIcon.addEventListener('click', () => {
+        try {
+          const noticeHTML = config.privacyNoticeHTML || '<p>Privacy notice</p>';
+          const blob = new Blob([noticeHTML], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `privacy-notice-${new Date().toISOString().split('T')[0]}.html`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error('Download failed:', e);
+        }
       });
-    });
+    }
+
+    // Accept selected button
+    const acceptSelectedBtn = widget.querySelector('#dpdpa-accept-selected-btn');
+    if (acceptSelectedBtn) {
+      acceptSelectedBtn.addEventListener('click', () => {
+        handleAcceptSelected(overlay);
+      });
+    }
 
     // Accept all button
     const acceptAllBtn = widget.querySelector('#dpdpa-accept-all-btn');
-    acceptAllBtn.addEventListener('click', () => {
-      handleAcceptAll(overlay);
-    });
-
-    // Withdraw/Modify button
-    const withdrawBtn = widget.querySelector('#dpdpa-withdraw-btn');
-    if (withdrawBtn) {
-      withdrawBtn.addEventListener('click', () => {
-        ConsentStorage.delete(`consently_dpdpa_consent_${widgetId}`);
-        // keep widget open for modifications
+    if (acceptAllBtn) {
+      acceptAllBtn.addEventListener('click', () => {
+        handleAcceptAll(overlay);
       });
     }
 
-    // Grievance button
-    const grievanceBtn = widget.querySelector('#dpdpa-grievance-btn');
-    if (grievanceBtn) {
-      grievanceBtn.addEventListener('click', () => openGrievanceForm());
+    // Cancel button
+    const cancelBtn = widget.querySelector('#dpdpa-cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        hideWidget(overlay);
+      });
     }
 
-    // Reject all button
-    const rejectAllBtn = widget.querySelector('#dpdpa-reject-all-btn');
-    rejectAllBtn.addEventListener('click', () => {
-      handleRejectAll(overlay);
-    });
+    // Grievance link
+    const grievanceLink = widget.querySelector('#dpdpa-grievance-link');
+    if (grievanceLink) {
+      grievanceLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openGrievanceForm();
+      });
+    }
+
+    // DPB link
+    const dpbLink = widget.querySelector('#dpdpa-dpb-link');
+    if (dpbLink) {
+      dpbLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.open('https://dataprotection.gov.in', '_blank');
+      });
+    }
 
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
@@ -744,20 +760,43 @@
     });
   }
 
+  // Handle accept selected (only checked activities)
+  async function handleAcceptSelected(overlay) {
+    const checkboxes = document.querySelectorAll('.activity-checkbox:checked');
+    if (checkboxes.length === 0) {
+      alert('Please select at least one activity');
+      return;
+    }
+    
+    // Accept only checked activities, reject others
+    activities.forEach(activity => {
+      const checkbox = document.querySelector(`.activity-checkbox[data-activity-id="${activity.id}"]`);
+      if (checkbox && checkbox.checked) {
+        setActivityConsent(activity.id, 'accepted');
+      } else {
+        setActivityConsent(activity.id, 'rejected');
+      }
+    });
+    await saveConsent('partial', overlay);
+  }
+
   // Handle accept all
   async function handleAcceptAll(overlay) {
+    // Check all checkboxes first
+    const checkboxes = document.querySelectorAll('.activity-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = true;
+      const item = cb.closest('.dpdpa-activity-item');
+      if (item) {
+        item.style.borderColor = config.theme.primaryColor || '#3b82f6';
+        item.style.background = `${config.theme.primaryColor || '#3b82f6'}08`;
+      }
+    });
+    
     activities.forEach(activity => {
       setActivityConsent(activity.id, 'accepted');
     });
     await saveConsent('accepted', overlay);
-  }
-
-  // Handle reject all
-  async function handleRejectAll(overlay) {
-    activities.forEach(activity => {
-      setActivityConsent(activity.id, 'rejected');
-    });
-    await saveConsent('rejected', overlay);
   }
 
   // Save consent
@@ -833,11 +872,21 @@
   function hideWidget(overlay) {
     const widget = overlay.querySelector('#consently-dpdpa-widget');
     overlay.style.opacity = '0';
-    widget.style.transform = 'scale(0.9)';
-    widget.style.opacity = '0';
+    if (widget) {
+      widget.style.transform = 'scale(0.9)';
+      widget.style.opacity = '0';
+    }
+    
+    // Cleanup: Remove global click handler
+    if (globalClickHandler) {
+      document.removeEventListener('click', globalClickHandler);
+      globalClickHandler = null;
+    }
     
     setTimeout(() => {
-      document.body.removeChild(overlay);
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
     }, 300);
   }
 
@@ -882,6 +931,11 @@
       const email = (modal.querySelector('#g-email')).value || null;
       const message = (modal.querySelector('#g-message')).value?.trim();
       if (!message) { alert('Please enter a message.'); return; }
+      // Validate email format if provided
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert('Please enter a valid email address.');
+        return;
+      }
       try {
         const scriptSrc = currentScript.src;
         const apiBase = scriptSrc && scriptSrc.includes('http') ? new URL(scriptSrc).origin : window.location.origin;

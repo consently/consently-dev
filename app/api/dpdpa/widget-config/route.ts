@@ -3,20 +3,42 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 // Validation schema
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const widgetConfigSchema = z.object({
-  name: z.string().min(3, 'Name must be at least 3 characters'),
-  domain: z.string().min(3, 'Domain is required'),
+  name: z.string()
+    .min(3, 'Name must be at least 3 characters')
+    .max(200, 'Name must not exceed 200 characters'),
+  domain: z.string()
+    .min(3, 'Domain is required')
+    .max(255, 'Domain must not exceed 255 characters'),
   position: z.enum(['top', 'bottom', 'center', 'bottom-left', 'bottom-right', 'modal']).optional(),
   layout: z.enum(['modal', 'slide-in', 'banner']).optional(),
   theme: z.any().optional(),
-  title: z.string().optional(),
-  message: z.string().optional(),
-  acceptButtonText: z.string().optional(),
-  rejectButtonText: z.string().optional(),
-  customizeButtonText: z.string().optional(),
-  selectedActivities: z.array(z.string()).optional(),
+  title: z.string()
+    .max(200, 'Title must not exceed 200 characters')
+    .optional(),
+  message: z.string()
+    .max(2000, 'Message must not exceed 2000 characters')
+    .optional(),
+  acceptButtonText: z.string()
+    .max(50, 'Button text must not exceed 50 characters')
+    .optional(),
+  rejectButtonText: z.string()
+    .max(50, 'Button text must not exceed 50 characters')
+    .optional(),
+  customizeButtonText: z.string()
+    .max(50, 'Button text must not exceed 50 characters')
+    .optional(),
+  selectedActivities: z.array(z.string().uuid('Invalid activity ID format'))
+    .max(100, 'Cannot select more than 100 activities')
+    .optional(),
   autoShow: z.boolean().optional(),
-  showAfterDelay: z.number().optional(),
+  showAfterDelay: z.number()
+    .min(0)
+    .max(30000, 'Delay must not exceed 30 seconds')
+    .optional(),
   consentDuration: z.number().min(1).max(730).optional(),
   respectDNT: z.boolean().optional(),
   requireExplicitConsent: z.boolean().optional(),
@@ -120,8 +142,11 @@ export async function POST(request: NextRequest) {
     // Generate unique widget ID
     const widgetId = `dpdpa_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 9)}`;
 
+    // Validate and filter UUIDs for security
+    const validatedActivities = (configData.selectedActivities || [])
+      .filter(id => UUID_REGEX.test(id));
+
     // Prepare data for insertion
-    // Note: selected_activities needs to be cast to UUID[] in PostgreSQL
     const insertData = {
       user_id: user.id,
       widget_id: widgetId,
@@ -135,7 +160,7 @@ export async function POST(request: NextRequest) {
       accept_button_text: configData.acceptButtonText,
       reject_button_text: configData.rejectButtonText,
       customize_button_text: configData.customizeButtonText,
-      selected_activities: (configData.selectedActivities || []) as any,
+      selected_activities: validatedActivities,
       auto_show: configData.autoShow ?? true,
       show_after_delay: configData.showAfterDelay ?? 1000,
       consent_duration: configData.consentDuration ?? 365,
