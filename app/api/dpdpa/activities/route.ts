@@ -2,9 +2,101 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logFailure, logSuccess } from '@/lib/audit';
 import { z } from 'zod';
+import { processingActivityStructuredSchema } from '@/lib/schemas';
 
-// Validation schema for processing activity
-const activitySchema = z.object({
+// Helper function to fetch activity with all related data
+async function fetchActivityWithDetails(supabase: any, activityId: string, userId: string) {
+  // Fetch the main activity
+  const { data: activity, error: activityError } = await supabase
+    .from('processing_activities')
+    .select('*')
+    .eq('id', activityId)
+    .eq('user_id', userId)
+    .single();
+
+  if (activityError || !activity) {
+    return { data: null, error: activityError || new Error('Activity not found') };
+  }
+
+  // Fetch purposes with their data categories
+  const { data: activityPurposes, error: purposesError } = await supabase
+    .from('activity_purposes')
+    .select(`
+      id,
+      activity_id,
+      purpose_id,
+      legal_basis,
+      custom_description,
+      purposes (
+        id,
+        purpose_name,
+        description
+      )
+    `)
+    .eq('activity_id', activityId);
+
+  if (purposesError) {
+    return { data: null, error: purposesError };
+  }
+
+  // Fetch data categories for each purpose
+  const purposesWithCategories = await Promise.all(
+    (activityPurposes || []).map(async (ap: any) => {
+      const { data: categories } = await supabase
+        .from('purpose_data_categories')
+        .select('*')
+        .eq('activity_purpose_id', ap.id);
+
+      return {
+        id: ap.id,
+        purposeId: ap.purpose_id,
+        purposeName: ap.purposes.purpose_name,
+        legalBasis: ap.legal_basis,
+        customDescription: ap.custom_description,
+        dataCategories: (categories || []).map((c: any) => ({
+          id: c.id,
+          categoryName: c.category_name,
+          retentionPeriod: c.retention_period,
+        })),
+      };
+    })
+  );
+
+  // Fetch data sources
+  const { data: sources } = await supabase
+    .from('data_sources')
+    .select('source_name')
+    .eq('activity_id', activityId);
+
+  // Fetch data recipients
+  const { data: recipients } = await supabase
+    .from('data_recipients')
+    .select('recipient_name')
+    .eq('activity_id', activityId);
+
+  return {
+    data: {
+      id: activity.id,
+      userId: activity.user_id,
+      activityName: activity.activity_name,
+      industry: activity.industry,
+      purposes: purposesWithCategories,
+      dataSources: (sources || []).map((s: any) => s.source_name),
+      dataRecipients: (recipients || []).map((r: any) => r.recipient_name),
+      isActive: activity.is_active,
+      createdAt: activity.created_at,
+      updatedAt: activity.updated_at,
+      // Legacy fields for backward compatibility
+      purpose: activity.purpose,
+      retentionPeriod: activity.retention_period,
+      dataAttributes: activity.data_attributes,
+    },
+    error: null,
+  };
+}
+
+// Validation schema for legacy format (backward compatibility)
+const activitySchemaLegacy = z.object({
   activity_name: z.string()
     .min(3, 'Activity name must be at least 3 characters')
     .max(200, 'Activity name must not exceed 200 characters'),
@@ -107,45 +199,152 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse and validate request body
+    // Parse request body
     const body = await request.json();
-    const validationResult = activitySchema.safeParse(body);
 
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validationResult.error.issues },
-        { status: 400 }
+    // Try new structured format first
+    const structuredValidation = processingActivityStructuredSchema.safeParse(body);
+    
+    if (structuredValidation.success) {
+      // NEW STRUCTURED FORMAT
+      const activityData = structuredValidation.data;
+
+      // Insert main activity
+      const { data: activity, error: activityError } = await supabase
+        .from('processing_activities')
+        .insert({
+          user_id: user.id,
+          activity_name: activityData.activityName,
+          industry: activityData.industry,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (activityError) {
+        console.error('Error creating activity:', activityError);
+        await logFailure(user.id, 'activity.create', 'processing_activities', activityError.message, request);
+        return NextResponse.json({ error: 'Failed to create activity' }, { status: 500 });
+      }
+
+      // Insert purposes and their data categories
+      for (const purpose of activityData.purposes) {
+        // Insert activity_purpose
+        const { data: activityPurpose, error: purposeError } = await supabase
+          .from('activity_purposes')
+          .insert({
+            activity_id: activity.id,
+            purpose_id: purpose.purposeId,
+            legal_basis: purpose.legalBasis,
+            custom_description: purpose.customDescription,
+          })
+          .select()
+          .single();
+
+        if (purposeError) {
+          console.error('Error creating activity purpose:', purposeError);
+          // Rollback by deleting the activity
+          await supabase.from('processing_activities').delete().eq('id', activity.id);
+          return NextResponse.json({ error: 'Failed to create activity purposes' }, { status: 500 });
+        }
+
+        // Insert data categories for this purpose
+        const categoryInserts = purpose.dataCategories.map((cat) => ({
+          activity_purpose_id: activityPurpose.id,
+          category_name: cat.categoryName,
+          retention_period: cat.retentionPeriod,
+        }));
+
+        const { error: categoriesError } = await supabase
+          .from('purpose_data_categories')
+          .insert(categoryInserts);
+
+        if (categoriesError) {
+          console.error('Error creating data categories:', categoriesError);
+          // Rollback
+          await supabase.from('processing_activities').delete().eq('id', activity.id);
+          return NextResponse.json({ error: 'Failed to create data categories' }, { status: 500 });
+        }
+      }
+
+      // Insert data sources
+      if (activityData.dataSources && activityData.dataSources.length > 0) {
+        const sourceInserts = activityData.dataSources.map((source) => ({
+          activity_id: activity.id,
+          source_name: source,
+        }));
+
+        await supabase.from('data_sources').insert(sourceInserts);
+      }
+
+      // Insert data recipients
+      if (activityData.dataRecipients && activityData.dataRecipients.length > 0) {
+        const recipientInserts = activityData.dataRecipients.map((recipient) => ({
+          activity_id: activity.id,
+          recipient_name: recipient,
+        }));
+
+        await supabase.from('data_recipients').insert(recipientInserts);
+      }
+
+      // Fetch the complete activity with all related data
+      const { data: completeActivity, error: fetchError } = await fetchActivityWithDetails(
+        supabase,
+        activity.id,
+        user.id
       );
+
+      if (fetchError) {
+        console.error('Error fetching complete activity:', fetchError);
+      }
+
+      // Log success
+      await logSuccess(user.id, 'activity.create', 'processing_activities', activity.id, activityData, request);
+
+      return NextResponse.json({ data: completeActivity || activity }, { status: 201 });
     }
 
-    const activityData = validationResult.data;
+    // Try legacy format for backward compatibility
+    const legacyValidation = activitySchemaLegacy.safeParse(body);
 
-    // Insert activity
-    const { data, error } = await supabase
-      .from('processing_activities')
-      .insert({
-        user_id: user.id,
-        activity_name: activityData.activity_name,
-        industry: activityData.industry,
-        data_attributes: activityData.data_attributes,
-        purpose: activityData.purpose,
-        retention_period: activityData.retention_period,
-        data_processors: activityData.data_processors || {},
-        is_active: activityData.is_active ?? true,
-      })
-      .select()
-      .single();
+    if (legacyValidation.success) {
+      // LEGACY FORMAT
+      const activityData = legacyValidation.data;
 
-    if (error) {
-      console.error('Error creating activity:', error);
-      await logFailure(user.id, 'activity.create', 'processing_activities', error.message, request);
-      return NextResponse.json({ error: 'Failed to create activity' }, { status: 500 });
+      const { data, error } = await supabase
+        .from('processing_activities')
+        .insert({
+          user_id: user.id,
+          activity_name: activityData.activity_name,
+          industry: activityData.industry,
+          data_attributes: activityData.data_attributes,
+          purpose: activityData.purpose,
+          retention_period: activityData.retention_period,
+          data_processors: activityData.data_processors || {},
+          is_active: activityData.is_active ?? true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating activity:', error);
+        await logFailure(user.id, 'activity.create', 'processing_activities', error.message, request);
+        return NextResponse.json({ error: 'Failed to create activity' }, { status: 500 });
+      }
+
+      await logSuccess(user.id, 'activity.create', 'processing_activities', data.id, activityData, request);
+
+      return NextResponse.json({ data }, { status: 201 });
     }
 
-    // Log success
-    await logSuccess(user.id, 'activity.create', 'processing_activities', data.id, activityData, request);
-
-    return NextResponse.json({ data }, { status: 201 });
+    // Both validations failed
+    return NextResponse.json(
+      { 
+        error: 'Validation failed', 
+        details: structuredValidation.error?.issues || legacyValidation.error?.issues 
+      },
+      { status: 400 }
+    );
   } catch (error) {
     console.error('Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

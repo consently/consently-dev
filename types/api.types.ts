@@ -53,14 +53,68 @@ export interface ProcessingActivity {
   name: string;
   description: string;
   legalBasis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
-  dataCategories: string[];
+  dataCategories: string[]; // DEPRECATED: Use purposes with categories
   dataSources: string[];
   dataRecipients?: string[];
-  retentionPeriod: string;
+  retentionPeriod: string; // DEPRECATED: Use per-category retention
   securityMeasures?: string[];
   crossBorderTransfers: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// New structured types for processing activities
+export interface Purpose {
+  id: string;
+  purposeName: string;
+  description: string | null;
+  isPredefined: boolean;
+}
+
+export interface DataCategoryWithRetention {
+  id: string;
+  categoryName: string;
+  retentionPeriod: string;
+}
+
+export interface ActivityPurpose {
+  id: string;
+  activityId: string;
+  purposeId: string;
+  purposeName: string; // Denormalized for convenience
+  legalBasis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
+  customDescription: string | null;
+  dataCategories: DataCategoryWithRetention[];
+}
+
+export interface ProcessingActivityStructured {
+  id: string;
+  userId: string;
+  activityName: string;
+  industry: string;
+  purposes: ActivityPurpose[];
+  dataSources: string[];
+  dataRecipients: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Request payload for creating/updating activities
+export interface CreateProcessingActivityPayload {
+  activityName: string;
+  industry: string;
+  purposes: {
+    purposeId: string;
+    legalBasis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
+    customDescription?: string;
+    dataCategories: {
+      categoryName: string;
+      retentionPeriod: string;
+    }[];
+  }[];
+  dataSources: string[];
+  dataRecipients?: string[];
 }
 
 // Analytics Types

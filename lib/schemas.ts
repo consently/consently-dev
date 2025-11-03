@@ -97,7 +97,34 @@ export const cookieScanSchema = z.object({
   scanDepth: z.enum(['shallow', 'medium', 'deep']),
 });
 
-// Processing Activity Schema - Form Input (New structured format)
+// Data Category with Retention Period Schema
+export const dataCategoryWithRetentionSchema = z.object({
+  categoryName: z.string().min(1, 'Category name is required'),
+  retentionPeriod: z.string().min(1, 'Retention period is required'),
+});
+
+// Activity Purpose Schema (nested structure)
+export const activityPurposeSchema = z.object({
+  purposeId: z.string().uuid('Invalid purpose ID'),
+  legalBasis: z.enum(['consent', 'contract', 'legal-obligation', 'legitimate-interest']),
+  customDescription: z.string().optional(),
+  dataCategories: z.array(dataCategoryWithRetentionSchema)
+    .min(1, 'At least one data category is required for each purpose'),
+});
+
+// Processing Activity Schema - New structured format
+export const processingActivityStructuredSchema = z.object({
+  activityName: z.string()
+    .min(3, 'Activity name must be at least 3 characters')
+    .max(200, 'Activity name must not exceed 200 characters'),
+  industry: z.enum(['e-commerce', 'banking', 'healthcare', 'education', 'real-estate', 'travel', 'telecom', 'other']),
+  purposes: z.array(activityPurposeSchema)
+    .min(1, 'Select at least one purpose with data categories'),
+  dataSources: z.array(z.string()).min(1, 'At least one data source is required'),
+  dataRecipients: z.array(z.string()).optional(),
+});
+
+// Processing Activity Schema - Form Input (DEPRECATED - for backward compatibility)
 export const processingActivityFormSchema = z.object({
   name: z.string().min(3, 'Activity name is required'),
   purposes: z.object({
@@ -112,8 +139,8 @@ export const processingActivityFormSchema = z.object({
   dataRecipients: z.array(z.string()).optional(),
 });
 
-// Processing Activity Schema - For backward compatibility
-export const processingActivitySchema = processingActivityFormSchema;
+// Processing Activity Schema - Default export (use new structured schema)
+export const processingActivitySchema = processingActivityStructuredSchema;
 
 // Team Member Schema
 export const teamMemberSchema = z.object({
@@ -168,6 +195,10 @@ export type ProfileInput = z.infer<typeof profileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CookieScanInput = z.infer<typeof cookieScanSchema>;
 export type ProcessingActivityInput = z.infer<typeof processingActivitySchema>;
+export type ProcessingActivityStructuredInput = z.infer<typeof processingActivityStructuredSchema>;
+export type ProcessingActivityFormInput = z.infer<typeof processingActivityFormSchema>;
+export type ActivityPurposeInput = z.infer<typeof activityPurposeSchema>;
+export type DataCategoryWithRetentionInput = z.infer<typeof dataCategoryWithRetentionSchema>;
 export type TeamMemberInput = z.infer<typeof teamMemberSchema>;
 export type BannerConfigInput = z.infer<typeof bannerConfigSchema>;
 export type ComplianceCheckInput = z.infer<typeof complianceCheckRequestSchema>;

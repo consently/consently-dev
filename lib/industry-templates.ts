@@ -1,12 +1,27 @@
+export interface DataCategoryWithRetention {
+  categoryName: string;
+  retentionPeriod: string;
+}
+
+export interface ActivityPurposeTemplate {
+  purposeName: string;
+  legalBasis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
+  dataCategories: DataCategoryWithRetention[];
+}
+
 export interface ActivityTemplate {
   activity_name: string;
-  purpose: string;
-  data_attributes: string[];
-  retention_period: string;
-  data_processors: {
+  purposes: ActivityPurposeTemplate[];
+  data_sources: string[];
+  data_recipients?: string[];
+  // Legacy fields for backward compatibility
+  purpose?: string;
+  data_attributes?: string[];
+  retention_period?: string;
+  data_processors?: {
     sources: string[];
   };
-  legalBasis: string;
+  legalBasis?: string;
 }
 
 export interface IndustryTemplate {
@@ -17,6 +32,11 @@ export interface IndustryTemplate {
   activities: ActivityTemplate[];
 }
 
+// NOTE: Templates are being migrated to new structure with purposes and data categories.
+// New structure example shown in e-commerce templates above.
+// TODO: Migrate remaining templates to new structure (banking, healthcare, etc.)
+// Legacy templates still work but should be updated to match the pattern in Customer Registration and Order Processing.
+
 export const industryTemplates: IndustryTemplate[] = [
   {
     industry: 'e-commerce',
@@ -26,23 +46,49 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'Customer Registration',
-        purpose: 'To create and manage customer accounts for online shopping, enable personalized experiences, and facilitate order tracking',
-        data_attributes: ['Email', 'Name', 'Phone Number', 'Password Hash', 'Date of Birth', 'Gender'],
-        retention_period: '3 years from last activity',
-        data_processors: {
-          sources: ['Website Registration Form', 'Mobile App', 'Social Login APIs']
-        },
-        legalBasis: 'consent'
+        purposes: [
+          {
+            purposeName: 'Account Management',
+            legalBasis: 'consent',
+            dataCategories: [
+              { categoryName: 'Email', retentionPeriod: '3 years from last activity' },
+              { categoryName: 'Name', retentionPeriod: '3 years from last activity' },
+              { categoryName: 'Phone Number', retentionPeriod: '3 years from last activity' },
+              { categoryName: 'Password Hash', retentionPeriod: '3 years from last activity' },
+              { categoryName: 'Date of Birth', retentionPeriod: '3 years from last activity' },
+              { categoryName: 'Gender', retentionPeriod: '3 years from last activity' },
+            ],
+          },
+        ],
+        data_sources: ['Website Registration Form', 'Mobile App', 'Social Login APIs'],
+        data_recipients: ['Internal Teams', 'Cloud Storage Providers'],
       },
       {
         activity_name: 'Order Processing',
-        purpose: 'To process customer orders, manage inventory, coordinate shipping, and provide order fulfillment services',
-        data_attributes: ['Order ID', 'Product Details', 'Quantity', 'Shipping Address', 'Billing Address', 'Email', 'Phone Number'],
-        retention_period: '7 years for tax and accounting purposes',
-        data_processors: {
-          sources: ['E-commerce Platform', 'Order Management System', 'Shipping Provider API']
-        },
-        legalBasis: 'contract'
+        purposes: [
+          {
+            purposeName: 'Enable Order Tracking',
+            legalBasis: 'contract',
+            dataCategories: [
+              { categoryName: 'Order ID', retentionPeriod: '7 years for tax and accounting' },
+              { categoryName: 'Product Details', retentionPeriod: '7 years for tax and accounting' },
+              { categoryName: 'Quantity', retentionPeriod: '7 years for tax and accounting' },
+              { categoryName: 'Email', retentionPeriod: '7 years for tax and accounting' },
+              { categoryName: 'Phone Number', retentionPeriod: '7 years for tax and accounting' },
+            ],
+          },
+          {
+            purposeName: 'Manage Billing & Payments',
+            legalBasis: 'contract',
+            dataCategories: [
+              { categoryName: 'Billing Address', retentionPeriod: '7 years for tax and accounting' },
+              { categoryName: 'Shipping Address', retentionPeriod: '7 years for tax and accounting' },
+              { categoryName: 'Order ID', retentionPeriod: '7 years for tax and accounting' },
+            ],
+          },
+        ],
+        data_sources: ['E-commerce Platform', 'Order Management System', 'Shipping Provider API'],
+        data_recipients: ['Shipping Providers', 'Payment Processors', 'Accounting Software'],
       },
       {
         activity_name: 'Payment Processing',
@@ -552,4 +598,39 @@ export const getIndustryLabel = (industry: string): string => {
 export const getIndustryIcon = (industry: string): string => {
   const template = industryTemplates.find(t => t.industry === industry);
   return template ? template.icon : '🏢';
+};
+
+// Helper to check if template uses new structure
+export const isNewStructureTemplate = (template: ActivityTemplate): boolean => {
+  return !!template.purposes && template.purposes.length > 0;
+};
+
+// Helper to convert legacy template to new structure
+export const convertLegacyTemplate = (template: ActivityTemplate): ActivityTemplate => {
+  if (isNewStructureTemplate(template)) {
+    return template; // Already in new format
+  }
+
+  // Convert legacy format to new structure
+  return {
+    activity_name: template.activity_name,
+    purposes: [
+      {
+        purposeName: 'Account Management', // Default purpose name
+        legalBasis: (template.legalBasis as any) || 'consent',
+        dataCategories: (template.data_attributes || []).map((attr) => ({
+          categoryName: attr,
+          retentionPeriod: template.retention_period || '3 years from last activity',
+        })),
+      },
+    ],
+    data_sources: template.data_processors?.sources || [],
+    data_recipients: [],
+    // Keep legacy fields for backward compatibility
+    purpose: template.purpose,
+    data_attributes: template.data_attributes,
+    retention_period: template.retention_period,
+    data_processors: template.data_processors,
+    legalBasis: template.legalBasis,
+  };
 };

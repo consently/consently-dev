@@ -123,10 +123,11 @@ export interface Database {
           user_id: string;
           activity_name: string;
           industry: string;
-          data_attributes: string[];
-          purpose: string;
-          retention_period: string;
+          data_attributes: string[]; // DEPRECATED: Use purpose_data_categories instead
+          purpose: string; // DEPRECATED: Use activity_purposes instead
+          retention_period: string; // DEPRECATED: Use purpose_data_categories instead
           data_processors: Json;
+          legal_basis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest' | null;
           is_active: boolean;
           created_at: string;
           updated_at: string;
@@ -136,10 +137,11 @@ export interface Database {
           user_id: string;
           activity_name: string;
           industry: string;
-          data_attributes: string[];
-          purpose: string;
-          retention_period: string;
-          data_processors: Json;
+          data_attributes?: string[];
+          purpose?: string;
+          retention_period?: string;
+          data_processors?: Json;
+          legal_basis?: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest' | null;
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -153,9 +155,131 @@ export interface Database {
           purpose?: string;
           retention_period?: string;
           data_processors?: Json;
+          legal_basis?: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest' | null;
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      purposes: {
+        Row: {
+          id: string;
+          purpose_name: string;
+          description: string | null;
+          is_predefined: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          purpose_name: string;
+          description?: string | null;
+          is_predefined?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          purpose_name?: string;
+          description?: string | null;
+          is_predefined?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      activity_purposes: {
+        Row: {
+          id: string;
+          activity_id: string;
+          purpose_id: string;
+          legal_basis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
+          custom_description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          activity_id: string;
+          purpose_id: string;
+          legal_basis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
+          custom_description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          activity_id?: string;
+          purpose_id?: string;
+          legal_basis?: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
+          custom_description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      purpose_data_categories: {
+        Row: {
+          id: string;
+          activity_purpose_id: string;
+          category_name: string;
+          retention_period: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          activity_purpose_id: string;
+          category_name: string;
+          retention_period: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          activity_purpose_id?: string;
+          category_name?: string;
+          retention_period?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      data_sources: {
+        Row: {
+          id: string;
+          activity_id: string;
+          source_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          activity_id: string;
+          source_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          activity_id?: string;
+          source_name?: string;
+          created_at?: string;
+        };
+      };
+      data_recipients: {
+        Row: {
+          id: string;
+          activity_id: string;
+          recipient_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          activity_id: string;
+          recipient_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          activity_id?: string;
+          recipient_name?: string;
+          created_at?: string;
         };
       };
       subscriptions: {
