@@ -400,6 +400,7 @@
     let downloadComplete = false;
     let selectedLanguage = 'en'; // Start with English
     let t = await getTranslation(selectedLanguage); // Current translations
+    let isTranslating = false; // Track translation state
     
     // Prefetch other translations in background
     prefetchTranslations();
@@ -647,6 +648,13 @@
 
     // Function to rebuild widget content with new language
     async function rebuildWidget() {
+      if (isTranslating) {
+        console.log('[Consently DPDPA] Translation already in progress, ignoring request');
+        return;
+      }
+      
+      isTranslating = true;
+      
       // Show loading spinner overlay instead of fading entire widget
       const loadingOverlay = document.createElement('div');
       loadingOverlay.style.cssText = `
@@ -655,18 +663,19 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(2px);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(4px);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 1000;
         border-radius: ${borderRadius}px;
+        pointer-events: all;
       `;
       loadingOverlay.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
           <div style="width: 32px; height: 32px; border: 3px solid ${primaryColor}30; border-top-color: ${primaryColor}; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-          <span style="font-size: 13px; color: ${textColor}; font-weight: 500; opacity: 0.8;">Loading translation...</span>
+          <span style="font-size: 13px; color: ${textColor}; font-weight: 500; opacity: 0.8;">Translating...</span>
         </div>
         <style>
           @keyframes spin {
@@ -685,17 +694,34 @@
       // Fetch translations asynchronously
       t = await getTranslation(selectedLanguage);
       
-      // Quick fade transition
-      loadingOverlay.style.transition = 'opacity 0.15s ease';
-      loadingOverlay.style.opacity = '0';
+      // Translate activity content (activity names, data attributes)
+      const translatedActivities = await Promise.all(
+        activities.map(async (activity) => {
+          return {
+            ...activity,
+            activity_name: await translateText(activity.activity_name, selectedLanguage),
+            data_attributes: await Promise.all(
+              activity.data_attributes.map(attr => translateText(attr, selectedLanguage))
+            )
+          };
+        })
+      );
       
-      setTimeout(() => {
-        widget.innerHTML = buildWidgetHTML();
-        // Re-attach all event listeners
-        attachEventListeners(overlay, widget);
-        // Re-setup gated interactions
-        setupGatedInteractions();
-      }, 150);
+      // Update activities with translated content
+      activities = translatedActivities;
+      
+      // Immediately remove loading overlay and rebuild
+      if (loadingOverlay.parentNode) {
+        loadingOverlay.remove();
+      }
+      
+      widget.innerHTML = buildWidgetHTML();
+      // Re-attach all event listeners
+      attachEventListeners(overlay, widget);
+      // Re-setup gated interactions
+      setupGatedInteractions();
+      
+      isTranslating = false;
     }
 
     // Setup gated interactions

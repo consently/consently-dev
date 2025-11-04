@@ -840,16 +840,47 @@
         languageChangeInProgress = true;
         langBtnBanner.disabled = true;
         
+        // Add loading overlay to banner
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          border-radius: ${borderRadius}px;
+        `;
+        loadingOverlay.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 20px; height: 20px; border: 2px solid ${primaryColor}30; border-top-color: ${primaryColor}; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
+            <span style="font-size: 14px; color: ${textColor}; font-weight: 500;">Translating...</span>
+          </div>
+          <style>
+            @keyframes spin { to { transform: rotate(360deg); } }
+          </style>
+        `;
+        banner.appendChild(loadingOverlay);
+        
         try {
           selectedLanguage = newLang;
           localStorage.setItem('consently_language', newLang);
           langMenuBanner.style.display = 'none';
+          
+          // Small delay to ensure overlay is visible
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           banner.remove();
           await showConsentBanner();
         } finally {
           languageChangeInProgress = false;
         }
-      }, 500);
+      }, 300);
       
       langMenuBanner.querySelectorAll('button[data-lang]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
@@ -1136,16 +1167,49 @@
         languageChangeInProgress = true;
         langBtn.disabled = true;
         
+        // Add loading overlay to modal
+        const modalContent = modal.querySelector('.consently-modal-content');
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          border-radius: 12px;
+        `;
+        loadingOverlay.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 20px; height: 20px; border: 2px solid #3b82f630; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
+            <span style="font-size: 14px; color: #1f2937; font-weight: 500;">Translating...</span>
+          </div>
+          <style>
+            @keyframes spin { to { transform: rotate(360deg); } }
+          </style>
+        `;
+        modalContent.style.position = 'relative';
+        modalContent.appendChild(loadingOverlay);
+        
         try {
           selectedLanguage = newLang;
           localStorage.setItem('consently_language', newLang);
           langMenu.style.display = 'none';
+          
+          // Small delay to ensure overlay is visible
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           modal.remove();
           await showSettingsModal();
         } finally {
           languageChangeInProgress = false;
         }
-      }, 500);
+      }, 300);
       
       langMenu.querySelectorAll('button[data-lang]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
