@@ -112,34 +112,19 @@ export const activityPurposeSchema = z.object({
     .min(1, 'At least one data category is required for each purpose'),
 });
 
-// Processing Activity Schema - New structured format
+// Processing Activity Schema - New structured format (matches database)
 export const processingActivityStructuredSchema = z.object({
   activityName: z.string()
     .min(3, 'Activity name must be at least 3 characters')
     .max(200, 'Activity name must not exceed 200 characters'),
   industry: z.enum(['e-commerce', 'banking', 'healthcare', 'education', 'real-estate', 'travel', 'telecom', 'other']),
   purposes: z.array(activityPurposeSchema)
-    .min(1, 'Select at least one purpose with data categories'),
+    .min(1, 'Add at least one purpose with data categories'),
   dataSources: z.array(z.string()).min(1, 'At least one data source is required'),
   dataRecipients: z.array(z.string()).optional(),
 });
 
-// Processing Activity Schema - Form Input (DEPRECATED - for backward compatibility)
-export const processingActivityFormSchema = z.object({
-  name: z.string().min(3, 'Activity name is required'),
-  purposes: z.object({
-    selectedPurposes: z.array(z.string()).min(1, 'Select at least one purpose'),
-    customDescription: z.string().optional(),
-  }),
-  industry: z.enum(['e-commerce', 'banking', 'healthcare', 'education', 'real-estate', 'travel', 'telecom', 'other']),
-  legalBasis: z.enum(['consent', 'contract', 'legal-obligation', 'legitimate-interest']),
-  dataCategories: z.array(z.string()).min(1, 'Data categories are required'),
-  retentionPeriod: z.string().min(1, 'Retention period is required'),
-  dataSources: z.array(z.string()).min(1, 'Data sources are required'),
-  dataRecipients: z.array(z.string()).optional(),
-});
-
-// Processing Activity Schema - Default export (use new structured schema)
+// Processing Activity Schema - Default export
 export const processingActivitySchema = processingActivityStructuredSchema;
 
 // Team Member Schema

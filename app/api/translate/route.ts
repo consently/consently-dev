@@ -3,17 +3,18 @@ import { translate, translateBatch, isLanguageSupported, getCacheStats } from '@
 
 /**
  * Translation API Endpoint
- * Provides real-time translation using Google Cloud Translation API
+ * Provides real-time translation using Bhashini Translation API (Government of India)
  * 
  * Features:
- * - Google Cloud Translation API for high-quality translations
+ * - Bhashini Translation API for high-quality Indian language translations
  * - Translation caching for performance
- * - Support for Indian languages
+ * - Support for 22+ Indian languages
  * 
  * Supported Indian Languages:
  * Hindi (hi), Bengali (bn), Tamil (ta), Telugu (te), Marathi (mr),
  * Gujarati (gu), Kannada (kn), Malayalam (ml), Punjabi (pa),
- * Odia (or), Urdu (ur), Assamese (as)
+ * Odia (or), Urdu (ur), Assamese (as), Sanskrit (sa), Kashmiri (ks),
+ * Nepali (ne), Sindhi (sd), Maithili (mai), Dogri (doi), English (en)
  */
 
 export async function POST(request: NextRequest) {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: `Language ${target} is not supported`,
-          supported_languages: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'en']
+          supported_languages: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'sa', 'ks', 'ne', 'sd', 'mai', 'doi', 'en']
         },
         { status: 400 }
       );
@@ -102,16 +103,16 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const cacheStats = getCacheStats();
-    const googleConfigured = !!process.env.GOOGLE_TRANSLATE_API_KEY;
+    const bhashiniConfigured = !!process.env.BHASHINI_API_KEY && !!process.env.BHASHINI_USER_ID;
     
     return NextResponse.json({
       success: true,
-      provider: 'google',
-      status: googleConfigured ? 'configured' : 'not configured',
+      provider: 'bhashini',
+      status: bhashiniConfigured ? 'configured' : 'not configured',
       cache: cacheStats,
       supported_languages: {
-        indian: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as'],
-        all: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as'],
+        indian: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'sa', 'ks', 'ne', 'sd', 'mai', 'doi'],
+        all: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'sa', 'ks', 'ne', 'sd', 'mai', 'doi'],
       },
     });
   } catch (error) {

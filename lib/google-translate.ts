@@ -177,7 +177,7 @@ export function getLanguageInfo(languageCode: string) {
  */
 export function isRTL(languageCode: string): boolean {
   const langInfo = getLanguageInfo(languageCode);
-  return langInfo?.isRTL === true;
+  return (langInfo as any)?.isRTL === true;
 }
 
 /**

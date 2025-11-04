@@ -11,8 +11,8 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Modal } from '@/components/ui/modal';
 import { TagInput } from '@/components/ui/tag-input';
-import { MultiPurposeSelector, COMMON_PURPOSES } from '@/components/ui/multi-purpose-selector';
-import { processingActivitySchema, type ProcessingActivityInput } from '@/lib/schemas';
+import { PurposeManager } from '@/components/ui/purpose-manager';
+import { processingActivitySchema, type ProcessingActivityStructuredInput } from '@/lib/schemas';
 import { 
   COMMON_DATA_CATEGORIES, 
   DATA_SOURCES_SUGGESTIONS,
@@ -45,18 +45,30 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface Purpose {
+  id: string;
+  purposeId: string;
+  purposeName: string;
+  legalBasis: string;
+  customDescription?: string;
+  dataCategories: Array<{
+    id: string;
+    categoryName: string;
+    retentionPeriod: string;
+  }>;
+}
+
 interface ProcessingActivity {
   id: string;
-  activity_name: string;
-  purpose: string;
+  userId: string;
+  activityName: string;
   industry: string;
-  data_attributes: string[];
-  retention_period: string;
-  data_processors?: {
-    sources?: string[];
-  };
-  is_active: boolean;
-  created_at: string;
+  purposes: Purpose[];
+  dataSources: string[];
+  dataRecipients: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function ProcessingActivitiesPage() {
@@ -84,18 +96,12 @@ export default function ProcessingActivitiesPage() {
     setValue,
     watch,
     control,
-  } = useForm<ProcessingActivityInput>({
+  } = useForm<ProcessingActivityStructuredInput>({
     resolver: zodResolver(processingActivitySchema),
     defaultValues: {
-      name: '',
-      purposes: {
-        selectedPurposes: [],
-        customDescription: '',
-      },
+      activityName: '',
       industry: 'e-commerce',
-      legalBasis: 'consent',
-      dataCategories: [],
-      retentionPeriod: '',
+      purposes: [],
       dataSources: [],
       dataRecipients: [],
     },
@@ -136,29 +142,15 @@ export default function ProcessingActivitiesPage() {
     }
   };
 
-  const onSubmit = async (data: ProcessingActivityInput) => {
+  const onSubmit = async (data: ProcessingActivityStructuredInput) => {
     setIsLoading(true);
     try {
-      // Convert purposes to a readable string for backend storage
-      const purposeLabels = data.purposes.selectedPurposes.map(purposeId => {
-        const allPurposes = COMMON_PURPOSES[data.industry] || [];
-        const purpose = allPurposes.find(p => p.id === purposeId);
-        return purpose ? purpose.label : purposeId;
-      });
-      
-      let purposeText = purposeLabels.join(', ');
-      if (data.purposes.customDescription) {
-        purposeText += (purposeText ? '. ' : '') + data.purposes.customDescription;
-      }
-      
       const payload = {
-        activity_name: data.name,
-        purpose: purposeText,
+        activityName: data.activityName,
         industry: data.industry,
-        data_attributes: data.dataCategories,
-        retention_period: data.retentionPeriod,
-        data_processors: { sources: data.dataSources },
-        is_active: true,
+        purposes: data.purposes,
+        dataSources: data.dataSources,
+        dataRecipients: data.dataRecipients || [],
       };
       
       if (editingActivity) {
@@ -209,21 +201,11 @@ export default function ProcessingActivitiesPage() {
 
   const handleEdit = (activity: ProcessingActivity) => {
     setEditingActivity(activity);
-    setValue('name', activity.activity_name);
-    
-    // Parse the purpose text back to structured format (best effort)
-    // Since we're storing as text, we can't perfectly reverse engineer the selection
-    // So we'll put the full text in customDescription
-    setValue('purposes', {
-      selectedPurposes: [],
-      customDescription: activity.purpose,
-    });
-    
+    setValue('activityName', activity.activityName);
     setValue('industry', activity.industry as any);
-    setValue('dataCategories', activity.data_attributes);
-    setValue('retentionPeriod', activity.retention_period);
-    setValue('dataSources', activity.data_processors?.sources || []);
-    setValue('dataRecipients', []);
+    setValue('purposes', activity.purposes);
+    setValue('dataSources', activity.dataSources || []);
+    setValue('dataRecipients', activity.dataRecipients || []);
     setModalOpen(true);
   };
 
@@ -352,11 +334,16 @@ export default function ProcessingActivitiesPage() {
   const filteredActivities = useMemo(() => {
     if (!searchQuery) return activities;
     const query = searchQuery.toLowerCase();
-    return activities.filter(activity => 
-      activity.activity_name.toLowerCase().includes(query) ||
-      activity.purpose.toLowerCase().includes(query) ||
-      activity.data_attributes.some(attr => attr.toLowerCase().includes(query))
-    );
+    return activities.filter(activity => {
+      const matchesName = activity.activityName?.toLowerCase().includes(query);
+      const matchesPurpose = activity.purposes?.some(p => 
+        p.purposeName?.toLowerCase().includes(query)
+      );
+      const matchesCategory = activity.purposes?.some(p =>
+        p.dataCategories?.some(cat => cat.categoryName?.toLowerCase().includes(query))
+      );
+      return matchesName || matchesPurpose || matchesCategory;
+    });
   }, [activities, searchQuery]);
 
   // Industry statistics
@@ -503,49 +490,83 @@ export default function ProcessingActivitiesPage() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    {/* Activity Header */}
+                    <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl">{getIndustryIcon(activity.industry)}</span>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{activity.activity_name}</h3>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {getIndustryLabel(activity.industry)}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-gray-600 mb-4 line-clamp-2">{activity.purpose}</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1">Data Attributes</p>
-                        <div className="flex flex-wrap gap-1">
-                          {activity.data_attributes.slice(0, 3).map((cat, i) => (
-                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                              {cat}
-                            </span>
-                          ))}
-                          {activity.data_attributes.length > 3 && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                              +{activity.data_attributes.length - 3} more
-                            </span>
-                          )}
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900">{activity.activityName}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {getIndustryLabel(activity.industry)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {activity.purposes?.length || 0} {activity.purposes?.length === 1 ? 'Purpose' : 'Purposes'}
+                          </span>
                         </div>
                       </div>
-                      
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1">Retention Period</p>
-                        <p className="text-sm font-medium text-gray-900">{activity.retention_period}</p>
-                      </div>
+                    </div>
+                    
+                    {/* Purposes Section */}
+                    <div className="space-y-3 mb-4">
+                      {activity.purposes && activity.purposes.length > 0 ? (
+                        activity.purposes.slice(0, 2).map((purpose, idx) => (
+                          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h4 className="text-sm font-semibold text-gray-900">{purpose.purposeName}</h4>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-800 mt-1">
+                                  {purpose.legalBasis.replace('-', ' ')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="mt-2">
+                              <p className="text-xs font-medium text-gray-500 mb-1">Data Categories:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {purpose.dataCategories?.slice(0, 4).map((cat, catIdx) => (
+                                  <span key={catIdx} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-white border border-gray-300 text-gray-700">
+                                    {cat.categoryName}
+                                  </span>
+                                ))}
+                                {purpose.dataCategories && purpose.dataCategories.length > 4 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-white border border-gray-300 text-gray-700">
+                                    +{purpose.dataCategories.length - 4} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center text-sm text-gray-500">
+                          No purposes configured
+                        </div>
+                      )}
+                      {activity.purposes && activity.purposes.length > 2 && (
+                        <p className="text-xs text-gray-500 italic">
+                          +{activity.purposes.length - 2} more {activity.purposes.length - 2 === 1 ? 'purpose' : 'purposes'}...
+                        </p>
+                      )}
+                    </div>
 
+                    {/* Data Sources & Recipients */}
+                    <div className="grid grid-cols-2 gap-4 pt-3 border-t">
                       <div>
                         <p className="text-xs font-medium text-gray-500 mb-1">Data Sources</p>
                         <p className="text-sm text-gray-700">
-                          {activity.data_processors?.sources?.length || 0} source{activity.data_processors?.sources?.length !== 1 ? 's' : ''}
+                          {activity.dataSources?.length || 0} {activity.dataSources?.length === 1 ? 'source' : 'sources'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Data Recipients</p>
+                        <p className="text-sm text-gray-700">
+                          {activity.dataRecipients?.length || 0} {activity.dataRecipients?.length === 1 ? 'recipient' : 'recipients'}
                         </p>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2 ml-4">
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2 ml-4">
                     <Link href={`/dashboard/dpdpa/activity-stats/${activity.id}`}>
                       <Button variant="ghost" size="sm" title="View Stats">
                         <BarChart3 className="h-4 w-4 text-blue-600" />
@@ -630,81 +651,42 @@ export default function ProcessingActivitiesPage() {
         title={editingActivity ? 'Edit Processing Activity' : 'Add Processing Activity'}
         size="lg"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Input
-            {...register('name')}
+            {...register('activityName')}
             label="Activity Name"
-            placeholder="e.g., User Registration, Order Processing"
-            error={errors.name?.message}
+            placeholder="e.g., Customer Registration, Order Processing"
+            error={errors.activityName?.message}
             required
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              {...register('industry')}
-              label="Industry"
-              error={errors.industry?.message}
-              required
-            >
-              {industryTemplates.map(template => (
-                <option key={template.industry} value={template.industry}>
-                  {template.icon} {template.name}
-                </option>
-              ))}
-            </Select>
+          <Select
+            {...register('industry')}
+            label="Industry"
+            error={errors.industry?.message}
+            required
+          >
+            {industryTemplates.map(template => (
+              <option key={template.industry} value={template.industry}>
+                {template.icon} {template.name}
+              </option>
+            ))}
+          </Select>
 
-            <Select
-              {...register('legalBasis')}
-              label="Legal Basis"
-              options={[
-                { value: 'consent', label: 'Consent' },
-                { value: 'contract', label: 'Contract' },
-                { value: 'legal-obligation', label: 'Legal Obligation' },
-                { value: 'legitimate-interest', label: 'Legitimate Interest' },
-              ]}
-              error={errors.legalBasis?.message}
-              required
-            />
-          </div>
-
+          {/* Purpose Manager - Main Component */}
           <Controller
             name="purposes"
             control={control}
             render={({ field }) => (
-              <MultiPurposeSelector
+              <PurposeManager
                 value={field.value}
                 onChange={field.onChange}
-                predefinedPurposes={COMMON_PURPOSES[watch('industry')] || COMMON_PURPOSES['other']}
-                label="Purpose & Description"
-                error={errors.purposes?.selectedPurposes?.message || errors.purposes?.customDescription?.message}
+                industry={watch('industry')}
+                label="Purposes & Data Categories"
+                error={errors.purposes?.message}
                 required
               />
             )}
-          />
-
-          <Controller
-            name="dataCategories"
-            control={control}
-            render={({ field }) => (
-              <TagInput
-                value={field.value}
-                onChange={field.onChange}
-                label="Data Categories"
-                placeholder="Type and press Enter to add (e.g., Email, Name, Phone Number)"
-                suggestions={COMMON_DATA_CATEGORIES}
-                helperText="Add data categories one at a time. Start typing to see suggestions."
-                error={errors.dataCategories?.message}
-                required
-              />
-            )}
-          />
-
-          <Input
-            {...register('retentionPeriod')}
-            label="Retention Period"
-            placeholder="e.g., 3 years, 90 days, Until account deletion"
-            error={errors.retentionPeriod?.message}
-            required
           />
 
           <Controller
@@ -715,9 +697,9 @@ export default function ProcessingActivitiesPage() {
                 value={field.value}
                 onChange={field.onChange}
                 label="Data Sources"
-                placeholder="Type and press Enter to add (e.g., Website, Mobile App)"
+                placeholder="Type and press Enter to add (e.g., Website Registration Form, Mobile App)"
                 suggestions={DATA_SOURCES_SUGGESTIONS}
-                helperText="Add data sources one at a time. Start typing to see suggestions."
+                helperText="Specify where you collect the data from. Start typing to see suggestions."
                 error={errors.dataSources?.message}
                 required
               />
@@ -732,9 +714,9 @@ export default function ProcessingActivitiesPage() {
                 value={field.value || []}
                 onChange={field.onChange}
                 label="Data Recipients (Optional)"
-                placeholder="Type and press Enter to add (e.g., Analytics Providers)"
+                placeholder="Type and press Enter to add (e.g., Analytics Providers, Marketing Partners)"
                 suggestions={DATA_RECIPIENTS_SUGGESTIONS}
-                helperText="Add data recipients one at a time. Start typing to see suggestions."
+                helperText="Specify third parties who receive the data. Optional field."
                 error={errors.dataRecipients?.message}
               />
             )}

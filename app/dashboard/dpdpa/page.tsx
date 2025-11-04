@@ -82,11 +82,10 @@ export default function DPDPADashboardPage() {
     try {
       setLoading(true);
 
-      // Fetch comprehensive dashboard data
-      const [statsRes, activitiesRes, widgetsRes, consentsRes] = await Promise.all([
+      // Fetch comprehensive dashboard data including real-time activity stats
+      const [statsRes, activityStatsRes, consentsRes] = await Promise.all([
         fetch('/api/dpdpa/dashboard-stats'),
-        fetch('/api/dpdpa/activities'),
-        fetch('/api/dpdpa/widget-config'),
+        fetch('/api/dpdpa/activity-acceptance-stats'),
         fetch('/api/dpdpa/consent-record?limit=10'),
       ]);
 
@@ -96,26 +95,21 @@ export default function DPDPADashboardPage() {
         setStats(statsData.data || statsData);
       }
 
-      // Process activities for cards
-      if (activitiesRes.ok) {
-        const activitiesData = await activitiesRes.json();
-        const activities = activitiesData.data || [];
+      // Process real-time activity stats
+      if (activityStatsRes.ok) {
+        const activityStatsData = await activityStatsRes.json();
+        const activityStats = activityStatsData.data || [];
         
-        // Transform activities into cards with mock analytics
-        const cards: ActivityCard[] = activities.slice(0, 6).map((activity: any) => {
-          const acceptanceRate = 50 + Math.random() * 40; // Mock: 50-90%
-          const totalResponses = Math.floor(Math.random() * 500) + 100;
-          
-          return {
-            id: activity.id,
-            name: activity.activity_name,
-            purpose: activity.purpose,
-            acceptanceRate,
-            totalResponses,
-            status: acceptanceRate >= 75 ? 'high' : acceptanceRate >= 50 ? 'medium' : 'low',
-            trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.3 ? 'stable' : 'down',
-          };
-        });
+        // Use the first 6 activities for the dashboard cards
+        const cards: ActivityCard[] = activityStats.slice(0, 6).map((activity: any) => ({
+          id: activity.id,
+          name: activity.name,
+          purpose: activity.purpose,
+          acceptanceRate: activity.acceptanceRate,
+          totalResponses: activity.totalResponses,
+          status: activity.status,
+          trend: activity.trend,
+        }));
         setActivityCards(cards);
       }
 
