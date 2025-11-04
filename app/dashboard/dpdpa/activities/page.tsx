@@ -772,15 +772,15 @@ export default function ProcessingActivitiesPage() {
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                  <p className="text-xs font-medium text-gray-500 mb-2">{template.activities.length} Activities Included:</p>
+                  <p className="text-xs font-medium text-gray-500 mb-2">{template.activities?.length || 0} Activities Included:</p>
                   <ul className="space-y-1">
-                    {template.activities.slice(0, 3).map((activity, i) => (
+                    {template.activities && template.activities.slice(0, 3).map((activity, i) => (
                       <li key={i} className="text-sm text-gray-700 flex items-center">
                         <Check className="h-3 w-3 text-green-600 mr-2 flex-shrink-0" />
                         {activity.activity_name}
                       </li>
                     ))}
-                    {template.activities.length > 3 && (
+                    {template.activities && template.activities.length > 3 && (
                       <li className="text-sm text-gray-500 italic">
                         +{template.activities.length - 3} more activities...
                       </li>
@@ -842,23 +842,46 @@ export default function ProcessingActivitiesPage() {
                         
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <p className="font-medium text-gray-700 mb-1">Data Attributes:</p>
+                            <p className="font-medium text-gray-700 mb-1">
+                              {activity.purposes ? 'Data Categories:' : 'Data Attributes:'}
+                            </p>
                             <div className="flex flex-wrap gap-1">
-                              {activity.data_attributes.slice(0, 4).map((attr, i) => (
-                                <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                                  {attr}
-                                </span>
-                              ))}
-                              {activity.data_attributes.length > 4 && (
+                              {activity.purposes ? (
+                                // New structure: show data categories from first purpose
+                                activity.purposes[0]?.dataCategories?.slice(0, 4).map((cat, i) => (
+                                  <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                    {cat.categoryName}
+                                  </span>
+                                ))
+                              ) : (
+                                // Legacy structure: show data attributes
+                                activity.data_attributes?.slice(0, 4).map((attr, i) => (
+                                  <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                    {attr}
+                                  </span>
+                                ))
+                              )}
+                              {(activity.purposes ? 
+                                (activity.purposes[0]?.dataCategories?.length || 0) > 4 : 
+                                (activity.data_attributes?.length || 0) > 4
+                              ) && (
                                 <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                                  +{activity.data_attributes.length - 4}
+                                  +{(activity.purposes ? 
+                                    (activity.purposes[0]?.dataCategories?.length || 0) - 4 : 
+                                    (activity.data_attributes?.length || 0) - 4
+                                  )}
                                 </span>
                               )}
                             </div>
                           </div>
                           <div>
                             <p className="font-medium text-gray-700 mb-1">Retention Period:</p>
-                            <p className="text-gray-600">{activity.retention_period}</p>
+                            <p className="text-gray-600">
+                              {activity.purposes 
+                                ? activity.purposes[0]?.dataCategories?.[0]?.retentionPeriod || 'Not specified'
+                                : activity.retention_period || 'Not specified'
+                              }
+                            </p>
                           </div>
                         </div>
                       </div>
