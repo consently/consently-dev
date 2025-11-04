@@ -8,7 +8,7 @@ import { TagInput } from './tag-input';
 import { Textarea } from './textarea';
 import { Card, CardContent } from './card';
 import { Plus, Trash2, ChevronDown, ChevronUp, AlertCircle, Loader2 } from 'lucide-react';
-import { COMMON_DATA_CATEGORIES } from '@/lib/data-categories';
+import { DataCategorySelector } from './data-category-selector';
 import type { ActivityPurposeInput } from '@/lib/schemas';
 
 interface Purpose {
@@ -86,26 +86,9 @@ export function PurposeManager({
     onChange(newPurposes);
   };
 
-  const handleDataCategoryChange = (purposeIndex: number, categoryIndex: number, field: 'categoryName' | 'retentionPeriod', fieldValue: string) => {
+  const handleDataCategoriesChange = (purposeIndex: number, categories: Array<{categoryName: string; retentionPeriod: string}>) => {
     const newPurposes = [...value];
-    const newCategories = [...newPurposes[purposeIndex].dataCategories];
-    newCategories[categoryIndex] = { ...newCategories[categoryIndex], [field]: fieldValue };
-    newPurposes[purposeIndex] = { ...newPurposes[purposeIndex], dataCategories: newCategories };
-    onChange(newPurposes);
-  };
-
-  const handleAddDataCategory = (purposeIndex: number) => {
-    const newPurposes = [...value];
-    newPurposes[purposeIndex].dataCategories.push({
-      categoryName: '',
-      retentionPeriod: '',
-    });
-    onChange(newPurposes);
-  };
-
-  const handleRemoveDataCategory = (purposeIndex: number, categoryIndex: number) => {
-    const newPurposes = [...value];
-    newPurposes[purposeIndex].dataCategories = newPurposes[purposeIndex].dataCategories.filter((_, i) => i !== categoryIndex);
+    newPurposes[purposeIndex] = { ...newPurposes[purposeIndex], dataCategories: categories };
     onChange(newPurposes);
   };
 
@@ -263,64 +246,13 @@ export function PurposeManager({
                     </div>
 
                     {/* Data Categories Section */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Data Categories & Retention
-                          <span className="text-red-500 ml-1">*</span>
-                        </label>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddDataCategory(purposeIndex)}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Category
-                        </Button>
-                      </div>
-
-                      {purpose.dataCategories.length === 0 ? (
-                        <div className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                          No data categories added. Click "Add Category" to add data categories for this purpose.
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {purpose.dataCategories.map((category, categoryIndex) => (
-                            <div key={categoryIndex} className="flex gap-2 items-start p-3 bg-gray-50 rounded-lg border border-gray-200">
-                              <div className="flex-1 space-y-2">
-                                <Input
-                                  value={category.categoryName}
-                                  onChange={(e) => handleDataCategoryChange(purposeIndex, categoryIndex, 'categoryName', e.target.value)}
-                                  placeholder="e.g., Email Address, Phone Number"
-                                  list={`categories-${purposeIndex}-${categoryIndex}`}
-                                  required
-                                />
-                                <datalist id={`categories-${purposeIndex}-${categoryIndex}`}>
-                                  {COMMON_DATA_CATEGORIES.map(cat => (
-                                    <option key={cat} value={cat} />
-                                  ))}
-                                </datalist>
-                                <Input
-                                  value={category.retentionPeriod}
-                                  onChange={(e) => handleDataCategoryChange(purposeIndex, categoryIndex, 'retentionPeriod', e.target.value)}
-                                  placeholder="e.g., 3 years, Until account deletion"
-                                  required
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveDataCategory(purposeIndex, categoryIndex)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div>
+                      <DataCategorySelector
+                        value={purpose.dataCategories}
+                        onChange={(categories) => handleDataCategoriesChange(purposeIndex, categories)}
+                        label="Data Categories & Retention"
+                        required
+                      />
                     </div>
                   </div>
                 )}

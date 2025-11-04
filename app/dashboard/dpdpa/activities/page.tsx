@@ -76,8 +76,10 @@ export default function ProcessingActivitiesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateDetailModal, setTemplateDetailModal] = useState(false);
+  const [templateCustomizeModal, setTemplateCustomizeModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<IndustryTemplate | null>(null);
   const [selectedActivities, setSelectedActivities] = useState<Set<number>>(new Set());
+  const [activityToCustomize, setActivityToCustomize] = useState<ActivityTemplate | null>(null);
   const [editingActivity, setEditingActivity] = useState<ProcessingActivity | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -352,9 +354,11 @@ export default function ProcessingActivitiesPage() {
       let successCount = 0;
       let failCount = 0;
       const errors: string[] = [];
+      const createdActivities: ProcessingActivity[] = [];
 
       for (const activity of activitiesToCreate) {
         try {
+          console.log('Sending activity payload:', JSON.stringify(activity, null, 2));
           const response = await fetch('/api/dpdpa/activities', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -362,10 +366,13 @@ export default function ProcessingActivitiesPage() {
           });
 
           if (response.ok) {
+            const result = await response.json();
+            createdActivities.push(result.data);
             successCount++;
           } else {
             const errorData = await response.json();
             console.error('Failed to create activity:', errorData);
+            console.error('Failed activity payload was:', JSON.stringify(activity, null, 2));
             errors.push(errorData.error || 'Unknown error');
             failCount++;
           }
@@ -376,7 +383,7 @@ export default function ProcessingActivitiesPage() {
       }
 
       if (successCount > 0) {
-        toast.success(`Successfully created ${successCount} ${successCount === 1 ? 'activity' : 'activities'}`);
+        toast.success(`Successfully created ${successCount} ${successCount === 1 ? 'activity' : 'activities'}. Opening for customization...`);
       }
       if (failCount > 0) {
         toast.error(`Failed to create ${failCount} ${failCount === 1 ? 'activity' : 'activities'}`);
@@ -389,6 +396,18 @@ export default function ProcessingActivitiesPage() {
       setTemplateModalOpen(false);
       setSelectedTemplate(null);
       setSelectedActivities(new Set());
+
+      // If only one activity was created, open it for editing immediately
+      if (createdActivities.length === 1) {
+        const activity = createdActivities[0];
+        // Small delay to ensure UI is ready
+        setTimeout(() => {
+          handleEdit(activity);
+        }, 300);
+      } else if (createdActivities.length > 1) {
+        // For multiple activities, show a message
+        toast.info('You can now edit each activity to customize data categories and retention periods');
+      }
     } catch (error) {
       console.error('Error applying template:', error);
       toast.error('Failed to apply template');
@@ -727,7 +746,8 @@ export default function ProcessingActivitiesPage() {
           setEditingActivity(null);
           reset();
         }}
-        title={editingActivity ? 'Edit Processing Activity' : 'Add Processing Activity'}
+        title={editingActivity ? '✏️ Customize Processing Activity' : 'Add Processing Activity'}
+        description={editingActivity ? 'Customize data categories and retention periods to match your needs' : undefined}
         size="lg"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -884,14 +904,14 @@ export default function ProcessingActivitiesPage() {
           setSelectedActivities(new Set());
         }}
         title={selectedTemplate ? `${selectedTemplate.icon} ${selectedTemplate.name}` : 'Template Details'}
-        description="Select the activities you want to add to your compliance program"
+        description="Review and customize activities before adding them"
         size="xl"
       >
         {selectedTemplate && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>Tip:</strong> Select multiple activities to bulk import them into your system. Each activity can be edited later.
+                <strong>💡 Fully Customizable:</strong> These are just suggestions. You can select which data categories you need and set custom retention periods for each activity.
               </p>
             </div>
 
@@ -919,49 +939,41 @@ export default function ProcessingActivitiesPage() {
                         <h4 className="font-semibold text-gray-900 mb-2">{activity.activity_name}</h4>
                         <p className="text-sm text-gray-600 mb-3">{activity.purpose}</p>
                         
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="font-medium text-gray-700 mb-1">
-                              {activity.purposes ? 'Data Categories:' : 'Data Attributes:'}
-                            </p>
-                            <div className="flex flex-wrap gap-1">
-                              {activity.purposes ? (
-                                // New structure: show data categories from first purpose
-                                activity.purposes[0]?.dataCategories?.slice(0, 4).map((cat, i) => (
-                                  <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                                    {cat.categoryName}
-                                  </span>
-                                ))
-                              ) : (
-                                // Legacy structure: show data attributes
-                                activity.data_attributes?.slice(0, 4).map((attr, i) => (
-                                  <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                                    {attr}
-                                  </span>
-                                ))
-                              )}
-                              {(activity.purposes ? 
-                                (activity.purposes[0]?.dataCategories?.length || 0) > 4 : 
-                                (activity.data_attributes?.length || 0) > 4
-                              ) && (
-                                <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                                  +{(activity.purposes ? 
-                                    (activity.purposes[0]?.dataCategories?.length || 0) - 4 : 
-                                    (activity.data_attributes?.length || 0) - 4
-                                  )}
+                        <div className="text-sm">
+                          <p className="font-medium text-gray-700 mb-2">
+                            {activity.purposes ? `${activity.purposes.length} Purpose(s)` : '1 Purpose'} with multiple data categories
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {activity.purposes ? (
+                              // New structure: show data categories from first purpose
+                              activity.purposes[0]?.dataCategories?.slice(0, 6).map((cat, i) => (
+                                <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                  {cat.categoryName}
                                 </span>
-                              )}
-                            </div>
+                              ))
+                            ) : (
+                              // Legacy structure: show data attributes
+                              activity.data_attributes?.slice(0, 6).map((attr, i) => (
+                                <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                  {attr}
+                                </span>
+                              ))
+                            )}
+                            {(activity.purposes ? 
+                              (activity.purposes[0]?.dataCategories?.length || 0) > 6 : 
+                              (activity.data_attributes?.length || 0) > 6
+                            ) && (
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                +{(activity.purposes ? 
+                                  (activity.purposes[0]?.dataCategories?.length || 0) - 6 : 
+                                  (activity.data_attributes?.length || 0) - 6
+                                )} more
+                              </span>
+                            )}
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-700 mb-1">Retention Period:</p>
-                            <p className="text-gray-600">
-                              {activity.purposes 
-                                ? activity.purposes[0]?.dataCategories?.[0]?.retentionPeriod || 'Not specified'
-                                : activity.retention_period || 'Not specified'
-                              }
-                            </p>
-                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            💡 Click to customize data categories and retention periods
+                          </p>
                         </div>
                       </div>
                     </div>

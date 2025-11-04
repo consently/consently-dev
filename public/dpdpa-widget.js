@@ -538,11 +538,14 @@
           `).join('')}
         </div>
 
-        <!-- Manage Consent Text -->
-        <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
+        <!-- Manage Preferences Button -->
+        <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
           <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
-            You can manage your consent from the preference centre in your account.
+            You can manage your consent preferences anytime.
           </p>
+          <button id="dpdpa-manage-preferences" style="padding: 8px 16px; background: white; color: ${primaryColor}; border: 1px solid ${primaryColor}; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; white-space: nowrap;">
+            Manage Preferences
+          </button>
         </div>
         
         <!-- Footer Links -->
@@ -840,6 +843,24 @@
       });
     }
 
+    // Manage Preferences button
+    const managePrefsBtn = widget.querySelector('#dpdpa-manage-preferences');
+    if (managePrefsBtn) {
+      // Hover effects
+      managePrefsBtn.addEventListener('mouseenter', () => {
+        managePrefsBtn.style.background = primaryColor;
+        managePrefsBtn.style.color = 'white';
+      });
+      managePrefsBtn.addEventListener('mouseleave', () => {
+        managePrefsBtn.style.background = 'white';
+        managePrefsBtn.style.color = primaryColor;
+      });
+      
+      managePrefsBtn.addEventListener('click', () => {
+        openPrivacyCentre();
+      });
+    }
+
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
@@ -1022,6 +1043,22 @@
     a.download = `dpdpa-consent-${widgetId}-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function openPrivacyCentre() {
+    const visitorId = getVisitorId();
+    const scriptSrc = currentScript.src;
+    let baseUrl;
+    
+    if (scriptSrc && scriptSrc.includes('http')) {
+      const url = new URL(scriptSrc);
+      baseUrl = url.origin;
+    } else {
+      baseUrl = window.location.origin;
+    }
+    
+    const privacyCentreUrl = `${baseUrl}/privacy-centre/${widgetId}?visitorId=${visitorId}`;
+    window.open(privacyCentreUrl, '_blank');
   }
 
   function openGrievanceForm() {

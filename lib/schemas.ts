@@ -106,6 +106,7 @@ export const dataCategoryWithRetentionSchema = z.object({
 // Activity Purpose Schema (nested structure)
 export const activityPurposeSchema = z.object({
   purposeId: z.string().uuid('Invalid purpose ID'),
+  purposeName: z.string().optional(), // Added to support templates and frontend mapping
   legalBasis: z.enum(['consent', 'contract', 'legal-obligation', 'legitimate-interest']),
   customDescription: z.string().optional(),
   dataCategories: z.array(dataCategoryWithRetentionSchema)

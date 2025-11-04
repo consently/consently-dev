@@ -245,24 +245,47 @@ export async function POST(request: NextRequest) {
       console.log('Inserting purpose:', { 
         activity_id: activity.id, 
         purpose_id: purpose.purposeId, 
-        legal_basis: purpose.legalBasis 
+        purpose_id_type: typeof purpose.purposeId,
+        legal_basis: purpose.legalBasis,
+        full_purpose_data: purpose
       });
       
       // Validate purpose_id exists
       const { data: purposeExists, error: checkError } = await supabase
         .from('purposes')
-        .select('id')
+        .select('id, purpose_name')
         .eq('id', purpose.purposeId)
         .single();
       
       if (checkError || !purposeExists) {
-        console.error('Purpose ID not found in database:', purpose.purposeId, checkError);
+        console.error('Purpose ID validation failed:', {
+          purposeId: purpose.purposeId,
+          purposeIdType: typeof purpose.purposeId,
+          purposeName: purpose.purposeName,
+          checkError: checkError,
+          purposeExists: purposeExists
+        });
+        
+        // Try to find by name as fallback
+        const { data: purposeByName } = await supabase
+          .from('purposes')
+          .select('id, purpose_name')
+          .eq('purpose_name', purpose.purposeName)
+          .single();
+        
+        console.error('Attempted name lookup result:', purposeByName);
+        
         // Rollback by deleting the activity
         await supabase.from('processing_activities').delete().eq('id', activity.id);
         await logFailure(user.id, 'activity.create', 'processing_activities', `Invalid purpose_id: ${purpose.purposeId}`, request);
         return NextResponse.json({ 
           error: 'Invalid purpose ID. The selected purpose does not exist in the database.',
-          details: { purposeId: purpose.purposeId, purposeName: purpose.purposeName }
+          details: { 
+            purposeId: purpose.purposeId, 
+            purposeName: purpose.purposeName,
+            checkError: checkError?.message,
+            hint: 'Check server logs for detailed debugging information'
+          }
         }, { status: 400 });
       }
       
