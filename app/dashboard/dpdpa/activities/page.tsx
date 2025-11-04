@@ -261,22 +261,66 @@ export default function ProcessingActivitiesPage() {
 
     setIsLoading(true);
     try {
+      // Fetch all purposes to get their IDs
+      const purposesResponse = await fetch('/api/dpdpa/purposes');
+      if (!purposesResponse.ok) {
+        throw new Error('Failed to fetch purposes');
+      }
+      const purposesData = await purposesResponse.json();
+      const purposesMap = new Map(purposesData.data.map((p: any) => [p.purpose_name, p.id]));
+
       const activitiesToCreate = Array.from(selectedActivities).map(index => {
         const activity = selectedTemplate.activities[index];
-        return {
-          activity_name: activity.activity_name,
-          purpose: activity.purpose,
-          industry: selectedTemplate.industry,
-          data_attributes: activity.data_attributes,
-          retention_period: activity.retention_period,
-          data_processors: activity.data_processors,
-          is_active: true,
-        };
+        
+        // Check if activity uses new structure (purposes array) or legacy structure
+        if (activity.purposes && activity.purposes.length > 0) {
+          // New structure: map purpose names to IDs
+          return {
+            activityName: activity.activity_name,
+            industry: selectedTemplate.industry,
+            purposes: activity.purposes.map((purpose: any) => ({
+              purposeId: purposesMap.get(purpose.purposeName) || purposesMap.get('Account Management')!,
+              purposeName: purpose.purposeName,
+              legalBasis: purpose.legalBasis,
+              customDescription: purpose.customDescription,
+              dataCategories: purpose.dataCategories.map((cat: any) => ({
+                categoryName: cat.categoryName,
+                retentionPeriod: cat.retentionPeriod,
+              })),
+            })),
+            dataSources: activity.data_sources || [],
+            dataRecipients: activity.data_recipients || [],
+          };
+        } else {
+          // Legacy structure: convert to new format
+          const defaultPurposeName = activity.purpose?.split(',')[0]?.trim() || 'Account Management';
+          const purposeId = purposesMap.get(defaultPurposeName) || purposesMap.get('Account Management')!;
+          
+          return {
+            activityName: activity.activity_name,
+            industry: selectedTemplate.industry,
+            purposes: [
+              {
+                purposeId: purposeId,
+                purposeName: defaultPurposeName,
+                legalBasis: (activity.legalBasis as any) || 'consent',
+                customDescription: activity.purpose,
+                dataCategories: (activity.data_attributes || []).map((attr: string) => ({
+                  categoryName: attr,
+                  retentionPeriod: activity.retention_period || '3 years from last activity',
+                })),
+              },
+            ],
+            dataSources: activity.data_processors?.sources || [],
+            dataRecipients: [],
+          };
+        }
       });
 
       // Create activities in sequence
       let successCount = 0;
       let failCount = 0;
+      const errors: string[] = [];
 
       for (const activity of activitiesToCreate) {
         try {
@@ -289,9 +333,13 @@ export default function ProcessingActivitiesPage() {
           if (response.ok) {
             successCount++;
           } else {
+            const errorData = await response.json();
+            console.error('Failed to create activity:', errorData);
+            errors.push(errorData.error || 'Unknown error');
             failCount++;
           }
         } catch (error) {
+          console.error('Error creating activity:', error);
           failCount++;
         }
       }
