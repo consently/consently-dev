@@ -165,10 +165,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch activities' }, { status: 500 });
     }
 
+    // Fetch complete activity details for each activity
+    const activitiesWithDetails = await Promise.all(
+      (data || []).map(async (activity) => {
+        const { data: completeActivity } = await fetchActivityWithDetails(supabase, activity.id, user.id);
+        return completeActivity;
+      })
+    );
+
     const totalPages = Math.ceil((count || 0) / limit);
 
     return NextResponse.json({
-      data: data || [],
+      data: activitiesWithDetails.filter(Boolean),
       pagination: {
         page,
         limit,
