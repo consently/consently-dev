@@ -727,7 +727,7 @@
             
             return `
               <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
-                ${config.categories.map(cat => {
+                ${config.categories.filter(cat => cat && typeof cat === 'string').map(cat => {
                   const name = categoryNames[cat] || cat.charAt(0).toUpperCase() + cat.slice(1);
                   return `<span style="
                     display: inline-flex;

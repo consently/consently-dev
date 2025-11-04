@@ -96,17 +96,90 @@
     return text; // Fallback to original
   }
 
-  // Get translations for a language (with real-time translation)
+  // Batch translate multiple texts at once
+  async function batchTranslate(texts, targetLang) {
+    if (targetLang === 'en') return texts;
+    
+    // Check cache first
+    const uncachedTexts = [];
+    const uncachedIndices = [];
+    const result = [...texts];
+    
+    texts.forEach((text, idx) => {
+      const cacheKey = `${targetLang}:${text}`;
+      if (translationCache[cacheKey]) {
+        result[idx] = translationCache[cacheKey];
+      } else {
+        uncachedTexts.push(text);
+        uncachedIndices.push(idx);
+      }
+    });
+    
+    // If all cached, return immediately
+    if (uncachedTexts.length === 0) {
+      return result;
+    }
+    
+    // Batch translate uncached texts
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: uncachedTexts.join('\n||SEPARATOR||\n'),
+          target: targetLang,
+          source: 'en'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const translatedBatch = data.translatedText.split('\n||SEPARATOR||\n');
+        
+        uncachedIndices.forEach((idx, i) => {
+          const translated = translatedBatch[i] || texts[idx];
+          result[idx] = translated;
+          // Cache it
+          const cacheKey = `${targetLang}:${texts[idx]}`;
+          translationCache[cacheKey] = translated;
+        });
+      }
+    } catch (error) {
+      console.error('[Consently] Batch translation error:', error);
+      // Fallback to original texts for uncached items
+      uncachedIndices.forEach((idx, i) => {
+        result[idx] = uncachedTexts[i];
+      });
+    }
+    
+    return result;
+  }
+
+  // Get translations for a language (with optimized batch translation)
   async function getTranslation(lang) {
     if (lang === 'en') {
       return BASE_TRANSLATIONS;
     }
-
-    // Translate all base strings
-    const translations = {};
-    for (const [key, value] of Object.entries(BASE_TRANSLATIONS)) {
-      translations[key] = await translateText(value, lang);
+    
+    // Check if entire language is already cached
+    const langCacheKey = `_lang_${lang}`;
+    if (translationCache[langCacheKey]) {
+      return translationCache[langCacheKey];
     }
+
+    // Batch translate all strings at once
+    const keys = Object.keys(BASE_TRANSLATIONS);
+    const values = Object.values(BASE_TRANSLATIONS);
+    const translatedValues = await batchTranslate(values, lang);
+    
+    const translations = {};
+    keys.forEach((key, idx) => {
+      translations[key] = translatedValues[idx];
+    });
+    
+    // Cache entire language translation set
+    translationCache[langCacheKey] = translations;
     
     return translations;
   }
@@ -293,6 +366,20 @@
     window.consentlyDPDPAConsent = consent;
   }
 
+  // Prefetch translations for common languages to make switching instant
+  async function prefetchTranslations() {
+    const supportedLanguages = config.supportedLanguages || ['en'];
+    // Prefetch top 3 languages (excluding English which is already cached)
+    const languagesToPrefetch = supportedLanguages.filter(lang => lang !== 'en').slice(0, 3);
+    
+    // Prefetch in background without blocking
+    languagesToPrefetch.forEach(lang => {
+      getTranslation(lang).catch(err => {
+        console.log(`[Consently] Could not prefetch ${lang} translations:`, err);
+      });
+    });
+  }
+
   // Create and show consent widget
   async function showConsentWidget() {
     if (document.getElementById('consently-dpdpa-widget')) {
@@ -313,6 +400,9 @@
     let downloadComplete = false;
     let selectedLanguage = 'en'; // Start with English
     let t = await getTranslation(selectedLanguage); // Current translations
+    
+    // Prefetch other translations in background
+    prefetchTranslations();
 
     // Get privacy notice HTML from config
     const noticeHTML = config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
@@ -554,9 +644,34 @@
 
     // Function to rebuild widget content with new language
     async function rebuildWidget() {
-      // Show loading
-      widget.style.opacity = '0.6';
-      widget.style.pointerEvents = 'none';
+      // Show loading spinner overlay instead of fading entire widget
+      const loadingOverlay = document.createElement('div');
+      loadingOverlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(2px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        border-radius: ${borderRadius}px;
+      `;
+      loadingOverlay.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+          <div style="width: 32px; height: 32px; border: 3px solid ${primaryColor}30; border-top-color: ${primaryColor}; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <span style="font-size: 13px; color: ${textColor}; font-weight: 500; opacity: 0.8;">Loading translation...</span>
+        </div>
+        <style>
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+      `;
+      widget.appendChild(loadingOverlay);
       
       // Remove old global click handler before rebuilding
       if (globalClickHandler) {
@@ -564,18 +679,20 @@
         globalClickHandler = null;
       }
       
-      // Fetch translations
+      // Fetch translations asynchronously
       t = await getTranslation(selectedLanguage);
       
-      widget.innerHTML = buildWidgetHTML();
-      // Re-attach all event listeners
-      attachEventListeners(overlay, widget);
-      // Re-setup gated interactions
-      setupGatedInteractions();
+      // Quick fade transition
+      loadingOverlay.style.transition = 'opacity 0.15s ease';
+      loadingOverlay.style.opacity = '0';
       
-      // Remove loading
-      widget.style.opacity = '1';
-      widget.style.pointerEvents = 'auto';
+      setTimeout(() => {
+        widget.innerHTML = buildWidgetHTML();
+        // Re-attach all event listeners
+        attachEventListeners(overlay, widget);
+        // Re-setup gated interactions
+        setupGatedInteractions();
+      }, 150);
     }
 
     // Setup gated interactions

@@ -220,8 +220,8 @@ export async function GET(
       // Widget configuration (highest priority)
       widgetId: widgetConfig.widget_id,
       domain: widgetConfig.domain,
-      categories: Array.isArray(widgetConfig.categories) 
-        ? widgetConfig.categories 
+      categories: Array.isArray(widgetConfig.categories) && widgetConfig.categories.length > 0
+        ? widgetConfig.categories.filter(cat => cat != null && typeof cat === 'string')
         : ['necessary'],
       behavior: widgetConfig.behavior,
       consentDuration: widgetConfig.consent_duration,
@@ -229,8 +229,8 @@ export async function GET(
       blockScripts: widgetConfig.block_scripts,
       respectDNT: widgetConfig.respect_dnt,
       gdprApplies: widgetConfig.gdpr_applies,
-      autoBlock: Array.isArray(widgetConfig.auto_block) 
-        ? widgetConfig.auto_block 
+      autoBlock: Array.isArray(widgetConfig.auto_block) && widgetConfig.auto_block.length > 0
+        ? widgetConfig.auto_block.filter(item => item != null)
         : [],
       language: widgetConfig.language || 'en',
       
