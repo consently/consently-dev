@@ -242,6 +242,30 @@ export async function POST(request: NextRequest) {
 
     // Insert purposes and their data categories
     for (const purpose of activityData.purposes) {
+      console.log('Inserting purpose:', { 
+        activity_id: activity.id, 
+        purpose_id: purpose.purposeId, 
+        legal_basis: purpose.legalBasis 
+      });
+      
+      // Validate purpose_id exists
+      const { data: purposeExists, error: checkError } = await supabase
+        .from('purposes')
+        .select('id')
+        .eq('id', purpose.purposeId)
+        .single();
+      
+      if (checkError || !purposeExists) {
+        console.error('Purpose ID not found in database:', purpose.purposeId, checkError);
+        // Rollback by deleting the activity
+        await supabase.from('processing_activities').delete().eq('id', activity.id);
+        await logFailure(user.id, 'activity.create', 'processing_activities', `Invalid purpose_id: ${purpose.purposeId}`, request);
+        return NextResponse.json({ 
+          error: 'Invalid purpose ID. The selected purpose does not exist in the database.',
+          details: { purposeId: purpose.purposeId, purposeName: purpose.purposeName }
+        }, { status: 400 });
+      }
+      
       // Insert activity_purpose
       const { data: activityPurpose, error: purposeError } = await supabase
         .from('activity_purposes')
@@ -256,10 +280,14 @@ export async function POST(request: NextRequest) {
 
       if (purposeError) {
         console.error('Error creating activity purpose:', purposeError);
+        console.error('Purpose data:', { activity_id: activity.id, purpose_id: purpose.purposeId });
         // Rollback by deleting the activity
         await supabase.from('processing_activities').delete().eq('id', activity.id);
         await logFailure(user.id, 'activity.create', 'processing_activities', purposeError.message, request);
-        return NextResponse.json({ error: 'Failed to create activity purposes' }, { status: 500 });
+        return NextResponse.json({ 
+          error: 'Failed to create activity purposes',
+          details: purposeError.message 
+        }, { status: 500 });
       }
 
       // Insert data categories for this purpose

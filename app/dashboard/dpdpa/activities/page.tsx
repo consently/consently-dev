@@ -267,19 +267,35 @@ export default function ProcessingActivitiesPage() {
         throw new Error('Failed to fetch purposes');
       }
       const purposesData = await purposesResponse.json();
+      console.log('Available purposes:', purposesData.data);
       const purposesMap = new Map(purposesData.data.map((p: any) => [p.purpose_name, p.id]));
+      console.log('Purposes map:', Array.from(purposesMap.keys()));
 
       const activitiesToCreate = Array.from(selectedActivities).map(index => {
         const activity = selectedTemplate.activities[index];
+        console.log('Processing activity:', activity.activity_name);
         
         // Check if activity uses new structure (purposes array) or legacy structure
         if (activity.purposes && activity.purposes.length > 0) {
           // New structure: map purpose names to IDs
-          return {
-            activityName: activity.activity_name,
-            industry: selectedTemplate.industry,
-            purposes: activity.purposes.map((purpose: any) => ({
-              purposeId: purposesMap.get(purpose.purposeName) || purposesMap.get('Account Management')!,
+          const mappedPurposes = activity.purposes.map((purpose: any) => {
+            const purposeId = purposesMap.get(purpose.purposeName);
+            if (!purposeId) {
+              console.error(`Purpose not found: ${purpose.purposeName}. Available:`, Array.from(purposesMap.keys()));
+              // Fallback to Account Management
+              return {
+                purposeId: purposesMap.get('Account Management')!,
+                purposeName: purpose.purposeName,
+                legalBasis: purpose.legalBasis,
+                customDescription: purpose.customDescription || `Original purpose: ${purpose.purposeName}`,
+                dataCategories: purpose.dataCategories.map((cat: any) => ({
+                  categoryName: cat.categoryName,
+                  retentionPeriod: cat.retentionPeriod,
+                })),
+              };
+            }
+            return {
+              purposeId: purposeId,
               purposeName: purpose.purposeName,
               legalBasis: purpose.legalBasis,
               customDescription: purpose.customDescription,
@@ -287,14 +303,27 @@ export default function ProcessingActivitiesPage() {
                 categoryName: cat.categoryName,
                 retentionPeriod: cat.retentionPeriod,
               })),
-            })),
+            };
+          });
+          
+          return {
+            activityName: activity.activity_name,
+            industry: selectedTemplate.industry,
+            purposes: mappedPurposes,
             dataSources: activity.data_sources || [],
             dataRecipients: activity.data_recipients || [],
           };
         } else {
           // Legacy structure: convert to new format
-          const defaultPurposeName = activity.purpose?.split(',')[0]?.trim() || 'Account Management';
-          const purposeId = purposesMap.get(defaultPurposeName) || purposesMap.get('Account Management')!;
+          const defaultPurposeName = activity.purpose?.split('.')[0]?.trim() || 'Account Management';
+          const purposeId = purposesMap.get(defaultPurposeName) || purposesMap.get('Account Management');
+          
+          if (!purposeId) {
+            console.error(`No purposes found in database! Available:`, Array.from(purposesMap.keys()));
+            throw new Error('Account Management purpose not found in database. Please run database migrations.');
+          }
+          
+          console.log(`Using purpose: ${defaultPurposeName} -> ${purposeId}`);
           
           return {
             activityName: activity.activity_name,
@@ -316,6 +345,8 @@ export default function ProcessingActivitiesPage() {
           };
         }
       });
+      
+      console.log('Activities to create:', activitiesToCreate);
 
       // Create activities in sequence
       let successCount = 0;
