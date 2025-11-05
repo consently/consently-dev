@@ -840,21 +840,20 @@
         languageChangeInProgress = true;
         langBtnBanner.disabled = true;
         
-        // Add loading overlay to banner
+        // Add full-screen loading overlay to prevent confusing transparent effects
         const loadingOverlay = document.createElement('div');
         loadingOverlay.style.cssText = `
-          position: absolute;
+          position: fixed;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(4px);
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 10000;
-          border-radius: ${borderRadius}px;
+          z-index: 999999;
         `;
         loadingOverlay.innerHTML = `
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -1167,22 +1166,21 @@
         languageChangeInProgress = true;
         langBtn.disabled = true;
         
-        // Add loading overlay to modal
+        // Add full-screen loading overlay to prevent confusing transparent effects
         const modalContent = modal.querySelector('.consently-modal-content');
         const loadingOverlay = document.createElement('div');
         loadingOverlay.style.cssText = `
-          position: absolute;
+          position: fixed;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(4px);
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 10000;
-          border-radius: 12px;
+          z-index: 999999;
         `;
         loadingOverlay.innerHTML = `
           <div style="display: flex; align-items: center; gap: 10px;">

@@ -369,14 +369,27 @@
   // Prefetch translations for common languages to make switching instant
   async function prefetchTranslations() {
     const supportedLanguages = config.supportedLanguages || ['en'];
-    // Prefetch top 3 languages (excluding English which is already cached)
-    const languagesToPrefetch = supportedLanguages.filter(lang => lang !== 'en').slice(0, 3);
+    // Prefetch top 5 languages (excluding English which is already cached)
+    const languagesToPrefetch = supportedLanguages.filter(lang => lang !== 'en').slice(0, 5);
     
-    // Prefetch in background without blocking
-    languagesToPrefetch.forEach(lang => {
-      getTranslation(lang).catch(err => {
-        console.log(`[Consently] Could not prefetch ${lang} translations:`, err);
-      });
+    // Prefetch in background without blocking - includes base UI + activity translations
+    languagesToPrefetch.forEach(async (lang) => {
+      try {
+        // Prefetch base translations
+        await getTranslation(lang);
+        
+        // Batch prefetch all activity content in ONE API call (optimized)
+        const textsToTranslate = [
+          ...activities.map(activity => activity.activity_name),
+          ...activities.flatMap(activity => activity.data_attributes)
+        ];
+        
+        await batchTranslate(textsToTranslate, lang);
+        
+        console.log(`[Consently DPDPA] Prefetched translations for ${lang}`);
+      } catch (err) {
+        console.log(`[Consently DPDPA] Could not prefetch ${lang} translations:`, err);
+      }
     });
   }
 
@@ -655,21 +668,20 @@
       
       isTranslating = true;
       
-      // Show loading spinner overlay instead of fading entire widget
+      // Show full-screen loading overlay to prevent confusing transparent effects
       const loadingOverlay = document.createElement('div');
       loadingOverlay.style.cssText = `
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(4px);
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(8px);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
-        border-radius: ${borderRadius}px;
+        z-index: 999999;
         pointer-events: all;
       `;
       loadingOverlay.innerHTML = `
@@ -694,18 +706,27 @@
       // Fetch translations asynchronously
       t = await getTranslation(selectedLanguage);
       
-      // Translate activity content (activity names, data attributes)
-      const translatedActivities = await Promise.all(
-        activities.map(async (activity) => {
-          return {
-            ...activity,
-            activity_name: await translateText(activity.activity_name, selectedLanguage),
-            data_attributes: await Promise.all(
-              activity.data_attributes.map(attr => translateText(attr, selectedLanguage))
-            )
-          };
-        })
-      );
+      // Collect all texts to translate in one batch (OPTIMIZED: single API call)
+      const textsToTranslate = [
+        ...activities.map(a => a.activity_name),
+        ...activities.flatMap(a => a.data_attributes)
+      ];
+      
+      // Batch translate ALL content in ONE API call instead of multiple
+      const translatedTexts = await batchTranslate(textsToTranslate, selectedLanguage);
+      
+      // Map translations back to activities
+      let textIndex = 0;
+      const translatedActivities = activities.map(activity => {
+        const translatedName = translatedTexts[textIndex++];
+        const translatedAttrs = activity.data_attributes.map(() => translatedTexts[textIndex++]);
+        
+        return {
+          ...activity,
+          activity_name: translatedName,
+          data_attributes: translatedAttrs
+        };
+      });
       
       // Update activities with translated content
       activities = translatedActivities;
