@@ -67,7 +67,7 @@ export const industryTemplates: IndustryTemplate[] = [
         activity_name: 'Order Processing',
         purposes: [
           {
-            purposeName: 'Enable Order Tracking',
+            purposeName: 'Transaction Processing',
             legalBasis: 'contract',
             dataCategories: [
               { categoryName: 'Order ID', retentionPeriod: '7 years for tax and accounting' },
@@ -75,15 +75,8 @@ export const industryTemplates: IndustryTemplate[] = [
               { categoryName: 'Quantity', retentionPeriod: '7 years for tax and accounting' },
               { categoryName: 'Email', retentionPeriod: '7 years for tax and accounting' },
               { categoryName: 'Phone Number', retentionPeriod: '7 years for tax and accounting' },
-            ],
-          },
-          {
-            purposeName: 'Manage Billing & Payments',
-            legalBasis: 'contract',
-            dataCategories: [
               { categoryName: 'Billing Address', retentionPeriod: '7 years for tax and accounting' },
               { categoryName: 'Shipping Address', retentionPeriod: '7 years for tax and accounting' },
-              { categoryName: 'Order ID', retentionPeriod: '7 years for tax and accounting' },
             ],
           },
         ],
@@ -92,43 +85,89 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Payment Processing',
-        purpose: 'To securely process payments, prevent fraud, and maintain transaction records for customer purchases',
-        data_attributes: ['Payment Method', 'Transaction ID', 'Amount', 'Currency', 'Payment Status', 'Card Last 4 Digits', 'Billing Address'],
-        retention_period: '10 years for financial compliance',
-        data_processors: {
-          sources: ['Payment Gateway', 'Payment Processor', 'Fraud Detection Service']
-        },
-        legalBasis: 'legal-obligation'
+        purposes: [
+          {
+            purposeName: 'Transaction Processing',
+            legalBasis: 'legal-obligation',
+            dataCategories: [
+              { categoryName: 'Payment Method', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'Transaction ID', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'Amount', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'Currency', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'Payment Status', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'Card Last 4 Digits', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'Billing Address', retentionPeriod: '10 years for financial compliance' },
+            ],
+          },
+          {
+            purposeName: 'Security and Fraud Prevention',
+            legalBasis: 'legitimate-interest',
+            dataCategories: [
+              { categoryName: 'Transaction ID', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'Payment Status', retentionPeriod: '10 years for financial compliance' },
+              { categoryName: 'IP Address', retentionPeriod: '2 years' },
+            ],
+          },
+        ],
+        data_sources: ['Payment Gateway', 'Payment Processor', 'Fraud Detection Service'],
+        data_recipients: ['Payment Processors', 'Banks', 'Fraud Detection Services'],
       },
       {
         activity_name: 'Marketing Communications',
-        purpose: 'To send promotional offers, product recommendations, newsletters, and personalized marketing content to customers',
-        data_attributes: ['Email', 'Name', 'Purchase History', 'Browsing Behavior', 'Preferences', 'Communication Opt-in Status'],
-        retention_period: '2 years or until consent is withdrawn',
-        data_processors: {
-          sources: ['Email Marketing Platform', 'CRM System', 'Analytics Tools']
-        },
-        legalBasis: 'consent'
+        purposes: [
+          {
+            purposeName: 'Marketing and Advertising',
+            legalBasis: 'consent',
+            dataCategories: [
+              { categoryName: 'Email', retentionPeriod: '2 years or until consent is withdrawn' },
+              { categoryName: 'Name', retentionPeriod: '2 years or until consent is withdrawn' },
+              { categoryName: 'Purchase History', retentionPeriod: '2 years or until consent is withdrawn' },
+              { categoryName: 'Browsing Behavior', retentionPeriod: '2 years or until consent is withdrawn' },
+              { categoryName: 'Preferences', retentionPeriod: '2 years or until consent is withdrawn' },
+              { categoryName: 'Communication Opt-in Status', retentionPeriod: '2 years or until consent is withdrawn' },
+            ],
+          },
+        ],
+        data_sources: ['Email Marketing Platform', 'CRM System', 'Analytics Tools'],
+        data_recipients: ['Email Service Providers', 'Marketing Platforms'],
       },
       {
         activity_name: 'Customer Support',
-        purpose: 'To provide customer service, handle inquiries, resolve complaints, and improve customer satisfaction',
-        data_attributes: ['Name', 'Email', 'Phone Number', 'Order History', 'Support Tickets', 'Chat Transcripts'],
-        retention_period: '5 years from last interaction',
-        data_processors: {
-          sources: ['Customer Support Portal', 'Live Chat System', 'Helpdesk Software']
-        },
-        legalBasis: 'legitimate-interest'
+        purposes: [
+          {
+            purposeName: 'Customer Support',
+            legalBasis: 'legitimate-interest',
+            dataCategories: [
+              { categoryName: 'Name', retentionPeriod: '5 years from last interaction' },
+              { categoryName: 'Email', retentionPeriod: '5 years from last interaction' },
+              { categoryName: 'Phone Number', retentionPeriod: '5 years from last interaction' },
+              { categoryName: 'Order History', retentionPeriod: '5 years from last interaction' },
+              { categoryName: 'Support Tickets', retentionPeriod: '5 years from last interaction' },
+              { categoryName: 'Chat Transcripts', retentionPeriod: '5 years from last interaction' },
+            ],
+          },
+        ],
+        data_sources: ['Customer Support Portal', 'Live Chat System', 'Helpdesk Software'],
+        data_recipients: ['Customer Support Team'],
       },
       {
         activity_name: 'Product Reviews & Ratings',
-        purpose: 'To collect and display customer reviews and ratings to help other customers make informed purchasing decisions',
-        data_attributes: ['Name', 'Email', 'Review Text', 'Rating', 'Product ID', 'Purchase Verification'],
-        retention_period: 'Indefinitely or until review is removed',
-        data_processors: {
-          sources: ['Review Management System', 'Website']
-        },
-        legalBasis: 'legitimate-interest'
+        purposes: [
+          {
+            purposeName: 'Product Improvement',
+            legalBasis: 'legitimate-interest',
+            dataCategories: [
+              { categoryName: 'Name', retentionPeriod: 'Indefinitely or until review is removed' },
+              { categoryName: 'Email', retentionPeriod: 'Indefinitely or until review is removed' },
+              { categoryName: 'Review Text', retentionPeriod: 'Indefinitely or until review is removed' },
+              { categoryName: 'Rating', retentionPeriod: 'Indefinitely or until review is removed' },
+              { categoryName: 'Product ID', retentionPeriod: 'Indefinitely or until review is removed' },
+              { categoryName: 'Purchase Verification', retentionPeriod: 'Indefinitely or until review is removed' },
+            ],
+          },
+        ],
+        data_sources: ['Review Management System', 'Website'],
+        data_recipients: ['Public (Website Visitors)'],
       }
     ]
   },
@@ -605,18 +644,69 @@ export const isNewStructureTemplate = (template: ActivityTemplate): boolean => {
   return !!template.purposes && template.purposes.length > 0;
 };
 
+// Helper to intelligently map activity names to appropriate predefined purposes
+const mapActivityToPurpose = (activityName: string, legalBasis?: string): string => {
+  const activityLower = activityName.toLowerCase();
+  
+  // Map based on activity name keywords
+  if (activityLower.includes('payment') || activityLower.includes('transaction') || activityLower.includes('billing')) {
+    return 'Transaction Processing';
+  }
+  if (activityLower.includes('marketing') || activityLower.includes('promotional') || activityLower.includes('newsletter')) {
+    return 'Marketing and Advertising';
+  }
+  if (activityLower.includes('support') || activityLower.includes('help') || activityLower.includes('service')) {
+    return 'Customer Support';
+  }
+  if (activityLower.includes('account') || activityLower.includes('registration') || activityLower.includes('login') || activityLower.includes('profile')) {
+    return 'Account Management';
+  }
+  if (activityLower.includes('analytics') || activityLower.includes('research') || activityLower.includes('analysis')) {
+    return 'Analytics and Research';
+  }
+  if (activityLower.includes('security') || activityLower.includes('fraud') || activityLower.includes('prevention')) {
+    return 'Security and Fraud Prevention';
+  }
+  if (activityLower.includes('legal') || activityLower.includes('compliance') || activityLower.includes('regulatory') || activityLower.includes('kyc')) {
+    return 'Legal Compliance';
+  }
+  if (activityLower.includes('communication') || activityLower.includes('notification') || activityLower.includes('alert') || activityLower.includes('message')) {
+    return 'Communication';
+  }
+  if (activityLower.includes('personalization') || activityLower.includes('personalize') || activityLower.includes('customize') || activityLower.includes('recommendation')) {
+    return 'Personalization';
+  }
+  if (activityLower.includes('improvement') || activityLower.includes('review') || activityLower.includes('feedback') || activityLower.includes('rating')) {
+    return 'Product Improvement';
+  }
+  
+  // Default fallback based on legal basis
+  if (legalBasis === 'legal-obligation') {
+    return 'Legal Compliance';
+  }
+  if (legalBasis === 'contract') {
+    return 'Transaction Processing';
+  }
+  
+  // Ultimate fallback
+  return 'Account Management';
+};
+
 // Helper to convert legacy template to new structure
 export const convertLegacyTemplate = (template: ActivityTemplate): ActivityTemplate => {
   if (isNewStructureTemplate(template)) {
     return template; // Already in new format
   }
 
+  // Intelligently map to predefined purpose
+  const purposeName = mapActivityToPurpose(template.activity_name, template.legalBasis);
+  
   // Convert legacy format to new structure
   return {
     activity_name: template.activity_name,
     purposes: [
       {
-        purposeName: 'Account Management', // Default purpose name
+        purposeName,
         legalBasis: (template.legalBasis as any) || 'consent',
         dataCategories: (template.data_attributes || []).map((attr) => ({
           categoryName: attr,

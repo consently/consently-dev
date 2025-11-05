@@ -36,13 +36,33 @@ import {
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
 
+interface Purpose {
+  id: string;
+  purposeId: string;
+  purposeName: string;
+  legalBasis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
+  customDescription?: string;
+  dataCategories: Array<{
+    id: string;
+    categoryName: string;
+    retentionPeriod: string;
+  }>;
+}
+
 interface ProcessingActivity {
   id: string;
-  activity_name: string;
-  purpose: string;
+  activityName: string;
   industry: string;
-  data_attributes: string[];
-  retention_period: string;
+  purposes: Purpose[];
+  dataSources: string[];
+  dataRecipients: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  // Legacy fields for backward compatibility
+  purpose?: string;
+  retentionPeriod?: string;
+  dataAttributes?: string[];
 }
 
 interface WidgetConfig {
@@ -419,8 +439,8 @@ export default function DPDPAWidgetPage() {
     .filter(activity => {
       // Search filter
       const matchesSearch = activitySearch === '' || 
-        activity.activity_name.toLowerCase().includes(activitySearch.toLowerCase()) ||
-        activity.purpose.toLowerCase().includes(activitySearch.toLowerCase());
+        activity.activityName.toLowerCase().includes(activitySearch.toLowerCase()) ||
+        activity.purposes.some(p => p.purposeName.toLowerCase().includes(activitySearch.toLowerCase()));
       
       // Industry filter
       const matchesFilter = activityFilter === 'all' || activity.industry === activityFilter;
@@ -429,7 +449,7 @@ export default function DPDPAWidgetPage() {
     })
     .sort((a, b) => {
       if (activitySort === 'name') {
-        return a.activity_name.localeCompare(b.activity_name);
+        return a.activityName.localeCompare(b.activityName);
       } else {
         return a.industry.localeCompare(b.industry);
       }
@@ -455,28 +475,50 @@ export default function DPDPAWidgetPage() {
   const generatePrivacyNoticeHTML = (activities: ProcessingActivity[], domain: string): string => {
     const companyName = domain || '[Your Company Name]';
     
-    const activitySections = activities.map((activity, index) => `
+    const activitySections = activities.map((activity, index) => {
+      const purposesList = activity.purposes.length > 0 
+        ? activity.purposes.map(p => `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis.replace('-', ' '))})</li>`).join('')
+        : '<li>No purposes defined</li>';
+      
+      const allDataCategories = activity.purposes.flatMap(p => 
+        p.dataCategories.map(cat => cat.categoryName)
+      );
+      const dataCategoriesText = allDataCategories.length > 0 
+        ? allDataCategories.map(c => escapeHtml(c)).join(', ')
+        : 'N/A';
+      
+      const retentionPeriods = activity.purposes.flatMap(p => 
+        p.dataCategories.map(cat => `${cat.categoryName}: ${cat.retentionPeriod}`)
+      );
+      const retentionText = retentionPeriods.length > 0 
+        ? retentionPeriods.map(r => escapeHtml(r)).join(', ')
+        : 'N/A';
+
+      return `
       <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 8px;">
         <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 600;">
-          ${index + 1}. ${escapeHtml(activity.activity_name)}
+          ${index + 1}. ${escapeHtml(activity.activityName)}
         </h3>
         
         <div style="margin-bottom: 12px;">
-          <strong style="color: #374151;">Purpose:</strong>
-          <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(activity.purpose)}</p>
+          <strong style="color: #374151;">Purposes:</strong>
+          <ul style="margin: 4px 0 0 0; color: #6b7280; padding-left: 20px;">
+            ${purposesList}
+          </ul>
         </div>
 
         <div style="margin-bottom: 12px;">
           <strong style="color: #374151;">Data Categories:</strong>
-          <p style="margin: 4px 0 0 0; color: #6b7280;">${activity.data_attributes && Array.isArray(activity.data_attributes) ? activity.data_attributes.map(a => escapeHtml(a)).join(', ') : 'N/A'}</p>
+          <p style="margin: 4px 0 0 0; color: #6b7280;">${dataCategoriesText}</p>
         </div>
 
         <div>
-          <strong style="color: #374151;">Retention Period:</strong>
-          <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(activity.retention_period)}</p>
+          <strong style="color: #374151;">Retention Periods:</strong>
+          <p style="margin: 4px 0 0 0; color: #6b7280;">${retentionText}</p>
         </div>
       </div>
-    `).join('');
+      `;
+    }).join('');
 
     return `
   <!DOCTYPE html>
@@ -1071,25 +1113,27 @@ export default function DPDPAWidgetPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <h4 className="font-semibold text-gray-900 text-base">
-                              {activity.activity_name}
+                              {activity.activityName}
                             </h4>
                             <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                               {activity.industry}
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-600 mb-3 leading-relaxed">{activity.purpose}</p>
+                          <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                            {activity.purposes.map(p => p.purposeName).join(', ') || 'No purposes configured'}
+                          </p>
                           <div className="flex flex-wrap gap-1.5">
-                            {activity.data_attributes && Array.isArray(activity.data_attributes) && activity.data_attributes.slice(0, 4).map((attr, i) => (
+                            {activity.purposes.flatMap(p => p.dataCategories.map(cat => cat.categoryName)).slice(0, 4).map((categoryName, i) => (
                               <span
                                 key={i}
                                 className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md font-medium text-gray-700"
                               >
-                                {attr}
+                                {categoryName}
                               </span>
                             ))}
-                            {activity.data_attributes && Array.isArray(activity.data_attributes) && activity.data_attributes.length > 4 && (
+                            {activity.purposes.flatMap(p => p.dataCategories).length > 4 && (
                               <span className="text-xs px-2.5 py-1 bg-gradient-to-r from-gray-100 to-gray-200 rounded-md font-medium text-gray-700">
-                                +{activity.data_attributes.length - 4} more
+                                +{activity.purposes.flatMap(p => p.dataCategories).length - 4} more
                               </span>
                             )}
                           </div>
@@ -1504,56 +1548,77 @@ export default function DPDPAWidgetPage() {
                 </div>
               </div>
 
-              {/* Live Preview - Updated to match new visitor-facing widget design */}
-              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-medium text-gray-500">LIVE PREVIEW</p>
+              {/* Enhanced Live Preview with Real-time Sync */}
+              <div className="p-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border-2 border-blue-200 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md">
+                      <Eye className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Live Preview</p>
+                      <p className="text-xs text-gray-600">Real-time widget preview</p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     {translatingPreview && (
-                      <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-2 py-1 rounded-md">
+                      <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg shadow-sm">
                         <Loader2 className="h-3 w-3 animate-spin" />
-                        <span className="text-xs font-medium">Translating...</span>
+                        <span className="text-xs font-semibold">Translating...</span>
                       </div>
                     )}
                     {!translatingPreview && previewLanguage !== 'en' && (
-                      <div className="flex items-center gap-1.5 bg-green-100 text-green-700 px-2 py-1 rounded-md">
+                      <div className="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-lg shadow-sm">
                         <CheckCircle className="h-3 w-3" />
-                        <span className="text-xs font-medium">Translated</span>
+                        <span className="text-xs font-semibold">Translated</span>
                       </div>
                     )}
+                    <button
+                      onClick={() => handlePreviewLanguageChange('en')}
+                      className="text-xs px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                      title="Reset to English"
+                    >
+                      Reset
+                    </button>
                   </div>
                 </div>
                 <div 
-                  className="shadow-2xl max-w-md mx-auto overflow-hidden"
+                  className="shadow-2xl max-w-md mx-auto overflow-hidden transition-all duration-300 hover:shadow-3xl"
                   style={{
                     backgroundColor: config.theme.backgroundColor,
                     color: config.theme.textColor,
-                    borderRadius: `${config.theme.borderRadius}px`
+                    borderRadius: `${config.theme.borderRadius}px`,
+                    border: '2px solid rgba(0,0,0,0.05)'
                   }}
                 >
-                  {/* Header - Matching New Design */}
-                  <div className="p-5 border-b bg-gradient-to-b from-white to-gray-50" style={{ borderColor: '#e5e7eb' }}>
+                  {/* Header - Enhanced Design */}
+                  <div className="p-5 border-b-2 bg-gradient-to-br from-white via-blue-50 to-gray-50" style={{ borderColor: '#e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         {config.theme.logoUrl ? (
                           <img 
                             src={config.theme.logoUrl} 
                             alt="Brand Logo" 
-                            className="h-8 w-auto object-contain"
+                            className="h-9 w-auto object-contain"
+                            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                             }}
                           />
                         ) : (
                           <div 
-                            className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
-                            style={{ backgroundColor: config.theme.primaryColor }}
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
+                            style={{ 
+                              background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
+                              boxShadow: `0 4px 8px ${config.theme.primaryColor}40`
+                            }}
                           >
                             C
                           </div>
                         )}
                         <div>
-                          <h2 className="font-bold text-lg m-0" style={{ letterSpacing: '-0.01em' }}>NOTICE</h2>
+                          <h2 className="font-extrabold text-xl m-0 mb-0.5" style={{ letterSpacing: '-0.02em' }}>Privacy Notice</h2>
+                          <p className="text-[11px] text-gray-500 font-medium m-0">DPDPA 2023 Compliance</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1594,59 +1659,77 @@ export default function DPDPAWidgetPage() {
                       {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || config.message)}
                     </p>
 
-                    {/* Activities with Checkboxes */}
+                    {/* Activities Table View - Enhanced */}
                     {config.selectedActivities.length > 0 && (
-                      <div className="space-y-3 mb-4">
-                        {config.selectedActivities.slice(0, 2).map((actId) => {
-                          const activity = activities.find(a => a.id === actId);
-                          if (!activity) return null;
-                          return (
-                            <div key={actId} className="border rounded-lg p-3 bg-white" style={{ borderColor: '#e5e7eb' }}>
-                              <div className="flex items-start gap-2.5">
+                      <div className="mb-4">
+                        {/* Table Header */}
+                        <div className="grid grid-cols-[auto_1fr_1.5fr] gap-3 mb-2 px-2">
+                          <div className="w-5"></div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Purpose</div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Data Categories</div>
+                        </div>
+                        
+                        {/* Table Body */}
+                        <div className="space-y-2">
+                          {config.selectedActivities.map((actId) => {
+                            const activity = activities.find(a => a.id === actId);
+                            if (!activity) return null;
+                            const dataCategories = activity.purposes.flatMap(p => p.dataCategories.map(cat => cat.categoryName));
+                            return (
+                              <div key={actId} className="grid grid-cols-[auto_1fr_1.5fr] gap-3 items-start p-2.5 border-2 rounded-lg bg-gradient-to-b from-white to-gray-50 hover:shadow-md transition-all" style={{ borderColor: '#e5e7eb' }}>
                                 <input 
                                   type="checkbox" 
                                   className="mt-0.5" 
                                   style={{ 
                                     width: '16px', 
                                     height: '16px',
-                                    accentColor: config.theme.primaryColor 
+                                    accentColor: config.theme.primaryColor,
+                                    borderRadius: '3px'
                                   }} 
                                 />
-                                <div className="flex-1">
-                                  <h4 className="text-xs font-semibold mb-1.5">{activity.activity_name}</h4>
-                                  <div>
-                                    <div className="text-[10px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Data Categories</div>
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                      {activity.data_attributes.slice(0, 4).map((attr, i) => (
-                                        <div key={i} className="text-[10px] px-2 py-1 bg-gray-50 border border-gray-200 rounded" style={{ fontSize: '10px' }}>
-                                          {attr}
-                                        </div>
-                                      ))}
-                                      {activity.data_attributes.length > 4 && (
-                                        <div className="text-[10px] px-2 py-1 bg-gray-50 border border-gray-200 rounded font-medium" style={{ fontSize: '10px' }}>
-                                          +{activity.data_attributes.length - 4} more
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
+                                <div className="text-xs font-semibold text-gray-800 leading-tight pt-0.5">
+                                  {activity.activityName}
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {dataCategories.map((categoryName, i) => (
+                                    <span key={i} className="text-[10px] px-2 py-0.5 bg-gray-100 border border-gray-200 rounded font-medium text-gray-700" style={{ fontSize: '9px' }}>
+                                      {categoryName}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                        {config.selectedActivities.length > 2 && (
-                          <div className="text-xs text-gray-500 text-center py-2">
-                            ... and {config.selectedActivities.length - 2} more activities
-                          </div>
-                        )}
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
-                    {/* Manage Consent Text */}
-                    <div className="p-2.5 bg-gray-50 rounded-lg mb-3">
-                      <p className="text-[10px] text-gray-600 m-0 leading-relaxed">
-                        You can manage your consent from the preference centre in your account.
-                      </p>
+                    {/* Manage Preferences Button - Enhanced & Prominent */}
+                    <div className="p-3.5 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl mb-3 border border-blue-300 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-[11px] text-blue-900 m-0 mb-1 leading-tight font-bold">
+                            Manage Your Consent Preferences
+                          </p>
+                          <p className="text-[10px] text-gray-600 m-0 leading-tight">
+                            You can change these settings at any time
+                          </p>
+                        </div>
+                        <button
+                          className="px-3.5 py-2 text-[11px] font-bold rounded-lg border-2 transition-all hover:shadow-lg flex items-center gap-1.5"
+                          style={{ 
+                            backgroundColor: 'white',
+                            color: config.theme.primaryColor,
+                            borderColor: config.theme.primaryColor
+                          }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2"/>
+                          </svg>
+                          Preference Centre
+                        </button>
+                      </div>
                     </div>
 
                     {/* Footer Links */}
@@ -1657,35 +1740,38 @@ export default function DPDPAWidgetPage() {
                     </div>
                   </div>
 
-                  {/* Footer Actions - Matching New Design */}
-                  <div className="px-5 py-3.5 border-t bg-gray-50 flex gap-2 items-center" style={{ borderColor: '#e5e7eb' }}>
+                  {/* Footer Actions - Enhanced Design */}
+                  <div className="px-5 py-4 border-t-2 bg-gradient-to-b from-gray-50 to-gray-100 flex gap-3 items-center" style={{ borderColor: '#e5e7eb', boxShadow: '0 -2px 8px rgba(0,0,0,0.05)' }}>
                     <button
                       onClick={downloadPrivacyNotice}
-                      className="p-2 bg-white border rounded-lg transition-all hover:shadow-sm"
+                      className="p-2.5 bg-white border-2 rounded-xl transition-all hover:shadow-lg hover:scale-105"
                       style={{ borderColor: '#e5e7eb' }}
-                      title="Download"
+                      title="Download Privacy Notice"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                       </svg>
                     </button>
-                    <div className="flex-1 flex gap-2">
+                    <div className="flex-1 flex gap-2.5">
                       <button
-                        className="flex-1 px-3 py-2 rounded-lg text-[10px] font-bold bg-gray-200 transition-all hover:bg-gray-300"
-                        style={{ color: config.theme.textColor }}
+                        className="flex-1 px-3 py-2.5 rounded-xl text-[11px] font-bold border-2 bg-gradient-to-b from-gray-50 to-gray-100 transition-all hover:shadow-md hover:scale-105"
+                        style={{ color: config.theme.textColor, borderColor: '#e5e7eb' }}
                       >
                         Accept selected
                       </button>
                       <button
-                        className="flex-1 px-3 py-2 rounded-lg text-[10px] font-bold text-white transition-all hover:opacity-90"
-                        style={{ backgroundColor: config.theme.primaryColor }}
+                        className="flex-1 px-3 py-2.5 rounded-xl text-[11px] font-bold text-white transition-all hover:shadow-lg hover:scale-105 shadow-md"
+                        style={{ 
+                          background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
+                          boxShadow: `0 4px 8px ${config.theme.primaryColor}40`
+                        }}
                       >
                         Accept all
                       </button>
                       <button
-                        className="flex-1 px-3 py-2 rounded-lg text-[10px] font-bold bg-white border transition-all hover:bg-gray-50"
+                        className="flex-1 px-3 py-2.5 rounded-xl text-[11px] font-bold bg-white border-2 transition-all hover:bg-gray-50 hover:scale-105"
                         style={{ borderColor: '#e5e7eb', color: config.theme.textColor }}
                       >
                         Cancel
@@ -2102,6 +2188,66 @@ export default function DPDPAWidgetPage() {
                   </code>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Preference Center Info Card */}
+          <Card className="shadow-sm border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+            <CardHeader className="border-b border-blue-200">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-md">
+                  <Settings className="h-5 w-5 text-white" />
+                </div>
+                <span>Preference Centre Integration</span>
+              </CardTitle>
+              <CardDescription className="text-blue-900/70">
+                Let users manage their consent preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="flex items-start gap-2 mb-3">
+                  <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Prominent Button Integrated</h4>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      The "Manage Preferences" button is now prominently displayed in the widget with an enhanced design and icon.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="flex items-start gap-2 mb-3">
+                  <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Opens Privacy Centre</h4>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      Clicking opens the full Preference Centre where users can manage individual consent preferences, view history, and exercise their DPDP Act rights.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="flex items-start gap-2 mb-3">
+                  <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Preference Centre URL</h4>
+                    <p className="text-xs text-gray-600 mb-2">Users are directed to:</p>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded border border-gray-200 block overflow-x-auto">
+                      {window.location.origin}/privacy-centre/{'{widgetId}'}?visitorId={'{visitorId}'}
+                    </code>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-4 text-white">
+                <p className="text-xs font-semibold flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4" />
+                  Enhanced User Experience
+                </p>
+                <p className="text-xs opacity-90">
+                  Users can change their consent preferences at any time through the Preference Centre, ensuring full transparency and control over their personal data.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

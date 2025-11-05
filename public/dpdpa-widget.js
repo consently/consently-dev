@@ -466,18 +466,19 @@
     function buildWidgetHTML() {
       return `
       <!-- Header Section -->
-      <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; background: linear-gradient(to bottom, #ffffff, #f8fafc);">
+      <div style="padding: 20px 24px; border-bottom: 2px solid #e5e7eb; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
         <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
           <div style="display: flex; align-items: center; gap: 12px;">
             ${config.theme.logoUrl ? `
-              <img src="${escapeHtml(config.theme.logoUrl)}" alt="Logo" style="height: 32px; width: auto; object-fit: contain;" />
+              <img src="${escapeHtml(config.theme.logoUrl)}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
             ` : `
-              <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: ${primaryColor}; color: white; font-weight: 700; font-size: 16px;">
+              <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; font-weight: 700; font-size: 18px; box-shadow: 0 4px 8px rgba(59,130,246,0.3);">
                 C
               </div>
             `}
             <div>
-              <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">NOTICE</h2>
+              <h2 style="margin: 0 0 2px 0; font-size: 22px; font-weight: 800; color: ${textColor}; letter-spacing: -0.02em;">Privacy Notice</h2>
+              <p style="margin: 0; font-size: 11px; color: #6b7280; font-weight: 500;">DPDPA 2023 Compliance</p>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -519,47 +520,61 @@
           We process your personal data only when necessary to provide our banking services. By clicking on the 'Accept all' button below, you consent to process your personal data for the following purposes:
         </p>
 
-        <!-- Processing Activities List -->
-        <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
-          ${activities.map((activity) => `
-            <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; background: white; transition: all 0.2s;">
-              <div style="display: flex; align-items: start; gap: 12px;">
+        <!-- Processing Activities Table View - Enhanced Design -->
+        <div style="margin-bottom: 20px;">
+          <!-- Table Header -->
+          <div style="display: grid; grid-template-columns: auto 1fr 1.5fr; gap: 12px; padding: 0 12px 10px 12px; border-bottom: 2px solid #e5e7eb;">
+            <div style="width: 20px;"></div>
+            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Purpose</div>
+            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Data Categories</div>
+          </div>
+          
+          <!-- Table Body -->
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+            ${activities.map((activity) => `
+              <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="display: grid; grid-template-columns: auto 1fr 1.5fr; gap: 12px; align-items: start; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; background: linear-gradient(to bottom, #ffffff, #fafbfc); transition: all 0.25s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <!-- Checkbox -->
                 <label style="display: flex; align-items: center; cursor: pointer; padding-top: 2px;">
-                  <input type="checkbox" class="activity-checkbox" data-activity-id="${activity.id}" style="width: 18px; height: 18px; cursor: pointer; accent-color: ${primaryColor};" />
+                  <input type="checkbox" class="activity-checkbox" data-activity-id="${activity.id}" style="width: 18px; height: 18px; cursor: pointer; accent-color: ${primaryColor}; border-radius: 4px;" />
                 </label>
                 
-                <!-- Activity Details -->
-                <div style="flex: 1;">
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <h4 style="font-size: 15px; font-weight: 600; margin: 0; color: ${textColor};">${escapeHtml(activity.activity_name)}</h4>
-                  </div>
-                  
-                  <!-- Data Categories Section -->
-                  <div style="margin-bottom: 10px;">
-                    <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.02em;">Data Categories</div>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px; color: ${textColor};">
-                      ${activity.data_attributes.slice(0, 6).map(attr => `
-                        <div style="padding: 6px 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">${escapeHtml(attr)}</div>
-                      `).join('')}
-                      ${activity.data_attributes.length > 6 ? `<div style="padding: 6px 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; font-weight: 500;">+${activity.data_attributes.length - 6} more</div>` : ''}
-                    </div>
-                  </div>
+                <!-- Purpose Name -->
+                <div style="font-size: 14px; font-weight: 600; color: ${textColor}; line-height: 1.3; padding-top: 2px;">
+                  ${escapeHtml(activity.activity_name)}
                 </div>
+                
+                <!-- Data Categories -->
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  ${activity.data_attributes.map(attr => `
+                    <span style="display: inline-block; font-size: 11px; padding: 5px 10px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); border: 1px solid #e5e7eb; border-radius: 6px; font-weight: 500; color: ${textColor}; white-space: nowrap;">${escapeHtml(attr)}</span>
+                  `).join('')}
+                </div>
+                
+                <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
               </div>
-              <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
-            </div>
-          `).join('')}
+            `).join('')}
+          </div>
         </div>
 
-        <!-- Manage Preferences Button -->
-        <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
-          <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
-            You can manage your consent preferences anytime.
-          </p>
-          <button id="dpdpa-manage-preferences" style="padding: 8px 16px; background: white; color: ${primaryColor}; border: 1px solid ${primaryColor}; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; white-space: nowrap;">
-            Manage Preferences
-          </button>
+        <!-- Manage Preferences Button - Enhanced -->
+        <div style="padding: 14px; background: linear-gradient(to right, #eff6ff, #e0f2fe); border-radius: 10px; margin-bottom: 16px; border: 1px solid #bfdbfe; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="flex: 1;">
+              <p style="margin: 0 0 4px 0; font-size: 13px; color: #1e40af; font-weight: 600; line-height: 1.4;">
+                Manage Your Consent Preferences
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.4;">
+                You can change these settings at any time
+              </p>
+            </div>
+            <button id="dpdpa-manage-preferences" style="padding: 10px 18px; background: white; color: ${primaryColor}; border: 2px solid ${primaryColor}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2"/>
+              </svg>
+              Preference Centre
+            </button>
+          </div>
         </div>
         
         <!-- Footer Links -->
@@ -570,23 +585,23 @@
         </div>
       </div>
 
-      <!-- Footer Actions -->
-      <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #fafbfc; display: flex; gap: 10px; align-items: center; justify-content: space-between;">
-        <button id="dpdpa-download-icon" style="padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Download Privacy Notice">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- Footer Actions - Enhanced Design -->
+      <div style="padding: 18px 24px; border-top: 2px solid #e5e7eb; background: linear-gradient(to bottom, #fafbfc, #f3f4f6); display: flex; gap: 12px; align-items: center; justify-content: space-between; box-shadow: 0 -2px 8px rgba(0,0,0,0.05);">
+        <button id="dpdpa-download-icon" style="padding: 12px; background: white; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="Download Privacy Notice">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
         </button>
         <div style="flex: 1; display: flex; gap: 10px;">
-          <button id="dpdpa-accept-selected-btn" style="flex: 1; padding: 12px 20px; background: #f3f4f6; color: ${textColor}; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">
+          <button id="dpdpa-accept-selected-btn" style="flex: 1; padding: 13px 20px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             Accept selected
           </button>
-          <button id="dpdpa-accept-all-btn" style="flex: 1; padding: 12px 20px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+          <button id="dpdpa-accept-all-btn" style="flex: 1; padding: 13px 20px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 8px rgba(59,130,246,0.3);">
             Accept all
           </button>
-          <button id="dpdpa-cancel-btn" style="flex: 1; padding: 12px 20px; background: white; color: ${textColor}; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">
+          <button id="dpdpa-cancel-btn" style="flex: 1; padding: 13px 20px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             Cancel
           </button>
         </div>
@@ -818,7 +833,7 @@
       });
     }
 
-    // Checkboxes for activities
+    // Checkboxes for activities with enhanced visual feedback (table view)
     const checkboxes = widget.querySelectorAll('.activity-checkbox');
     checkboxes.forEach(checkbox => {
       checkbox.addEventListener('change', function() {
@@ -827,11 +842,17 @@
         if (this.checked) {
           setActivityConsent(activityId, 'accepted');
           item.style.borderColor = primaryColor;
-          item.style.background = `${primaryColor}08`;
+          item.style.borderWidth = '2px';
+          item.style.background = 'linear-gradient(to bottom, #eff6ff, #dbeafe)';
+          item.style.boxShadow = '0 4px 12px rgba(59,130,246,0.25)';
+          item.style.borderLeftWidth = '4px';
         } else {
           setActivityConsent(activityId, 'rejected');
           item.style.borderColor = '#e5e7eb';
-          item.style.background = 'white';
+          item.style.borderWidth = '2px';
+          item.style.background = 'linear-gradient(to bottom, #ffffff, #fafbfc)';
+          item.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+          item.style.borderLeftWidth = '2px';
         }
       });
     });
@@ -897,23 +918,102 @@
       });
     }
 
-    // Manage Preferences button
+    // Manage Preferences button with enhanced hover effects
     const managePrefsBtn = widget.querySelector('#dpdpa-manage-preferences');
     if (managePrefsBtn) {
-      // Hover effects
+      // Enhanced hover effects
       managePrefsBtn.addEventListener('mouseenter', () => {
         managePrefsBtn.style.background = primaryColor;
         managePrefsBtn.style.color = 'white';
+        managePrefsBtn.style.transform = 'translateY(-2px)';
+        managePrefsBtn.style.boxShadow = '0 6px 12px rgba(59,130,246,0.4)';
       });
       managePrefsBtn.addEventListener('mouseleave', () => {
         managePrefsBtn.style.background = 'white';
         managePrefsBtn.style.color = primaryColor;
+        managePrefsBtn.style.transform = 'translateY(0)';
+        managePrefsBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
       });
       
       managePrefsBtn.addEventListener('click', () => {
         openPrivacyCentre();
       });
     }
+
+    // Enhanced hover effects for footer buttons
+    const acceptAllBtn = widget.querySelector('#dpdpa-accept-all-btn');
+    if (acceptAllBtn) {
+      acceptAllBtn.addEventListener('mouseenter', () => {
+        acceptAllBtn.style.transform = 'translateY(-2px)';
+        acceptAllBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
+      });
+      acceptAllBtn.addEventListener('mouseleave', () => {
+        acceptAllBtn.style.transform = 'translateY(0)';
+        acceptAllBtn.style.boxShadow = '0 4px 8px rgba(59,130,246,0.3)';
+      });
+    }
+
+    const acceptSelectedBtn = widget.querySelector('#dpdpa-accept-selected-btn');
+    if (acceptSelectedBtn) {
+      acceptSelectedBtn.addEventListener('mouseenter', () => {
+        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #e5e7eb, #d1d5db)';
+        acceptSelectedBtn.style.transform = 'translateY(-1px)';
+      });
+      acceptSelectedBtn.addEventListener('mouseleave', () => {
+        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #f9fafb, #f3f4f6)';
+        acceptSelectedBtn.style.transform = 'translateY(0)';
+      });
+    }
+
+    const cancelBtn = widget.querySelector('#dpdpa-cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('mouseenter', () => {
+        cancelBtn.style.background = '#f9fafb';
+        cancelBtn.style.borderColor = '#d1d5db';
+        cancelBtn.style.transform = 'translateY(-1px)';
+      });
+      cancelBtn.addEventListener('mouseleave', () => {
+        cancelBtn.style.background = 'white';
+        cancelBtn.style.borderColor = '#e5e7eb';
+        cancelBtn.style.transform = 'translateY(0)';
+      });
+    }
+
+    const downloadIcon = widget.querySelector('#dpdpa-download-icon');
+    if (downloadIcon) {
+      downloadIcon.addEventListener('mouseenter', () => {
+        downloadIcon.style.background = '#f0f9ff';
+        downloadIcon.style.borderColor = primaryColor;
+        downloadIcon.style.transform = 'translateY(-2px)';
+        downloadIcon.style.boxShadow = '0 4px 8px rgba(59,130,246,0.2)';
+      });
+      downloadIcon.addEventListener('mouseleave', () => {
+        downloadIcon.style.background = 'white';
+        downloadIcon.style.borderColor = '#e5e7eb';
+        downloadIcon.style.transform = 'translateY(0)';
+        downloadIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+      });
+    }
+
+    // Enhanced hover effects for activity table rows
+    const activityItems = widget.querySelectorAll('.dpdpa-activity-item');
+    activityItems.forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        item.style.borderColor = primaryColor;
+        item.style.boxShadow = '0 4px 12px rgba(59,130,246,0.15)';
+        item.style.transform = 'translateX(2px)';
+        item.style.background = 'linear-gradient(to bottom, #f0f9ff, #e0f2fe)';
+      });
+      item.addEventListener('mouseleave', () => {
+        const checkbox = item.querySelector('.activity-checkbox');
+        if (!checkbox.checked) {
+          item.style.borderColor = '#e5e7eb';
+          item.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+          item.style.transform = 'translateX(0)';
+          item.style.background = 'linear-gradient(to bottom, #ffffff, #fafbfc)';
+        }
+      });
+    });
 
     // Close on overlay click
     overlay.addEventListener('click', (e) => {

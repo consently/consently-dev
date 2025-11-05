@@ -23,6 +23,7 @@ import {
   getLegalBasisLabel, 
   getIndustryLabel, 
   getIndustryIcon,
+  convertLegacyTemplate,
   type ActivityTemplate,
   type IndustryTemplate 
 } from '@/lib/industry-templates';
@@ -287,78 +288,50 @@ export default function ProcessingActivitiesPage() {
       console.log('Purposes map:', Array.from(purposesMap.keys()));
 
       const activitiesToCreate = Array.from(selectedActivities).map(index => {
-        const activity = selectedTemplate.activities[index];
-        console.log('Processing activity:', activity.activity_name);
+        const rawActivity = selectedTemplate.activities[index];
+        console.log('Processing activity:', rawActivity.activity_name);
         
-        // Check if activity uses new structure (purposes array) or legacy structure
-        if (activity.purposes && activity.purposes.length > 0) {
-          // New structure: map purpose names to IDs
-          const mappedPurposes = activity.purposes.map((purpose: any) => {
-            const purposeId = purposesMap.get(purpose.purposeName);
-            if (!purposeId) {
-              console.error(`Purpose not found: ${purpose.purposeName}. Available:`, Array.from(purposesMap.keys()));
-              // Fallback to Account Management
-              return {
-                purposeId: purposesMap.get('Account Management')!,
-                purposeName: purpose.purposeName,
-                legalBasis: purpose.legalBasis,
-                customDescription: purpose.customDescription || `Original purpose: ${purpose.purposeName}`,
-                dataCategories: purpose.dataCategories.map((cat: any) => ({
-                  categoryName: cat.categoryName,
-                  retentionPeriod: cat.retentionPeriod,
-                })),
-              };
+        // Convert legacy templates to new structure
+        const activity = convertLegacyTemplate(rawActivity);
+        
+        // Map purpose names to IDs
+        const mappedPurposes = activity.purposes.map((purpose: any) => {
+          const purposeId = purposesMap.get(purpose.purposeName);
+          if (!purposeId) {
+            console.error(`Purpose not found: ${purpose.purposeName}. Available:`, Array.from(purposesMap.keys()));
+            // Fallback to Account Management
+            const fallbackId = purposesMap.get('Account Management');
+            if (!fallbackId) {
+              throw new Error('No purposes available in database. Please run migrations.');
             }
             return {
-              purposeId: purposeId,
-              purposeName: purpose.purposeName,
+              purposeId: fallbackId,
               legalBasis: purpose.legalBasis,
-              customDescription: purpose.customDescription,
+              customDescription: `Mapped from: ${purpose.purposeName}`,
               dataCategories: purpose.dataCategories.map((cat: any) => ({
                 categoryName: cat.categoryName,
                 retentionPeriod: cat.retentionPeriod,
               })),
             };
-          });
-          
-          return {
-            activityName: activity.activity_name,
-            industry: selectedTemplate.industry,
-            purposes: mappedPurposes,
-            dataSources: activity.data_sources || [],
-            dataRecipients: activity.data_recipients || [],
-          };
-        } else {
-          // Legacy structure: convert to new format
-          const defaultPurposeName = activity.purpose?.split('.')[0]?.trim() || 'Account Management';
-          const purposeId = purposesMap.get(defaultPurposeName) || purposesMap.get('Account Management');
-          
-          if (!purposeId) {
-            console.error(`No purposes found in database! Available:`, Array.from(purposesMap.keys()));
-            throw new Error('Account Management purpose not found in database. Please run database migrations.');
           }
-          
-          console.log(`Using purpose: ${defaultPurposeName} -> ${purposeId}`);
-          
           return {
-            activityName: activity.activity_name,
-            industry: selectedTemplate.industry,
-            purposes: [
-              {
-                purposeId: purposeId,
-                purposeName: defaultPurposeName,
-                legalBasis: (activity.legalBasis as any) || 'consent',
-                customDescription: activity.purpose,
-                dataCategories: (activity.data_attributes || []).map((attr: string) => ({
-                  categoryName: attr,
-                  retentionPeriod: activity.retention_period || '3 years from last activity',
-                })),
-              },
-            ],
-            dataSources: activity.data_processors?.sources || [],
-            dataRecipients: [],
+            purposeId: purposeId,
+            legalBasis: purpose.legalBasis,
+            customDescription: purpose.customDescription,
+            dataCategories: purpose.dataCategories.map((cat: any) => ({
+              categoryName: cat.categoryName,
+              retentionPeriod: cat.retentionPeriod,
+            })),
           };
-        }
+        });
+        
+        return {
+          activityName: activity.activity_name,
+          industry: selectedTemplate.industry,
+          purposes: mappedPurposes,
+          dataSources: activity.data_sources || [],
+          dataRecipients: activity.data_recipients || [],
+        };
       });
       
       console.log('Activities to create:', activitiesToCreate);

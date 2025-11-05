@@ -15,6 +15,7 @@ async function fetchActivityWithDetails(supabase: any, activityId: string, userI
     .single();
 
   if (activityError || !activity) {
+    console.error('Error fetching activity:', activityError);
     return { data: null, error: activityError || new Error('Activity not found') };
   }
 
@@ -36,21 +37,26 @@ async function fetchActivityWithDetails(supabase: any, activityId: string, userI
     .eq('activity_id', activityId);
 
   if (purposesError) {
-    return { data: null, error: purposesError };
+    console.error('Error fetching activity purposes for', activityId, ':', purposesError);
+    // Don't return null - continue with empty purposes instead
   }
 
   // Fetch data categories for each purpose
   const purposesWithCategories = await Promise.all(
     (activityPurposes || []).map(async (ap: any) => {
-      const { data: categories } = await supabase
+      const { data: categories, error: categoriesError } = await supabase
         .from('purpose_data_categories')
         .select('*')
         .eq('activity_purpose_id', ap.id);
 
+      if (categoriesError) {
+        console.error('Error fetching categories for purpose', ap.id, ':', categoriesError);
+      }
+
       return {
         id: ap.id,
         purposeId: ap.purpose_id,
-        purposeName: ap.purposes.purpose_name,
+        purposeName: ap.purposes?.purpose_name || 'Unknown Purpose',
         legalBasis: ap.legal_basis,
         customDescription: ap.custom_description,
         dataCategories: (categories || []).map((c: any) => ({
@@ -63,16 +69,24 @@ async function fetchActivityWithDetails(supabase: any, activityId: string, userI
   );
 
   // Fetch data sources
-  const { data: sources } = await supabase
+  const { data: sources, error: sourcesError } = await supabase
     .from('data_sources')
     .select('source_name')
     .eq('activity_id', activityId);
 
+  if (sourcesError) {
+    console.error('Error fetching data sources for', activityId, ':', sourcesError);
+  }
+
   // Fetch data recipients
-  const { data: recipients } = await supabase
+  const { data: recipients, error: recipientsError } = await supabase
     .from('data_recipients')
     .select('recipient_name')
     .eq('activity_id', activityId);
+
+  if (recipientsError) {
+    console.error('Error fetching data recipients for', activityId, ':', recipientsError);
+  }
 
   return {
     data: {
@@ -241,41 +255,55 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert purposes and their data categories
+    console.log('=== STARTING PURPOSE INSERTION ===');
+    console.log('Total purposes to insert:', activityData.purposes.length);
+    console.log('Activity ID:', activity.id);
+    
     for (const purpose of activityData.purposes) {
-      console.log('Inserting purpose:', { 
-        activity_id: activity.id, 
-        purpose_id: purpose.purposeId, 
-        purpose_id_type: typeof purpose.purposeId,
-        legal_basis: purpose.legalBasis,
-        full_purpose_data: purpose
-      });
+      console.log('=== INSERTING PURPOSE ===');
+      console.log('Purpose data received:', JSON.stringify(purpose, null, 2));
+      console.log('Purpose ID:', purpose.purposeId);
+      console.log('Purpose ID type:', typeof purpose.purposeId);
+      console.log('Purpose Name:', purpose.purposeName);
+      console.log('Legal Basis:', purpose.legalBasis);
+      console.log('Data Categories count:', purpose.dataCategories?.length || 0);
       
       // Validate purpose_id exists
+      console.log('Validating purpose exists in database...');
       const { data: purposeExists, error: checkError } = await supabase
         .from('purposes')
-        .select('id, purpose_name')
+        .select('id, purpose_name, is_predefined')
         .eq('id', purpose.purposeId)
         .single();
       
+      console.log('Validation result:', {
+        found: !!purposeExists,
+        error: checkError?.message || null,
+        data: purposeExists
+      });
+      
       if (checkError || !purposeExists) {
-        console.error('Purpose ID validation failed:', {
-          purposeId: purpose.purposeId,
-          purposeIdType: typeof purpose.purposeId,
-          purposeName: purpose.purposeName,
-          checkError: checkError,
-          purposeExists: purposeExists
-        });
+        console.error('❌ PURPOSE VALIDATION FAILED');
+        console.error('Purpose ID that failed:', purpose.purposeId);
+        console.error('Check error:', checkError);
+        console.error('Purpose exists:', purposeExists);
         
         // Try to find by name as fallback
-        const { data: purposeByName } = await supabase
+        console.log('Attempting fallback lookup by name:', purpose.purposeName);
+        const { data: purposeByName, error: nameError } = await supabase
           .from('purposes')
           .select('id, purpose_name')
           .eq('purpose_name', purpose.purposeName)
           .single();
         
-        console.error('Attempted name lookup result:', purposeByName);
+        console.log('Name lookup result:', {
+          found: !!purposeByName,
+          error: nameError?.message || null,
+          data: purposeByName
+        });
         
         // Rollback by deleting the activity
+        console.error('ROLLING BACK - Deleting activity:', activity.id);
         await supabase.from('processing_activities').delete().eq('id', activity.id);
         await logFailure(user.id, 'activity.create', 'processing_activities', `Invalid purpose_id: ${purpose.purposeId}`, request);
         return NextResponse.json({ 
@@ -289,29 +317,54 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
       
+      console.log('✅ Purpose validated successfully:', purposeExists.purpose_name);
+      
       // Insert activity_purpose
+      console.log('Inserting into activity_purposes table...');
+      const insertData = {
+        activity_id: activity.id,
+        purpose_id: purpose.purposeId,
+        legal_basis: purpose.legalBasis,
+        custom_description: purpose.customDescription || null,
+      };
+      console.log('Insert data:', JSON.stringify(insertData, null, 2));
+      
       const { data: activityPurpose, error: purposeError } = await supabase
         .from('activity_purposes')
-        .insert({
-          activity_id: activity.id,
-          purpose_id: purpose.purposeId,
-          legal_basis: purpose.legalBasis,
-          custom_description: purpose.customDescription || null,
-        })
+        .insert(insertData)
         .select()
         .single();
 
+      console.log('Insert result:', {
+        success: !purposeError,
+        error: purposeError?.message || null,
+        data: activityPurpose
+      });
+
       if (purposeError) {
-        console.error('Error creating activity purpose:', purposeError);
+        console.error('❌ ERROR INSERTING ACTIVITY PURPOSE');
+        console.error('Full error object:', JSON.stringify(purposeError, null, 2));
+        console.error('Error message:', purposeError.message);
+        console.error('Error code:', purposeError.code);
+        console.error('Error details:', purposeError.details);
+        console.error('Error hint:', purposeError.hint);
         console.error('Purpose data:', { activity_id: activity.id, purpose_id: purpose.purposeId });
+        
         // Rollback by deleting the activity
+        console.error('ROLLING BACK - Deleting activity:', activity.id);
         await supabase.from('processing_activities').delete().eq('id', activity.id);
         await logFailure(user.id, 'activity.create', 'processing_activities', purposeError.message, request);
         return NextResponse.json({ 
           error: 'Failed to create activity purposes',
-          details: purposeError.message 
+          details: {
+            message: purposeError.message,
+            code: purposeError.code,
+            hint: purposeError.hint
+          }
         }, { status: 500 });
       }
+      
+      console.log('✅ Activity purpose created successfully:', activityPurpose.id);
 
       // Insert data categories for this purpose
       if (purpose.dataCategories.length > 0) {
