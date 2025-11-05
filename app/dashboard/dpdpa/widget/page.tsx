@@ -476,19 +476,20 @@ export default function DPDPAWidgetPage() {
     const companyName = domain || '[Your Company Name]';
     
     const activitySections = activities.map((activity, index) => {
-      const purposesList = activity.purposes.length > 0 
-        ? activity.purposes.map(p => `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis.replace('-', ' '))})</li>`).join('')
+      const purposes = activity.purposes || [];
+      const purposesList = purposes.length > 0 
+        ? purposes.map(p => `<li>${escapeHtml(p.purposeName || 'Unknown Purpose')} (${escapeHtml((p.legalBasis || 'consent').replace('-', ' '))})</li>`).join('')
         : '<li>No purposes defined</li>';
       
-      const allDataCategories = activity.purposes.flatMap(p => 
-        p.dataCategories.map(cat => cat.categoryName)
+      const allDataCategories = purposes.flatMap(p => 
+        (p.dataCategories || []).map(cat => cat.categoryName)
       );
       const dataCategoriesText = allDataCategories.length > 0 
         ? allDataCategories.map(c => escapeHtml(c)).join(', ')
         : 'N/A';
       
-      const retentionPeriods = activity.purposes.flatMap(p => 
-        p.dataCategories.map(cat => `${cat.categoryName}: ${cat.retentionPeriod}`)
+      const retentionPeriods = purposes.flatMap(p => 
+        (p.dataCategories || []).map(cat => `${cat.categoryName}: ${cat.retentionPeriod || 'N/A'}`)
       );
       const retentionText = retentionPeriods.length > 0 
         ? retentionPeriods.map(r => escapeHtml(r)).join(', ')
@@ -1123,7 +1124,7 @@ export default function DPDPAWidgetPage() {
                             {activity.purposes.map(p => p.purposeName).join(', ') || 'No purposes configured'}
                           </p>
                           <div className="flex flex-wrap gap-1.5">
-                            {activity.purposes.flatMap(p => p.dataCategories.map(cat => cat.categoryName)).slice(0, 4).map((categoryName, i) => (
+                            {activity.purposes.flatMap(p => p.dataCategories.map(cat => cat.categoryName)).map((categoryName, i) => (
                               <span
                                 key={i}
                                 className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md font-medium text-gray-700"
@@ -1131,11 +1132,6 @@ export default function DPDPAWidgetPage() {
                                 {categoryName}
                               </span>
                             ))}
-                            {activity.purposes.flatMap(p => p.dataCategories).length > 4 && (
-                              <span className="text-xs px-2.5 py-1 bg-gradient-to-r from-gray-100 to-gray-200 rounded-md font-medium text-gray-700">
-                                +{activity.purposes.flatMap(p => p.dataCategories).length - 4} more
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -1671,34 +1667,44 @@ export default function DPDPAWidgetPage() {
                         
                         {/* Table Body */}
                         <div className="space-y-2">
-                          {config.selectedActivities.map((actId) => {
+                          {config.selectedActivities.flatMap((actId) => {
                             const activity = activities.find(a => a.id === actId);
-                            if (!activity) return null;
-                            const dataCategories = activity.purposes.flatMap(p => p.dataCategories.map(cat => cat.categoryName));
-                            return (
-                              <div key={actId} className="grid grid-cols-[auto_1fr_1.5fr] gap-3 items-start p-2.5 border-2 rounded-lg bg-gradient-to-b from-white to-gray-50 hover:shadow-md transition-all" style={{ borderColor: '#e5e7eb' }}>
-                                <input 
-                                  type="checkbox" 
-                                  className="mt-0.5" 
-                                  style={{ 
-                                    width: '16px', 
-                                    height: '16px',
-                                    accentColor: config.theme.primaryColor,
-                                    borderRadius: '3px'
-                                  }} 
-                                />
-                                <div className="text-xs font-semibold text-gray-800 leading-tight pt-0.5">
-                                  {activity.activityName}
+                            if (!activity || !activity.purposes || activity.purposes.length === 0) return [];
+                            
+                            // Create a row for each purpose within this activity
+                            return activity.purposes.map((purpose, purposeIdx) => {
+                              const dataCategories = purpose.dataCategories?.map(cat => cat.categoryName) || [];
+                              const uniqueKey = `${actId}-${purpose.id || purposeIdx}`;
+                              
+                              return (
+                                <div key={uniqueKey} className="grid grid-cols-[auto_1fr_1.5fr] gap-3 items-start p-2.5 border-2 rounded-lg bg-gradient-to-b from-white to-gray-50 hover:shadow-md transition-all" style={{ borderColor: '#e5e7eb' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    className="mt-0.5" 
+                                    style={{ 
+                                      width: '16px', 
+                                      height: '16px',
+                                      accentColor: config.theme.primaryColor,
+                                      borderRadius: '3px'
+                                    }} 
+                                  />
+                                  <div className="text-xs font-semibold text-gray-800 leading-tight pt-0.5">
+                                    {purpose.purposeName || 'Unknown Purpose'}
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {dataCategories.length > 0 ? (
+                                      dataCategories.map((categoryName, i) => (
+                                        <span key={i} className="text-[10px] px-2 py-0.5 bg-gray-100 border border-gray-200 rounded font-medium text-gray-700" style={{ fontSize: '9px' }}>
+                                          {categoryName}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-[10px] px-2 py-0.5 text-gray-400 italic">No data categories</span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {dataCategories.map((categoryName, i) => (
-                                    <span key={i} className="text-[10px] px-2 py-0.5 bg-gray-100 border border-gray-200 rounded font-medium text-gray-700" style={{ fontSize: '9px' }}>
-                                      {categoryName}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            );
+                              );
+                            });
                           })}
                         </div>
                       </div>

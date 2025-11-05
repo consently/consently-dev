@@ -65,16 +65,80 @@ export async function GET(
       );
     }
 
-    // Fetch the processing activities associated with this widget
-    const { data: activities, error: activitiesError } = await supabase
+    // Fetch the processing activities associated with this widget with full purpose details
+    const { data: activitiesRaw, error: activitiesError } = await supabase
       .from('processing_activities')
-      .select('id, activity_name, purpose, data_attributes, retention_period, industry')
+      .select('id, activity_name, industry, purpose, data_attributes, retention_period')
       .in('id', widgetConfig.selected_activities || [])
       .eq('is_active', true);
 
     if (activitiesError) {
       console.error('Error fetching activities:', activitiesError);
     }
+
+    // Fetch purposes for each activity
+    const activities = await Promise.all(
+      (activitiesRaw || []).map(async (activity) => {
+        // Fetch purposes with their data categories
+        const { data: activityPurposes, error: purposesError } = await supabase
+          .from('activity_purposes')
+          .select(`
+            id,
+            purpose_id,
+            legal_basis,
+            custom_description,
+            purposes (
+              id,
+              purpose_name,
+              description
+            )
+          `)
+          .eq('activity_id', activity.id);
+
+        if (purposesError) {
+          console.error('Error fetching purposes for activity', activity.id, ':', purposesError);
+        }
+
+        // Fetch data categories for each purpose
+        const purposesWithCategories = await Promise.all(
+          (activityPurposes || []).map(async (ap: any) => {
+            const { data: categories, error: categoriesError } = await supabase
+              .from('purpose_data_categories')
+              .select('*')
+              .eq('activity_purpose_id', ap.id);
+
+            if (categoriesError) {
+              console.error('Error fetching categories for purpose', ap.id, ':', categoriesError);
+            }
+
+            return {
+              id: ap.id,
+              purposeId: ap.purpose_id,
+              purposeName: ap.purposes?.purpose_name || 'Unknown Purpose',
+              legalBasis: ap.legal_basis,
+              customDescription: ap.custom_description,
+              dataCategories: (categories || []).map((c: any) => ({
+                id: c.id,
+                categoryName: c.category_name,
+                retentionPeriod: c.retention_period,
+              })),
+            };
+          })
+        );
+
+        return {
+          id: activity.id,
+          activity_name: activity.activity_name,
+          industry: activity.industry,
+          // New structure with purposes
+          purposes: purposesWithCategories,
+          // Legacy fields for backward compatibility
+          purpose: activity.purpose,
+          data_attributes: activity.data_attributes,
+          retention_period: activity.retention_period,
+        };
+      })
+    );
 
     // Generate privacy notice HTML
     let privacyNoticeHTML = '<p style="color:#6b7280;">Privacy notice content...</p>';
@@ -178,28 +242,70 @@ export async function OPTIONS() {
 function generatePrivacyNoticeHTML(activities: any[], domain: string): string {
   const companyName = domain || '[Your Company Name]';
   
-  const activitySections = activities.map((activity, index) => `
+  const activitySections = activities.map((activity, index) => {
+    // Use new purposes structure if available, otherwise fall back to legacy
+    const hasNewStructure = activity.purposes && activity.purposes.length > 0;
+    
+    let purposesList = '';
+    let allDataCategories: string[] = [];
+    let retentionText = 'N/A';
+    
+    if (hasNewStructure) {
+      // New structure: show all purposes
+      purposesList = activity.purposes.map((p: any) => {
+        const dataCategories = p.dataCategories?.map((cat: any) => cat.categoryName) || [];
+        allDataCategories.push(...dataCategories);
+        
+        const retentionPeriods = p.dataCategories?.map((cat: any) => 
+          `${cat.categoryName}: ${cat.retentionPeriod}`
+        ) || [];
+        
+        if (retentionPeriods.length > 0) {
+          retentionText = retentionPeriods.join(', ');
+        }
+        
+        return `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis.replace('-', ' '))})</li>`;
+      }).join('');
+      
+      if (allDataCategories.length === 0) {
+        allDataCategories = activity.data_attributes || [];
+      }
+    } else {
+      // Legacy structure
+      purposesList = activity.purpose ? `<li>${escapeHtml(activity.purpose)}</li>` : '<li>No purposes defined</li>';
+      allDataCategories = activity.data_attributes || [];
+      retentionText = activity.retention_period || 'N/A';
+    }
+    
+    const dataCategoriesText = allDataCategories.length > 0 
+      ? allDataCategories.map((c: string) => escapeHtml(c)).join(', ')
+      : 'N/A';
+    
+    return `
     <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 8px;">
       <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 600;">
         ${index + 1}. ${escapeHtml(activity.activity_name)}
       </h3>
       
       <div style="margin-bottom: 12px;">
-        <strong style="color: #374151;">Purpose:</strong>
-        <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(activity.purpose)}</p>
+        <strong style="color: #374151;">Purposes:</strong>
+        <ul style="margin: 4px 0 0 0; color: #6b7280; padding-left: 20px;">
+          ${purposesList}
+        </ul>
       </div>
 
       <div style="margin-bottom: 12px;">
         <strong style="color: #374151;">Data Categories:</strong>
-        <p style="margin: 4px 0 0 0; color: #6b7280;">${activity.data_attributes.map((a: string) => escapeHtml(a)).join(', ')}</p>
+        <p style="margin: 4px 0 0 0; color: #6b7280;">${dataCategoriesText}</p>
       </div>
 
       <div>
         <strong style="color: #374151;">Retention Period:</strong>
-        <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(activity.retention_period)}</p>
+        <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(retentionText)}</p>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   return `
 <!DOCTYPE html>

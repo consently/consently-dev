@@ -603,7 +603,7 @@ export default function ProcessingActivitiesPage() {
                     {/* Purposes Section */}
                     <div className="space-y-3 mb-4">
                       {activity.purposes && activity.purposes.length > 0 ? (
-                        activity.purposes.slice(0, 2).map((purpose, idx) => (
+                        activity.purposes.map((purpose, idx) => (
                           <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
@@ -616,16 +616,11 @@ export default function ProcessingActivitiesPage() {
                             <div className="mt-2">
                               <p className="text-xs font-medium text-gray-500 mb-1">Data Categories:</p>
                               <div className="flex flex-wrap gap-1">
-                                {purpose.dataCategories?.slice(0, 4).map((cat, catIdx) => (
+                                {purpose.dataCategories?.map((cat, catIdx) => (
                                   <span key={catIdx} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-white border border-gray-300 text-gray-700">
                                     {cat.categoryName}
                                   </span>
                                 ))}
-                                {purpose.dataCategories && purpose.dataCategories.length > 4 && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-white border border-gray-300 text-gray-700">
-                                    +{purpose.dataCategories.length - 4} more
-                                  </span>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -634,11 +629,6 @@ export default function ProcessingActivitiesPage() {
                         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center text-sm text-gray-500">
                           No purposes configured
                         </div>
-                      )}
-                      {activity.purposes && activity.purposes.length > 2 && (
-                        <p className="text-xs text-gray-500 italic">
-                          +{activity.purposes.length - 2} more {activity.purposes.length - 2 === 1 ? 'purpose' : 'purposes'}...
-                        </p>
                       )}
                     </div>
 

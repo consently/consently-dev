@@ -4,13 +4,29 @@ import { useState } from 'react';
 import { X, Check, Download, ChevronDown, ChevronUp, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+interface Purpose {
+  id: string;
+  purposeId: string;
+  purposeName: string;
+  legalBasis: string;
+  customDescription?: string;
+  dataCategories: Array<{
+    id: string;
+    categoryName: string;
+    retentionPeriod: string;
+  }>;
+}
+
 interface ProcessingActivity {
   id: string;
   activity_name: string;
-  purpose: string;
   industry: string;
-  data_attributes: string[];
-  retention_period: string;
+  // New structure with multiple purposes
+  purposes?: Purpose[];
+  // Legacy fields for backward compatibility
+  purpose?: string;
+  data_attributes?: string[];
+  retention_period?: string;
 }
 
 interface ConsentNoticeTemplateProps {
@@ -233,117 +249,235 @@ export function ConsentNoticeTemplate({
         {/* Activities List */}
         <div className="flex-1 overflow-y-auto px-6 pb-4">
           <div className="space-y-3">
-            {activities.map((activity) => {
-              const isSelected = selectedActivities.has(activity.id);
-              const isExpanded = expandedActivities.has(activity.id);
+            {activities.flatMap((activity) => {
+              // Use new structure if available, otherwise fall back to legacy
+              const hasNewStructure = activity.purposes && activity.purposes.length > 0;
+              
+              if (hasNewStructure) {
+                // Create a row for each purpose
+                return activity.purposes!.map((purpose, purposeIdx) => {
+                  const uniqueId = `${activity.id}-${purpose.id || purposeIdx}`;
+                  const isSelected = selectedActivities.has(uniqueId);
+                  const isExpanded = expandedActivities.has(uniqueId);
+                  const dataCategories = purpose.dataCategories || [];
 
-              return (
-                <div
-                  key={activity.id}
-                  className="rounded-xl border-2 overflow-hidden transition-all"
-                  style={{
-                    borderColor: isSelected ? config.primaryColor : `${config.textColor}15`,
-                    backgroundColor: isSelected ? `${config.primaryColor}08` : 'transparent',
-                  }}
-                >
-                  <div className="p-4">
-                    <div className="flex items-start gap-4">
-                      {/* Checkbox */}
-                      <div className="pt-1">
-                        <button
-                          onClick={() => toggleActivity(activity.id)}
-                          className="flex items-center justify-center w-6 h-6 rounded-md border-2 transition-all"
-                          style={{
-                            borderColor: isSelected ? config.primaryColor : `${config.textColor}30`,
-                            backgroundColor: isSelected ? config.primaryColor : 'transparent',
-                          }}
-                        >
-                          {isSelected && <Check className="h-4 w-4 text-white" />}
-                        </button>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-base mb-1">
-                              {activity.activity_name}
-                            </h3>
-                            <span 
-                              className="inline-block text-xs font-medium px-2 py-1 rounded-md"
-                              style={{ 
-                                backgroundColor: `${config.primaryColor}20`,
-                                color: config.primaryColor 
+                  return (
+                    <div
+                      key={uniqueId}
+                      className="rounded-xl border-2 overflow-hidden transition-all"
+                      style={{
+                        borderColor: isSelected ? config.primaryColor : `${config.textColor}15`,
+                        backgroundColor: isSelected ? `${config.primaryColor}08` : 'transparent',
+                      }}
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start gap-4">
+                          {/* Checkbox */}
+                          <div className="pt-1">
+                            <button
+                              onClick={() => toggleActivity(uniqueId)}
+                              className="flex items-center justify-center w-6 h-6 rounded-md border-2 transition-all"
+                              style={{
+                                borderColor: isSelected ? config.primaryColor : `${config.textColor}30`,
+                                backgroundColor: isSelected ? config.primaryColor : 'transparent',
                               }}
                             >
-                              {activity.industry}
-                            </span>
+                              {isSelected && <Check className="h-4 w-4 text-white" />}
+                            </button>
                           </div>
-                        </div>
 
-                        <p className="text-sm opacity-80 leading-relaxed mb-3">
-                          {activity.purpose}
-                        </p>
-
-                        {/* Expandable Details */}
-                        <button
-                          onClick={() => toggleExpanded(activity.id)}
-                          className="flex items-center gap-1 text-sm font-medium transition-colors"
-                          style={{ color: config.primaryColor }}
-                        >
-                          {isExpanded ? (
-                            <>
-                              <span>Hide details</span>
-                              <ChevronUp className="h-4 w-4" />
-                            </>
-                          ) : (
-                            <>
-                              <span>View details</span>
-                              <ChevronDown className="h-4 w-4" />
-                            </>
-                          )}
-                        </button>
-
-                        {isExpanded && (
-                          <div 
-                            className="mt-4 pt-4 border-t space-y-3"
-                            style={{ borderColor: `${config.textColor}15` }}
-                          >
-                            {/* Data Attributes */}
-                            <div>
-                              <p className="text-xs font-semibold opacity-60 uppercase tracking-wide mb-2">
-                                {translations.dataAttributesLabel}
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {activity.data_attributes.map((attr, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="text-xs px-2 py-1 rounded-md"
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-base mb-1">
+                                  {purpose.purposeName}
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <span 
+                                    className="inline-block text-xs font-medium px-2 py-1 rounded-md"
                                     style={{ 
-                                      backgroundColor: `${config.textColor}08`,
-                                      color: config.textColor 
+                                      backgroundColor: `${config.primaryColor}20`,
+                                      color: config.primaryColor 
                                     }}
                                   >
-                                    {attr}
+                                    {activity.industry}
                                   </span>
-                                ))}
+                                  <span className="text-xs text-gray-500">
+                                    {purpose.legalBasis.replace('-', ' ')}
+                                  </span>
+                                </div>
                               </div>
                             </div>
 
-                            {/* Retention Period */}
-                            <div>
-                              <p className="text-xs font-semibold opacity-60 uppercase tracking-wide mb-1">
-                                {translations.retentionPeriodLabel}
-                              </p>
-                              <p className="text-sm opacity-90">{activity.retention_period}</p>
+                            {/* Expandable Details */}
+                            <button
+                              onClick={() => toggleExpanded(uniqueId)}
+                              className="flex items-center gap-1 text-sm font-medium transition-colors"
+                              style={{ color: config.primaryColor }}
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <span>Hide details</span>
+                                  <ChevronUp className="h-4 w-4" />
+                                </>
+                              ) : (
+                                <>
+                                  <span>View details</span>
+                                  <ChevronDown className="h-4 w-4" />
+                                </>
+                              )}
+                            </button>
+
+                            {isExpanded && (
+                              <div 
+                                className="mt-4 pt-4 border-t space-y-3"
+                                style={{ borderColor: `${config.textColor}15` }}
+                              >
+                                {/* Data Categories */}
+                                {dataCategories.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-semibold opacity-60 uppercase tracking-wide mb-2">
+                                      {translations.dataAttributesLabel}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {dataCategories.map((cat, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="text-xs px-2 py-1 rounded-md"
+                                          style={{ 
+                                            backgroundColor: `${config.textColor}08`,
+                                            color: config.textColor 
+                                          }}
+                                        >
+                                          {cat.categoryName} ({cat.retentionPeriod})
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              } else {
+                // Legacy structure
+                const isSelected = selectedActivities.has(activity.id);
+                const isExpanded = expandedActivities.has(activity.id);
+                const dataAttributes = activity.data_attributes || [];
+
+                return (
+                  <div
+                    key={activity.id}
+                    className="rounded-xl border-2 overflow-hidden transition-all"
+                    style={{
+                      borderColor: isSelected ? config.primaryColor : `${config.textColor}15`,
+                      backgroundColor: isSelected ? `${config.primaryColor}08` : 'transparent',
+                    }}
+                  >
+                    <div className="p-4">
+                      <div className="flex items-start gap-4">
+                        {/* Checkbox */}
+                        <div className="pt-1">
+                          <button
+                            onClick={() => toggleActivity(activity.id)}
+                            className="flex items-center justify-center w-6 h-6 rounded-md border-2 transition-all"
+                            style={{
+                              borderColor: isSelected ? config.primaryColor : `${config.textColor}30`,
+                              backgroundColor: isSelected ? config.primaryColor : 'transparent',
+                            }}
+                          >
+                            {isSelected && <Check className="h-4 w-4 text-white" />}
+                          </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-base mb-1">
+                                {activity.activity_name}
+                              </h3>
+                              <span 
+                                className="inline-block text-xs font-medium px-2 py-1 rounded-md"
+                                style={{ 
+                                  backgroundColor: `${config.primaryColor}20`,
+                                  color: config.primaryColor 
+                                }}
+                              >
+                                {activity.industry}
+                              </span>
                             </div>
                           </div>
-                        )}
+
+                          <p className="text-sm opacity-80 leading-relaxed mb-3">
+                            {activity.purpose}
+                          </p>
+
+                          {/* Expandable Details */}
+                          <button
+                            onClick={() => toggleExpanded(activity.id)}
+                            className="flex items-center gap-1 text-sm font-medium transition-colors"
+                            style={{ color: config.primaryColor }}
+                          >
+                            {isExpanded ? (
+                              <>
+                                <span>Hide details</span>
+                                <ChevronUp className="h-4 w-4" />
+                              </>
+                            ) : (
+                              <>
+                                <span>View details</span>
+                                <ChevronDown className="h-4 w-4" />
+                              </>
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div 
+                              className="mt-4 pt-4 border-t space-y-3"
+                              style={{ borderColor: `${config.textColor}15` }}
+                            >
+                              {/* Data Attributes */}
+                              <div>
+                                <p className="text-xs font-semibold opacity-60 uppercase tracking-wide mb-2">
+                                  {translations.dataAttributesLabel}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {dataAttributes.map((attr, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-xs px-2 py-1 rounded-md"
+                                      style={{ 
+                                        backgroundColor: `${config.textColor}08`,
+                                        color: config.textColor 
+                                      }}
+                                    >
+                                      {attr}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Retention Period */}
+                              <div>
+                                <p className="text-xs font-semibold opacity-60 uppercase tracking-wide mb-1">
+                                  {translations.retentionPeriodLabel}
+                                </p>
+                                <p className="text-sm opacity-90">{activity.retention_period}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
+                );
+              }
             })}
           </div>
         </div>
