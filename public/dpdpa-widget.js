@@ -670,6 +670,7 @@
       
       // Show full-screen loading overlay to prevent confusing transparent effects
       const loadingOverlay = document.createElement('div');
+      loadingOverlay.id = 'consently-dpdpa-loading-overlay';
       loadingOverlay.style.cssText = `
         position: fixed;
         top: 0;
@@ -695,54 +696,60 @@
           }
         </style>
       `;
-      widget.appendChild(loadingOverlay);
+      document.body.appendChild(loadingOverlay);
       
-      // Remove old global click handler before rebuilding
-      if (globalClickHandler) {
-        document.removeEventListener('click', globalClickHandler);
-        globalClickHandler = null;
-      }
-      
-      // Fetch translations asynchronously
-      t = await getTranslation(selectedLanguage);
-      
-      // Collect all texts to translate in one batch (OPTIMIZED: single API call)
-      const textsToTranslate = [
-        ...activities.map(a => a.activity_name),
-        ...activities.flatMap(a => a.data_attributes)
-      ];
-      
-      // Batch translate ALL content in ONE API call instead of multiple
-      const translatedTexts = await batchTranslate(textsToTranslate, selectedLanguage);
-      
-      // Map translations back to activities
-      let textIndex = 0;
-      const translatedActivities = activities.map(activity => {
-        const translatedName = translatedTexts[textIndex++];
-        const translatedAttrs = activity.data_attributes.map(() => translatedTexts[textIndex++]);
+      try {
+        // Remove old global click handler before rebuilding
+        if (globalClickHandler) {
+          document.removeEventListener('click', globalClickHandler);
+          globalClickHandler = null;
+        }
         
-        return {
-          ...activity,
-          activity_name: translatedName,
-          data_attributes: translatedAttrs
-        };
-      });
-      
-      // Update activities with translated content
-      activities = translatedActivities;
-      
-      // Immediately remove loading overlay and rebuild
-      if (loadingOverlay.parentNode) {
-        loadingOverlay.remove();
+        // Fetch translations asynchronously
+        t = await getTranslation(selectedLanguage);
+        
+        // Collect all texts to translate in one batch (OPTIMIZED: single API call)
+        const textsToTranslate = [
+          ...activities.map(a => a.activity_name),
+          ...activities.flatMap(a => a.data_attributes)
+        ];
+        
+        // Batch translate ALL content in ONE API call instead of multiple
+        const translatedTexts = await batchTranslate(textsToTranslate, selectedLanguage);
+        
+        // Map translations back to activities
+        let textIndex = 0;
+        const translatedActivities = activities.map(activity => {
+          const translatedName = translatedTexts[textIndex++];
+          const translatedAttrs = activity.data_attributes.map(() => translatedTexts[textIndex++]);
+          
+          return {
+            ...activity,
+            activity_name: translatedName,
+            data_attributes: translatedAttrs
+          };
+        });
+        
+        // Update activities with translated content
+        activities = translatedActivities;
+        
+        widget.innerHTML = buildWidgetHTML();
+        // Re-attach all event listeners
+        attachEventListeners(overlay, widget);
+        // Re-setup gated interactions
+        setupGatedInteractions();
+      } catch (error) {
+        console.error('[Consently DPDPA] Translation error:', error);
+        // On error, still try to rebuild with untranslated content
+        widget.innerHTML = buildWidgetHTML();
+        attachEventListeners(overlay, widget);
+        setupGatedInteractions();
+      } finally {
+        // Always remove loading overlay
+        const overlayElement = document.getElementById('consently-dpdpa-loading-overlay');
+        if (overlayElement) overlayElement.remove();
+        isTranslating = false;
       }
-      
-      widget.innerHTML = buildWidgetHTML();
-      // Re-attach all event listeners
-      attachEventListeners(overlay, widget);
-      // Re-setup gated interactions
-      setupGatedInteractions();
-      
-      isTranslating = false;
     }
 
     // Setup gated interactions

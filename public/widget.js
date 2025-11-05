@@ -842,6 +842,7 @@
         
         // Add full-screen loading overlay to prevent confusing transparent effects
         const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'consently-loading-overlay';
         loadingOverlay.style.cssText = `
           position: fixed;
           top: 0;
@@ -854,6 +855,7 @@
           align-items: center;
           justify-content: center;
           z-index: 999999;
+          pointer-events: all;
         `;
         loadingOverlay.innerHTML = `
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -864,7 +866,7 @@
             @keyframes spin { to { transform: rotate(360deg); } }
           </style>
         `;
-        banner.appendChild(loadingOverlay);
+        document.body.appendChild(loadingOverlay);
         
         try {
           selectedLanguage = newLang;
@@ -874,9 +876,19 @@
           // Small delay to ensure overlay is visible
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          banner.remove();
+          // Remove both banner and backdrop explicitly
+          const existingBanner = document.getElementById('consently-banner');
+          const existingBackdrop = document.getElementById('consently-backdrop');
+          if (existingBanner) existingBanner.remove();
+          if (existingBackdrop) existingBackdrop.remove();
+          
           await showConsentBanner();
+        } catch (error) {
+          console.error('[Consently] Language change error:', error);
         } finally {
+          // Always remove loading overlay
+          const overlay = document.getElementById('consently-loading-overlay');
+          if (overlay) overlay.remove();
           languageChangeInProgress = false;
         }
       }, 300);
@@ -913,6 +925,7 @@
       localStorage.removeItem('consently_temp_prefs');
     } catch (e) {}
 
+    // Remove all widget elements to prevent overlay issues
     const banner = document.getElementById('consently-banner');
     if (banner) {
       banner.remove();
@@ -924,6 +937,10 @@
     
     const modal = document.getElementById('consently-modal');
     if (modal) modal.remove();
+    
+    // Clean up any lingering loading overlays
+    const loadingOverlay = document.getElementById('consently-loading-overlay');
+    if (loadingOverlay) loadingOverlay.remove();
 
     applyConsent(consentData);
     recordConsent(consentData);
@@ -1167,8 +1184,8 @@
         langBtn.disabled = true;
         
         // Add full-screen loading overlay to prevent confusing transparent effects
-        const modalContent = modal.querySelector('.consently-modal-content');
         const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'consently-modal-loading-overlay';
         loadingOverlay.style.cssText = `
           position: fixed;
           top: 0;
@@ -1180,7 +1197,8 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 999999;
+          z-index: 9999999;
+          pointer-events: all;
         `;
         loadingOverlay.innerHTML = `
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -1191,8 +1209,7 @@
             @keyframes spin { to { transform: rotate(360deg); } }
           </style>
         `;
-        modalContent.style.position = 'relative';
-        modalContent.appendChild(loadingOverlay);
+        document.body.appendChild(loadingOverlay);
         
         try {
           selectedLanguage = newLang;
@@ -1204,7 +1221,12 @@
           
           modal.remove();
           await showSettingsModal();
+        } catch (error) {
+          console.error('[Consently] Modal language change error:', error);
         } finally {
+          // Always remove loading overlay
+          const overlay = document.getElementById('consently-modal-loading-overlay');
+          if (overlay) overlay.remove();
           languageChangeInProgress = false;
         }
       }, 300);
