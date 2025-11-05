@@ -468,7 +468,7 @@ export default function DPDPAWidgetPage() {
 
         <div style="margin-bottom: 12px;">
           <strong style="color: #374151;">Data Categories:</strong>
-          <p style="margin: 4px 0 0 0; color: #6b7280;">${activity.data_attributes.map(a => escapeHtml(a)).join(', ')}</p>
+          <p style="margin: 4px 0 0 0; color: #6b7280;">${activity.data_attributes && Array.isArray(activity.data_attributes) ? activity.data_attributes.map(a => escapeHtml(a)).join(', ') : 'N/A'}</p>
         </div>
 
         <div>
@@ -1079,7 +1079,7 @@ export default function DPDPAWidgetPage() {
                           </div>
                           <p className="text-sm text-gray-600 mb-3 leading-relaxed">{activity.purpose}</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {activity.data_attributes.slice(0, 4).map((attr, i) => (
+                            {activity.data_attributes && Array.isArray(activity.data_attributes) && activity.data_attributes.slice(0, 4).map((attr, i) => (
                               <span
                                 key={i}
                                 className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md font-medium text-gray-700"
@@ -1087,7 +1087,7 @@ export default function DPDPAWidgetPage() {
                                 {attr}
                               </span>
                             ))}
-                            {activity.data_attributes.length > 4 && (
+                            {activity.data_attributes && Array.isArray(activity.data_attributes) && activity.data_attributes.length > 4 && (
                               <span className="text-xs px-2.5 py-1 bg-gradient-to-r from-gray-100 to-gray-200 rounded-md font-medium text-gray-700">
                                 +{activity.data_attributes.length - 4} more
                               </span>

@@ -43,10 +43,19 @@ export async function GET(
       .single();
 
     if (widgetError) {
-      console.error('Widget config error:', widgetError);
+      console.error(`[Widget API] Widget config error for ${widgetId}:`, widgetError.message);
       return NextResponse.json(
-        { error: 'Widget configuration not found' },
-        { status: 404 }
+        { 
+          error: 'Widget configuration not found',
+          widgetId: widgetId,
+          hint: 'Please create this widget in the Consently dashboard first'
+        },
+        { 
+          status: 404,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          }
+        }
       );
     }
 

@@ -853,7 +853,7 @@ export default function CookieWidgetPage() {
                           >
                             {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || config.bannerContent?.message || 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.')}
                           </p>
-                          {config.categories.length > 0 && (
+                          {config.categories && Array.isArray(config.categories) && config.categories.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
                               {config.categories.map((cat: string) => (
                                 <Badge 

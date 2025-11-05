@@ -265,6 +265,19 @@
       });
       
       if (!response.ok) {
+        // Handle 404 - widget doesn't exist
+        if (response.status === 404) {
+          if (!isPolling) {
+            console.error(`[Consently] Widget ${widgetId} not found. Please create this widget in the Consently dashboard.`);
+          }
+          // Stop polling if widget doesn't exist
+          stopConfigPolling();
+          throw new Error(`Widget not found`);
+        }
+        // Other errors
+        if (!isPolling) {
+          console.error(`[Consently] Config fetch failed: HTTP ${response.status}`);
+        }
         throw new Error(`HTTP ${response.status}`);
       }
       
@@ -840,41 +853,10 @@
         languageChangeInProgress = true;
         langBtnBanner.disabled = true;
         
-        // Add full-screen loading overlay to prevent confusing transparent effects
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.id = 'consently-loading-overlay';
-        loadingOverlay.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 999999;
-          pointer-events: all;
-        `;
-        loadingOverlay.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 20px; height: 20px; border: 2px solid ${primaryColor}30; border-top-color: ${primaryColor}; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
-            <span style="font-size: 14px; color: ${textColor}; font-weight: 500;">Translating...</span>
-          </div>
-          <style>
-            @keyframes spin { to { transform: rotate(360deg); } }
-          </style>
-        `;
-        document.body.appendChild(loadingOverlay);
-        
         try {
           selectedLanguage = newLang;
           localStorage.setItem('consently_language', newLang);
           langMenuBanner.style.display = 'none';
-          
-          // Small delay to ensure overlay is visible
-          await new Promise(resolve => setTimeout(resolve, 100));
           
           // Remove both banner and backdrop explicitly
           const existingBanner = document.getElementById('consently-banner');
@@ -886,9 +868,6 @@
         } catch (error) {
           console.error('[Consently] Language change error:', error);
         } finally {
-          // Always remove loading overlay
-          const overlay = document.getElementById('consently-loading-overlay');
-          if (overlay) overlay.remove();
           languageChangeInProgress = false;
         }
       }, 300);
@@ -1183,50 +1162,16 @@
         languageChangeInProgress = true;
         langBtn.disabled = true;
         
-        // Add full-screen loading overlay to prevent confusing transparent effects
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.id = 'consently-modal-loading-overlay';
-        loadingOverlay.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999999;
-          pointer-events: all;
-        `;
-        loadingOverlay.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 20px; height: 20px; border: 2px solid #3b82f630; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
-            <span style="font-size: 14px; color: #1f2937; font-weight: 500;">Translating...</span>
-          </div>
-          <style>
-            @keyframes spin { to { transform: rotate(360deg); } }
-          </style>
-        `;
-        document.body.appendChild(loadingOverlay);
-        
         try {
           selectedLanguage = newLang;
           localStorage.setItem('consently_language', newLang);
           langMenu.style.display = 'none';
-          
-          // Small delay to ensure overlay is visible
-          await new Promise(resolve => setTimeout(resolve, 100));
           
           modal.remove();
           await showSettingsModal();
         } catch (error) {
           console.error('[Consently] Modal language change error:', error);
         } finally {
-          // Always remove loading overlay
-          const overlay = document.getElementById('consently-modal-loading-overlay');
-          if (overlay) overlay.remove();
           languageChangeInProgress = false;
         }
       }, 300);

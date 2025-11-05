@@ -49,7 +49,7 @@ interface Purpose {
   id: string;
   purposeId: string;
   purposeName: string;
-  legalBasis: string;
+  legalBasis: 'consent' | 'contract' | 'legal-obligation' | 'legitimate-interest';
   customDescription?: string;
   dataCategories: Array<{
     id: string;
@@ -138,7 +138,10 @@ export default function ProcessingActivitiesPage() {
       }
     } catch (error) {
       console.error('Error fetching activities:', error);
-      toast.error('Failed to load activities');
+      toast.error(error instanceof Error ? error.message : 'Failed to load activities');
+      setActivities([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setIsFetching(false);
     }
@@ -212,24 +215,29 @@ export default function ProcessingActivitiesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this activity?')) {
-      try {
-        const response = await fetch(`/api/dpdpa/activities?id=${id}`, {
-          method: 'DELETE',
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to delete activity');
-        }
-        
-        toast.success('Activity deleted successfully');
-        await fetchActivities();
-      } catch (error) {
-        console.error('Error deleting activity:', error);
-        toast.error(error instanceof Error ? error.message : 'Failed to delete activity');
+    if (!confirm('Are you sure you want to delete this activity? This action cannot be undone.')) {
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/dpdpa/activities?id=${id}`, {
+        method: 'DELETE',
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete activity');
       }
+      
+      toast.success('Activity deleted successfully');
+      await fetchActivities();
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete activity');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -256,8 +264,13 @@ export default function ProcessingActivitiesPage() {
   };
 
   const handleApplyTemplate = async () => {
-    if (!selectedTemplate || selectedActivities.size === 0) {
-      toast.error('Please select at least one activity');
+    if (!selectedTemplate) {
+      toast.error('No template selected');
+      return;
+    }
+    
+    if (selectedActivities.size === 0) {
+      toast.error('Please select at least one activity to apply');
       return;
     }
 
@@ -382,10 +395,11 @@ export default function ProcessingActivitiesPage() {
         }
       }
 
-      if (successCount > 0) {
-        toast.success(`Successfully created ${successCount} ${successCount === 1 ? 'activity' : 'activities'}. Opening for customization...`);
-      }
-      if (failCount > 0) {
+      if (successCount > 0 && failCount === 0) {
+        toast.success(`Successfully created ${successCount} ${successCount === 1 ? 'activity' : 'activities'}!`);
+      } else if (successCount > 0 && failCount > 0) {
+        toast.success(`Created ${successCount} ${successCount === 1 ? 'activity' : 'activities'}, but ${failCount} failed`);
+      } else if (failCount > 0) {
         toast.error(`Failed to create ${failCount} ${failCount === 1 ? 'activity' : 'activities'}`);
       }
 
@@ -465,7 +479,16 @@ export default function ProcessingActivitiesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-xl flex items-center gap-3">
+            <Loader2 className="animate-spin h-6 w-6 text-blue-600" />
+            <span className="text-gray-700 font-medium">Processing...</span>
+          </div>
+        </div>
+      )}
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -534,7 +557,7 @@ export default function ProcessingActivitiesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {activities.filter(a => a.is_active).length}
+              {activities.filter(a => a.isActive).length}
             </div>
           </CardContent>
         </Card>
@@ -670,10 +693,22 @@ export default function ProcessingActivitiesPage() {
                         <BarChart3 className="h-4 w-4 text-blue-600" />
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(activity)}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleEdit(activity)}
+                      disabled={isLoading}
+                      title="Edit Activity"
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(activity.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleDelete(activity.id)}
+                      disabled={isLoading}
+                      title="Delete Activity"
+                    >
                       <Trash2 className="h-4 w-4 text-red-600" />
                     </Button>
                   </div>
@@ -1000,16 +1035,20 @@ export default function ProcessingActivitiesPage() {
                 <Button
                   onClick={handleApplyTemplate}
                   disabled={selectedActivities.size === 0 || isLoading}
+                  className={selectedActivities.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
+                      Creating Activities...
                     </>
                   ) : (
                     <>
                       <Plus className="mr-2 h-4 w-4" />
-                      Add {selectedActivities.size} {selectedActivities.size === 1 ? 'Activity' : 'Activities'}
+                      {selectedActivities.size === 0 
+                        ? 'Select Activities'
+                        : `Add ${selectedActivities.size} ${selectedActivities.size === 1 ? 'Activity' : 'Activities'}`
+                      }
                     </>
                   )}
                 </Button>

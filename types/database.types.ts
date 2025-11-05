@@ -166,6 +166,9 @@ export interface Database {
           id: string;
           purpose_name: string;
           description: string | null;
+          name: string | null;
+          data_category: string | null;
+          retention_period: string | null;
           is_predefined: boolean;
           created_at: string;
           updated_at: string;
@@ -174,6 +177,9 @@ export interface Database {
           id?: string;
           purpose_name: string;
           description?: string | null;
+          name?: string | null;
+          data_category?: string | null;
+          retention_period?: string | null;
           is_predefined?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -182,6 +188,9 @@ export interface Database {
           id?: string;
           purpose_name?: string;
           description?: string | null;
+          name?: string | null;
+          data_category?: string | null;
+          retention_period?: string | null;
           is_predefined?: boolean;
           created_at?: string;
           updated_at?: string;

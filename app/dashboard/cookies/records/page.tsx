@@ -311,7 +311,7 @@ export default function CookieConsentRecordsPage() {
                       </td>
                       <td className="p-4 align-middle">
                         <div className="flex flex-wrap gap-1">
-                          {record.categories && record.categories.length > 0 ? (
+                          {record.categories && Array.isArray(record.categories) && record.categories.length > 0 ? (
                             record.categories.map((cat) => (
                               <span
                                 key={cat}

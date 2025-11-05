@@ -105,7 +105,7 @@ export const dataCategoryWithRetentionSchema = z.object({
 
 // Activity Purpose Schema (nested structure)
 export const activityPurposeSchema = z.object({
-  purposeId: z.string().uuid('Invalid purpose ID'),
+  purposeId: z.string().min(1, 'Purpose ID is required'),
   purposeName: z.string().optional(), // Added to support templates and frontend mapping
   legalBasis: z.enum(['consent', 'contract', 'legal-obligation', 'legitimate-interest']),
   customDescription: z.string().optional(),
@@ -182,7 +182,6 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CookieScanInput = z.infer<typeof cookieScanSchema>;
 export type ProcessingActivityInput = z.infer<typeof processingActivitySchema>;
 export type ProcessingActivityStructuredInput = z.infer<typeof processingActivityStructuredSchema>;
-export type ProcessingActivityFormInput = z.infer<typeof processingActivityFormSchema>;
 export type ActivityPurposeInput = z.infer<typeof activityPurposeSchema>;
 export type DataCategoryWithRetentionInput = z.infer<typeof dataCategoryWithRetentionSchema>;
 export type TeamMemberInput = z.infer<typeof teamMemberSchema>;
