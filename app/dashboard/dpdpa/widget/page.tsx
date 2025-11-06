@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -347,7 +347,44 @@ export default function DPDPAWidgetPage() {
   };
 
   const handleSave = async (silent = false) => {
-    if (!validateConfig()) {
+    // Filter out invalid activity IDs before saving
+    const activityIds = new Set(activities.map(a => a.id));
+    const validSelectedActivities = config.selectedActivities.filter(id => activityIds.has(id));
+    
+    // Update config with only valid activities for validation
+    const configToSave = {
+      ...config,
+      selectedActivities: validSelectedActivities
+    };
+
+    // Validate with cleaned config
+    const errors: {[key: string]: string} = {};
+    
+    if (validSelectedActivities.length === 0) {
+      errors.activities = 'Select at least one processing activity';
+    }
+    
+    if (!configToSave.domain || configToSave.domain.trim() === '') {
+      errors.domain = 'Domain is required';
+    } else if (configToSave.domain.includes('http') || configToSave.domain.includes('www')) {
+      errors.domain = 'Remove http://, https://, and www from domain';
+    }
+    
+    if (!configToSave.name || configToSave.name.trim() === '') {
+      errors.name = 'Widget name is required';
+    }
+    
+    if (!configToSave.title || configToSave.title.trim() === '') {
+      errors.title = 'Title is required';
+    }
+    
+    if (!configToSave.message || configToSave.message.trim() === '') {
+      errors.message = 'Message is required';
+    }
+    
+    setValidationErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
       if (!silent) {
         toast.error('Please fix the validation errors before saving');
       }
@@ -357,10 +394,10 @@ export default function DPDPAWidgetPage() {
     setSaving(true);
 
     try {
-      const method = config.widgetId ? 'PUT' : 'POST';
-      const body = config.widgetId 
-        ? { widgetId: config.widgetId, ...config }
-        : config;
+      const method = configToSave.widgetId ? 'PUT' : 'POST';
+      const body = configToSave.widgetId 
+        ? { widgetId: configToSave.widgetId, ...configToSave }
+        : configToSave;
 
       const response = await fetch('/api/dpdpa/widget-config', {
         method,
@@ -374,9 +411,12 @@ export default function DPDPAWidgetPage() {
         throw new Error(data.error || 'Failed to save configuration');
       }
 
-      if (data.widgetId && !config.widgetId) {
-        setConfig(prev => ({ ...prev, widgetId: data.widgetId }));
-      }
+      // Update config with cleaned activities and new widget ID if created
+      setConfig(prev => ({
+        ...prev,
+        ...(data.widgetId && !prev.widgetId ? { widgetId: data.widgetId } : {}),
+        selectedActivities: validSelectedActivities
+      }));
 
       if (!silent) {
         toast.success('✅ Configuration saved successfully!', {
@@ -485,6 +525,12 @@ export default function DPDPAWidgetPage() {
 
   // Get unique industries for filter dropdown
   const uniqueIndustries = Array.from(new Set(activities.map(a => a.industry))).sort();
+
+  // Calculate valid selected activities count (only count activities that actually exist)
+  const validSelectedActivitiesCount = useMemo(() => {
+    const activityIds = new Set(activities.map(a => a.id));
+    return config.selectedActivities.filter(id => activityIds.has(id)).length;
+  }, [config.selectedActivities, activities]);
 
   // Generate privacy notice HTML for preview
   const generatePrivacyNoticePreview = () => {
@@ -965,7 +1011,7 @@ export default function DPDPAWidgetPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-purple-600">Activities</p>
-                  <p className="text-3xl font-bold text-purple-900 mt-2">{config.selectedActivities.length}</p>
+                  <p className="text-3xl font-bold text-purple-900 mt-2">{validSelectedActivitiesCount}</p>
                   <p className="text-xs text-purple-700 mt-1">Configured</p>
                 </div>
                 <div className="p-3 bg-purple-500 rounded-full">
@@ -1063,9 +1109,9 @@ export default function DPDPAWidgetPage() {
                     Choose which processing activities to display in the widget
                   </CardDescription>
                 </div>
-                {config.selectedActivities.length > 0 ? (
+                {validSelectedActivitiesCount > 0 ? (
                   <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
-                    {config.selectedActivities.length} selected
+                    {validSelectedActivitiesCount} selected
                   </Badge>
                 ) : validationErrors.activities ? (
                   <Badge className="bg-red-100 text-red-700">
