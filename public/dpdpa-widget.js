@@ -201,6 +201,8 @@
   let activities = [];
   let activityConsents = {};
   let visitorEmail = (currentScript && currentScript.getAttribute('data-dpdpa-email')) || null;
+  let globalClickHandler = null; // Global reference to cleanup language menu listener
+  let primaryColor = '#4c8bf5'; // Default primary color, updated when config loads
 
   // LocalStorage manager for consent persistence
   const ConsentStorage = {
@@ -413,7 +415,7 @@
 
     const theme = config.theme || {};
     // Use the trustworthy blue color from consently theme
-    const primaryColor = theme.primaryColor || '#4c8bf5'; // hsl(217 91% 60%) converted to hex
+    primaryColor = theme.primaryColor || '#4c8bf5'; // Update global primaryColor
     const backgroundColor = theme.backgroundColor || '#ffffff';
     const textColor = theme.textColor || '#1f2937';
     const borderRadius = theme.borderRadius || 12;
@@ -732,9 +734,6 @@
       widget.style.opacity = '1';
     });
 
-    // Store reference to global click handler to cleanup later
-    let globalClickHandler = null;
-
     // Attach event listeners
     attachEventListeners(overlay, widget);
 
@@ -953,6 +952,19 @@
           console.error('Download failed:', e);
         }
       });
+      // Enhanced hover effects
+      downloadIcon.addEventListener('mouseenter', () => {
+        downloadIcon.style.background = '#f0f9ff';
+        downloadIcon.style.borderColor = primaryColor;
+        downloadIcon.style.transform = 'translateY(-2px)';
+        downloadIcon.style.boxShadow = '0 4px 8px rgba(59,130,246,0.2)';
+      });
+      downloadIcon.addEventListener('mouseleave', () => {
+        downloadIcon.style.background = 'white';
+        downloadIcon.style.borderColor = '#e5e7eb';
+        downloadIcon.style.transform = 'translateY(0)';
+        downloadIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+      });
     }
 
     // Accept selected button
@@ -960,6 +972,15 @@
     if (acceptSelectedBtn) {
       acceptSelectedBtn.addEventListener('click', () => {
         handleAcceptSelected(overlay);
+      });
+      // Enhanced hover effects
+      acceptSelectedBtn.addEventListener('mouseenter', () => {
+        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #e5e7eb, #d1d5db)';
+        acceptSelectedBtn.style.transform = 'translateY(-1px)';
+      });
+      acceptSelectedBtn.addEventListener('mouseleave', () => {
+        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #f9fafb, #f3f4f6)';
+        acceptSelectedBtn.style.transform = 'translateY(0)';
       });
     }
 
@@ -969,6 +990,15 @@
       acceptAllBtn.addEventListener('click', () => {
         handleAcceptAll(overlay);
       });
+      // Enhanced hover effects
+      acceptAllBtn.addEventListener('mouseenter', () => {
+        acceptAllBtn.style.transform = 'translateY(-2px)';
+        acceptAllBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
+      });
+      acceptAllBtn.addEventListener('mouseleave', () => {
+        acceptAllBtn.style.transform = 'translateY(0)';
+        acceptAllBtn.style.boxShadow = '0 4px 8px rgba(59,130,246,0.3)';
+      });
     }
 
     // Cancel button
@@ -976,6 +1006,17 @@
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {
         hideWidget(overlay);
+      });
+      // Enhanced hover effects
+      cancelBtn.addEventListener('mouseenter', () => {
+        cancelBtn.style.background = '#f9fafb';
+        cancelBtn.style.borderColor = '#d1d5db';
+        cancelBtn.style.transform = 'translateY(-1px)';
+      });
+      cancelBtn.addEventListener('mouseleave', () => {
+        cancelBtn.style.background = 'white';
+        cancelBtn.style.borderColor = '#e5e7eb';
+        cancelBtn.style.transform = 'translateY(0)';
       });
     }
 
@@ -1019,60 +1060,6 @@
       });
     }
 
-    // Enhanced hover effects for footer buttons
-    const acceptAllBtn = widget.querySelector('#dpdpa-accept-all-btn');
-    if (acceptAllBtn) {
-      acceptAllBtn.addEventListener('mouseenter', () => {
-        acceptAllBtn.style.transform = 'translateY(-2px)';
-        acceptAllBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
-      });
-      acceptAllBtn.addEventListener('mouseleave', () => {
-        acceptAllBtn.style.transform = 'translateY(0)';
-        acceptAllBtn.style.boxShadow = '0 4px 8px rgba(59,130,246,0.3)';
-      });
-    }
-
-    const acceptSelectedBtn = widget.querySelector('#dpdpa-accept-selected-btn');
-    if (acceptSelectedBtn) {
-      acceptSelectedBtn.addEventListener('mouseenter', () => {
-        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #e5e7eb, #d1d5db)';
-        acceptSelectedBtn.style.transform = 'translateY(-1px)';
-      });
-      acceptSelectedBtn.addEventListener('mouseleave', () => {
-        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #f9fafb, #f3f4f6)';
-        acceptSelectedBtn.style.transform = 'translateY(0)';
-      });
-    }
-
-    const cancelBtn = widget.querySelector('#dpdpa-cancel-btn');
-    if (cancelBtn) {
-      cancelBtn.addEventListener('mouseenter', () => {
-        cancelBtn.style.background = '#f9fafb';
-        cancelBtn.style.borderColor = '#d1d5db';
-        cancelBtn.style.transform = 'translateY(-1px)';
-      });
-      cancelBtn.addEventListener('mouseleave', () => {
-        cancelBtn.style.background = 'white';
-        cancelBtn.style.borderColor = '#e5e7eb';
-        cancelBtn.style.transform = 'translateY(0)';
-      });
-    }
-
-    const downloadIcon = widget.querySelector('#dpdpa-download-icon');
-    if (downloadIcon) {
-      downloadIcon.addEventListener('mouseenter', () => {
-        downloadIcon.style.background = '#f0f9ff';
-        downloadIcon.style.borderColor = primaryColor;
-        downloadIcon.style.transform = 'translateY(-2px)';
-        downloadIcon.style.boxShadow = '0 4px 8px rgba(59,130,246,0.2)';
-      });
-      downloadIcon.addEventListener('mouseleave', () => {
-        downloadIcon.style.background = 'white';
-        downloadIcon.style.borderColor = '#e5e7eb';
-        downloadIcon.style.transform = 'translateY(0)';
-        downloadIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-      });
-    }
 
     // Enhanced hover effects for activity table rows
     const activityItems = widget.querySelectorAll('.dpdpa-activity-item');

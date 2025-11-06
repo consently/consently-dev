@@ -174,8 +174,27 @@
     set: function(name, value, days) {
       const expires = new Date();
       expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+      // Get domain for cookie (supports subdomains)
+      const hostname = window.location.hostname;
+      let domain = '';
+      // Only set domain for non-localhost hosts
+      if (hostname !== 'localhost' && !hostname.startsWith('127.') && !hostname.startsWith('192.168.')) {
+        // Extract root domain (e.g., consently.in from www.consently.in)
+        const parts = hostname.split('.');
+        if (parts.length >= 2) {
+          domain = ';domain=' + parts.slice(-2).join('.');
+        }
+      }
+      // Only add Secure flag for HTTPS connections
+      const isSecure = window.location.protocol === 'https:';
+      const secureFlag = isSecure ? ';Secure' : '';
+      
       document.cookie = name + '=' + encodeURIComponent(JSON.stringify(value)) + 
-                       ';expires=' + expires.toUTCString() + ';path=/;SameSite=Lax';
+                       ';expires=' + expires.toUTCString() + 
+                       ';path=/' + 
+                       domain +
+                       ';SameSite=Lax' +
+                       secureFlag;
     },
     
     get: function(name) {
@@ -295,8 +314,15 @@
           config.apiBase = apiBase;
           lastConfigHash = newConfigHash;
           
-          // Refresh the banner if it's currently visible
-          if (isBannerVisible) {
+          // Only refresh banner if it's currently visible AND we're in preview mode
+          // Don't interrupt users who have already given consent
+          const existingConsent = CookieManager.get('consently_consent');
+          const hasValidConsent = existingConsent && existingConsent.timestamp && 
+                                   ((Date.now() - existingConsent.timestamp) / (1000 * 60 * 60 * 24)) < (config.consentDuration || 365);
+          
+          const isExplicitPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
+          
+          if (isBannerVisible && (!hasValidConsent || isExplicitPreview)) {
             const existingBanner = document.getElementById('consently-banner');
             const existingBackdrop = document.getElementById('consently-backdrop');
             if (existingBanner) {
@@ -340,11 +366,22 @@
   
   // Start polling for config updates
   function startConfigPolling() {
-    // Poll every 5 seconds for config changes
+    // Only poll if we're in preview/test mode or banner is visible
+    // Otherwise, poll less frequently to save performance
+    const isPreviewMode = window.location.hostname.includes('consently.in') || 
+                          window.location.hostname.includes('localhost');
+    const existingConsent = CookieManager.get('consently_consent');
+    const hasConsent = existingConsent && existingConsent.timestamp;
+    
+    // In preview mode, poll every 5 seconds for testing
+    // Otherwise, only poll every 30 seconds if consent exists (for updates)
+    // Or every 10 seconds if no consent (waiting for user decision)
+    const pollInterval = isPreviewMode ? 5000 : (hasConsent ? 30000 : 10000);
+    
     configPollingInterval = setInterval(async () => {
       await fetchBannerConfig(true);
-    }, 5000);
-    console.log('[Consently] 🔄 Auto-sync enabled - checking for updates every 5 seconds');
+    }, pollInterval);
+    console.log(`[Consently] 🔄 Auto-sync enabled - checking for updates every ${pollInterval/1000} seconds`);
   }
   
   // Stop polling
@@ -358,11 +395,25 @@
 
   // Initialize widget
   async function init() {
+    // Check if we're on dashboard pages - don't show widget on authenticated dashboard
+    const isDashboardPage = window.location.pathname.startsWith('/dashboard');
+    
+    // Skip widget initialization on dashboard pages (except for preview/testing)
+    // Only show on dashboard if explicitly in preview mode AND a specific query param is set
+    const urlParams = new URLSearchParams(window.location.search);
+    const isExplicitPreview = urlParams.get('preview') === 'true' || urlParams.get('test-widget') === 'true';
+    
+    if (isDashboardPage && !isExplicitPreview) {
+      console.log('[Consently] Dashboard page detected - skipping widget initialization');
+      return;
+    }
+    
     await fetchBannerConfig();
 
     const existingConsent = CookieManager.get('consently_consent');
-    const isPreviewMode = window.location.hostname.includes('consently.in') || 
-                          window.location.hostname.includes('localhost');
+    const isPreviewMode = (window.location.hostname.includes('consently.in') || 
+                          window.location.hostname.includes('localhost')) &&
+                          isExplicitPreview; // Only true preview mode with explicit flag
     
     if (config.respectDNT && navigator.doNotTrack === '1') {
       console.log('[Consently] DNT enabled');
@@ -371,27 +422,41 @@
 
     if (existingConsent && existingConsent.timestamp) {
       const consentAge = (Date.now() - existingConsent.timestamp) / (1000 * 60 * 60 * 24);
-      if (consentAge < 365) {
-        console.log('[Consently] Valid consent found');
-        applyConsent(existingConsent);
-        // Start polling even if consent exists (for testing/preview purposes)
-        startConfigPolling();
+      const consentDuration = config.consentDuration || 365;
+      
+      if (consentAge < consentDuration) {
+        console.log('[Consently] Valid consent found (age: ' + Math.round(consentAge) + ' days)');
         
-        // Show floating consent button for users to manage preferences
-        showConsentButton();
-        
-        // In preview mode, always show the banner for testing
-        if (isPreviewMode) {
-          console.log('[Consently] Preview mode detected - showing banner for testing');
-          if (config.autoShow) {
-            if (config.showAfterDelay > 0) {
-              setTimeout(showConsentBanner, config.showAfterDelay);
-            } else {
-              showConsentBanner();
+        // Verify consent data is complete
+        if (!existingConsent.status || !existingConsent.categories) {
+          console.warn('[Consently] Consent data incomplete, resetting...');
+          CookieManager.delete('consently_consent');
+          // Continue to show banner below
+        } else {
+          applyConsent(existingConsent);
+          // Start polling even if consent exists (for testing/preview purposes)
+          startConfigPolling();
+          
+          // Show floating consent button for users to manage preferences
+          showConsentButton();
+          
+          // Only show banner in explicit preview mode (not just on consently.in domain)
+          if (isPreviewMode && isExplicitPreview) {
+            console.log('[Consently] Explicit preview mode - showing banner for testing');
+            if (config.autoShow) {
+              if (config.showAfterDelay > 0) {
+                setTimeout(showConsentBanner, config.showAfterDelay);
+              } else {
+                showConsentBanner();
+              }
             }
           }
+          return;
         }
-        return;
+      } else {
+        console.log('[Consently] Consent expired (age: ' + Math.round(consentAge) + ' days), showing banner again');
+        // Clear expired consent
+        CookieManager.delete('consently_consent');
       }
     }
 
@@ -409,6 +474,16 @@
 
   // Show consent banner with Consently logo
   async function showConsentBanner() {
+    // Don't show banner on dashboard pages unless explicitly in preview mode
+    const isDashboardPage = window.location.pathname.startsWith('/dashboard');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isExplicitPreview = urlParams.get('preview') === 'true' || urlParams.get('test-widget') === 'true';
+    
+    if (isDashboardPage && !isExplicitPreview) {
+      console.log('[Consently] Dashboard page - banner suppressed');
+      return;
+    }
+    
     if (document.getElementById('consently-banner') || isTranslating) {
       return;
     }
@@ -886,6 +961,12 @@
 
   // Handle consent
   function handleConsent(status, categories) {
+    // Validate inputs
+    if (!status || !Array.isArray(categories) || categories.length === 0) {
+      console.error('[Consently] Invalid consent data:', { status, categories });
+      return;
+    }
+    
     // Generate unique consent ID
     const consentId = 'con_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     
@@ -894,10 +975,22 @@
       categories: categories,
       timestamp: Date.now(),
       widgetId: widgetId,
-      consentId: consentId
+      consentId: consentId,
+      domain: window.location.hostname,
+      path: window.location.pathname
     };
 
-    CookieManager.set('consently_consent', consentData, 365);
+    // Use consent duration from config or default to 365 days
+    const consentDuration = config.consentDuration || 365;
+    CookieManager.set('consently_consent', consentData, consentDuration);
+    
+    // Verify cookie was set correctly
+    const verifyConsent = CookieManager.get('consently_consent');
+    if (verifyConsent && verifyConsent.consentId === consentId) {
+      console.log('[Consently] ✓ Consent saved and verified');
+    } else {
+      console.error('[Consently] ⚠️ Failed to verify consent cookie!');
+    }
     
     // Clear temp preferences
     try {

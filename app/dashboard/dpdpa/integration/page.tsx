@@ -66,24 +66,34 @@ export default function IntegrationPage() {
   };
 
   const getEmbedCode = (widgetId: string) => {
-    const origin = window.location.origin;
+    // Always use production URL for widget script
+    const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
 return `<!-- Consently DPDPA Widget -->
-<script src="${origin}/dpdpa-widget.js" 
+<script src="${widgetUrl}/dpdpa-widget.js" 
         data-dpdpa-widget-id="${widgetId}"
         data-dpdpa-email="{{user_email}}"><!-- optional: pass the logged-in user's email -->
 </script>`;
   };
 
   const getReactExample = (widgetId: string) => {
-    const origin = window.location.origin;
-    return `import { useEffect } from 'react';
+    const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
+    return `'use client';
 
-export default function App() {
+import { useEffect } from 'react';
+
+function ConsentlyWidget() {
   useEffect(() => {
-    // Load Consently DPDPA Widget
+    // Check if script is already loaded
+    const existingScript = document.querySelector('script[data-dpdpa-widget-id="${widgetId}"]');
+    if (existingScript) {
+      console.log('[Consently] Widget script already loaded');
+      return;
+    }
+
     const script = document.createElement('script');
-    script.src = '${origin}/dpdpa-widget.js';
+    script.src = '${widgetUrl}/dpdpa-widget.js';
     script.setAttribute('data-dpdpa-widget-id', '${widgetId}');
+    script.async = true;
     document.body.appendChild(script);
 
     // Listen to consent events
@@ -102,58 +112,90 @@ export default function App() {
 
     return () => {
       window.removeEventListener('consentlyDPDPAConsent', handleConsent);
-      document.body.removeChild(script);
+      // Safely remove script if it exists
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     };
   }, []);
 
-  return <div>Your App</div>;
-}`;
+  return null;
+}
+
+export default ConsentlyWidget;`;
   };
 
   const getNextJsExample = (widgetId: string) => {
-    const origin = window.location.origin;
-    return `// app/layout.tsx or pages/_app.tsx
-import Script from 'next/script';
+    const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
+    return `// components/ConsentlyWidget.tsx
+'use client';
 
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        
-        {/* Consently DPDPA Widget */}
-        <Script
-          src="${origin}/dpdpa-widget.js"
-          data-dpdpa-widget-id="${widgetId}"
-          strategy="afterInteractive"
-        />
-        
-        <Script id="consent-handler" strategy="afterInteractive">
-          {\`
-            window.addEventListener('consentlyDPDPAConsent', function(event) {
-              const consent = event.detail;
-              console.log('Consent received:', consent.status);
-              
-              // Update your app based on consent
-              if (consent.acceptedActivities.includes('marketing-id')) {
-                // Enable marketing features
-              }
-            });
-          \`}
-        </Script>
-      </body>
-    </html>
-  );
-}`;
+import { useEffect } from 'react';
+
+function ConsentlyWidget() {
+  useEffect(() => {
+    // Check if script is already loaded
+    const existingScript = document.querySelector('script[data-dpdpa-widget-id="${widgetId}"]');
+    if (existingScript) {
+      console.log('[Consently] Widget script already loaded');
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = '${widgetUrl}/dpdpa-widget.js';
+    script.setAttribute('data-dpdpa-widget-id', '${widgetId}');
+    script.async = true;
+    document.body.appendChild(script);
+
+    // Listen to consent events
+    const handleConsent = (event) => {
+      const consent = event.detail;
+      console.log('Consent received:', consent.status);
+      
+      // Update your app based on consent
+      if (consent.acceptedActivities.includes('marketing-id')) {
+        // Enable marketing features
+      }
+    };
+
+    window.addEventListener('consentlyDPDPAConsent', handleConsent);
+
+    return () => {
+      window.removeEventListener('consentlyDPDPAConsent', handleConsent);
+      // Safely remove script if it exists
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  return null;
+}
+
+export default ConsentlyWidget;
+
+// Then use in your layout.tsx:
+// import ConsentlyWidget from '@/components/ConsentlyWidget';
+// 
+// export default function RootLayout({ children }) {
+//   return (
+//     <html>
+//       <body>
+//         {children}
+//         <ConsentlyWidget />
+//       </body>
+//     </html>
+//   );
+// }`;
   };
 
   const getWordPressExample = (widgetId: string) => {
-    const origin = window.location.origin;
+    const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
     return `<!-- Add to your WordPress theme's footer.php before </body> -->
 <!-- Or use a plugin like "Insert Headers and Footers" -->
 
 <!-- Consently DPDPA Widget -->
-<script src="${origin}/dpdpa-widget.js" 
+<script src="${widgetUrl}/dpdpa-widget.js" 
         data-dpdpa-widget-id="${widgetId}">
 </script>
 
@@ -172,7 +214,6 @@ window.addEventListener('consentlyDPDPAConsent', function(event) {
   };
 
   const getAPIExample = (widgetId: string) => {
-    const origin = window.location.origin;
     return `// JavaScript API Examples
 
 // 1. Show consent widget manually
