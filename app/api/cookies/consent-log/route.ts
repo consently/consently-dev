@@ -19,6 +19,7 @@ import { z } from 'zod';
 const consentLogSchema = z.object({
   consent_id: z.string().min(1),
   visitor_token: z.string().min(1),
+  widget_id: z.string().optional(), // Widget ID for tracking (added in migration 08)
   consent_type: z.enum(['cookie', 'dpdpa', 'gdpr']),
   status: z.enum(['accepted', 'rejected', 'partial', 'revoked', 'updated']),
   categories: z.array(z.string()).optional().default([]),
