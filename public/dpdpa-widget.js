@@ -289,6 +289,19 @@
       activities = data.activities || [];
       
       console.log('[Consently DPDPA] Configuration loaded:', config.name);
+      console.log('[Consently DPDPA] Activities loaded:', activities.length);
+      if (activities.length > 0) {
+        console.log('[Consently DPDPA] First activity:', activities[0]);
+        console.log('[Consently DPDPA] Activity structure check:', {
+          hasPurposes: !!activities[0].purposes,
+          hasDataAttributes: !!activities[0].data_attributes,
+          purposesCount: activities[0].purposes?.length || 0,
+          dataAttributesCount: activities[0].data_attributes?.length || 0
+        });
+      } else {
+        console.warn('[Consently DPDPA] No activities found in configuration!');
+        console.log('[Consently DPDPA] Full config:', data);
+      }
       return true;
     } catch (error) {
       console.error('[Consently DPDPA] Failed to load configuration:', error);
@@ -395,7 +408,17 @@
         // Batch prefetch all activity content in ONE API call (optimized)
         const textsToTranslate = [
           ...activities.map(activity => activity.activity_name),
-          ...activities.flatMap(activity => activity.data_attributes)
+          ...activities.flatMap(activity => {
+            // Handle new structure
+            if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
+              return activity.purposes.flatMap(p => [
+                p.purposeName || '',
+                ...(p.dataCategories || []).map(cat => cat.categoryName || '')
+              ]).filter(Boolean);
+            }
+            // Fallback to legacy
+            return activity.data_attributes || [];
+          })
         ];
         
         await batchTranslate(textsToTranslate, lang);
@@ -448,9 +471,21 @@
         translatedConfig.rejectButtonText,
         translatedConfig.customizeButtonText
       ];
+      
+      // Collect activity texts from new or legacy structure
       const activityTexts = [
         ...activities.map(a => a.activity_name),
-        ...activities.flatMap(a => a.data_attributes)
+        ...activities.flatMap(a => {
+          // Try new structure first
+          if (a.purposes && Array.isArray(a.purposes) && a.purposes.length > 0) {
+            return a.purposes.flatMap(p => [
+              p.purposeName || '',
+              ...(p.dataCategories || []).map(cat => cat.categoryName || '')
+            ]).filter(Boolean);
+          }
+          // Fallback to legacy
+          return a.data_attributes || [];
+        })
       ];
       
       // Batch translate all in one API call
@@ -597,7 +632,37 @@
           
           <!-- Table Body -->
           <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-            ${activities.map((activity) => `
+            ${activities.map((activity) => {
+              // Extract data categories from new or legacy structure
+              let dataCategories = [];
+              let purposesList = [];
+              
+              // Check if new structure with purposes array exists
+              if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
+                // New structure: extract purposes and their data categories
+                activity.purposes.forEach(purpose => {
+                  purposesList.push(purpose.purposeName || 'Unknown Purpose');
+                  if (purpose.dataCategories && Array.isArray(purpose.dataCategories)) {
+                    purpose.dataCategories.forEach(cat => {
+                      if (cat.categoryName && !dataCategories.includes(cat.categoryName)) {
+                        dataCategories.push(cat.categoryName);
+                      }
+                    });
+                  }
+                });
+              }
+              
+              // Fallback to legacy structure
+              if (dataCategories.length === 0 && activity.data_attributes && Array.isArray(activity.data_attributes)) {
+                dataCategories = activity.data_attributes;
+              }
+              
+              // If still no data categories, show placeholder
+              if (dataCategories.length === 0) {
+                dataCategories = ['Personal Data'];
+              }
+              
+              return `
               <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="display: grid; grid-template-columns: auto 1fr 1.5fr; gap: 12px; align-items: start; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; background: linear-gradient(to bottom, #ffffff, #fafbfc); transition: all 0.25s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <!-- Checkbox -->
                 <label style="display: flex; align-items: center; cursor: pointer; padding-top: 2px;">
@@ -607,18 +672,20 @@
                 <!-- Purpose Name -->
                 <div style="font-size: 14px; font-weight: 600; color: ${textColor}; line-height: 1.3; padding-top: 2px;">
                   ${escapeHtml(activity.activity_name)}
+                  ${purposesList.length > 0 ? `<div style="font-size: 11px; font-weight: 400; color: #6b7280; margin-top: 4px;">${purposesList.map(p => escapeHtml(p)).join(', ')}</div>` : ''}
                 </div>
                 
                 <!-- Data Categories -->
                 <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                  ${activity.data_attributes.map(attr => `
+                  ${dataCategories.map(attr => `
                     <span style="display: inline-block; font-size: 11px; padding: 5px 10px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); border: 1px solid #e5e7eb; border-radius: 6px; font-weight: 500; color: ${textColor}; white-space: nowrap;">${escapeHtml(attr)}</span>
                   `).join('')}
                 </div>
                 
                 <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
               </div>
-            `).join('')}
+            `;
+            }).join('')}
           </div>
         </div>
 
@@ -794,9 +861,19 @@
           config.acceptButtonText || 'Accept All',
           config.rejectButtonText || 'Reject All',
           config.customizeButtonText || 'Manage Preferences',
-          // Activity content
+          // Activity content - handle new structure
           ...activities.map(a => a.activity_name),
-          ...activities.flatMap(a => a.data_attributes)
+          ...activities.flatMap(a => {
+            // Handle new structure with purposes
+            if (a.purposes && Array.isArray(a.purposes) && a.purposes.length > 0) {
+              return a.purposes.flatMap(p => [
+                p.purposeName || '',
+                ...(p.dataCategories || []).map(cat => cat.categoryName || '')
+              ]).filter(Boolean);
+            }
+            // Fallback to legacy
+            return a.data_attributes || [];
+          })
         ];
         
         // Batch translate ALL content in ONE API call instead of multiple

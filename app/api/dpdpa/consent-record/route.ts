@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createPublicClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 
@@ -213,8 +214,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create supabase client
-    const supabase = await createClient();
+    // Create public supabase client (no auth required for this endpoint)
+    const supabase = createPublicClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
     // Verify widget exists and is active
     const { data: widgetConfig, error: widgetError } = await supabase
@@ -254,14 +258,19 @@ export async function POST(request: NextRequest) {
     const visitorEmailHash = body.visitorEmail ? hashEmail(body.visitorEmail) : null;
 
     // Check if consent record already exists for this visitor
-    const { data: existingConsent } = await supabase
+    const { data: existingConsent, error: existingConsentError } = await supabase
       .from('dpdpa_consent_records')
       .select('id')
       .eq('widget_id', body.widgetId)
       .eq('visitor_id', body.visitorId)
       .order('consent_timestamp', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle(); // Use maybeSingle() instead of single() to handle no records gracefully
+
+    if (existingConsentError) {
+      console.error('[Consent Record API] Error checking for existing consent:', existingConsentError);
+      // Continue with creating new record if check fails
+    }
 
     let result;
 
@@ -292,9 +301,20 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        console.error('Error updating consent record:', error);
+        console.error('[Consent Record API] Error updating consent record:', error);
+        console.error('[Consent Record API] Error details:', JSON.stringify(error, null, 2));
+        console.error('[Consent Record API] Update payload:', {
+          id: existingConsent.id,
+          consent_status: body.consentStatus,
+          accepted_activities: body.acceptedActivities?.length || 0,
+          rejected_activities: body.rejectedActivities?.length || 0
+        });
         return NextResponse.json(
-          { error: 'Failed to update consent record' },
+          { 
+            error: 'Failed to update consent record',
+            details: error.message,
+            code: error.code
+          },
           { status: 500 }
         );
       }
@@ -330,9 +350,21 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        console.error('Error creating consent record:', error);
+        console.error('[Consent Record API] Error creating consent record:', error);
+        console.error('[Consent Record API] Error details:', JSON.stringify(error, null, 2));
+        console.error('[Consent Record API] Insert payload:', {
+          widget_id: body.widgetId,
+          visitor_id: body.visitorId,
+          consent_status: body.consentStatus,
+          accepted_activities: body.acceptedActivities?.length || 0,
+          rejected_activities: body.rejectedActivities?.length || 0
+        });
         return NextResponse.json(
-          { error: 'Failed to create consent record' },
+          { 
+            error: 'Failed to create consent record',
+            details: error.message,
+            code: error.code
+          },
           { status: 500 }
         );
       }

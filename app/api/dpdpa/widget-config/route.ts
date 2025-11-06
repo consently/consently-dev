@@ -247,7 +247,18 @@ export async function PUT(request: NextRequest) {
     if (configData.acceptButtonText !== undefined) updatePayload.accept_button_text = configData.acceptButtonText;
     if (configData.rejectButtonText !== undefined) updatePayload.reject_button_text = configData.rejectButtonText;
     if (configData.customizeButtonText !== undefined) updatePayload.customize_button_text = configData.customizeButtonText;
-    if (configData.selectedActivities !== undefined) updatePayload.selected_activities = configData.selectedActivities;
+    
+    // Validate and filter UUIDs for selectedActivities (same as POST)
+    if (configData.selectedActivities !== undefined) {
+      const validatedActivities = (configData.selectedActivities || [])
+        .filter(id => UUID_REGEX.test(id));
+      updatePayload.selected_activities = validatedActivities;
+      console.log('[Widget Config API] Updating selected_activities:', {
+        originalCount: configData.selectedActivities.length,
+        validatedCount: validatedActivities.length,
+        validatedIds: validatedActivities
+      });
+    }
     if (configData.autoShow !== undefined) updatePayload.auto_show = configData.autoShow;
     if (configData.showAfterDelay !== undefined) updatePayload.show_after_delay = configData.showAfterDelay;
     if (configData.consentDuration !== undefined) updatePayload.consent_duration = configData.consentDuration;
@@ -272,9 +283,9 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error updating widget config:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      console.error('Update payload:', JSON.stringify(updatePayload, null, 2));
+      console.error('[Widget Config API] Error updating widget config:', error);
+      console.error('[Widget Config API] Error details:', JSON.stringify(error, null, 2));
+      console.error('[Widget Config API] Update payload:', JSON.stringify(updatePayload, null, 2));
       return NextResponse.json(
         { error: 'Failed to update widget configuration', details: error.message },
         { status: 500 }
@@ -287,6 +298,13 @@ export async function PUT(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Log what was actually saved
+    console.log('[Widget Config API] Widget config updated successfully:', {
+      widgetId: data.widget_id,
+      selectedActivitiesCount: data.selected_activities?.length || 0,
+      selectedActivities: data.selected_activities
+    });
 
     return NextResponse.json({ data });
   } catch (error) {

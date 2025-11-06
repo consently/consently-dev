@@ -65,15 +65,47 @@ export async function GET(
       );
     }
 
+    // Log selected activities for debugging
+    console.log('[Widget Public API] Widget ID:', widgetId);
+    console.log('[Widget Public API] Selected activities from config:', widgetConfig.selected_activities);
+    console.log('[Widget Public API] Selected activities count:', widgetConfig.selected_activities?.length || 0);
+
     // Fetch the processing activities associated with this widget with full purpose details
+    const selectedActivitiesIds = widgetConfig.selected_activities || [];
+    
+    // If no activities selected, return empty array but log warning
+    if (!selectedActivitiesIds || selectedActivitiesIds.length === 0) {
+      console.warn('[Widget Public API] No activities selected in widget configuration!');
+      console.warn('[Widget Public API] Widget config:', {
+        widgetId: widgetConfig.widget_id,
+        name: widgetConfig.name,
+        selected_activities: widgetConfig.selected_activities
+      });
+    }
+
     const { data: activitiesRaw, error: activitiesError } = await supabase
       .from('processing_activities')
       .select('id, activity_name, industry, purpose, data_attributes, retention_period')
-      .in('id', widgetConfig.selected_activities || [])
+      .in('id', selectedActivitiesIds)
       .eq('is_active', true);
 
     if (activitiesError) {
-      console.error('Error fetching activities:', activitiesError);
+      console.error('[Widget Public API] Error fetching activities:', activitiesError);
+    }
+
+    console.log('[Widget Public API] Activities fetched from database:', activitiesRaw?.length || 0);
+    if (activitiesRaw && activitiesRaw.length > 0) {
+      console.log('[Widget Public API] First activity:', {
+        id: activitiesRaw[0].id,
+        name: activitiesRaw[0].activity_name,
+        hasPurposes: false // Will be checked later
+      });
+    } else if (selectedActivitiesIds.length > 0) {
+      console.warn('[Widget Public API] No activities found despite selected_activities being non-empty!');
+      console.warn('[Widget Public API] This might indicate:');
+      console.warn('  1. Activity IDs in selected_activities do not match any records');
+      console.warn('  2. Activities exist but are marked as is_active = false');
+      console.warn('  3. Data type mismatch (UUID vs string)');
     }
 
     // Fetch purposes for each activity
@@ -96,7 +128,7 @@ export async function GET(
           .eq('activity_id', activity.id);
 
         if (purposesError) {
-          console.error('Error fetching purposes for activity', activity.id, ':', purposesError);
+          console.error('[Widget Public API] Error fetching purposes for activity', activity.id, ':', purposesError);
         }
 
         // Fetch data categories for each purpose
@@ -108,7 +140,7 @@ export async function GET(
               .eq('activity_purpose_id', ap.id);
 
             if (categoriesError) {
-              console.error('Error fetching categories for purpose', ap.id, ':', categoriesError);
+              console.error('[Widget Public API] Error fetching categories for purpose', ap.id, ':', categoriesError);
             }
 
             return {
@@ -126,7 +158,7 @@ export async function GET(
           })
         );
 
-        return {
+        const processedActivity = {
           id: activity.id,
           activity_name: activity.activity_name,
           industry: activity.industry,
@@ -134,11 +166,28 @@ export async function GET(
           purposes: purposesWithCategories,
           // Legacy fields for backward compatibility
           purpose: activity.purpose,
-          data_attributes: activity.data_attributes,
+          data_attributes: activity.data_attributes || [],
           retention_period: activity.retention_period,
         };
+
+        // Log activity structure for debugging
+        console.log('[Widget Public API] Processed activity:', {
+          id: processedActivity.id,
+          name: processedActivity.activity_name,
+          purposesCount: processedActivity.purposes?.length || 0,
+          dataAttributesCount: processedActivity.data_attributes?.length || 0,
+          hasLegacyPurpose: !!processedActivity.purpose
+        });
+
+        return processedActivity;
       })
     );
+
+    console.log('[Widget Public API] Final activities count after processing:', activities.length);
+    if (activities.length === 0 && selectedActivitiesIds.length > 0) {
+      console.error('[Widget Public API] CRITICAL: Activities were selected but none were returned!');
+      console.error('[Widget Public API] This indicates a data mismatch or query issue.');
+    }
 
     // Generate privacy notice HTML
     let privacyNoticeHTML = '<p style="color:#6b7280;">Privacy notice content...</p>';
@@ -164,8 +213,8 @@ export async function GET(
       rejectButtonText: widgetConfig.reject_button_text,
       customizeButtonText: widgetConfig.customize_button_text,
       
-      // Processing activities
-      activities: activities || [],
+      // Processing activities - ensure it's always an array
+      activities: Array.isArray(activities) ? activities : [],
       
       // Privacy notice
       privacyNoticeHTML: privacyNoticeHTML,
@@ -188,6 +237,19 @@ export async function GET(
       // Metadata
       version: '1.0.0'
     };
+
+    // Log final response structure for debugging
+    console.log('[Widget Public API] Final response structure:', {
+      widgetId: response.widgetId,
+      activitiesCount: response.activities.length,
+      hasActivities: response.activities.length > 0,
+      activitiesStructure: response.activities.length > 0 ? {
+        firstActivityId: response.activities[0].id,
+        firstActivityName: response.activities[0].activity_name,
+        firstActivityPurposesCount: response.activities[0].purposes?.length || 0,
+        firstActivityDataAttributesCount: response.activities[0].data_attributes?.length || 0
+      } : null
+    });
 
     // Generate ETag for cache validation
     const configString = JSON.stringify(response);
