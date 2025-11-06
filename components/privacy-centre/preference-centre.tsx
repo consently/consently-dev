@@ -16,6 +16,7 @@ import {
   Clock,
   Database,
   Users,
+  Copy,
 } from 'lucide-react';
 
 interface Activity {
@@ -208,6 +209,48 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         <p className="text-gray-600 mt-2">
           Update your consent preferences for {widgetName || domain}. You can change these at any time.
         </p>
+      </div>
+
+      {/* Visitor ID Display */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <Info className="h-4 w-4 text-blue-600" />
+              Your Visitor ID
+            </h3>
+            <p className="text-xs text-gray-600 mb-2">
+              Save this ID to access your preferences later. You can bookmark this page or use this ID to access the Preference Centre.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-white px-3 py-2 rounded border border-blue-200 font-mono text-gray-900 break-all select-all">
+                {visitorId}
+              </code>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(visitorId);
+                  toast.success('Visitor ID copied to clipboard!');
+                }}
+                className="flex-shrink-0"
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                Copy
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Direct link: <a 
+                href={`${typeof window !== 'undefined' ? window.location.origin : ''}/privacy-centre/${widgetId}?visitorId=${visitorId}`}
+                className="text-blue-600 hover:underline break-all"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {typeof window !== 'undefined' ? window.location.origin : ''}/privacy-centre/{widgetId}?visitorId={visitorId}
+              </a>
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}

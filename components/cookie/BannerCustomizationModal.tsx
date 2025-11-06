@@ -102,6 +102,32 @@ const LANGUAGE_OPTIONS = [
   { code: 'mr', name: 'Marathi (मराठी)', flag: '🇮🇳' },
 ];
 
+// Helper function to safely extract hostname from URL
+function getHostname(url: string): string {
+  if (!url || url.trim() === '') {
+    return 'your website';
+  }
+  
+  try {
+    // Add protocol if missing
+    let urlToParse = url.trim();
+    if (!urlToParse.startsWith('http://') && !urlToParse.startsWith('https://')) {
+      urlToParse = `https://${urlToParse}`;
+    }
+    
+    const urlObj = new URL(urlToParse);
+    return urlObj.hostname;
+  } catch (error) {
+    // If URL parsing fails, try to extract domain from string
+    const match = url.match(/(?:https?:\/\/)?(?:www\.)?([^\/\s]+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+    // Final fallback
+    return url.length > 50 ? url.substring(0, 47) + '...' : url || 'your website';
+  }
+}
+
 export function BannerCustomizationModal({
   open,
   onClose,
@@ -204,7 +230,7 @@ export function BannerCustomizationModal({
       open={open}
       onClose={onClose}
       title="Customize Your Cookie Banner"
-      description={`Configure banner for ${new URL(scannedUrl).hostname}`}
+      description={`Configure banner for ${getHostname(scannedUrl)}`}
       size="xl"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -568,7 +594,7 @@ export function BannerCustomizationModal({
                     <div className="w-2 h-2 rounded-full bg-green-500" />
                   </div>
                   <div className="flex-1 bg-white rounded px-2 py-1 text-xs text-gray-600">
-                    {new URL(scannedUrl).hostname}
+                    {getHostname(scannedUrl)}
                   </div>
                 </div>
                 <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">

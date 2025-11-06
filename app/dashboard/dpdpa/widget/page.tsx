@@ -150,6 +150,17 @@ export default function DPDPAWidgetPage() {
   const [previewLanguage, setPreviewLanguage] = useState<string>('en');
   const [translatedPreviewContent, setTranslatedPreviewContent] = useState<any>(null);
   const [translatingPreview, setTranslatingPreview] = useState(false);
+  const [complianceStatus, setComplianceStatus] = useState<{
+    requirementsMet: number;
+    totalRequirements: number;
+    isCompliant: boolean;
+    lastChecked?: Date;
+  }>({ requirementsMet: 0, totalRequirements: 3, isCompliant: false });
+  const [preferenceCentreStats, setPreferenceCentreStats] = useState<{
+    totalVisitors: number;
+    activeUsers: number;
+    lastAccess?: Date;
+  } | null>(null);
 
   const themePresets = [
     { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
@@ -253,7 +264,21 @@ export default function DPDPAWidgetPage() {
             } catch (error) {
               console.error('Error fetching stats:', error);
             }
+            
+            // Fetch preference centre stats
+            try {
+              const prefStatsRes = await fetch(`/api/dpdpa/preference-centre-stats/${existingConfig.widget_id}`);
+              if (prefStatsRes.ok) {
+                const prefStatsData = await prefStatsRes.json();
+                setPreferenceCentreStats(prefStatsData);
+              }
+            } catch (error) {
+              console.error('Error fetching preference centre stats:', error);
+            }
           }
+          
+          // Check compliance status
+          checkComplianceStatus(existingConfig);
           
           setConfig({
             widgetId: existingConfig.widget_id,
@@ -277,7 +302,10 @@ export default function DPDPAWidgetPage() {
             showBranding: existingConfig.show_branding,
             isActive: existingConfig.is_active,
             language: existingConfig.language || 'en',
-            supportedLanguages: existingConfig.supported_languages || ['en', 'hi', 'pa', 'te', 'ta']
+            supportedLanguages: existingConfig.supported_languages || ['en', 'hi', 'pa', 'te', 'ta'],
+            privacyNoticeVersion: existingConfig.privacy_notice_version,
+            privacyNoticeLastUpdated: existingConfig.privacy_notice_last_updated,
+            requiresReconsent: existingConfig.requires_reconsent
           });
         }
       }
@@ -655,6 +683,34 @@ export default function DPDPAWidgetPage() {
     await translatePreviewContent(lang);
   };
 
+  // Check compliance status
+  const checkComplianceStatus = (configData: any) => {
+    let requirementsMet = 0;
+    const totalRequirements = 3;
+    
+    // Check 1: Privacy notice version exists
+    if (configData.privacy_notice_version) {
+      requirementsMet++;
+    }
+    
+    // Check 2: Privacy notice last updated exists
+    if (configData.privacy_notice_last_updated) {
+      requirementsMet++;
+    }
+    
+    // Check 3: Selected activities exist
+    if (configData.selected_activities && configData.selected_activities.length > 0) {
+      requirementsMet++;
+    }
+    
+    setComplianceStatus({
+      requirementsMet,
+      totalRequirements,
+      isCompliant: requirementsMet === totalRequirements,
+      lastChecked: new Date()
+    });
+  };
+
   const downloadPrivacyNotice = () => {
     if (config.selectedActivities.length === 0) {
       toast.error('Please select at least one processing activity first');
@@ -675,6 +731,41 @@ export default function DPDPAWidgetPage() {
     URL.revokeObjectURL(url);
     
     toast.success('Privacy notice downloaded successfully!');
+  };
+  
+  const updatePrivacyNoticeVersion = async () => {
+    const currentVersion = config.privacyNoticeVersion || 'v1.0';
+    const versionMatch = currentVersion.match(/v(\d+)\.(\d+)/);
+    let newVersion = 'v1.1';
+    
+    if (versionMatch) {
+      const major = parseInt(versionMatch[1]);
+      const minor = parseInt(versionMatch[2]);
+      newVersion = `v${major}.${minor + 1}`;
+    }
+    
+    const confirmed = window.confirm(
+      `Update privacy notice version to ${newVersion}?\n\nThis will require existing users to re-consent.`
+    );
+    
+    if (!confirmed) return;
+    
+    setConfig({
+      ...config,
+      privacyNoticeVersion: newVersion,
+      privacyNoticeLastUpdated: new Date().toISOString(),
+      requiresReconsent: true
+    });
+    
+    toast.success('Privacy notice version updated', {
+      description: 'Existing users will be prompted to re-consent'
+    });
+  };
+  
+  const copyPreferenceCentreUrl = () => {
+    const url = `${window.location.origin}/privacy-centre/${config.widgetId || '{widgetId}'}?visitorId={visitorId}`;
+    navigator.clipboard.writeText(url);
+    toast.success('URL copied to clipboard!');
   };
 
   if (loading) {
@@ -2055,46 +2146,110 @@ export default function DPDPAWidgetPage() {
           {/* Privacy Notice Compliance */}
           <Card className="shadow-sm border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
             <CardHeader className="border-b border-green-200">
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-2 bg-green-600 rounded-lg">
-                  <Shield className="h-5 w-5 text-white" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 bg-green-600 rounded-lg">
+                      <Shield className="h-5 w-5 text-white" />
+                    </div>
+                    <span>Privacy Notice Compliance</span>
+                  </CardTitle>
+                  <CardDescription className="text-green-900/70">
+                    DPDPA 2023 Requirements
+                  </CardDescription>
                 </div>
-                <span>Privacy Notice Compliance</span>
-              </CardTitle>
-              <CardDescription className="text-green-900/70">
-                DPDPA 2023 Requirements
-              </CardDescription>
+                <Badge className={complianceStatus.isCompliant ? 'bg-green-600' : 'bg-orange-600'}>
+                  {complianceStatus.requirementsMet}/{complianceStatus.totalRequirements} Met
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
+              {/* Compliance Status Bar */}
+              <div className="p-3 bg-white rounded-lg border border-green-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-700">Compliance Status</span>
+                  <span className="text-xs text-gray-600">
+                    {complianceStatus.isCompliant ? '✓ Fully Compliant' : '⚠ Needs Attention'}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all ${
+                      complianceStatus.isCompliant ? 'bg-green-600' : 'bg-orange-500'
+                    }`}
+                    style={{ width: `${(complianceStatus.requirementsMet / complianceStatus.totalRequirements) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+
               {/* Requirements Checklist */}
               <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className={`flex items-start gap-3 p-3 rounded-lg border ${
+                  config.privacyNoticeVersion ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
+                }`}>
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                    config.privacyNoticeVersion ? 'bg-green-100' : 'bg-orange-100'
+                  }`}>
+                    {config.privacyNoticeVersion ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                    )}
                   </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-900">Scroll Requirement</h4>
-                    <p className="text-xs text-gray-600 mt-1">Users must scroll through entire privacy notice</p>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-gray-900">Version Tracking</h4>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Privacy notice version must be set and tracked
+                    </p>
+                    {!config.privacyNoticeVersion && (
+                      <p className="text-xs text-orange-600 mt-1 font-medium">⚠ Missing</p>
+                    )}
                   </div>
                 </div>
                 
-                <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className={`flex items-start gap-3 p-3 rounded-lg border ${
+                  config.selectedActivities.length > 0 ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
+                }`}>
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                    config.selectedActivities.length > 0 ? 'bg-green-100' : 'bg-orange-100'
+                  }`}>
+                    {config.selectedActivities.length > 0 ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                    )}
                   </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-900">Download Requirement</h4>
-                    <p className="text-xs text-gray-600 mt-1">Privacy notice must be downloaded before consent</p>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-gray-900">Processing Activities</h4>
+                    <p className="text-xs text-gray-600 mt-1">
+                      At least one processing activity must be selected
+                    </p>
+                    {config.selectedActivities.length === 0 && (
+                      <p className="text-xs text-orange-600 mt-1 font-medium">⚠ None selected</p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className={`flex items-start gap-3 p-3 rounded-lg border ${
+                  config.privacyNoticeLastUpdated ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
+                }`}>
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                    config.privacyNoticeLastUpdated ? 'bg-green-100' : 'bg-orange-100'
+                  }`}>
+                    {config.privacyNoticeLastUpdated ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                    )}
                   </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-900">Progress Indicator</h4>
-                    <p className="text-xs text-gray-600 mt-1">Visual progress bar shows completion status</p>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-gray-900">Last Updated Date</h4>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Privacy notice last updated timestamp required
+                    </p>
+                    {!config.privacyNoticeLastUpdated && (
+                      <p className="text-xs text-orange-600 mt-1 font-medium">⚠ Not set</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2116,7 +2271,13 @@ export default function DPDPAWidgetPage() {
                     <span className="text-gray-600">Last Updated:</span>
                     <span className="text-gray-900 font-medium">
                       {config.privacyNoticeLastUpdated 
-                        ? new Date(config.privacyNoticeLastUpdated).toLocaleDateString()
+                        ? new Date(config.privacyNoticeLastUpdated).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
                         : 'Not set'
                       }
                     </span>
@@ -2132,29 +2293,36 @@ export default function DPDPAWidgetPage() {
                 </div>
               </div>
 
-              {/* Update Privacy Notice */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full border-green-300 hover:bg-green-50"
-                onClick={() => {
-                  const newVersion = prompt('Enter new version number (e.g., v1.1, v2.0):', config.privacyNoticeVersion || 'v1.0');
-                  if (newVersion) {
-                    setConfig({
-                      ...config,
-                      privacyNoticeVersion: newVersion,
-                      privacyNoticeLastUpdated: new Date().toISOString(),
-                      requiresReconsent: true
-                    });
-                    toast.success('Privacy notice version updated', {
-                      description: 'Existing users will be prompted to re-consent'
-                    });
-                  }
-                }}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Update Privacy Notice Version
-              </Button>
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 border-green-300 hover:bg-green-50"
+                  onClick={updatePrivacyNoticeVersion}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Update Version
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 border-green-300 hover:bg-green-50"
+                  onClick={() => {
+                    const selectedActivitiesData = activities.filter(a => config.selectedActivities.includes(a.id));
+                    if (selectedActivitiesData.length === 0) {
+                      toast.error('Please select at least one processing activity first');
+                      return;
+                    }
+                    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com');
+                    setGeneratedPrivacyNotice(html);
+                    setShowPrivacyNoticeModal(true);
+                  }}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -2167,22 +2335,73 @@ export default function DPDPAWidgetPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
+              {/* Widget Status */}
               <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
                 <div className="flex items-center gap-2">
                   <div className={`w-2.5 h-2.5 rounded-full ${config.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                  <span className="text-sm font-semibold text-gray-900">Status</span>
+                  <span className="text-sm font-semibold text-gray-900">Widget Status</span>
                 </div>
                 <Badge variant={config.isActive ? 'default' : 'secondary'} className="shadow-sm">
                   {config.isActive ? '✓ Active' : 'Inactive'}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-gray-900">Activities</span>
+
+              {/* Activities Count with Breakdown */}
+              <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-semibold text-gray-900">Processing Activities</span>
+                  </div>
+                  <Badge className="bg-blue-600 shadow-sm">{config.selectedActivities.length}</Badge>
                 </div>
-                <Badge className="bg-blue-600 shadow-sm">{config.selectedActivities.length}</Badge>
+                {config.selectedActivities.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {config.selectedActivities.slice(0, 3).map((activityId) => {
+                      const activity = activities.find(a => a.id === activityId);
+                      return activity ? (
+                        <div key={activityId} className="text-xs text-gray-600 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                          {activity.activityName}
+                        </div>
+                      ) : null;
+                    })}
+                    {config.selectedActivities.length > 3 && (
+                      <div className="text-xs text-gray-500 italic">
+                        +{config.selectedActivities.length - 3} more...
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* Widget Statistics */}
+              {widgetStats && (
+                <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-purple-600" />
+                    Widget Statistics
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs text-gray-600">Total Consents</div>
+                      <div className="text-lg font-bold text-purple-700">{widgetStats.totalConsents}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-600">This Week</div>
+                      <div className="text-lg font-bold text-purple-700">{widgetStats.weeklyConsents}</div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-xs text-gray-600">Conversion Rate</div>
+                      <div className="text-lg font-bold text-purple-700">
+                        {widgetStats.conversionRate.toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Widget ID */}
               {config.widgetId && (
                 <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
                   <div className="flex items-center justify-between mb-2">
@@ -2192,6 +2411,30 @@ export default function DPDPAWidgetPage() {
                   <code className="text-xs bg-white px-2 py-1 rounded border border-purple-200 block overflow-x-auto">
                     {config.widgetId}
                   </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 w-full text-xs"
+                    onClick={() => {
+                      navigator.clipboard.writeText(config.widgetId || '');
+                      toast.success('Widget ID copied!');
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy Widget ID
+                  </Button>
+                </div>
+              )}
+
+              {/* Last Saved */}
+              {lastSaved && (
+                <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-xs text-gray-600 flex items-center justify-between">
+                    <span>Last Saved:</span>
+                    <span className="font-medium text-gray-900">
+                      {lastSaved.toLocaleTimeString()}
+                    </span>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -2200,51 +2443,123 @@ export default function DPDPAWidgetPage() {
           {/* Preference Center Info Card */}
           <Card className="shadow-sm border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
             <CardHeader className="border-b border-blue-200">
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-md">
-                  <Settings className="h-5 w-5 text-white" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-md">
+                      <Settings className="h-5 w-5 text-white" />
+                    </div>
+                    <span>Preference Centre Integration</span>
+                  </CardTitle>
+                  <CardDescription className="text-blue-900/70">
+                    Let users manage their consent preferences
+                  </CardDescription>
                 </div>
-                <span>Preference Centre Integration</span>
-              </CardTitle>
-              <CardDescription className="text-blue-900/70">
-                Let users manage their consent preferences
-              </CardDescription>
+                <Badge className={config.widgetId ? 'bg-green-600' : 'bg-gray-400'}>
+                  {config.widgetId ? '✓ Active' : 'Not Configured'}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
+              {/* Integration Status */}
               <div className="bg-white rounded-lg p-4 border border-blue-200">
                 <div className="flex items-start gap-2 mb-3">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Prominent Button Integrated</h4>
+                  {config.widgetId ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Integration Status</h4>
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      The "Manage Preferences" button is now prominently displayed in the widget with an enhanced design and icon.
+                      {config.widgetId 
+                        ? 'Preference Centre is fully integrated and ready to use. Users can access it through the "Manage Preferences" button in the widget.'
+                        : 'Please save your widget configuration to activate the Preference Centre integration.'
+                      }
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg p-4 border border-blue-200">
-                <div className="flex items-start gap-2 mb-3">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Opens Privacy Centre</h4>
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      Clicking opens the full Preference Centre where users can manage individual consent preferences, view history, and exercise their DPDP Act rights.
-                    </p>
-                  </div>
-                </div>
-              </div>
+
+              {/* Preference Centre URL */}
               <div className="bg-white rounded-lg p-4 border border-blue-200">
                 <div className="flex items-start gap-2 mb-3">
                   <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <h4 className="text-sm font-semibold text-gray-900 mb-1">Preference Centre URL</h4>
                     <p className="text-xs text-gray-600 mb-2">Users are directed to:</p>
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded border border-gray-200 block overflow-x-auto">
-                      {window.location.origin}/privacy-centre/{'{widgetId}'}?visitorId={'{visitorId}'}
-                    </code>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs bg-gray-100 px-2 py-1.5 rounded border border-gray-200 block overflow-x-auto">
+                        {typeof window !== 'undefined' 
+                          ? `${window.location.origin}/privacy-centre/${config.widgetId || '{widgetId}'}?visitorId={visitorId}`
+                          : '/privacy-centre/{widgetId}?visitorId={visitorId}'
+                        }
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-shrink-0"
+                        onClick={copyPreferenceCentreUrl}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Statistics */}
+              {preferenceCentreStats && (
+                <div className="bg-white rounded-lg p-4 border border-blue-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-blue-600" />
+                    Usage Statistics
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs text-gray-600">Total Visitors</div>
+                      <div className="text-lg font-bold text-blue-700">{preferenceCentreStats.totalVisitors || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-600">Active Users</div>
+                      <div className="text-lg font-bold text-blue-700">{preferenceCentreStats.activeUsers || 0}</div>
+                    </div>
+                    {preferenceCentreStats.lastAccess && (
+                      <div className="col-span-2">
+                        <div className="text-xs text-gray-600">Last Access</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {new Date(preferenceCentreStats.lastAccess).toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Features List */}
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Features</h4>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-gray-600">Manage individual consent preferences</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-gray-600">View consent history and timeline</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-gray-600">Exercise DPDP Act rights (access, correction, deletion)</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-gray-600">Raise grievances and complaints</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced UX Banner */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-4 text-white">
                 <p className="text-xs font-semibold flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4" />

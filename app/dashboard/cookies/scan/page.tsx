@@ -33,6 +33,32 @@ const categoryColors = {
   advertising: 'bg-red-100 text-red-800',
 };
 
+// Helper function to safely extract hostname from URL
+function getHostname(url: string): string {
+  if (!url || url.trim() === '') {
+    return 'your website';
+  }
+  
+  try {
+    // Add protocol if missing
+    let urlToParse = url.trim();
+    if (!urlToParse.startsWith('http://') && !urlToParse.startsWith('https://')) {
+      urlToParse = `https://${urlToParse}`;
+    }
+    
+    const urlObj = new URL(urlToParse);
+    return urlObj.hostname;
+  } catch (error) {
+    // If URL parsing fails, try to extract domain from string
+    const match = url.match(/(?:https?:\/\/)?(?:www\.)?([^\/\s]+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+    // Final fallback
+    return url.length > 50 ? url.substring(0, 47) + '...' : url || 'your website';
+  }
+}
+
 export default function CookieScanPage() {
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
@@ -351,7 +377,7 @@ export default function CookieScanPage() {
   const handleSaveCustomBanner = async (customConfig: any) => {
     setIsGeneratingBanner(true);
     try {
-      const hostname = new URL(scannedUrl).hostname;
+      const hostname = getHostname(scannedUrl);
       
       // Step 1: Create banner template with custom configuration
       const bannerConfig = {
@@ -839,7 +865,7 @@ export default function CookieScanPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span>Ready-to-deploy widget for {new URL(scannedUrl).hostname}</span>
+                      <span>Ready-to-deploy widget for {getHostname(scannedUrl)}</span>
                     </li>
                   </ul>
                   <div className="flex flex-wrap gap-3">

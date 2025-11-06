@@ -36,13 +36,25 @@
     rejectButton: 'Reject',
     acceptAll: 'Accept All',
     rejectAll: 'Reject All',
+    acceptSelected: 'Accept selected',
+    cancel: 'Cancel',
+    close: 'Close',
     dataAttributes: 'Data Attributes',
+    dataCategories: 'Data Categories',
+    purpose: 'Purpose',
     retentionPeriod: 'Retention Period',
     yourDataRights: 'Your Data Rights',
     dataRightsText: 'Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.',
     withdrawConsent: 'Withdraw/Modify Consent',
     raiseGrievance: 'Raise Grievance',
-    privacyNotice: 'Privacy Notice'
+    privacyNotice: 'Privacy Notice',
+    dpdpaCompliance: 'DPDPA 2023 Compliance',
+    manageConsentPreferences: 'Manage Your Consent Preferences',
+    changeSettingsAnytime: 'You can change these settings at any time',
+    preferenceCentre: 'Preference Centre',
+    grievanceText: 'If you have any grievances with how we process your personal data click {here}. If we are unable to resolve your grievance, you can also make a complaint to the Data Protection Board by clicking {here2}.',
+    here: 'here',
+    poweredBy: 'Powered by'
   };
 
   // Translation cache to avoid repeated API calls
@@ -411,9 +423,61 @@
     // Track requirements
     let readComplete = false;
     let downloadComplete = false;
-    let selectedLanguage = 'en'; // Start with English
+    // Use config language if provided, otherwise default to English
+    let selectedLanguage = config.language || 'en';
     let t = await getTranslation(selectedLanguage); // Current translations
     let isTranslating = false; // Track translation state
+    
+    // Initially translate config values if language is not English
+    let translatedConfig = {
+      title: config.title || 'Your Data Privacy Rights',
+      message: config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+      acceptButtonText: config.acceptButtonText || 'Accept All',
+      rejectButtonText: config.rejectButtonText || 'Reject All',
+      customizeButtonText: config.customizeButtonText || 'Manage Preferences'
+    };
+    
+    // Translate config values and activities on initial load if language is not English
+    if (selectedLanguage !== 'en') {
+      const configTexts = [
+        translatedConfig.title,
+        translatedConfig.message,
+        translatedConfig.acceptButtonText,
+        translatedConfig.rejectButtonText,
+        translatedConfig.customizeButtonText
+      ];
+      const activityTexts = [
+        ...activities.map(a => a.activity_name),
+        ...activities.flatMap(a => a.data_attributes)
+      ];
+      
+      // Batch translate all in one API call
+      const allTexts = [...configTexts, ...activityTexts];
+      const translatedAll = await batchTranslate(allTexts, selectedLanguage);
+      
+      // Update config translations
+      let textIndex = 0;
+      translatedConfig = {
+        title: translatedAll[textIndex++],
+        message: translatedAll[textIndex++],
+        acceptButtonText: translatedAll[textIndex++],
+        rejectButtonText: translatedAll[textIndex++],
+        customizeButtonText: translatedAll[textIndex++]
+      };
+      
+      // Update activity translations
+      const translatedActivities = activities.map(activity => {
+        const translatedName = translatedAll[textIndex++];
+        const translatedAttrs = activity.data_attributes.map(() => translatedAll[textIndex++]);
+        
+        return {
+          ...activity,
+          activity_name: translatedName,
+          data_attributes: translatedAttrs
+        };
+      });
+      activities = translatedActivities;
+    }
     
     // Prefetch other translations in background
     prefetchTranslations();
@@ -477,8 +541,8 @@
               </div>
             `}
             <div>
-              <h2 style="margin: 0 0 2px 0; font-size: 22px; font-weight: 800; color: ${textColor}; letter-spacing: -0.02em;">Privacy Notice</h2>
-              <p style="margin: 0; font-size: 11px; color: #6b7280; font-weight: 500;">DPDPA 2023 Compliance</p>
+              <h2 style="margin: 0 0 2px 0; font-size: 22px; font-weight: 800; color: ${textColor}; letter-spacing: -0.02em;">${t.privacyNotice}</h2>
+              <p style="margin: 0; font-size: 11px; color: #6b7280; font-weight: 500;">${t.dpdpaCompliance}</p>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -506,7 +570,7 @@
                 </div>
               </div>
             </div>
-            <button id="dpdpa-close-btn" style="background: none; border: none; cursor: pointer; padding: 6px; opacity: 0.5; transition: opacity 0.2s; border-radius: 6px;" aria-label="Close">
+            <button id="dpdpa-close-btn" style="background: none; border: none; cursor: pointer; padding: 6px; opacity: 0.5; transition: opacity 0.2s; border-radius: 6px;" aria-label="${t.close}">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
@@ -517,7 +581,7 @@
       <!-- Main Content Section -->
       <div style="padding: 20px 24px; overflow-y: auto; flex: 1;">
         <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
-          We process your personal data only when necessary to provide our banking services. By clicking on the 'Accept all' button below, you consent to process your personal data for the following purposes:
+          ${translatedConfig.message}
         </p>
 
         <!-- Processing Activities Table View - Enhanced Design -->
@@ -525,8 +589,8 @@
           <!-- Table Header -->
           <div style="display: grid; grid-template-columns: auto 1fr 1.5fr; gap: 12px; padding: 0 12px 10px 12px; border-bottom: 2px solid #e5e7eb;">
             <div style="width: 20px;"></div>
-            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Purpose</div>
-            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Data Categories</div>
+            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">${t.purpose}</div>
+            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">${t.dataCategories}</div>
           </div>
           
           <!-- Table Body -->
@@ -561,10 +625,10 @@
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
             <div style="flex: 1;">
               <p style="margin: 0 0 4px 0; font-size: 13px; color: #1e40af; font-weight: 600; line-height: 1.4;">
-                Manage Your Consent Preferences
+                ${t.manageConsentPreferences}
               </p>
               <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.4;">
-                You can change these settings at any time
+                ${t.changeSettingsAnytime}
               </p>
             </div>
             <button id="dpdpa-manage-preferences" style="padding: 10px 18px; background: white; color: ${primaryColor}; border: 2px solid ${primaryColor}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
@@ -572,7 +636,7 @@
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2"/>
               </svg>
-              Preference Centre
+              ${t.preferenceCentre}
             </button>
           </div>
         </div>
@@ -580,14 +644,14 @@
         <!-- Footer Links -->
         <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
           <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
-            If you have any grievances with how we process your personal data click <a href="#" id="dpdpa-grievance-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">here</a>. If we are unable to resolve your grievance, you can also make a complaint to the Data Protection Board by clicking <a href="#" id="dpdpa-dpb-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">here</a>.
+            ${t.grievanceText.replace('{here}', `<a href="#" id="dpdpa-grievance-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">${t.here}</a>`).replace('{here2}', `<a href="#" id="dpdpa-dpb-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">${t.here}</a>`)}
           </p>
         </div>
       </div>
 
       <!-- Footer Actions - Enhanced Design -->
       <div style="padding: 18px 24px; border-top: 2px solid #e5e7eb; background: linear-gradient(to bottom, #fafbfc, #f3f4f6); display: flex; gap: 12px; align-items: center; justify-content: space-between; box-shadow: 0 -2px 8px rgba(0,0,0,0.05);">
-        <button id="dpdpa-download-icon" style="padding: 12px; background: white; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="Download Privacy Notice">
+        <button id="dpdpa-download-icon" style="padding: 12px; background: white; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="${t.downloadButton}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
@@ -596,13 +660,13 @@
         </button>
         <div style="flex: 1; display: flex; gap: 10px;">
           <button id="dpdpa-accept-selected-btn" style="flex: 1; padding: 13px 20px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            Accept selected
+            ${t.acceptSelected}
           </button>
           <button id="dpdpa-accept-all-btn" style="flex: 1; padding: 13px 20px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 8px rgba(59,130,246,0.3);">
-            Accept all
+            ${translatedConfig.acceptButtonText}
           </button>
           <button id="dpdpa-cancel-btn" style="flex: 1; padding: 13px 20px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            Cancel
+            ${t.cancel}
           </button>
         </div>
       </div>
@@ -611,7 +675,7 @@
       ${config.showBranding !== false ? `
         <div style="padding: 8px 24px; text-align: center; border-top: 1px solid #e5e7eb; background: #fafbfc;">
           <p style="margin: 0; font-size: 11px; color: #9ca3af;">
-            Powered by <a href="https://consently.in" target="_blank" style="color: ${primaryColor}; font-weight: 600; text-decoration: none;">Consently</a>
+            ${t.poweredBy} <a href="https://consently.in" target="_blank" style="color: ${primaryColor}; font-weight: 600; text-decoration: none;">Consently</a>
           </p>
         </div>
       ` : ''}
@@ -725,6 +789,13 @@
         
         // Collect all texts to translate in one batch (OPTIMIZED: single API call)
         const textsToTranslate = [
+          // Config values
+          config.title || 'Your Data Privacy Rights',
+          config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+          config.acceptButtonText || 'Accept All',
+          config.rejectButtonText || 'Reject All',
+          config.customizeButtonText || 'Manage Preferences',
+          // Activity content
           ...activities.map(a => a.activity_name),
           ...activities.flatMap(a => a.data_attributes)
         ];
@@ -732,8 +803,16 @@
         // Batch translate ALL content in ONE API call instead of multiple
         const translatedTexts = await batchTranslate(textsToTranslate, selectedLanguage);
         
-        // Map translations back to activities
+        // Map translations back to config and activities
         let textIndex = 0;
+        translatedConfig = {
+          title: translatedTexts[textIndex++],
+          message: translatedTexts[textIndex++],
+          acceptButtonText: translatedTexts[textIndex++],
+          rejectButtonText: translatedTexts[textIndex++],
+          customizeButtonText: translatedTexts[textIndex++]
+        };
+        
         const translatedActivities = activities.map(activity => {
           const translatedName = translatedTexts[textIndex++];
           const translatedAttrs = activity.data_attributes.map(() => translatedTexts[textIndex++]);
@@ -1147,6 +1226,9 @@
       // Apply consent
       applyConsent(storageData);
 
+      // Show floating preference centre button
+      showFloatingPreferenceButton();
+
       // Offer receipt options
       try { showReceiptOptions(storageData); } catch (e) { /* noop */ }
 
@@ -1190,7 +1272,14 @@
   }
 
   function downloadConsentReceipt(consent) {
-    const blob = new Blob([JSON.stringify({ widgetId, ...consent }, null, 2)], { type: 'application/json' });
+    const visitorId = getVisitorId();
+    const receiptData = {
+      widgetId,
+      visitorId,
+      privacyCentreUrl: `${window.location.origin}/privacy-centre/${widgetId}?visitorId=${visitorId}`,
+      ...consent
+    };
+    const blob = new Blob([JSON.stringify(receiptData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1213,6 +1302,89 @@
     
     const privacyCentreUrl = `${baseUrl}/privacy-centre/${widgetId}?visitorId=${visitorId}`;
     window.open(privacyCentreUrl, '_blank');
+  }
+
+  // Show floating button for preference centre access
+  function showFloatingPreferenceButton() {
+    // Don't create multiple buttons
+    if (document.getElementById('dpdpa-float-btn')) {
+      return;
+    }
+
+    const visitorId = getVisitorId();
+    const button = document.createElement('div');
+    button.id = 'dpdpa-float-btn';
+    button.innerHTML = `
+      <style>
+        #dpdpa-float-btn {
+          position: fixed;
+          bottom: 20px;
+          left: 20px;
+          z-index: 9998;
+          cursor: pointer;
+        }
+        .dpdpa-float-trigger {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 12px;
+          background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+          border: none;
+          border-radius: 50%;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+          transition: all 0.3s;
+          width: 56px;
+          height: 56px;
+          color: white;
+        }
+        .dpdpa-float-trigger:hover {
+          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+          transform: translateY(-2px) scale(1.05);
+        }
+        .dpdpa-float-tooltip {
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          margin-bottom: 12px;
+          background: #1f2937;
+          color: white;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .dpdpa-float-tooltip::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 6px solid transparent;
+          border-top-color: #1f2937;
+        }
+        #dpdpa-float-btn:hover .dpdpa-float-tooltip {
+          opacity: 1;
+        }
+      </style>
+      <div class="dpdpa-float-trigger" title="Manage Your Privacy Preferences">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
+        </svg>
+        <div class="dpdpa-float-tooltip">Manage Preferences</div>
+      </div>
+    `;
+    
+    document.body.appendChild(button);
+    
+    button.querySelector('.dpdpa-float-trigger').addEventListener('click', () => {
+      openPrivacyCentre();
+    });
   }
 
   function openGrievanceForm() {
@@ -1262,22 +1434,36 @@
   }
 
   function showReceiptOptions(consent) {
+    const visitorId = getVisitorId();
     const bar = document.createElement('div');
-    bar.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:999999;background:#111827;color:#fff;padding:10px 14px;border-radius:9999px;display:flex;gap:8px;align-items:center;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);font-family:system-ui,sans-serif;font-size:13px;`;
+    bar.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:999999;background:#111827;color:#fff;padding:12px 16px;border-radius:12px;display:flex;flex-direction:column;gap:8px;align-items:center;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);font-family:system-ui,sans-serif;font-size:13px;max-width:90%;min-width:300px;`;
     bar.innerHTML = `
-      <span style="opacity:.9">Consent saved.</span>
-      <button id="dpdpa-download-receipt" style="background:#10b981;border:none;color:#fff;padding:6px 10px;border-radius:9999px;cursor:pointer;font-weight:600;">Download receipt</button>
-      ${visitorEmail ? `<button id="dpdpa-email-receipt" style="background:#3b82f6;border:none;color:#fff;padding:6px 10px;border-radius:9999px;cursor:pointer;font-weight:600;">Email me a copy</button>` : ''}
-      <button id="dpdpa-receipt-close" style="background:transparent;border:none;color:#fff;opacity:.7;margin-left:4px;cursor:pointer;">✕</button>
+      <div style="display:flex;align-items:center;gap:8px;width:100%;">
+        <span style="opacity:.9;flex:1;">Consent saved.</span>
+        <button id="dpdpa-receipt-close" style="background:transparent;border:none;color:#fff;opacity:.7;cursor:pointer;padding:4px;">✕</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;">
+        <button id="dpdpa-download-receipt" style="background:#10b981;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;flex:1;min-width:120px;">Download receipt</button>
+        <button id="dpdpa-manage-preferences-float" style="background:#3b82f6;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;flex:1;min-width:120px;">Manage Preferences</button>
+        ${visitorEmail ? `<button id="dpdpa-email-receipt" style="background:#6366f1;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;flex:1;min-width:120px;">Email receipt</button>` : ''}
+      </div>
+      <div style="width:100%;padding:8px;background:rgba(255,255,255,0.1);border-radius:6px;margin-top:4px;">
+        <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Your Visitor ID (save this for future access):</div>
+        <div style="font-family:monospace;font-size:11px;word-break:break-all;user-select:all;cursor:text;background:rgba(0,0,0,0.2);padding:6px;border-radius:4px;">${visitorId}</div>
+      </div>
     `;
     document.body.appendChild(bar);
     bar.querySelector('#dpdpa-download-receipt').addEventListener('click', () => {
       downloadConsentReceipt(consent);
     });
+    bar.querySelector('#dpdpa-manage-preferences-float').addEventListener('click', () => {
+      openPrivacyCentre();
+      document.body.removeChild(bar);
+    });
     const emailBtn = bar.querySelector('#dpdpa-email-receipt');
     if (emailBtn) {
       emailBtn.addEventListener('click', () => {
-        const body = encodeURIComponent(JSON.stringify({ widgetId, ...consent }, null, 2));
+        const body = encodeURIComponent(JSON.stringify({ widgetId, visitorId, ...consent }, null, 2));
         window.location.href = `mailto:${visitorEmail}?subject=Your DPDPA Consent Receipt&body=${body}`;
       });
     }
@@ -1286,7 +1472,7 @@
     });
     setTimeout(() => {
       if (document.body.contains(bar)) document.body.removeChild(bar);
-    }, 10000);
+    }, 15000);
   }
 
   // Public API
