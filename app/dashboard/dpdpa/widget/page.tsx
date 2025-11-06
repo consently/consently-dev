@@ -31,7 +31,9 @@ import {
   FileCode,
   Zap,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Trash2,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
@@ -161,6 +163,8 @@ export default function DPDPAWidgetPage() {
     activeUsers: number;
     lastAccess?: Date;
   } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const themePresets = [
     { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
@@ -449,6 +453,65 @@ export default function DPDPAWidgetPage() {
     }));
   };
 
+  const handleDeleteWidget = async () => {
+    if (!config.widgetId) {
+      toast.error('No widget to delete');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/dpdpa/widget-config?widgetId=${config.widgetId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete widget');
+      }
+
+      toast.success('✅ Widget deleted successfully');
+      
+      // Reset config to initial state
+      setConfig({
+        name: 'My DPDPA Widget',
+        domain: '',
+        position: 'modal',
+        layout: 'modal',
+        theme: {
+          primaryColor: '#3b82f6',
+          backgroundColor: '#ffffff',
+          textColor: '#1f2937',
+          borderRadius: 12
+        },
+        title: 'Your Data Privacy Rights',
+        message: 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+        acceptButtonText: 'Accept All',
+        rejectButtonText: 'Reject All',
+        customizeButtonText: 'Manage Preferences',
+        selectedActivities: [],
+        autoShow: true,
+        showAfterDelay: 1000,
+        consentDuration: 365,
+        respectDNT: false,
+        requireExplicitConsent: true,
+        showDataSubjectsRights: true,
+        showBranding: true,
+        isActive: true,
+        language: 'en',
+        supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as']
+      });
+      setShowDeleteConfirm(false);
+      setWidgetStats(null);
+      setPreferenceCentreStats(null);
+    } catch (error) {
+      console.error('Error deleting widget:', error);
+      toast.error('❌ ' + (error instanceof Error ? error.message : 'Failed to delete widget'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getEmbedCode = () => {
     if (!config.widgetId) return '';
     const baseUrl = window.location.origin;
@@ -474,7 +537,7 @@ export default function DPDPAWidgetPage() {
         return `<!-- Wix Installation:\n1. Go to Settings > Custom Code\n2. Click \"+ Add Custom Code\"\n3. Paste the code below\n4. Set to load on \"All Pages\" in the <body> section\n-->\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
       
       case 'react':
-        return `// React/Next.js Installation\nimport { useEffect } from 'react';\n\nfunction ConsentlyWidget() {\n  useEffect(() => {\n    const script = document.createElement('script');\n    script.src = '${baseUrl}/dpdpa-widget.js';\n    script.setAttribute('data-dpdpa-widget-id', '${widgetId}');\n    script.async = true;\n    document.body.appendChild(script);\n\n    return () => {\n      document.body.removeChild(script);\n    };\n  }, []);\n\n  return null;\n}\n\nexport default ConsentlyWidget;`;
+        return `// React/Next.js Installation\n'use client';\n\nimport { useEffect } from 'react';\n\nfunction ConsentlyWidget() {\n  useEffect(() => {\n    // Check if script is already loaded\n    const existingScript = document.querySelector('script[data-dpdpa-widget-id="${widgetId}"]');\n    if (existingScript) {\n      console.log('[Consently] Widget script already loaded');\n      return;\n    }\n\n    const script = document.createElement('script');\n    script.src = '${baseUrl}/dpdpa-widget.js';\n    script.setAttribute('data-dpdpa-widget-id', '${widgetId}');\n    script.async = true;\n    document.body.appendChild(script);\n\n    return () => {\n      // Safely remove script if it exists\n      if (script.parentNode) {\n        script.parentNode.removeChild(script);\n      }\n    };\n  }, []);\n\n  return null;\n}\n\nexport default ConsentlyWidget;`;
       
       default:
         return getEmbedCode();
@@ -881,6 +944,14 @@ export default function DPDPAWidgetPage() {
                     <Eye className="mr-2 h-4 w-4" />
                     {showPreview ? 'Hide' : 'Preview'}
                   </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Widget
+                  </Button>
                 </>
               )}
               <Button 
@@ -916,6 +987,64 @@ export default function DPDPAWidgetPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Delete DPDPA Widget?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  This will permanently delete your widget configuration and all related data including:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4 list-disc list-inside">
+                  <li>Widget configuration</li>
+                  <li>All consent records</li>
+                  <li>All grievance/data subject rights requests</li>
+                  <li>Analytics data</li>
+                </ul>
+                <p className="text-sm font-semibold text-red-600">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteWidget}
+                disabled={deleting}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Forever
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notifications Banner */}
       {notifications.length > 0 && (

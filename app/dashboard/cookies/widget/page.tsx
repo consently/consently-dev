@@ -32,7 +32,9 @@ import {
   BarChart3,
   RefreshCw,
   FileCode,
-  Play
+  Play,
+  Trash2,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
@@ -146,6 +148,8 @@ export default function CookieWidgetPage() {
   const [previewLanguage, setPreviewLanguage] = useState<string>('en');
   const [translatedPreviewContent, setTranslatedPreviewContent] = useState<any>(null);
   const [translatingPreview, setTranslatingPreview] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [config, setConfig] = useState<WidgetConfig>({
     widgetId: '',
     name: 'My Cookie Widget',
@@ -631,6 +635,70 @@ export default function CookieWidgetPage() {
     link.click();
   };
 
+  const handleDeleteWidget = async () => {
+    if (!config.widgetId) {
+      toast.error('No widget to delete');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/cookies/widget-config?widgetId=${config.widgetId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete widget');
+      }
+
+      toast.success('Widget deleted successfully');
+      
+      // Reset config to initial state
+      const newWidgetId = 'cnsty_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+      setConfig({
+        widgetId: newWidgetId,
+        name: 'My Cookie Widget',
+        domain: '',
+        categories: ['necessary'],
+        behavior: 'explicit',
+        consentDuration: 365,
+        showBrandingLink: true,
+        blockScripts: true,
+        respectDNT: false,
+        gdprApplies: true,
+        autoBlock: [],
+        language: 'en',
+        bannerTemplateId: null,
+        theme: {
+          primaryColor: '#3b82f6',
+          backgroundColor: '#ffffff',
+          textColor: '#1f2937',
+          borderRadius: 12
+        },
+        autoShow: true,
+        showAfterDelay: 1000,
+        supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr'],
+        position: 'bottom',
+        layout: 'bar',
+        bannerContent: {
+          title: '🍪 We value your privacy',
+          message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
+          acceptButtonText: 'Accept All',
+          rejectButtonText: 'Reject All',
+          settingsButtonText: 'Cookie Settings'
+        }
+      });
+      setShowDeleteConfirm(false);
+      setWidgetStats(null);
+    } catch (error) {
+      console.error('Error deleting widget:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete widget');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading && !config.widgetId) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -686,7 +754,7 @@ export default function CookieWidgetPage() {
       )}
 
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <Button 
           onClick={() => handleSave()} 
           disabled={saving || loading}
@@ -716,7 +784,75 @@ export default function CookieWidgetPage() {
           <Eye className="mr-2 h-4 w-4" />
           {previewMode ? 'Hide' : 'Show'} Preview
         </Button>
+        {config.widgetId && (
+          <Button 
+            variant="outline"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Widget
+          </Button>
+        )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Delete Cookie Widget?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  This will permanently delete your widget configuration and all related data including:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4 list-disc list-inside">
+                  <li>Widget configuration</li>
+                  <li>All consent records</li>
+                  <li>All consent logs</li>
+                  <li>Analytics data</li>
+                </ul>
+                <p className="text-sm font-semibold text-red-600">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteWidget}
+                disabled={deleting}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Forever
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live Preview */}
       {previewMode && (

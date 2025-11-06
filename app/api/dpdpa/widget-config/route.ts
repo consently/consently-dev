@@ -295,7 +295,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Delete widget configuration
+// DELETE - Delete widget configuration and all related data
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -317,7 +317,34 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Widget ID is required' }, { status: 400 });
     }
 
-    // Delete widget configuration
+    console.log('Deleting DPDPA widget:', widgetId, 'for user:', user.id);
+
+    // First, delete all related grievances for this widget
+    console.log('Deleting related grievances...');
+    const { error: grievancesError } = await supabase
+      .from('dpdpa_grievances')
+      .delete()
+      .eq('widget_id', widgetId);
+
+    if (grievancesError) {
+      console.error('Error deleting grievances:', grievancesError);
+      // Continue with deletion even if this fails
+    }
+
+    // Delete all related consent records for this widget
+    console.log('Deleting related consent records...');
+    const { error: consentError } = await supabase
+      .from('dpdpa_consent_records')
+      .delete()
+      .eq('widget_id', widgetId);
+
+    if (consentError) {
+      console.error('Error deleting consent records:', consentError);
+      // Continue with deletion even if this fails
+    }
+
+    // Finally, delete the widget configuration itself
+    console.log('Deleting widget config...');
     const { error } = await supabase
       .from('dpdpa_widget_configs')
       .delete()
@@ -327,12 +354,16 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting widget config:', error);
       return NextResponse.json(
-        { error: 'Failed to delete widget configuration' },
+        { error: 'Failed to delete widget configuration', details: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ message: 'Widget configuration deleted successfully' });
+    console.log('DPDPA widget and all related data deleted successfully');
+    return NextResponse.json({ 
+      success: true,
+      message: 'Widget and all related data deleted successfully' 
+    });
   } catch (error) {
     console.error('Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

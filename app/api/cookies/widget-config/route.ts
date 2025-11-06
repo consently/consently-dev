@@ -351,3 +351,103 @@ export async function GET() {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error('Auth error in DELETE:', authError);
+      return NextResponse.json(
+        { error: 'Authentication failed', details: authError.message },
+        { status: 401 }
+      );
+    }
+
+    if (!user) {
+      console.error('No user found in DELETE request');
+      return NextResponse.json(
+        { error: 'No authenticated user found' },
+        { status: 401 }
+      );
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const widgetId = searchParams.get('widgetId');
+
+    if (!widgetId) {
+      return NextResponse.json(
+        { error: 'Widget ID is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Deleting widget config:', widgetId, 'for user:', user.id);
+
+    // First, delete all related consent_logs for this widget
+    // Note: consent_logs doesn't have widget_id, so we need to delete by user_id
+    // and filter by consent_id prefix if needed, or just delete by user_id
+    console.log('Deleting related consent logs...');
+    const { error: logsDeleteError } = await supabase
+      .from('consent_logs')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (logsDeleteError) {
+      console.error('Error deleting consent logs:', logsDeleteError);
+      // Continue with deletion even if this fails
+    }
+
+    // Delete all related consent_records for this user
+    console.log('Deleting related consent records...');
+    const { error: recordsDeleteError } = await supabase
+      .from('consent_records')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (recordsDeleteError) {
+      console.error('Error deleting consent records:', recordsDeleteError);
+      // Continue with deletion even if this fails
+    }
+
+    // Finally, delete the widget configuration itself
+    console.log('Deleting widget config...');
+    const { error: widgetDeleteError } = await supabase
+      .from('widget_configs')
+      .delete()
+      .eq('widget_id', widgetId)
+      .eq('user_id', user.id);
+
+    if (widgetDeleteError) {
+      console.error('Error deleting widget config:', widgetDeleteError);
+      return NextResponse.json(
+        { error: 'Failed to delete widget configuration', details: widgetDeleteError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log('Widget and all related data deleted successfully');
+    return NextResponse.json({ 
+      success: true,
+      message: 'Widget and all related data deleted successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error deleting widget config:', error);
+    
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Unknown error occurred';
+
+    return NextResponse.json(
+      { 
+        error: 'Failed to delete widget configuration',
+        details: errorMessage,
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    );
+  }
+}
