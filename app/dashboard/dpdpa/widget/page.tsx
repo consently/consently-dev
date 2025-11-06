@@ -1001,13 +1001,14 @@ export default function DPDPAWidgetPage() {
                   Delete DPDPA Widget?
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  This will permanently delete your widget configuration and all related data including:
+                  This will permanently delete your widget and all associated data:
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1 mb-4 list-disc list-inside">
-                  <li>Widget configuration</li>
-                  <li>All consent records</li>
+                  <li>Widget configuration and settings</li>
+                  <li>All consent records for this widget</li>
                   <li>All grievance/data subject rights requests</li>
-                  <li>Analytics data</li>
+                  <li>Analytics and stats data</li>
+                  <li>Integration code will stop working</li>
                 </ul>
                 <p className="text-sm font-semibold text-red-600">
                   This action cannot be undone.

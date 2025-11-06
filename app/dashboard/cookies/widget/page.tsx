@@ -809,14 +809,16 @@ export default function CookieWidgetPage() {
                   Delete Cookie Widget?
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  This will permanently delete your widget configuration and all related data including:
+                  This will permanently delete your widget configuration:
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1 mb-4 list-disc list-inside">
-                  <li>Widget configuration</li>
-                  <li>All consent records</li>
-                  <li>All consent logs</li>
-                  <li>Analytics data</li>
+                  <li>Widget configuration and settings</li>
+                  <li>Integration code will stop working</li>
+                  <li>Widget stats will become inaccessible</li>
                 </ul>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Note:</strong> Historical consent records are preserved for compliance and audit purposes.
+                </p>
                 <p className="text-sm font-semibold text-red-600">
                   This action cannot be undone.
                 </p>

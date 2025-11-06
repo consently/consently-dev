@@ -92,12 +92,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Consently Cookie Consent Widget */}
-        <script
-          src="https://www.consently.in/widget.js"
-          data-consently-id="cnsty_mhc0ouby_9tmvy18rd"
-          async
-        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

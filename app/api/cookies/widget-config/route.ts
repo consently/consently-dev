@@ -386,33 +386,13 @@ export async function DELETE(request: NextRequest) {
 
     console.log('Deleting widget config:', widgetId, 'for user:', user.id);
 
-    // First, delete all related consent_logs for this widget
-    // Note: consent_logs doesn't have widget_id, so we need to delete by user_id
-    // and filter by consent_id prefix if needed, or just delete by user_id
-    console.log('Deleting related consent logs...');
-    const { error: logsDeleteError } = await supabase
-      .from('consent_logs')
-      .delete()
-      .eq('user_id', user.id);
+    // NOTE: The consent_logs and consent_records tables don't have widget_id foreign keys.
+    // They only reference user_id, meaning they're shared across all user's widgets.
+    // Therefore, we ONLY delete the widget configuration itself.
+    // Historical consent data is preserved for compliance and audit purposes.
+    // Stats become inaccessible once widget config is deleted (API returns 404).
 
-    if (logsDeleteError) {
-      console.error('Error deleting consent logs:', logsDeleteError);
-      // Continue with deletion even if this fails
-    }
-
-    // Delete all related consent_records for this user
-    console.log('Deleting related consent records...');
-    const { error: recordsDeleteError } = await supabase
-      .from('consent_records')
-      .delete()
-      .eq('user_id', user.id);
-
-    if (recordsDeleteError) {
-      console.error('Error deleting consent records:', recordsDeleteError);
-      // Continue with deletion even if this fails
-    }
-
-    // Finally, delete the widget configuration itself
+    // Delete the widget configuration
     console.log('Deleting widget config...');
     const { error: widgetDeleteError } = await supabase
       .from('widget_configs')
@@ -428,10 +408,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    console.log('Widget and all related data deleted successfully');
+    console.log('Widget configuration deleted successfully');
     return NextResponse.json({ 
       success: true,
-      message: 'Widget and all related data deleted successfully' 
+      message: 'Widget configuration deleted successfully',
+      note: 'Historical consent data preserved for compliance purposes'
     });
 
   } catch (error) {
