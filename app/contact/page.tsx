@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Shield, Mail, MessageSquare, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import ConsentlyWidget from '@/components/dpdpa/ConsentlyWidget';
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,6 +27,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-blue-50">
+      <ConsentlyWidget widgetId="dpdpa_mhnhpimc_atq70ak" />
       {/* Navigation */}
       <nav className="border-b border-blue-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

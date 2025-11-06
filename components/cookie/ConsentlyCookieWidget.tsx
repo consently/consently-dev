@@ -2,22 +2,22 @@
 
 import { useEffect } from 'react';
 
-interface ConsentlyWidgetProps {
+interface ConsentlyCookieWidgetProps {
   widgetId?: string;
 }
 
-function ConsentlyWidget({ widgetId = 'dpdpa_mheon92d_o34gdpk' }: ConsentlyWidgetProps) {
+function ConsentlyCookieWidget({ widgetId = 'cnsty_mhnhhg68_map2kra3v' }: ConsentlyCookieWidgetProps) {
   useEffect(() => {
     // Check if script is already loaded
-    const existingScript = document.querySelector(`script[data-dpdpa-widget-id="${widgetId}"]`);
+    const existingScript = document.querySelector(`script[data-consently-id="${widgetId}"]`);
     if (existingScript) {
-      console.log('[Consently] Widget script already loaded');
+      console.log('[Consently Cookie] Widget script already loaded');
       return;
     }
 
     const script = document.createElement('script');
-    script.src = 'https://www.consently.in/dpdpa-widget.js';
-    script.setAttribute('data-dpdpa-widget-id', widgetId);
+    script.src = 'https://www.consently.in/widget.js';
+    script.setAttribute('data-consently-id', widgetId);
     script.async = true;
     document.body.appendChild(script);
 
@@ -32,5 +32,5 @@ function ConsentlyWidget({ widgetId = 'dpdpa_mheon92d_o34gdpk' }: ConsentlyWidge
   return null;
 }
 
-export default ConsentlyWidget;
+export default ConsentlyCookieWidget;
 
