@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { PreferenceCentre } from './preference-centre';
 import { RequestCentre } from './request-centre';
-import { Shield, FileText } from 'lucide-react';
+import { PagesView } from './pages-view';
+import { Shield, FileText, Globe } from 'lucide-react';
 
 interface PrivacyCentreProps {
   visitorId: string;
@@ -29,10 +30,14 @@ export function PrivacyCentre({ visitorId, widgetId }: PrivacyCentreProps) {
         {/* Main Content Card */}
         <Card className="p-6 shadow-lg">
           <Tabs defaultValue="preferences" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="preferences" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 Preference Centre
+              </TabsTrigger>
+              <TabsTrigger value="pages" className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Pages
               </TabsTrigger>
               <TabsTrigger value="requests" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
@@ -42,6 +47,10 @@ export function PrivacyCentre({ visitorId, widgetId }: PrivacyCentreProps) {
 
             <TabsContent value="preferences">
               <PreferenceCentre visitorId={visitorId} widgetId={widgetId} />
+            </TabsContent>
+
+            <TabsContent value="pages">
+              <PagesView visitorId={visitorId} widgetId={widgetId} />
             </TabsContent>
 
             <TabsContent value="requests">

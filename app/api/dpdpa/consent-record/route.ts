@@ -27,6 +27,8 @@ interface ConsentRecordRequest {
     country?: string;
     language?: string;
     referrer?: string;
+    currentUrl?: string;
+    pageTitle?: string;
   };
   consentDuration?: number; // in days
 }
@@ -248,6 +250,8 @@ export async function POST(request: NextRequest) {
     const country = body.metadata?.country || 'Unknown';
     const language = body.metadata?.language || request.headers.get('accept-language')?.split(',')[0] || 'en';
     const referrer = body.metadata?.referrer || request.headers.get('referer') || null;
+    const currentUrl = body.metadata?.currentUrl || null;
+    const pageTitle = body.metadata?.pageTitle || null;
 
     // Calculate expiration date
     const consentDuration = body.consentDuration || widgetConfig.consent_duration || 365;
@@ -292,6 +296,8 @@ export async function POST(request: NextRequest) {
           country: country,
           language: language,
           referrer: referrer,
+          current_url: currentUrl,
+          page_title: pageTitle,
           last_updated: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),
           widget_version: '1.0.0'
@@ -340,6 +346,8 @@ export async function POST(request: NextRequest) {
           country: country,
           language: language,
           referrer: referrer,
+          current_url: currentUrl,
+          page_title: pageTitle,
           consent_timestamp: new Date().toISOString(),
           last_updated: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),

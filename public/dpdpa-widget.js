@@ -1333,7 +1333,9 @@
       activityConsents: activityConsents,
       metadata: {
         language: navigator.language || 'en',
-        referrer: document.referrer || null
+        referrer: document.referrer || null,
+        currentUrl: window.location.href,
+        pageTitle: document.title
       },
       consentDuration: config.consentDuration || 365
     };

@@ -40,6 +40,15 @@ export async function GET(request: NextRequest) {
       .eq('widget_id', widgetId)
       .order('changed_at', { ascending: false });
 
+    // Fetch consent records to get page URLs for each time period
+    const { data: consentRecords } = await supabase
+      .from('dpdpa_consent_records')
+      .select('consent_timestamp, current_url, page_title')
+      .eq('visitor_id', visitorId)
+      .eq('widget_id', widgetId)
+      .not('current_url', 'is', null)
+      .order('consent_timestamp', { ascending: false });
+
     if (historyError) {
       console.error('Error fetching consent history:', historyError);
       return NextResponse.json(
@@ -48,20 +57,42 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Format history records
-    const formattedHistory = (history || []).map((record: any) => ({
-      id: record.id,
-      activityName: record.processing_activities?.activity_name || 'Unknown Activity',
-      industry: record.processing_activities?.industry || 'N/A',
-      previousStatus: record.previous_status,
-      newStatus: record.new_status,
-      changeReason: record.change_reason,
-      changeSource: record.change_source,
-      changedAt: record.changed_at,
-      deviceType: record.device_type,
-      language: record.language,
-      consentVersion: record.consent_version,
-    }));
+    // Format history records with page context
+    const formattedHistory = (history || []).map((record: any) => {
+      // Find the closest consent record by timestamp to get page URL
+      let pageUrl = null;
+      let pageTitle = null;
+      
+      if (consentRecords && consentRecords.length > 0) {
+        const recordTime = new Date(record.changed_at).getTime();
+        // Find the record with closest timestamp (within 1 minute)
+        const closestRecord = consentRecords.find((cr: any) => {
+          const crTime = new Date(cr.consent_timestamp).getTime();
+          return Math.abs(crTime - recordTime) < 60000; // Within 1 minute
+        });
+        
+        if (closestRecord) {
+          pageUrl = closestRecord.current_url;
+          pageTitle = closestRecord.page_title;
+        }
+      }
+      
+      return {
+        id: record.id,
+        activityName: record.processing_activities?.activity_name || 'Unknown Activity',
+        industry: record.processing_activities?.industry || 'N/A',
+        previousStatus: record.previous_status,
+        newStatus: record.new_status,
+        changeReason: record.change_reason,
+        changeSource: record.change_source,
+        changedAt: record.changed_at,
+        deviceType: record.device_type,
+        language: record.language,
+        consentVersion: record.consent_version,
+        pageUrl: pageUrl,
+        pageTitle: pageTitle,
+      };
+    });
 
     // Return based on format
     if (format === 'csv') {
@@ -98,6 +129,7 @@ function generateCSV(history: any[], visitorId: string) {
     'Industry',
     'Previous Status',
     'New Status',
+    'Page',
     'Reason',
     'Source',
     'Device',
@@ -109,6 +141,7 @@ function generateCSV(history: any[], visitorId: string) {
     record.industry,
     record.previousStatus || 'N/A',
     record.newStatus,
+    record.pageTitle || record.pageUrl || 'N/A',
     record.changeReason || 'N/A',
     record.changeSource,
     record.deviceType || 'N/A',
@@ -148,14 +181,15 @@ async function generatePDF(history: any[], visitorId: string, widgetId: string) 
     record.activityName,
     record.previousStatus || 'N/A',
     record.newStatus,
+    record.pageTitle || 'N/A',
     record.changeSource,
   ]);
 
   autoTable(doc, {
-    head: [['Date & Time', 'Activity', 'Previous', 'New Status', 'Source']],
+    head: [['Date & Time', 'Activity', 'Previous', 'New Status', 'Page', 'Source']],
     body: tableData,
     startY: 55,
-    styles: { fontSize: 8 },
+    styles: { fontSize: 7 },
     headStyles: { fillColor: [59, 130, 246] }, // Blue
   });
 
