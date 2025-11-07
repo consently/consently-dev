@@ -1112,11 +1112,12 @@
     const categories = [
       { id: 'necessary', name: await translateText('Strictly necessary cookies', selectedLanguage), description: await translateText('Essential for website functionality', selectedLanguage), required: true },
       { id: 'analytics', name: await translateText('Performance', selectedLanguage), description: await translateText('Help us understand visitor behavior', selectedLanguage), required: false },
-      { id: 'marketing', name: await translateText('Targeting', selectedLanguage), description: await translateText('Used for targeted advertising', selectedLanguage), required: false }
+      { id: 'marketing', name: await translateText('Targeting', selectedLanguage), description: await translateText('Used for targeted advertising', selectedLanguage), required: false },
+      { id: 'social', name: await translateText('Social Media', selectedLanguage), description: await translateText('Cookies from social media platforms for sharing content', selectedLanguage), required: false }
     ];
 
     let categoriesHTML = '';
-    const availableCategories = config.categories || ['necessary', 'analytics', 'marketing'];
+    const availableCategories = config.categories || ['necessary', 'analytics', 'marketing', 'social'];
     
     categories.forEach(cat => {
       if (availableCategories.includes(cat.id) || cat.required) {

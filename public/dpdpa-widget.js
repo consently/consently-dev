@@ -453,6 +453,9 @@
     let t = await getTranslation(selectedLanguage); // Current translations
     let isTranslating = false; // Track translation state
     
+    // Store original activities for restoring when switching back to English
+    const originalActivities = JSON.parse(JSON.stringify(activities));
+    
     // Initially translate config values if language is not English
     let translatedConfig = {
       title: config.title || 'Your Data Privacy Rights',
@@ -727,14 +730,14 @@
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
         </button>
-        <div style="flex: 1; display: flex; gap: 10px;">
-          <button id="dpdpa-accept-selected-btn" style="flex: 1; padding: 13px 20px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="flex: 1; display: flex; gap: 10px; min-width: 0;">
+          <button id="dpdpa-accept-selected-btn" style="flex: 1; min-width: 0; padding: 13px 20px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${t.acceptSelected}
           </button>
-          <button id="dpdpa-accept-all-btn" style="flex: 1; padding: 13px 20px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 8px rgba(59,130,246,0.3);">
+          <button id="dpdpa-accept-all-btn" style="flex: 1; min-width: 0; padding: 13px 20px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 8px rgba(59,130,246,0.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${translatedConfig.acceptButtonText}
           </button>
-          <button id="dpdpa-cancel-btn" style="flex: 1; padding: 13px 20px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <button id="dpdpa-cancel-btn" style="flex: 1; min-width: 0; padding: 13px 20px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${t.cancel}
           </button>
         </div>
@@ -853,55 +856,93 @@
         // Fetch translations asynchronously
         t = await getTranslation(selectedLanguage);
         
-        // Collect all texts to translate in one batch (OPTIMIZED: single API call)
-        const textsToTranslate = [
-          // Config values
-          config.title || 'Your Data Privacy Rights',
-          config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
-          config.acceptButtonText || 'Accept All',
-          config.rejectButtonText || 'Reject All',
-          config.customizeButtonText || 'Manage Preferences',
-          // Activity content - handle new structure
-          ...activities.map(a => a.activity_name),
-          ...activities.flatMap(a => {
-            // Handle new structure with purposes
-            if (a.purposes && Array.isArray(a.purposes) && a.purposes.length > 0) {
-              return a.purposes.flatMap(p => [
-                p.purposeName || '',
-                ...(p.dataCategories || []).map(cat => cat.categoryName || '')
-              ]).filter(Boolean);
-            }
-            // Fallback to legacy
-            return a.data_attributes || [];
-          })
-        ];
-        
-        // Batch translate ALL content in ONE API call instead of multiple
-        const translatedTexts = await batchTranslate(textsToTranslate, selectedLanguage);
-        
-        // Map translations back to config and activities
-        let textIndex = 0;
-        translatedConfig = {
-          title: translatedTexts[textIndex++],
-          message: translatedTexts[textIndex++],
-          acceptButtonText: translatedTexts[textIndex++],
-          rejectButtonText: translatedTexts[textIndex++],
-          customizeButtonText: translatedTexts[textIndex++]
-        };
-        
-        const translatedActivities = activities.map(activity => {
-          const translatedName = translatedTexts[textIndex++];
-          const translatedAttrs = activity.data_attributes.map(() => translatedTexts[textIndex++]);
-          
-          return {
-            ...activity,
-            activity_name: translatedName,
-            data_attributes: translatedAttrs
+        // If switching to English, restore original values
+        if (selectedLanguage === 'en') {
+          translatedConfig = {
+            title: config.title || 'Your Data Privacy Rights',
+            message: config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+            acceptButtonText: config.acceptButtonText || 'Accept All',
+            rejectButtonText: config.rejectButtonText || 'Reject All',
+            customizeButtonText: config.customizeButtonText || 'Manage Preferences'
           };
-        });
-        
-        // Update activities with translated content
-        activities = translatedActivities;
+          // Restore original activities
+          activities = JSON.parse(JSON.stringify(originalActivities));
+        } else {
+          // For non-English languages, translate from original English values
+          const originalActivitiesForTranslation = JSON.parse(JSON.stringify(originalActivities));
+          
+          // Collect all texts to translate in one batch (OPTIMIZED: single API call)
+          const textsToTranslate = [
+            // Config values - use original English
+            config.title || 'Your Data Privacy Rights',
+            config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+            config.acceptButtonText || 'Accept All',
+            config.rejectButtonText || 'Reject All',
+            config.customizeButtonText || 'Manage Preferences',
+            // Activity content - use original English activities
+            ...originalActivitiesForTranslation.map(a => a.activity_name),
+            ...originalActivitiesForTranslation.flatMap(a => {
+              // Handle new structure with purposes
+              if (a.purposes && Array.isArray(a.purposes) && a.purposes.length > 0) {
+                return a.purposes.flatMap(p => [
+                  p.purposeName || '',
+                  ...(p.dataCategories || []).map(cat => cat.categoryName || '')
+                ]).filter(Boolean);
+              }
+              // Fallback to legacy
+              return a.data_attributes || [];
+            })
+          ];
+          
+          // Batch translate ALL content in ONE API call instead of multiple
+          const translatedTexts = await batchTranslate(textsToTranslate, selectedLanguage);
+          
+          // Map translations back to config and activities
+          let textIndex = 0;
+          translatedConfig = {
+            title: translatedTexts[textIndex++],
+            message: translatedTexts[textIndex++],
+            acceptButtonText: translatedTexts[textIndex++],
+            rejectButtonText: translatedTexts[textIndex++],
+            customizeButtonText: translatedTexts[textIndex++]
+          };
+          
+          const translatedActivities = originalActivitiesForTranslation.map(activity => {
+            const translatedName = translatedTexts[textIndex++];
+            // Handle both new structure (purposes) and legacy (data_attributes)
+            if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
+              // New structure - translate purposes and data categories
+              const translatedPurposes = activity.purposes.map(purpose => {
+                const translatedPurposeName = translatedTexts[textIndex++];
+                const translatedDataCategories = (purpose.dataCategories || []).map(() => translatedTexts[textIndex++]);
+                return {
+                  ...purpose,
+                  purposeName: translatedPurposeName,
+                  dataCategories: purpose.dataCategories.map((cat, idx) => ({
+                    ...cat,
+                    categoryName: translatedDataCategories[idx] || cat.categoryName
+                  }))
+                };
+              });
+              return {
+                ...activity,
+                activity_name: translatedName,
+                purposes: translatedPurposes
+              };
+            } else {
+              // Legacy structure - translate data_attributes
+              const translatedAttrs = (activity.data_attributes || []).map(() => translatedTexts[textIndex++]);
+              return {
+                ...activity,
+                activity_name: translatedName,
+                data_attributes: translatedAttrs
+              };
+            }
+          });
+          
+          // Update activities with translated content
+          activities = translatedActivities;
+        }
         
         widget.innerHTML = buildWidgetHTML();
         // Re-attach all event listeners
