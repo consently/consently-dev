@@ -12,7 +12,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExternalLink, Loader2, AlertCircle, Globe } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PageInfo {
   url: string;
@@ -112,10 +111,14 @@ export function PagesView({ visitorId, widgetId }: PagesViewProps) {
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="py-4">
+          <div className="flex items-center gap-2 text-red-800">
+            <AlertCircle className="h-5 w-5" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
