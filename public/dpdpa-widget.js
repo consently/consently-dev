@@ -360,9 +360,38 @@
       return;
     }
 
-    // If consent exists and is valid, apply it
+    // If consent exists and is valid, check if it covers all current activities
     if (existingConsent && existingConsent.timestamp) {
-      console.log('[Consently DPDPA] Valid consent found');
+      // Get activity IDs from existing consent (both accepted and rejected)
+      const consentedActivityIds = [
+        ...(existingConsent.acceptedActivities || []),
+        ...(existingConsent.rejectedActivities || [])
+      ];
+      
+      // Get current activity IDs from fetched config
+      const currentActivityIds = activities.map(a => a.id);
+      
+      // Check if there are new activities not covered by existing consent
+      const newActivities = currentActivityIds.filter(id => !consentedActivityIds.includes(id));
+      
+      if (newActivities.length > 0) {
+        console.log('[Consently DPDPA] New activities detected, showing widget for re-consent', {
+          newActivityIds: newActivities,
+          previouslyConsented: consentedActivityIds.length,
+          currentActivities: currentActivityIds.length
+        });
+        
+        // Show widget to get consent for new activities
+        if (config.autoShow) {
+          setTimeout(() => {
+            showConsentWidget();
+          }, config.showAfterDelay || 1000);
+        }
+        return;
+      }
+      
+      // All activities covered by existing consent
+      console.log('[Consently DPDPA] Valid consent found, all activities covered');
       applyConsent(existingConsent);
       return;
     }
