@@ -215,6 +215,11 @@ export default function ContactPage() {
                     Contact
                   </Link>
                 </li>
+                <li>
+                  <Link href="/careers" className="hover:text-white transition-colors">
+                    Careers
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
