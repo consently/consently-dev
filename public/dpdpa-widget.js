@@ -678,22 +678,40 @@
       // Store original activities
       const originalActivities = [...activities];
       
-      // Filter activities based on rule
+      // Get available activity IDs from widget
+      const availableActivityIds = activities.map(a => a.id);
+      
+      // Validate and filter rule activities to only include those that exist in widget
+      const validRuleActivityIds = rule.activities.filter(activityId => 
+        availableActivityIds.includes(activityId)
+      );
+      
+      // Log mismatches for debugging
+      const invalidActivityIds = rule.activities.filter(activityId => 
+        !availableActivityIds.includes(activityId)
+      );
+      
+      if (invalidActivityIds.length > 0) {
+        console.warn('[Consently DPDPA] ⚠️ Some rule activity IDs do not match widget activities');
+        console.warn('[Consently DPDPA] Invalid activity IDs in rule:', invalidActivityIds);
+        console.warn('[Consently DPDPA] Valid activity IDs in widget:', availableActivityIds);
+        console.warn('[Consently DPDPA] → Filtering out invalid IDs and continuing with valid ones');
+      }
+      
+      // Filter activities based on validated rule activities
       const filteredActivities = activities.filter(activity => 
-        rule.activities.includes(activity.id)
+        validRuleActivityIds.includes(activity.id)
       );
       
       console.log('[Consently DPDPA] Filtered activities count:', filteredActivities.length);
       
-      // Debug: Show why activities didn't match
-      if (filteredActivities.length === 0 && activities.length > 0) {
-        console.error('[Consently DPDPA] ❌ ACTIVITY ID MISMATCH!');
-        console.error('[Consently DPDPA] Rule expects activity IDs:', rule.activities);
-        console.error('[Consently DPDPA] But widget has activity IDs:', activities.map(a => a.id));
-        console.error('[Consently DPDPA] → Please update your display rule with the correct activity IDs from above');
-      }
-      
-      if (filteredActivities.length > 0) {
+      // If no valid activities after filtering, fall back to showing all activities
+      if (filteredActivities.length === 0) {
+        console.warn('[Consently DPDPA] No valid activities matched rule filter. Showing all activities as fallback.');
+        console.warn('[Consently DPDPA] Rule activity IDs:', rule.activities);
+        console.warn('[Consently DPDPA] Widget activity IDs:', availableActivityIds);
+        // Keep original activities (don't filter)
+      } else {
         // Update global activities array (used by widget)
         activities.length = 0;
         activities.push(...filteredActivities);
@@ -702,9 +720,10 @@
         if (config.activities) {
           config.activities = filteredActivities;
         }
-      } else {
-        console.warn('[Consently DPDPA] No activities matched rule filter:', rule.activities);
-        // Keep original activities if filter results in empty
+        
+        // Also update the rule's activities array to only include valid IDs
+        // This ensures activity_purposes filtering works correctly
+        rule.activities = validRuleActivityIds;
       }
     }
     
@@ -712,6 +731,18 @@
     if (rule.activity_purposes && typeof rule.activity_purposes === 'object') {
       console.log('[Consently DPDPA] Filtering purposes for rule:', rule.rule_name);
       console.log('[Consently DPDPA] Rule activity_purposes:', rule.activity_purposes);
+      
+      // Clean up activity_purposes object: remove entries for activities that don't exist in widget
+      const availableActivityIds = activities.map(a => a.id);
+      const cleanedActivityPurposes = {};
+      Object.keys(rule.activity_purposes).forEach(activityId => {
+        if (availableActivityIds.includes(activityId)) {
+          cleanedActivityPurposes[activityId] = rule.activity_purposes[activityId];
+        } else {
+          console.warn('[Consently DPDPA] Removing activity_purposes entry for non-existent activity:', activityId);
+        }
+      });
+      rule.activity_purposes = cleanedActivityPurposes;
       
       // Filter purposes for each activity
       activities.forEach(activity => {
