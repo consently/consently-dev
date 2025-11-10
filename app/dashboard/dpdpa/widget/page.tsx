@@ -1478,71 +1478,118 @@ export default function DPDPAWidgetPage() {
                     <Filter className="h-5 w-5 text-orange-600" />
                   </div>
                   <h4 className="font-semibold text-gray-900">Activity Filtering</h4>
-                  <HelpCircle className="h-4 w-4 text-gray-400 ml-auto cursor-help" title="Select specific activities to show. Leave empty to show all activities." />
+                  <HelpCircle className="h-4 w-4 text-gray-400 ml-auto cursor-help" title="Select specific activities to show in this rule" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Activities (Optional)
-                  </label>
-                  <p className="text-xs text-gray-500 mb-3">
-                    If no activities are selected, all activities will be shown. Otherwise, only selected activities will be displayed.
+                
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <p className="text-sm text-orange-800">
+                    <strong>ℹ️ Important:</strong> Select which activities to show when this rule triggers. Leave all unchecked to show all activities.
                   </p>
-                  <div className="border border-gray-200 rounded-lg p-4 max-h-60 overflow-y-auto">
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-semibold text-gray-900">
+                      Select Activities <span className="text-xs font-normal text-gray-500">(Leave empty to show all)</span>
+                    </label>
+                    <div className="text-xs text-gray-500">
+                      {(editingRule.activities || []).length > 0 ? (
+                        <span className="text-orange-600 font-medium">
+                          {(editingRule.activities || []).length} selected
+                        </span>
+                      ) : (
+                        <span>All activities will be shown</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-80 overflow-y-auto bg-white shadow-sm">
                     {activities.length === 0 ? (
-                      <p className="text-sm text-gray-500">No activities available</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {activities.map((activity) => (
-                          <label key={activity.id} className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-3 rounded-lg border border-transparent hover:border-blue-200 transition-all">
-                            <Checkbox
-                              checked={(editingRule.activities || []).includes(activity.id)}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                const currentActivities = editingRule.activities || [];
-                                const currentActivityPurposes = editingRule.activity_purposes || {};
-                                
-                                if (checked) {
-                                  setEditingRule({ 
-                                    ...editingRule, 
-                                    activities: [...currentActivities, activity.id]
-                                    // Don't initialize activity_purposes - undefined means show all purposes
-                                  });
-                                } else {
-                                  // Remove activity and its purpose filters
-                                  const { [activity.id]: removed, ...restPurposes } = currentActivityPurposes;
-                                  setEditingRule({ 
-                                    ...editingRule, 
-                                    activities: currentActivities.filter(id => id !== activity.id),
-                                    activity_purposes: Object.keys(restPurposes).length > 0 ? restPurposes : undefined
-                                  });
-                                }
-                              }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-medium text-gray-900">{activity.activityName}</span>
-                                <Badge variant="secondary" className="text-xs">{activity.industry}</Badge>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <code className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono">
-                                  ID: {activity.id.slice(0, 8)}...
-                                </code>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    navigator.clipboard.writeText(activity.id);
-                                    toast.success('Activity ID copied!');
-                                  }}
-                                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                                >
-                                  Copy Full ID
-                                </button>
-                              </div>
-                            </div>
-                          </label>
-                        ))}
+                      <div className="p-6 text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No activities available</p>
+                        <p className="text-xs text-gray-400 mt-1">Add activities to your widget first</p>
                       </div>
+                    ) : (
+                      activities.map((activity) => {
+                        const isSelected = (editingRule.activities || []).includes(activity.id);
+                        return (
+                          <div
+                            key={activity.id}
+                            className={`p-4 transition-all ${
+                              isSelected 
+                                ? 'bg-orange-50 border-l-4 border-l-orange-500' 
+                                : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                            }`}
+                          >
+                            <label className="flex items-start gap-3 cursor-pointer group">
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  const currentActivities = editingRule.activities || [];
+                                  const currentActivityPurposes = editingRule.activity_purposes || {};
+                                  
+                                  if (checked) {
+                                    setEditingRule({ 
+                                      ...editingRule, 
+                                      activities: [...currentActivities, activity.id]
+                                    });
+                                  } else {
+                                    const { [activity.id]: removed, ...restPurposes } = currentActivityPurposes;
+                                    setEditingRule({ 
+                                      ...editingRule, 
+                                      activities: currentActivities.filter(id => id !== activity.id),
+                                      activity_purposes: Object.keys(restPurposes).length > 0 ? restPurposes : undefined
+                                    });
+                                  }
+                                }}
+                                className="mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex-1">
+                                    <h6 className="text-sm font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                                      {activity.activityName}
+                                    </h6>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant="secondary" className="text-xs">
+                                        {activity.industry}
+                                      </Badge>
+                                      {activity.purposes && activity.purposes.length > 0 && (
+                                        <span className="text-xs text-gray-500">
+                                          {activity.purposes.length} {activity.purposes.length === 1 ? 'purpose' : 'purposes'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">
+                                    <span className="text-[10px] uppercase font-medium text-gray-500">ID:</span>
+                                    <code className="text-xs text-gray-700 font-mono">
+                                      {activity.id.slice(0, 8)}...
+                                    </code>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(activity.id);
+                                      toast.success(`Activity ID copied: ${activity.activityName}`);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                    Copy ID
+                                  </button>
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>
