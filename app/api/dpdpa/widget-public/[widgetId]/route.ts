@@ -234,6 +234,9 @@ export async function GET(
       showBranding: widgetConfig.show_branding,
       customCSS: widgetConfig.custom_css,
       
+      // NEW: Display rules for page-specific notices
+      display_rules: widgetConfig.display_rules || [],
+      
       // Metadata
       version: '1.0.0'
     };

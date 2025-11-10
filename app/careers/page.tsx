@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Shield, Briefcase, Send } from 'lucide-react';
+import { Shield, Briefcase, Send, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ConsentlyWidget from '@/components/dpdpa/ConsentlyWidget';
 

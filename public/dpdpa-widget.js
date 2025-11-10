@@ -309,6 +309,157 @@
     }
   }
 
+  // URL pattern matching for display rules
+  function matchesUrlPattern(url, rule) {
+    if (!rule.url_pattern) return true; // No pattern = match all
+    
+    const pattern = rule.url_pattern;
+    const matchType = rule.url_match_type || 'contains';
+    
+    switch (matchType) {
+      case 'exact':
+        return url === pattern;
+      case 'contains':
+        return url.includes(pattern);
+      case 'startsWith':
+        return url.startsWith(pattern);
+      case 'regex':
+        try {
+          return new RegExp(pattern).test(url);
+        } catch (e) {
+          console.error('[Consently DPDPA] Invalid regex pattern:', pattern);
+          return false;
+        }
+      default:
+        return url.includes(pattern);
+    }
+  }
+
+  // Show notice for a specific rule
+  function showNoticeForRule(rule) {
+    // Check if notice content is in the rule itself
+    const notice = rule.notice_content;
+    
+    if (!notice) {
+      console.warn('[Consently DPDPA] No notice content found for rule:', rule.rule_name);
+      // Fallback to default behavior
+      if (config.autoShow) {
+        setTimeout(() => {
+          showConsentWidget();
+        }, rule.trigger_delay || config.showAfterDelay || 1000);
+      }
+      return;
+    }
+    
+    // Store original config values
+    const originalTitle = config.title;
+    const originalMessage = config.message;
+    const originalHTML = config.privacyNoticeHTML;
+    
+    // Update config with rule-specific notice
+    if (notice.title) config.title = notice.title;
+    if (notice.message) config.message = notice.message;
+    if (notice.html) config.privacyNoticeHTML = notice.html;
+    
+    console.log('[Consently DPDPA] Showing notice for rule:', rule.rule_name);
+    
+    // Show widget with updated content
+    setTimeout(() => {
+      showConsentWidget();
+    }, rule.trigger_delay || 0);
+    
+    // Note: We keep the updated config for this session
+    // If you want to restore original, uncomment below:
+    // config.title = originalTitle;
+    // config.message = originalMessage;
+    // config.privacyNoticeHTML = originalHTML;
+  }
+
+  // Setup click trigger
+  function setupClickTrigger(rule) {
+    const element = document.querySelector(rule.element_selector);
+    if (!element) {
+      console.warn('[Consently DPDPA] Element not found for click trigger:', rule.element_selector);
+      return;
+    }
+    
+    element.addEventListener('click', (e) => {
+      e.preventDefault();
+      showNoticeForRule(rule);
+    }, { once: true });
+  }
+
+  // Setup form submit trigger
+  function setupFormSubmitTrigger(rule) {
+    const form = document.querySelector(rule.element_selector);
+    if (!form) {
+      console.warn('[Consently DPDPA] Form not found for submit trigger:', rule.element_selector);
+      return;
+    }
+    
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      showNoticeForRule(rule);
+      // Note: After consent is given, you'll need to handle form submission
+      // This can be done via a custom event listener
+    }, { once: true });
+  }
+
+  // Evaluate display rules and show appropriate notice
+  function evaluateDisplayRules() {
+    const rules = config.display_rules || [];
+    const currentPath = window.location.pathname;
+    
+    console.log('[Consently DPDPA] Evaluating display rules for path:', currentPath);
+    console.log('[Consently DPDPA] Available rules:', rules.length);
+    
+    if (rules.length === 0) {
+      console.log('[Consently DPDPA] No display rules configured');
+      return false; // No rules to evaluate
+    }
+    
+    // Sort rules by priority (higher priority first)
+    const sortedRules = [...rules].sort((a, b) => (b.priority || 100) - (a.priority || 100));
+    
+    // Find first matching rule
+    for (const rule of sortedRules) {
+      if (!rule.is_active) {
+        console.log('[Consently DPDPA] Rule inactive:', rule.rule_name);
+        continue;
+      }
+      
+      // Check URL match
+      if (matchesUrlPattern(currentPath, rule)) {
+        console.log('[Consently DPDPA] Rule matched:', rule.rule_name);
+        
+        // Check element selector if provided
+        if (rule.element_selector) {
+          const element = document.querySelector(rule.element_selector);
+          if (!element) {
+            console.log('[Consently DPDPA] Element not found:', rule.element_selector);
+            continue;
+          }
+        }
+        
+        // Handle trigger type
+        if (rule.trigger_type === 'onPageLoad') {
+          // Show notice immediately or after delay
+          showNoticeForRule(rule);
+          return true; // Rule matched and notice will be shown
+        } else if (rule.trigger_type === 'onClick' && rule.element_selector) {
+          setupClickTrigger(rule);
+          return true; // Rule matched, trigger set up
+        } else if (rule.trigger_type === 'onFormSubmit' && rule.element_selector) {
+          setupFormSubmitTrigger(rule);
+          return true; // Rule matched, trigger set up
+        }
+      }
+    }
+    
+    console.log('[Consently DPDPA] No matching rules found');
+    return false; // No rules matched
+  }
+
   // Record consent to API
   async function recordConsent(consentData) {
     try {
@@ -381,8 +532,11 @@
           currentActivities: currentActivityIds.length
         });
         
-        // Show widget to get consent for new activities
-        if (config.autoShow) {
+        // Check for display rules first (page-specific notices)
+        const ruleMatched = evaluateDisplayRules();
+        
+        // If no rule matched, use default behavior
+        if (!ruleMatched && config.autoShow) {
           setTimeout(() => {
             showConsentWidget();
           }, config.showAfterDelay || 1000);
@@ -396,8 +550,11 @@
       return;
     }
 
-    // Show widget
-    if (config.autoShow) {
+    // Check for display rules first (page-specific notices)
+    const ruleMatched = evaluateDisplayRules();
+    
+    // If no rule matched, use default behavior
+    if (!ruleMatched && config.autoShow) {
       setTimeout(() => {
         showConsentWidget();
       }, config.showAfterDelay || 1000);
