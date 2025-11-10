@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { displayRulesSchema } from '@/types/dpdpa-widget.types';
 
 // Validation schema
 // UUID validation regex
@@ -50,6 +51,7 @@ const widgetConfigSchema = z.object({
   customCSS: z.string().optional(),
   isActive: z.boolean().optional(),
   supportedLanguages: z.array(z.string()).optional(),
+  displayRules: displayRulesSchema.optional(),
 });
 
 // GET - Fetch widget configuration(s)
@@ -174,6 +176,7 @@ export async function POST(request: NextRequest) {
       custom_css: configData.customCSS,
       is_active: configData.isActive ?? true,
       supported_languages: configData.supportedLanguages || ['en', 'hi', 'pa', 'te', 'ta'],
+      display_rules: configData.displayRules || [],
     };
 
     // Insert widget configuration
@@ -272,6 +275,7 @@ export async function PUT(request: NextRequest) {
     if (configData.customCSS !== undefined) updatePayload.custom_css = configData.customCSS;
     if (configData.isActive !== undefined) updatePayload.is_active = configData.isActive;
     if (configData.supportedLanguages !== undefined) updatePayload.supported_languages = configData.supportedLanguages;
+    if (configData.displayRules !== undefined) updatePayload.display_rules = configData.displayRules;
 
     // Update widget configuration
     const { data, error } = await supabase

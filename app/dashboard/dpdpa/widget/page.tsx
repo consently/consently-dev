@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Accordion } from '@/components/ui/accordion';
+import { Modal } from '@/components/ui/modal';
 import { 
   Settings, 
   Code, 
@@ -33,7 +34,12 @@ import {
   RefreshCw,
   BarChart3,
   Trash2,
-  X
+  X,
+  Route,
+  Edit,
+  ChevronUp,
+  ChevronDown,
+  TestTube
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
@@ -65,6 +71,27 @@ interface ProcessingActivity {
   purpose?: string;
   retentionPeriod?: string;
   dataAttributes?: string[];
+}
+
+interface DisplayRule {
+  id: string;
+  rule_name: string;
+  url_pattern: string;
+  url_match_type: 'exact' | 'contains' | 'startsWith' | 'regex';
+  trigger_type: 'onPageLoad' | 'onClick' | 'onFormSubmit' | 'onScroll';
+  trigger_delay?: number;
+  element_selector?: string;
+  scroll_threshold?: number; // Scroll percentage (0-100) for onScroll trigger
+  activities?: string[];
+  activity_purposes?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - filter purposes per activity
+  notice_content?: {
+    title?: string;
+    message?: string;
+    html?: string;
+  };
+  priority: number;
+  is_active: boolean;
+  notice_id?: string;
 }
 
 interface WidgetConfig {
@@ -100,6 +127,7 @@ interface WidgetConfig {
   privacyNoticeVersion?: string;
   privacyNoticeLastUpdated?: string;
   requiresReconsent?: boolean;
+  displayRules?: DisplayRule[];
 }
 
 export default function DPDPAWidgetPage() {
@@ -133,7 +161,8 @@ export default function DPDPAWidgetPage() {
     showBranding: true,
     isActive: true,
     language: 'en',
-    supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as']
+    supportedLanguages: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as'],
+    displayRules: []
   });
   const [copySuccess, setCopySuccess] = useState(false);
   const [selectedLanguagesForTranslation, setSelectedLanguagesForTranslation] = useState<string[]>([]);
@@ -152,6 +181,9 @@ export default function DPDPAWidgetPage() {
   const [previewLanguage, setPreviewLanguage] = useState<string>('en');
   const [translatedPreviewContent, setTranslatedPreviewContent] = useState<any>(null);
   const [translatingPreview, setTranslatingPreview] = useState(false);
+  const [editingRule, setEditingRule] = useState<DisplayRule | null>(null);
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [ruleTestUrl, setRuleTestUrl] = useState('');
   const [complianceStatus, setComplianceStatus] = useState<{
     requirementsMet: number;
     totalRequirements: number;
@@ -309,7 +341,8 @@ export default function DPDPAWidgetPage() {
             supportedLanguages: existingConfig.supported_languages || ['en', 'hi', 'pa', 'te', 'ta'],
             privacyNoticeVersion: existingConfig.privacy_notice_version,
             privacyNoticeLastUpdated: existingConfig.privacy_notice_last_updated,
-            requiresReconsent: existingConfig.requires_reconsent
+            requiresReconsent: existingConfig.requires_reconsent,
+            displayRules: existingConfig.display_rules || []
           });
         }
       }
@@ -400,8 +433,15 @@ export default function DPDPAWidgetPage() {
     try {
       const method = configToSave.widgetId ? 'PUT' : 'POST';
       const body = configToSave.widgetId 
-        ? { widgetId: configToSave.widgetId, ...configToSave }
-        : configToSave;
+        ? { 
+            widgetId: configToSave.widgetId, 
+            ...configToSave,
+            displayRules: configToSave.displayRules || []
+          }
+        : {
+            ...configToSave,
+            displayRules: configToSave.displayRules || []
+          };
 
       const response = await fetch('/api/dpdpa/widget-config', {
         method,
@@ -451,6 +491,148 @@ export default function DPDPAWidgetPage() {
         ? prev.selectedActivities.filter(id => id !== activityId)
         : [...prev.selectedActivities, activityId]
     }));
+  };
+
+  // Display Rules Management Functions
+  const handleAddRule = () => {
+    // Check limit (50 rules per widget)
+    if (config.displayRules && config.displayRules.length >= 50) {
+      toast.error('Maximum limit reached', {
+        description: 'You can have a maximum of 50 display rules per widget. Please delete some rules before adding new ones.',
+      });
+      return;
+    }
+
+    const newRule: DisplayRule = {
+      id: `rule_${Date.now()}`,
+      rule_name: 'New Display Rule',
+      url_pattern: '',
+      url_match_type: 'contains',
+      trigger_type: 'onPageLoad',
+      trigger_delay: 1000,
+      scroll_threshold: 50, // Default scroll threshold
+      priority: 100,
+      is_active: true,
+      activities: [],
+      notice_content: {
+        title: '',
+        message: '',
+        html: ''
+      }
+    };
+    setEditingRule(newRule);
+    setShowRuleModal(true);
+  };
+
+  const handleEditRule = (rule: DisplayRule) => {
+    setEditingRule({ ...rule });
+    setShowRuleModal(true);
+  };
+
+  const handleDeleteRule = (ruleId: string) => {
+    if (confirm('Are you sure you want to delete this display rule?')) {
+      setConfig(prev => ({
+        ...prev,
+        displayRules: (prev.displayRules || []).filter(r => r.id !== ruleId)
+      }));
+      toast.success('Display rule deleted');
+    }
+  };
+
+  const handleSaveRule = (rule: DisplayRule) => {
+    // Clean up rule: remove empty notice_content fields and ensure proper structure
+    const cleanedRule: DisplayRule = {
+      ...rule,
+      notice_content: rule.notice_content && (
+        rule.notice_content.title || 
+        rule.notice_content.message || 
+        rule.notice_content.html
+      ) ? {
+        ...(rule.notice_content.title ? { title: rule.notice_content.title } : {}),
+        ...(rule.notice_content.message ? { message: rule.notice_content.message } : {}),
+        ...(rule.notice_content.html ? { html: rule.notice_content.html } : {})
+      } : undefined,
+      activities: rule.activities && rule.activities.length > 0 ? rule.activities : undefined,
+      // Clean up activity_purposes: remove empty arrays and empty objects
+      activity_purposes: (() => {
+        if (!rule.activity_purposes || Object.keys(rule.activity_purposes).length === 0) {
+          return undefined;
+        }
+        // Remove activities with empty purpose arrays (empty = show all, so we can remove it)
+        const cleaned: Record<string, string[]> = {};
+        for (const [activityId, purposes] of Object.entries(rule.activity_purposes)) {
+          // Only include if purposes array is not empty (empty means show all, so we skip it)
+          if (purposes && purposes.length > 0) {
+            cleaned[activityId] = purposes;
+          }
+        }
+        // Return undefined if cleaned object is empty
+        return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+      })(),
+      element_selector: rule.element_selector || undefined,
+      trigger_delay: rule.trigger_delay || undefined,
+    };
+    
+    setConfig(prev => {
+      const existingRules = prev.displayRules || [];
+      const existingIndex = existingRules.findIndex(r => r.id === cleanedRule.id);
+      
+      if (existingIndex >= 0) {
+        // Update existing rule
+        const updatedRules = [...existingRules];
+        updatedRules[existingIndex] = cleanedRule;
+        return { ...prev, displayRules: updatedRules };
+      } else {
+        // Add new rule
+        return { ...prev, displayRules: [...existingRules, cleanedRule] };
+      }
+    });
+    setShowRuleModal(false);
+    setEditingRule(null);
+    setRuleTestUrl('');
+    toast.success('Display rule saved');
+  };
+
+  const handleMoveRule = (ruleId: string, direction: 'up' | 'down') => {
+    setConfig(prev => {
+      const rules = [...(prev.displayRules || [])];
+      const index = rules.findIndex(r => r.id === ruleId);
+      
+      if (index === -1) return prev;
+      if (direction === 'up' && index === 0) return prev;
+      if (direction === 'down' && index === rules.length - 1) return prev;
+      
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      const newPriority = rules[newIndex].priority;
+      rules[newIndex].priority = rules[index].priority;
+      rules[index].priority = newPriority;
+      
+      // Sort by priority (higher first)
+      rules.sort((a, b) => b.priority - a.priority);
+      
+      return { ...prev, displayRules: rules };
+    });
+  };
+
+  const testRuleMatch = (rule: DisplayRule, testUrl: string): boolean => {
+    if (!testUrl || !rule.url_pattern) return false;
+    
+    switch (rule.url_match_type) {
+      case 'exact':
+        return testUrl === rule.url_pattern;
+      case 'contains':
+        return testUrl.includes(rule.url_pattern);
+      case 'startsWith':
+        return testUrl.startsWith(rule.url_pattern);
+      case 'regex':
+        try {
+          return new RegExp(rule.url_pattern).test(testUrl);
+        } catch {
+          return false;
+        }
+      default:
+        return false;
+    }
   };
 
   const handleDeleteWidget = async () => {
@@ -1047,6 +1229,453 @@ export default function DPDPAWidgetPage() {
         </div>
       )}
 
+      {/* Display Rule Edit Modal */}
+      {editingRule && (
+        <Modal
+          open={showRuleModal}
+          onClose={() => {
+            setShowRuleModal(false);
+            setEditingRule(null);
+          }}
+          title={editingRule.id.startsWith('rule_') && !config.displayRules?.find(r => r.id === editingRule.id) 
+            ? 'Create Display Rule' 
+            : 'Edit Display Rule'}
+          size="xl"
+        >
+          <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900 border-b pb-2">Basic Information</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Rule Name <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={editingRule.rule_name}
+                      onChange={(e) => setEditingRule({ ...editingRule, rule_name: e.target.value })}
+                      placeholder="e.g., Careers Page Notice"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Priority <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="number"
+                      value={editingRule.priority}
+                      onChange={(e) => setEditingRule({ ...editingRule, priority: parseInt(e.target.value) || 100 })}
+                      min="0"
+                      max="1000"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Higher priority rules are evaluated first (0-1000)</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2">
+                    <Checkbox
+                      checked={editingRule.is_active}
+                      onChange={(e) => setEditingRule({ ...editingRule, is_active: e.target.checked })}
+                    />
+                    <span className="text-sm font-medium text-gray-700">Active</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">Only active rules are evaluated</p>
+                </div>
+              </div>
+
+              {/* URL Matching */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900 border-b pb-2">URL Matching</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      URL Pattern <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={editingRule.url_pattern}
+                      onChange={(e) => setEditingRule({ ...editingRule, url_pattern: e.target.value })}
+                      placeholder="e.g., /careers or /contact"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">The URL pattern to match against</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Match Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={editingRule.url_match_type}
+                      onChange={(e) => setEditingRule({ ...editingRule, url_match_type: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="contains">Contains</option>
+                      <option value="exact">Exact Match</option>
+                      <option value="startsWith">Starts With</option>
+                      <option value="regex">Regular Expression</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Test URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Test URL Match
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={ruleTestUrl}
+                      onChange={(e) => setRuleTestUrl(e.target.value)}
+                      placeholder="e.g., /careers or /contact/form"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const matches = testRuleMatch(editingRule, ruleTestUrl);
+                        if (matches) {
+                          toast.success('✅ URL matches this rule!');
+                        } else {
+                          toast.info('❌ URL does not match this rule');
+                        }
+                      }}
+                    >
+                      <TestTube className="h-4 w-4 mr-2" />
+                      Test
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trigger Configuration */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900 border-b pb-2">Trigger Configuration</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trigger Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={editingRule.trigger_type}
+                      onChange={(e) => setEditingRule({ ...editingRule, trigger_type: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="onPageLoad">On Page Load</option>
+                      <option value="onClick">On Click</option>
+                      <option value="onFormSubmit">On Form Submit</option>
+                      <option value="onScroll">On Scroll</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trigger Delay (ms)
+                    </label>
+                    <Input
+                      type="number"
+                      value={editingRule.trigger_delay || 1000}
+                      onChange={(e) => setEditingRule({ ...editingRule, trigger_delay: parseInt(e.target.value) || 0 })}
+                      min="0"
+                      max="60000"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Delay before showing widget (0-60000ms)</p>
+                  </div>
+                </div>
+
+                {(editingRule.trigger_type === 'onClick' || editingRule.trigger_type === 'onFormSubmit') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Element Selector (CSS)
+                    </label>
+                    <Input
+                      value={editingRule.element_selector || ''}
+                      onChange={(e) => setEditingRule({ ...editingRule, element_selector: e.target.value })}
+                      placeholder="e.g., #submit-button or .contact-form"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">CSS selector for the element to trigger on</p>
+                  </div>
+                )}
+
+                {editingRule.trigger_type === 'onScroll' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Scroll Threshold (%)
+                    </label>
+                    <Input
+                      type="number"
+                      value={editingRule.scroll_threshold !== undefined ? editingRule.scroll_threshold : 50}
+                      onChange={(e) => setEditingRule({ ...editingRule, scroll_threshold: parseInt(e.target.value) || 50 })}
+                      min="0"
+                      max="100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Show widget when user scrolls to this percentage of the page (0-100). Default: 50%</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Activity Filtering */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900 border-b pb-2">Activity Filtering</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Activities (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    If no activities are selected, all activities will be shown. Otherwise, only selected activities will be displayed.
+                  </p>
+                  <div className="border border-gray-200 rounded-lg p-4 max-h-60 overflow-y-auto">
+                    {activities.length === 0 ? (
+                      <p className="text-sm text-gray-500">No activities available</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {activities.map((activity) => (
+                          <label key={activity.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                            <Checkbox
+                              checked={(editingRule.activities || []).includes(activity.id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const currentActivities = editingRule.activities || [];
+                                const currentActivityPurposes = editingRule.activity_purposes || {};
+                                
+                                if (checked) {
+                                  setEditingRule({ 
+                                    ...editingRule, 
+                                    activities: [...currentActivities, activity.id]
+                                    // Don't initialize activity_purposes - undefined means show all purposes
+                                  });
+                                } else {
+                                  // Remove activity and its purpose filters
+                                  const { [activity.id]: removed, ...restPurposes } = currentActivityPurposes;
+                                  setEditingRule({ 
+                                    ...editingRule, 
+                                    activities: currentActivities.filter(id => id !== activity.id),
+                                    activity_purposes: Object.keys(restPurposes).length > 0 ? restPurposes : undefined
+                                  });
+                                }
+                              }}
+                            />
+                            <span className="text-sm text-gray-700">{activity.activityName}</span>
+                            <Badge variant="secondary" className="ml-auto">{activity.industry}</Badge>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Purpose Filtering - NEW */}
+              {(editingRule.activities && editingRule.activities.length > 0) && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-gray-900 border-b pb-2">Purpose Filtering (Optional)</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Select specific purposes to show for each activity. If no purposes are selected for an activity, all purposes will be shown.
+                  </p>
+                  <div className="space-y-4">
+                    {editingRule.activities.map((activityId) => {
+                      const activity = activities.find(a => a.id === activityId);
+                      if (!activity || !activity.purposes || activity.purposes.length === 0) return null;
+                      
+                      const selectedPurposes = editingRule.activity_purposes?.[activityId];
+                      // If selectedPurposes is undefined or empty array, show all purposes
+                      // If selectedPurposes has values, show only those purposes
+                      const isAllPurposesSelected = !selectedPurposes || selectedPurposes.length === 0;
+                      
+                      return (
+                        <div key={activityId} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="font-medium text-gray-900">{activity.activityName}</h5>
+                            <Badge variant="secondary">{activity.industry}</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <Checkbox
+                                checked={isAllPurposesSelected}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  const currentActivityPurposes = editingRule.activity_purposes || {};
+                                  if (checked) {
+                                    // Show all purposes (remove from activity_purposes or set to empty)
+                                    const { [activityId]: removed, ...rest } = currentActivityPurposes;
+                                    setEditingRule({
+                                      ...editingRule,
+                                      activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
+                                    });
+                                  } else {
+                                    // Select all purposes by default (user wants to filter, so start with all selected)
+                                    const allPurposeIds = activity.purposes.map(p => p.id);
+                                    setEditingRule({
+                                      ...editingRule,
+                                      activity_purposes: { ...currentActivityPurposes, [activityId]: allPurposeIds }
+                                    });
+                                  }
+                                }}
+                              />
+                              <span className="text-sm font-medium text-gray-700">Show all purposes</span>
+                              {isAllPurposesSelected && (
+                                <Badge variant="outline" className="ml-auto text-xs text-green-600">
+                                  {activity.purposes.length} purposes
+                                </Badge>
+                              )}
+                            </label>
+                            {!isAllPurposesSelected && selectedPurposes && (
+                              <div className="ml-6 space-y-2 border-l-2 border-blue-200 pl-4 bg-blue-50/50 rounded p-2">
+                                <p className="text-xs text-blue-700 font-medium mb-2">
+                                  Filtering: {selectedPurposes.length} of {activity.purposes.length} purposes
+                                </p>
+                                {activity.purposes.map((purpose) => (
+                                  <label key={purpose.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded">
+                                    <Checkbox
+                                      checked={selectedPurposes.includes(purpose.id)}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        const currentActivityPurposes = editingRule.activity_purposes || {};
+                                        const currentPurposes = currentActivityPurposes[activityId] || [];
+                                        
+                                        if (checked) {
+                                          setEditingRule({
+                                            ...editingRule,
+                                            activity_purposes: {
+                                              ...currentActivityPurposes,
+                                              [activityId]: [...currentPurposes, purpose.id]
+                                            }
+                                          });
+                                        } else {
+                                          const newPurposes = currentPurposes.filter(id => id !== purpose.id);
+                                          // If no purposes selected, remove from activity_purposes (show all)
+                                          if (newPurposes.length === 0) {
+                                            const { [activityId]: removed, ...rest } = currentActivityPurposes;
+                                            setEditingRule({
+                                              ...editingRule,
+                                              activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
+                                            });
+                                          } else {
+                                            setEditingRule({
+                                              ...editingRule,
+                                              activity_purposes: {
+                                                ...currentActivityPurposes,
+                                                [activityId]: newPurposes
+                                              }
+                                            });
+                                          }
+                                        }
+                                      }}
+                                    />
+                                    <span className="text-sm text-gray-700">{purpose.purposeName}</span>
+                                    <Badge variant="outline" className="ml-auto text-xs">
+                                      {purpose.legalBasis.replace('-', ' ')}
+                                    </Badge>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Notice Content Override */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900 border-b pb-2">Notice Content (Optional)</h4>
+                <p className="text-xs text-gray-500 mb-3">
+                  Override the default widget title, message, or HTML content for this rule. Leave empty to use default widget content.
+                </p>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom Title
+                    </label>
+                    <Input
+                      value={editingRule.notice_content?.title || ''}
+                      onChange={(e) => setEditingRule({
+                        ...editingRule,
+                        notice_content: { 
+                          ...(editingRule.notice_content || {}), 
+                          title: e.target.value || undefined
+                        }
+                      })}
+                      placeholder="Leave empty to use default title"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom Message
+                    </label>
+                    <Textarea
+                      value={editingRule.notice_content?.message || ''}
+                      onChange={(e) => setEditingRule({
+                        ...editingRule,
+                        notice_content: { 
+                          ...(editingRule.notice_content || {}), 
+                          message: e.target.value || undefined
+                        }
+                      })}
+                      placeholder="Leave empty to use default message"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom HTML Content
+                    </label>
+                    <Textarea
+                      value={editingRule.notice_content?.html || ''}
+                      onChange={(e) => setEditingRule({
+                        ...editingRule,
+                        notice_content: { 
+                          ...(editingRule.notice_content || {}), 
+                          html: e.target.value || undefined
+                        }
+                      })}
+                      placeholder="Custom HTML for privacy notice (optional)"
+                      rows={5}
+                      className="font-mono text-xs"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">HTML content will override the generated privacy notice</p>
+                  </div>
+                </div>
+              </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRuleModal(false);
+                  setEditingRule(null);
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!editingRule.rule_name || !editingRule.url_pattern) {
+                    toast.error('Please fill in required fields (Rule Name and URL Pattern)');
+                    return;
+                  }
+                  handleSaveRule(editingRule);
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Rule
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Notifications Banner */}
       {notifications.length > 0 && (
         <div className="space-y-2" role="alert" aria-live="polite">
@@ -1136,15 +1765,15 @@ export default function DPDPAWidgetPage() {
               </div>
             </CardContent>
           </Card>
-          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
+          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-purple-600">Activities</p>
-                  <p className="text-3xl font-bold text-purple-900 mt-2">{validSelectedActivitiesCount}</p>
-                  <p className="text-xs text-purple-700 mt-1">Configured</p>
+                  <p className="text-sm font-medium text-indigo-600">Activities</p>
+                  <p className="text-3xl font-bold text-indigo-900 mt-2">{validSelectedActivitiesCount}</p>
+                  <p className="text-xs text-indigo-700 mt-1">Configured</p>
                 </div>
-                <div className="p-3 bg-purple-500 rounded-full">
+                <div className="p-3 bg-indigo-500 rounded-full">
                   <Shield className="h-6 w-6 text-white" />
                 </div>
               </div>
@@ -1383,7 +2012,7 @@ export default function DPDPAWidgetPage() {
                             <h4 className="font-semibold text-gray-900 text-base">
                               {activity.activityName}
                             </h4>
-                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
                               {activity.industry}
                             </Badge>
                           </div>
@@ -1405,6 +2034,192 @@ export default function DPDPAWidgetPage() {
                     </div>
                     ))
                   )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Display Rules Management - NEW SECTION */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-blue-200">
+            <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Route className="h-5 w-5 text-blue-600" />
+                    </div>
+                    Display Rules
+                  </CardTitle>
+                  <CardDescription>
+                    Configure page-specific notices and activity/purpose filtering based on URL patterns
+                    {config.displayRules && config.displayRules.length > 0 && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({config.displayRules.length}/50 rules)
+                      </span>
+                    )}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  {config.displayRules && config.displayRules.length >= 45 && (
+                    <span className="text-xs text-orange-600 font-medium">
+                      {config.displayRules.length}/50 rules
+                    </span>
+                  )}
+                  <Button
+                    onClick={handleAddRule}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    size="sm"
+                    disabled={config.displayRules && config.displayRules.length >= 50}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Rule
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {!config.displayRules || config.displayRules.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="flex justify-center mb-4">
+                    <div className="p-4 bg-blue-100 rounded-full">
+                      <Route className="h-10 w-10 text-blue-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Display Rules</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                    Create display rules to show custom notices on specific pages or filter activities based on URL patterns
+                  </p>
+                  <Button onClick={handleAddRule} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Rule
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {[...(config.displayRules || [])]
+                    .sort((a, b) => b.priority - a.priority)
+                    .map((rule, index) => (
+                      <div
+                        key={rule.id}
+                        className={`border-2 rounded-xl p-4 transition-all ${
+                          rule.is_active
+                            ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-white shadow-sm'
+                            : 'border-gray-200 bg-gray-50 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge
+                                variant={rule.is_active ? 'default' : 'secondary'}
+                                className={rule.is_active ? 'bg-blue-600' : 'bg-gray-400'}
+                              >
+                                {rule.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
+                              <h4 className="font-semibold text-gray-900">{rule.rule_name}</h4>
+                              <Badge variant="outline" className="text-xs">
+                                Priority: {rule.priority}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600 mb-3">
+                              <div>
+                                <span className="font-medium">URL Pattern:</span>{' '}
+                                <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">
+                                  {rule.url_pattern || '(empty)'}
+                                </code>
+                              </div>
+                              <div>
+                                <span className="font-medium">Match Type:</span>{' '}
+                                <span className="capitalize">{rule.url_match_type}</span>
+                              </div>
+                              <div>
+                                <span className="font-medium">Trigger:</span>{' '}
+                                <span className="capitalize">{rule.trigger_type}</span>
+                                {rule.trigger_type === 'onScroll' && rule.scroll_threshold !== undefined && (
+                                  <span className="text-gray-500 ml-1">({rule.scroll_threshold}%)</span>
+                                )}
+                              </div>
+                              <div>
+                                <span className="font-medium">Activities:</span>{' '}
+                                {rule.activities && rule.activities.length > 0
+                                  ? `${rule.activities.length} selected`
+                                  : 'All activities'}
+                              </div>
+                              {rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0 && (
+                                <div>
+                                  <span className="font-medium">Purposes:</span>{' '}
+                                  <span className="text-blue-600">Filtered ({Object.keys(rule.activity_purposes).length} activities)</span>
+                                </div>
+                              )}
+                            </div>
+                            {rule.notice_content && (rule.notice_content.title || rule.notice_content.message) && (
+                              <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                                <p className="text-xs text-blue-900">
+                                  <span className="font-medium">Custom Notice:</span>{' '}
+                                  {rule.notice_content.title || rule.notice_content.message || 'Custom HTML content'}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 ml-4">
+                            <Tooltip content="Move up">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMoveRule(rule.id, 'up')}
+                                disabled={index === 0}
+                                className="h-8 w-8 p-0"
+                              >
+                                <ChevronUp className="h-4 w-4" />
+                              </Button>
+                            </Tooltip>
+                            <Tooltip content="Move down">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMoveRule(rule.id, 'down')}
+                                disabled={index === (config.displayRules?.length || 0) - 1}
+                                className="h-8 w-8 p-0"
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </Tooltip>
+                            <Tooltip content="Edit rule">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditRule(rule)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Tooltip>
+                            <Tooltip content="Delete rule">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteRule(rule.id)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              
+              {config.displayRules && config.displayRules.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-900 flex items-start gap-2">
+                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>Display Rules</strong> allow you to show custom notices on specific pages and filter activities.
+                      Rules are evaluated in priority order (higher priority first). Only the first matching rule is applied.
+                    </span>
+                  </p>
                 </div>
               )}
             </CardContent>

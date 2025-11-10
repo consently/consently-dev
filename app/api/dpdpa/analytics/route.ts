@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import type { WidgetAnalytics, RulePerformance } from '@/types/dpdpa-widget.types';
 
+/**
+ * API endpoint to retrieve analytics data for a widget
+ * Requires authentication - users can only view analytics for their own widgets
+ */
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Check authentication
+    // Auth required
     const {
       data: { user },
       error: authError,
@@ -17,159 +22,253 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const widgetId = searchParams.get('widgetId');
-    const range = searchParams.get('range') || '7d'; // 7d, 30d, 90d, all
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const ruleId = searchParams.get('ruleId'); // Optional: filter by specific rule
 
     if (!widgetId) {
-      return NextResponse.json({ error: 'Widget ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'widgetId is required' },
+        { status: 400 }
+      );
     }
 
     // Verify widget belongs to user
     const { data: widgetConfig, error: widgetError } = await supabase
       .from('dpdpa_widget_configs')
-      .select('*')
+      .select('widget_id, user_id')
       .eq('widget_id', widgetId)
       .eq('user_id', user.id)
       .single();
 
     if (widgetError || !widgetConfig) {
-      return NextResponse.json({ error: 'Widget not found or access denied' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Widget not found or access denied' },
+        { status: 404 }
+      );
     }
 
-    // Calculate date filter
-    let dateFilter = '';
-    const now = new Date();
-    switch (range) {
-      case '7d':
-        const sevenDaysAgo = new Date(now);
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        dateFilter = sevenDaysAgo.toISOString();
-        break;
-      case '30d':
-        const thirtyDaysAgo = new Date(now);
-        thirtyDaysAgo.setDate(now.getDate() - 30);
-        dateFilter = thirtyDaysAgo.toISOString();
-        break;
-      case '90d':
-        const ninetyDaysAgo = new Date(now);
-        ninetyDaysAgo.setDate(now.getDate() - 90);
-        dateFilter = ninetyDaysAgo.toISOString();
-        break;
-      case 'all':
-      default:
-        dateFilter = '1970-01-01T00:00:00.000Z';
-        break;
-    }
-
-    // Fetch consent records
-    let consentQuery = supabase
-      .from('dpdpa_consent_records')
-      .select('*')
-      .eq('widget_id', widgetId);
-
-    if (range !== 'all') {
-      consentQuery = consentQuery.gte('consent_timestamp', dateFilter);
-    }
-
-    const { data: consents, error: consentsError } = await consentQuery;
-
-    if (consentsError) {
-      console.error('Error fetching consent records:', consentsError);
-      return NextResponse.json({ error: 'Failed to fetch consent records' }, { status: 500 });
-    }
-
-    // Calculate overall stats
-    const totalConsents = consents?.length || 0;
-    const acceptedCount = consents?.filter(c => c.consent_status === 'accepted').length || 0;
-    const rejectedCount = consents?.filter(c => c.consent_status === 'rejected').length || 0;
-    const partialCount = consents?.filter(c => c.consent_status === 'partial').length || 0;
-    const acceptanceRate = totalConsents > 0 ? (acceptedCount / totalConsents) * 100 : 0;
-    
-    // Count unique visitors
-    const uniqueVisitors = new Set(consents?.map(c => c.visitor_id) || []).size;
-
-    const stats = {
-      total_consents: totalConsents,
-      accepted_count: acceptedCount,
-      rejected_count: rejectedCount,
-      partial_count: partialCount,
-      acceptance_rate: acceptanceRate,
-      unique_visitors: uniqueVisitors,
+    // Build date filter
+    const dateFilter = {
+      start: startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Default: last 30 days
+      end: endDate ? new Date(endDate) : new Date(),
     };
 
-    // Calculate activity-specific stats
-    const activityMap = new Map<string, { accepted: number; rejected: number; name: string }>();
-    
-    // Fetch activity names
-    const { data: activities, error: activitiesError } = await supabase
-      .from('processing_activities')
-      .select('id, activity_name')
-      .eq('user_id', user.id)
-      .in('id', widgetConfig.selected_activities || []);
+    // Get rule match events
+    let matchQuery = supabase
+      .from('dpdpa_rule_match_events')
+      .select('*')
+      .eq('widget_id', widgetId)
+      .gte('matched_at', dateFilter.start.toISOString())
+      .lte('matched_at', dateFilter.end.toISOString());
 
-    if (!activitiesError && activities) {
-      // Initialize activity map
-      activities.forEach(activity => {
-        activityMap.set(activity.id, {
-          accepted: 0,
-          rejected: 0,
-          name: activity.activity_name,
-        });
-      });
-
-      // Count accepts/rejects for each activity
-      consents?.forEach(consent => {
-        consent.accepted_activities?.forEach((activityId: string) => {
-          const stat = activityMap.get(activityId);
-          if (stat) {
-            stat.accepted++;
-          }
-        });
-
-        consent.rejected_activities?.forEach((activityId: string) => {
-          const stat = activityMap.get(activityId);
-          if (stat) {
-            stat.rejected++;
-          }
-        });
-      });
+    if (ruleId) {
+      matchQuery = matchQuery.eq('rule_id', ruleId);
     }
 
-    // Format activity stats
-    const activityStats = Array.from(activityMap.entries()).map(([id, data]) => {
-      const total = data.accepted + data.rejected;
-      const acceptanceRate = total > 0 ? (data.accepted / total) * 100 : 0;
+    const { data: matchEvents, error: matchError } = await matchQuery;
+
+    if (matchError) {
+      console.error('[Analytics API] Error fetching match events:', matchError);
+      return NextResponse.json(
+        { error: 'Failed to fetch match events' },
+        { status: 500 }
+      );
+    }
+
+    // Get consent events
+    let consentQuery = supabase
+      .from('dpdpa_consent_events')
+      .select('*')
+      .eq('widget_id', widgetId)
+      .gte('consented_at', dateFilter.start.toISOString())
+      .lte('consented_at', dateFilter.end.toISOString());
+
+    if (ruleId) {
+      consentQuery = consentQuery.eq('rule_id', ruleId);
+    }
+
+    const { data: consentEvents, error: consentError } = await consentQuery;
+
+    if (consentError) {
+      console.error('[Analytics API] Error fetching consent events:', consentError);
+      return NextResponse.json(
+        { error: 'Failed to fetch consent events' },
+        { status: 500 }
+      );
+    }
+
+    // Calculate rule performance
+    const rulePerformanceMap = new Map<string, {
+      ruleId: string;
+      ruleName: string;
+      matchCount: number;
+      consentCount: number;
+      acceptedCount: number;
+      rejectedCount: number;
+      partialCount: number;
+      matchTimes: number[]; // For calculating average time to consent
+      consentTimes: number[];
+    }>();
+
+    // Process match events
+    (matchEvents || []).forEach((event: any) => {
+      const key = event.rule_id;
+      if (!rulePerformanceMap.has(key)) {
+        rulePerformanceMap.set(key, {
+          ruleId: event.rule_id,
+          ruleName: event.rule_name,
+          matchCount: 0,
+          consentCount: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          partialCount: 0,
+          matchTimes: [],
+          consentTimes: [],
+        });
+      }
+      const rule = rulePerformanceMap.get(key)!;
+      rule.matchCount++;
+      rule.matchTimes.push(new Date(event.matched_at).getTime());
+    });
+
+    // Process consent events
+    (consentEvents || []).forEach((event: any) => {
+      if (event.rule_id) {
+        const key = event.rule_id;
+        if (!rulePerformanceMap.has(key)) {
+          rulePerformanceMap.set(key, {
+            ruleId: event.rule_id,
+            ruleName: event.rule_name || 'Unknown Rule',
+            matchCount: 0,
+            consentCount: 0,
+            acceptedCount: 0,
+            rejectedCount: 0,
+            partialCount: 0,
+            matchTimes: [],
+            consentTimes: [],
+          });
+        }
+        const rule = rulePerformanceMap.get(key)!;
+        rule.consentCount++;
+        rule.consentTimes.push(new Date(event.consented_at).getTime());
+        
+        if (event.consent_status === 'accepted') {
+          rule.acceptedCount++;
+        } else if (event.consent_status === 'rejected') {
+          rule.rejectedCount++;
+        } else if (event.consent_status === 'partial') {
+          rule.partialCount++;
+        }
+      }
+    });
+
+    // Calculate rule performance metrics
+    const rulePerformance: RulePerformance[] = Array.from(rulePerformanceMap.values()).map(rule => {
+      // Calculate rates based on consent count, not match count (since not all matches result in consent)
+      const totalConsents = rule.acceptedCount + rule.rejectedCount + rule.partialCount;
+      const acceptanceRate = totalConsents > 0 ? (rule.acceptedCount / totalConsents) * 100 : 0;
+      const rejectionRate = totalConsents > 0 ? (rule.rejectedCount / totalConsents) * 100 : 0;
+      const partialRate = totalConsents > 0 ? (rule.partialCount / totalConsents) * 100 : 0;
+      
+      // Calculate average time to consent (in seconds)
+      let averageTimeToConsent: number | undefined = undefined;
+      if (rule.matchTimes.length > 0 && rule.consentTimes.length > 0) {
+        // Match each consent to the closest match event (within 1 hour)
+        const timeDiffs: number[] = [];
+        rule.consentTimes.forEach(consentTime => {
+          const closestMatch = rule.matchTimes
+            .filter(matchTime => consentTime >= matchTime && consentTime - matchTime <= 3600000) // 1 hour
+            .sort((a, b) => Math.abs(consentTime - a) - Math.abs(consentTime - b))[0];
+          
+          if (closestMatch) {
+            timeDiffs.push((consentTime - closestMatch) / 1000); // Convert to seconds
+          }
+        });
+        
+        if (timeDiffs.length > 0) {
+          averageTimeToConsent = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
+        }
+      }
       
       return {
-        activity_id: id,
-        activity_name: data.name,
-        acceptance_count: data.accepted,
-        rejection_count: data.rejected,
-        acceptance_rate: acceptanceRate,
+        ruleId: rule.ruleId,
+        ruleName: rule.ruleName,
+        matchCount: rule.matchCount,
+        consentCount: rule.consentCount,
+        acceptanceRate: Math.round(acceptanceRate * 100) / 100,
+        rejectionRate: Math.round(rejectionRate * 100) / 100,
+        partialRate: Math.round(partialRate * 100) / 100,
+        averageTimeToConsent: averageTimeToConsent ? Math.round(averageTimeToConsent) : undefined,
       };
     });
 
-    // Get recent consent records (last 20)
-    const recentConsents = consents
-      ?.sort((a, b) => new Date(b.consent_timestamp).getTime() - new Date(a.consent_timestamp).getTime())
-      .slice(0, 20)
-      .map(consent => ({
-        id: consent.id,
-        consent_status: consent.consent_status,
-        accepted_activities: consent.accepted_activities || [],
-        rejected_activities: consent.rejected_activities || [],
-        device_type: consent.device_type,
-        country: consent.country,
-        ip_address: consent.ip_address,
-        consent_timestamp: consent.consent_timestamp,
-      })) || [];
+    // Sort by match count (descending)
+    rulePerformance.sort((a, b) => b.matchCount - a.matchCount);
 
-    return NextResponse.json({
-      stats,
-      activityStats,
-      recentConsents,
+    // Calculate overall metrics
+    const totalMatches = (matchEvents || []).length;
+    const totalConsents = (consentEvents || []).length;
+    const acceptedConsents = (consentEvents || []).filter((e: any) => e.consent_status === 'accepted').length;
+    const overallAcceptanceRate = totalConsents > 0 ? (acceptedConsents / totalConsents) * 100 : 0;
+
+    // Get top 5 rules
+    const topRules = rulePerformance.slice(0, 5);
+
+    // Calculate consent trends (daily)
+    const trendsMap = new Map<string, { matches: number; consents: number; accepted: number }>();
+    
+    (matchEvents || []).forEach((event: any) => {
+      const date = new Date(event.matched_at).toISOString().split('T')[0];
+      if (!trendsMap.has(date)) {
+        trendsMap.set(date, { matches: 0, consents: 0, accepted: 0 });
+      }
+      trendsMap.get(date)!.matches++;
     });
+    
+    (consentEvents || []).forEach((event: any) => {
+      const date = new Date(event.consented_at).toISOString().split('T')[0];
+      if (!trendsMap.has(date)) {
+        trendsMap.set(date, { matches: 0, consents: 0, accepted: 0 });
+      }
+      trendsMap.get(date)!.consents++;
+      if (event.consent_status === 'accepted') {
+        trendsMap.get(date)!.accepted++;
+      }
+    });
+
+    const consentTrends = Array.from(trendsMap.entries())
+      .map(([date, data]) => ({
+        date,
+        matches: data.matches,
+        consents: data.consents,
+        acceptanceRate: data.consents > 0 ? (data.accepted / data.consents) * 100 : 0,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Build response
+    const analytics: WidgetAnalytics = {
+      widgetId: widgetId,
+      totalMatches: totalMatches,
+      totalConsents: totalConsents,
+      overallAcceptanceRate: Math.round(overallAcceptanceRate * 100) / 100,
+      rulePerformance: rulePerformance,
+      topRules: topRules,
+      consentTrends: consentTrends,
+    };
+
+    return NextResponse.json(analytics, {
+      headers: {
+        'Cache-Control': 'private, max-age=60', // Cache for 1 minute
+      }
+    });
+
   } catch (error) {
-    console.error('Unexpected error in analytics:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[Analytics API] Unexpected error:', error);
+    
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

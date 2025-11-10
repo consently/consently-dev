@@ -62,6 +62,7 @@ export default function AnalyticsPage() {
   const [stats, setStats] = useState<WidgetStats | null>(null);
   const [activityStats, setActivityStats] = useState<ActivityStat[]>([]);
   const [recentConsents, setRecentConsents] = useState<ConsentRecord[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<any>(null); // Full analytics data from new API
   const [dateRange, setDateRange] = useState('7d'); // 7d, 30d, 90d, all
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -98,13 +99,44 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/dpdpa/analytics?widgetId=${widgetId}&range=${dateRange}`);
+      
+      // Calculate date range
+      const endDate = new Date();
+      const startDate = new Date();
+      switch (dateRange) {
+        case '7d':
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(startDate.getDate() - 30);
+          break;
+        case '90d':
+          startDate.setDate(startDate.getDate() - 90);
+          break;
+        case 'all':
+          startDate.setFullYear(2020); // Start from 2020 for "all time"
+          break;
+      }
+      
+      const response = await fetch(
+        `/api/dpdpa/analytics?widgetId=${widgetId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+      );
       
       if (response.ok) {
         const data = await response.json();
-        setStats(data.stats);
-        setActivityStats(data.activityStats || []);
-        setRecentConsents(data.recentConsents || []);
+        // Update state with new analytics data structure
+        setStats({
+          total_consents: data.totalConsents,
+          accepted_count: data.totalConsents - (data.totalConsents - (data.overallAcceptanceRate / 100 * data.totalConsents)),
+          rejected_count: 0, // Will be calculated from rule performance
+          partial_count: 0, // Will be calculated from rule performance
+          acceptance_rate: data.overallAcceptanceRate,
+          unique_visitors: 0, // Not available in new API
+        });
+        setActivityStats([]); // Activity stats not in new API structure
+        setRecentConsents([]); // Recent consents not in new API structure
+        // Store full analytics data for rule performance
+        setAnalyticsData(data);
       } else {
         toast.error('Failed to load analytics');
       }
@@ -328,14 +360,14 @@ export default function AnalyticsPage() {
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Consents</CardTitle>
-                  <Users className="h-4 w-4 text-gray-400" />
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Matches</CardTitle>
+                  <Activity className="h-4 w-4 text-gray-400" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-gray-900">{stats?.total_consents || 0}</div>
+                <div className="text-3xl font-bold text-gray-900">{analyticsData?.totalMatches || stats?.total_consents || 0}</div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {stats?.unique_visitors || 0} unique visitors
+                  Rule matches triggered
                 </p>
               </CardContent>
             </Card>
@@ -387,6 +419,121 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Rule Performance Analytics */}
+          {analyticsData && analyticsData.rulePerformance && analyticsData.rulePerformance.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Display Rule Performance</CardTitle>
+                <CardDescription>
+                  Track how each display rule performs in terms of matches and consent rates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analyticsData.rulePerformance.map((rule: any) => (
+                    <div key={rule.ruleId} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{rule.ruleName}</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Rule ID: <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">{rule.ruleId}</code>
+                          </p>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                            <span>Matches: <strong>{rule.matchCount}</strong></span>
+                            <span>Consents: <strong>{rule.consentCount}</strong></span>
+                            {rule.averageTimeToConsent && (
+                              <span>Avg Time: <strong>{Math.round(rule.averageTimeToConsent)}s</strong></span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600">
+                            {rule.acceptanceRate.toFixed(1)}%
+                          </div>
+                          <p className="text-xs text-gray-500">acceptance rate</p>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bars */}
+                      <div className="space-y-2">
+                        <div>
+                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>Acceptance Rate</span>
+                            <span>{rule.acceptanceRate.toFixed(1)}%</span>
+                          </div>
+                          <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="absolute top-0 left-0 h-full bg-green-500 transition-all"
+                              style={{ width: `${rule.acceptanceRate}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>Rejection Rate</span>
+                            <span>{rule.rejectionRate.toFixed(1)}%</span>
+                          </div>
+                          <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="absolute top-0 left-0 h-full bg-red-500 transition-all"
+                              style={{ width: `${rule.rejectionRate}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>Partial Consent Rate</span>
+                            <span>{rule.partialRate.toFixed(1)}%</span>
+                          </div>
+                          <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="absolute top-0 left-0 h-full bg-amber-500 transition-all"
+                              style={{ width: `${rule.partialRate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Consent Trends Chart */}
+          {analyticsData && analyticsData.consentTrends && analyticsData.consentTrends.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Consent Trends</CardTitle>
+                <CardDescription>
+                  Daily consent trends over the selected time period
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {analyticsData.consentTrends.map((trend: any) => (
+                    <div key={trend.date} className="flex items-center gap-4 p-2 border rounded">
+                      <div className="w-24 text-sm text-gray-600">{trend.date}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-gray-600">Matches: <strong>{trend.matches}</strong></span>
+                          <span className="text-gray-600">Consents: <strong>{trend.consents}</strong></span>
+                          <span className="text-green-600">Rate: <strong>{trend.acceptanceRate.toFixed(1)}%</strong></span>
+                        </div>
+                        <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden mt-1">
+                          <div 
+                            className="absolute top-0 left-0 h-full bg-blue-500 transition-all"
+                            style={{ width: `${trend.acceptanceRate}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Activity Acceptance Rates */}
           <Card>
@@ -527,6 +674,8 @@ export default function AnalyticsPage() {
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>• High acceptance rates indicate clear value communication</li>
                     <li>• Partial consent is normal - respect user choices</li>
+                    <li>• Monitor rule performance to optimize display rules</li>
+                    <li>• Track consent trends to identify patterns</li>
                     <li>• Monitor device types to optimize mobile experience</li>
                     <li>• Export data regularly for compliance documentation</li>
                   </ul>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
+import type { DisplayRule, DPDPAWidgetConfig, ProcessingActivityPublic } from '@/types/dpdpa-widget.types';
 
 /**
  * Public API endpoint to fetch DPDPA widget configuration
@@ -49,7 +50,7 @@ export async function GET(
     // Create supabase client (no auth check needed for public endpoint)
     const supabase = await createClient();
 
-    // Fetch widget configuration
+    // Fetch widget configuration (only active widgets)
     const { data: widgetConfig, error: configError } = await supabase
       .from('dpdpa_widget_configs')
       .select('*')
@@ -58,10 +59,23 @@ export async function GET(
       .single();
 
     if (configError || !widgetConfig) {
-      console.error('Widget config not found:', configError);
+      console.error('[Widget Public API] Widget config not found:', {
+        widgetId,
+        error: configError?.message,
+        code: configError?.code,
+      });
       return NextResponse.json(
-        { error: 'Widget configuration not found' },
-        { status: 404 }
+        { 
+          error: 'Widget configuration not found',
+          code: 'WIDGET_NOT_FOUND'
+        },
+        { 
+          status: 404,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          }
+        }
       );
     }
 
@@ -189,56 +203,59 @@ export async function GET(
       console.error('[Widget Public API] This indicates a data mismatch or query issue.');
     }
 
-    // Generate privacy notice HTML
+    // Generate privacy notice HTML (with sanitization)
     let privacyNoticeHTML = '<p style="color:#6b7280;">Privacy notice content...</p>';
     if (activities && activities.length > 0) {
-      privacyNoticeHTML = generatePrivacyNoticeHTML(activities, widgetConfig.domain);
+      const generatedHTML = generatePrivacyNoticeHTML(activities, widgetConfig.domain);
+      privacyNoticeHTML = sanitizeHTML(generatedHTML);
     }
 
-    // Build the response with all necessary data
-    const response = {
+    // Build the response with all necessary data (typed response)
+    const response: DPDPAWidgetConfig = {
       widgetId: widgetConfig.widget_id,
-      name: widgetConfig.name,
+      name: widgetConfig.name || 'DPDPA Consent Widget',
       domain: widgetConfig.domain,
       
       // Appearance
-      position: widgetConfig.position,
-      layout: widgetConfig.layout,
-      theme: widgetConfig.theme,
+      position: (widgetConfig.position || 'modal') as DPDPAWidgetConfig['position'],
+      layout: (widgetConfig.layout || 'modal') as DPDPAWidgetConfig['layout'],
+      theme: (widgetConfig.theme || {}) as DPDPAWidgetConfig['theme'],
       
       // Content
-      title: widgetConfig.title,
-      message: widgetConfig.message,
-      acceptButtonText: widgetConfig.accept_button_text,
-      rejectButtonText: widgetConfig.reject_button_text,
-      customizeButtonText: widgetConfig.customize_button_text,
+      title: widgetConfig.title || 'Your Data Privacy Rights',
+      message: widgetConfig.message || 'We process your personal data with your consent.',
+      acceptButtonText: widgetConfig.accept_button_text || 'Accept All',
+      rejectButtonText: widgetConfig.reject_button_text || 'Reject All',
+      customizeButtonText: widgetConfig.customize_button_text || 'Manage Preferences',
       
-      // Processing activities - ensure it's always an array
-      activities: Array.isArray(activities) ? activities : [],
+      // Processing activities - ensure it's always an array and properly typed
+      activities: (Array.isArray(activities) ? activities : []) as ProcessingActivityPublic[],
       
-      // Privacy notice
+      // Privacy notice (sanitized)
       privacyNoticeHTML: privacyNoticeHTML,
       
       // Behavior
-      autoShow: widgetConfig.auto_show,
-      showAfterDelay: widgetConfig.show_after_delay,
-      consentDuration: widgetConfig.consent_duration,
-      respectDNT: widgetConfig.respect_dnt,
-      requireExplicitConsent: widgetConfig.require_explicit_consent,
-      showDataSubjectsRights: widgetConfig.show_data_subjects_rights,
+      autoShow: widgetConfig.auto_show ?? true,
+      showAfterDelay: widgetConfig.show_after_delay ?? 1000,
+      consentDuration: widgetConfig.consent_duration ?? 365,
+      respectDNT: widgetConfig.respect_dnt ?? false,
+      requireExplicitConsent: widgetConfig.require_explicit_consent ?? true,
+      showDataSubjectsRights: widgetConfig.show_data_subjects_rights ?? true,
       
       // Advanced
-      language: widgetConfig.language,
-      supportedLanguages: widgetConfig.supported_languages || ['en'],
-      customTranslations: widgetConfig.custom_translations,
-      showBranding: widgetConfig.show_branding,
-      customCSS: widgetConfig.custom_css,
+      language: widgetConfig.language || 'en',
+      supportedLanguages: Array.isArray(widgetConfig.supported_languages) 
+        ? widgetConfig.supported_languages 
+        : ['en'],
+      customTranslations: widgetConfig.custom_translations || undefined,
+      showBranding: widgetConfig.show_branding ?? true,
+      customCSS: widgetConfig.custom_css || undefined,
       
-      // NEW: Display rules for page-specific notices
-      display_rules: widgetConfig.display_rules || [],
+      // NEW: Display rules for page-specific notices (filter inactive rules and validate)
+      display_rules: filterAndValidateDisplayRules(widgetConfig.display_rules),
       
       // Metadata
-      version: '1.0.0'
+      version: '2.0.0' // Updated version for display rules support
     };
 
     // Log final response structure for debugging
@@ -284,10 +301,30 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error fetching widget configuration:', error);
+    // Enhanced error logging for production
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('[Widget Public API] Error fetching widget configuration:', {
+      widgetId: await params.then(p => p.widgetId).catch(() => 'unknown'),
+      error: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Don't expose internal error details to clients
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        error: 'Failed to load widget configuration',
+        code: 'WIDGET_CONFIG_ERROR'
+      },
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        }
+      }
     );
   }
 }
@@ -433,7 +470,85 @@ function generatePrivacyNoticeHTML(activities: any[], domain: string): string {
   `.trim();
 }
 
+/**
+ * Filter and validate display rules
+ * Removes inactive rules and invalid rules for security
+ */
+function filterAndValidateDisplayRules(rules: any): DisplayRule[] {
+  if (!rules || !Array.isArray(rules)) {
+    return [];
+  }
+  
+  // Filter inactive rules and validate structure
+  return rules
+    .filter((rule: any) => {
+      // Basic validation: rule must have required fields and be active
+      if (!rule || typeof rule !== 'object') return false;
+      if (rule.is_active === false) return false;
+      if (!rule.id || !rule.rule_name || !rule.url_pattern) return false;
+      if (!['exact', 'contains', 'startsWith', 'regex'].includes(rule.url_match_type)) return false;
+      if (!['onPageLoad', 'onClick', 'onFormSubmit', 'onScroll'].includes(rule.trigger_type)) return false;
+      
+      // Validate priority is a number
+      if (typeof rule.priority !== 'number' || rule.priority < 0 || rule.priority > 1000) {
+        console.warn('[Widget Public API] Invalid priority in rule:', rule.id);
+        return false;
+      }
+      
+      // Validate URL pattern length (prevent DoS via extremely long patterns)
+      if (rule.url_pattern.length > 500) {
+        console.warn('[Widget Public API] URL pattern too long in rule:', rule.id);
+        return false;
+      }
+      
+      // Validate regex patterns (if regex type)
+      if (rule.url_match_type === 'regex') {
+        try {
+          new RegExp(rule.url_pattern);
+        } catch (e) {
+          console.warn('[Widget Public API] Invalid regex pattern in rule:', rule.id, e);
+          return false;
+        }
+      }
+      
+      // Validate activities array if present
+      if (rule.activities && Array.isArray(rule.activities)) {
+        // Limit number of activities per rule (prevent abuse)
+        if (rule.activities.length > 50) {
+          console.warn('[Widget Public API] Too many activities in rule:', rule.id);
+          return false;
+        }
+        // Validate UUIDs
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        rule.activities = rule.activities.filter((id: string) => 
+          typeof id === 'string' && uuidRegex.test(id)
+        );
+      }
+      
+      // Validate scroll_threshold if present (for onScroll trigger)
+      if (rule.trigger_type === 'onScroll') {
+        if (rule.scroll_threshold !== undefined) {
+          if (typeof rule.scroll_threshold !== 'number' || rule.scroll_threshold < 0 || rule.scroll_threshold > 100) {
+            console.warn('[Widget Public API] Invalid scroll_threshold in rule:', rule.id);
+            return false;
+          }
+        }
+      }
+      
+      return true;
+    })
+    .sort((a: DisplayRule, b: DisplayRule) => (b.priority || 100) - (a.priority || 100)) // Sort by priority
+    .slice(0, 100); // Limit to 100 rules (prevent excessive payload)
+}
+
+/**
+ * Escape HTML to prevent XSS attacks
+ */
 function escapeHtml(text: string): string {
+  if (typeof text !== 'string') {
+    return '';
+  }
+  
   const map: { [key: string]: string } = {
     '&': '&amp;',
     '<': '&lt;',
@@ -442,4 +557,22 @@ function escapeHtml(text: string): string {
     "'": '&#039;'
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+/**
+ * Sanitize HTML content (basic sanitization for privacy notice)
+ * In production, consider using a library like DOMPurify for more robust sanitization
+ */
+function sanitizeHTML(html: string): string {
+  if (typeof html !== 'string') {
+    return '';
+  }
+  
+  // Basic sanitization: remove script tags and event handlers
+  // For production, consider using DOMPurify or similar library
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/javascript:/gi, '')
+    .trim();
 }

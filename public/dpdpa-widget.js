@@ -309,70 +309,75 @@
     }
   }
 
-  // URL pattern matching for display rules
+  // URL pattern matching for display rules (with security validation)
   function matchesUrlPattern(url, rule) {
+    // Input validation
+    if (!url || typeof url !== 'string') {
+      console.warn('[Consently DPDPA] Invalid URL provided to matchesUrlPattern');
+      return false;
+    }
+    
+    if (!rule || typeof rule !== 'object') {
+      console.warn('[Consently DPDPA] Invalid rule provided to matchesUrlPattern');
+      return false;
+    }
+    
     if (!rule.url_pattern) return true; // No pattern = match all
     
     const pattern = rule.url_pattern;
     const matchType = rule.url_match_type || 'contains';
     
-    switch (matchType) {
-      case 'exact':
-        return url === pattern;
-      case 'contains':
-        return url.includes(pattern);
-      case 'startsWith':
-        return url.startsWith(pattern);
-      case 'regex':
-        try {
-          return new RegExp(pattern).test(url);
-        } catch (e) {
-          console.error('[Consently DPDPA] Invalid regex pattern:', pattern);
-          return false;
-        }
-      default:
-        return url.includes(pattern);
+    // Security: Limit pattern length to prevent DoS
+    if (pattern.length > 500) {
+      console.warn('[Consently DPDPA] URL pattern too long, skipping:', rule.id || 'unknown');
+      return false;
+    }
+    
+    try {
+      switch (matchType) {
+        case 'exact':
+          return url === pattern;
+        case 'contains':
+          return url.includes(pattern);
+        case 'startsWith':
+          return url.startsWith(pattern);
+        case 'regex':
+          // Security: Validate regex pattern before using
+          try {
+            // Test regex compilation (prevent ReDoS attacks)
+            const regex = new RegExp(pattern);
+            // Limit execution time by using test with timeout consideration
+            return regex.test(url);
+          } catch (e) {
+            console.error('[Consently DPDPA] Invalid regex pattern in rule:', rule.id || 'unknown', e);
+            return false;
+          }
+        default:
+          console.warn('[Consently DPDPA] Unknown match type:', matchType);
+          return url.includes(pattern);
+      }
+    } catch (error) {
+      console.error('[Consently DPDPA] Error matching URL pattern:', error);
+      return false;
     }
   }
 
-  // Show notice for a specific rule
+  // Show notice for a specific rule (called after consent check)
   function showNoticeForRule(rule) {
-    // Check if notice content is in the rule itself
-    const notice = rule.notice_content;
-    
-    if (!notice) {
-      console.warn('[Consently DPDPA] No notice content found for rule:', rule.rule_name);
-      // Fallback to default behavior
-      if (config.autoShow) {
-        setTimeout(() => {
-          showConsentWidget();
-        }, rule.trigger_delay || config.showAfterDelay || 1000);
-      }
-      return;
-    }
-    
-    // Store original config values
-    const originalTitle = config.title;
-    const originalMessage = config.message;
-    const originalHTML = config.privacyNoticeHTML;
-    
-    // Update config with rule-specific notice
-    if (notice.title) config.title = notice.title;
-    if (notice.message) config.message = notice.message;
-    if (notice.html) config.privacyNoticeHTML = notice.html;
-    
     console.log('[Consently DPDPA] Showing notice for rule:', rule.rule_name);
+    console.log('[Consently DPDPA] Activities to show:', activities.length);
     
-    // Show widget with updated content
-    setTimeout(() => {
-      showConsentWidget();
-    }, rule.trigger_delay || 0);
+    // Apply rule (filter activities and update notice)
+    applyRule(rule);
     
-    // Note: We keep the updated config for this session
-    // If you want to restore original, uncomment below:
-    // config.title = originalTitle;
-    // config.message = originalMessage;
-    // config.privacyNoticeHTML = originalHTML;
+    // Handle trigger type
+    if (rule.trigger_type === 'onPageLoad') {
+      // Show widget after delay
+      setTimeout(() => {
+        showConsentWidget();
+      }, rule.trigger_delay || 0);
+    }
+    // Other trigger types (onClick, onFormSubmit) are handled separately
   }
 
   // Setup click trigger
@@ -385,7 +390,9 @@
     
     element.addEventListener('click', (e) => {
       e.preventDefault();
-      showNoticeForRule(rule);
+      applyRule(rule);
+      trackRuleMatch(rule);
+      showConsentWidget();
     }, { once: true });
   }
 
@@ -399,98 +406,545 @@
     
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      showNoticeForRule(rule);
+      applyRule(rule);
+      trackRuleMatch(rule);
+      showConsentWidget();
       // Note: After consent is given, you'll need to handle form submission
       // This can be done via a custom event listener
     }, { once: true });
   }
 
-  // Evaluate display rules and show appropriate notice
-  function evaluateDisplayRules() {
-    const rules = config.display_rules || [];
-    const currentPath = window.location.pathname;
+  // Setup scroll trigger
+  function setupScrollTrigger(rule) {
+    // Default scroll threshold is 50% if not specified
+    const scrollThreshold = rule.scroll_threshold !== undefined ? rule.scroll_threshold : 50;
+    let hasTriggered = false;
     
-    console.log('[Consently DPDPA] Evaluating display rules for path:', currentPath);
-    console.log('[Consently DPDPA] Available rules:', rules.length);
+    console.log('[Consently DPDPA] Setting up scroll trigger for rule:', rule.rule_name, 'Threshold:', scrollThreshold + '%');
     
-    if (rules.length === 0) {
-      console.log('[Consently DPDPA] No display rules configured');
-      return false; // No rules to evaluate
+    // Calculate scroll percentage
+    function getScrollPercentage() {
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollableHeight = documentHeight - windowHeight;
+      const scrolled = scrollTop;
+      
+      if (scrollableHeight === 0) return 0;
+      return Math.round((scrolled / scrollableHeight) * 100);
     }
     
-    // Sort rules by priority (higher priority first)
-    const sortedRules = [...rules].sort((a, b) => (b.priority || 100) - (a.priority || 100));
-    
-    // Find first matching rule
-    for (const rule of sortedRules) {
-      if (!rule.is_active) {
-        console.log('[Consently DPDPA] Rule inactive:', rule.rule_name);
-        continue;
+    // Throttled scroll handler (check every 100ms)
+    let lastCheck = 0;
+    const scrollHandler = () => {
+      const now = Date.now();
+      if (now - lastCheck < 100) return; // Throttle to 100ms
+      lastCheck = now;
+      
+      if (hasTriggered) {
+        // Remove listener once triggered
+        window.removeEventListener('scroll', scrollHandler);
+        window.removeEventListener('wheel', scrollHandler);
+        window.removeEventListener('touchmove', scrollHandler);
+        return;
       }
       
-      // Check URL match
-      if (matchesUrlPattern(currentPath, rule)) {
-        console.log('[Consently DPDPA] Rule matched:', rule.rule_name);
+      const scrollPercent = getScrollPercentage();
+      
+      if (scrollPercent >= scrollThreshold) {
+        console.log('[Consently DPDPA] Scroll threshold reached:', scrollPercent + '%');
+        hasTriggered = true;
         
-        // Check element selector if provided
-        if (rule.element_selector) {
-          const element = document.querySelector(rule.element_selector);
-          if (!element) {
-            console.log('[Consently DPDPA] Element not found:', rule.element_selector);
-            continue;
+        // Apply rule and show widget
+        applyRule(rule);
+        
+        // Apply delay if specified
+        const delay = rule.trigger_delay || 0;
+        setTimeout(() => {
+          showConsentWidget();
+        }, delay);
+        
+        // Track rule match for analytics
+        trackRuleMatch(rule);
+        
+        // Remove listeners
+        window.removeEventListener('scroll', scrollHandler);
+        window.removeEventListener('wheel', scrollHandler);
+        window.removeEventListener('touchmove', scrollHandler);
+      }
+    };
+    
+    // Attach scroll listeners
+    window.addEventListener('scroll', scrollHandler, { passive: true });
+    window.addEventListener('wheel', scrollHandler, { passive: true });
+    window.addEventListener('touchmove', scrollHandler, { passive: true });
+    
+    // Check initial scroll position (in case page is already scrolled)
+    setTimeout(() => {
+      scrollHandler();
+    }, 500);
+    
+    // Return cleanup function
+    return () => {
+      window.removeEventListener('scroll', scrollHandler);
+      window.removeEventListener('wheel', scrollHandler);
+      window.removeEventListener('touchmove', scrollHandler);
+    };
+  }
+
+  // Evaluate display rules and return matched rule (don't show widget yet)
+  function evaluateDisplayRules() {
+    try {
+      // Validate config
+      if (!config || typeof config !== 'object') {
+        console.warn('[Consently DPDPA] Invalid config in evaluateDisplayRules');
+        return null;
+      }
+      
+      const rules = config.display_rules || [];
+      const currentPath = window.location.pathname || '/';
+      
+      // Input validation
+      if (typeof currentPath !== 'string') {
+        console.warn('[Consently DPDPA] Invalid path in evaluateDisplayRules');
+        return null;
+      }
+      
+      console.log('[Consently DPDPA] Evaluating display rules for path:', currentPath);
+      console.log('[Consently DPDPA] Available rules:', rules.length);
+      
+      if (!Array.isArray(rules) || rules.length === 0) {
+        console.log('[Consently DPDPA] No display rules configured');
+        return null; // No rules to evaluate
+      }
+      
+      // Validate and filter rules (security: prevent malformed rules)
+      const validRules = rules.filter(rule => {
+        if (!rule || typeof rule !== 'object') {
+          console.warn('[Consently DPDPA] Invalid rule structure, skipping');
+          return false;
+        }
+        
+        // Validate rule has required fields
+        if (!rule.id || !rule.rule_name || !rule.url_pattern) {
+          console.warn('[Consently DPDPA] Rule missing required fields, skipping:', rule.id || 'unknown');
+          return false;
+        }
+        
+        // Validate rule ID format (prevent injection)
+        if (typeof rule.id !== 'string' || rule.id.length > 100) {
+          console.warn('[Consently DPDPA] Invalid rule ID, skipping:', rule.id);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // Sort rules by priority (higher priority first)
+      const sortedRules = [...validRules].sort((a, b) => {
+        const priorityA = typeof a.priority === 'number' ? a.priority : 100;
+        const priorityB = typeof b.priority === 'number' ? b.priority : 100;
+        return priorityB - priorityA;
+      });
+      
+      // Find first matching rule
+      for (const rule of sortedRules) {
+        if (rule.is_active === false) {
+          console.log('[Consently DPDPA] Rule inactive:', rule.rule_name);
+          continue;
+        }
+        
+        // Check URL match (with error handling)
+        try {
+          if (matchesUrlPattern(currentPath, rule)) {
+            console.log('[Consently DPDPA] Rule matched:', rule.rule_name);
+            
+            // Check element selector if provided
+            if (rule.element_selector) {
+              try {
+                const element = document.querySelector(rule.element_selector);
+                if (!element) {
+                  console.log('[Consently DPDPA] Element not found:', rule.element_selector);
+                  continue;
+                }
+              } catch (selectorError) {
+                console.error('[Consently DPDPA] Invalid selector:', rule.element_selector, selectorError);
+                continue;
+              }
+            }
+            
+            // Return matched rule (don't show widget yet - consent check comes first)
+            return rule;
           }
+        } catch (matchError) {
+          console.error('[Consently DPDPA] Error matching rule:', rule.id, matchError);
+          continue; // Skip this rule and try next
         }
+      }
+      
+      console.log('[Consently DPDPA] No matching rules found');
+      return null; // No rules matched
+    } catch (error) {
+      console.error('[Consently DPDPA] Error in evaluateDisplayRules:', error);
+      return null; // Fail gracefully
+    }
+  }
+  
+  // Apply rule (filter activities and purposes, update notice content)
+  function applyRule(rule) {
+    // Store the matched rule for consent tracking
+    config._matchedRule = rule;
+    
+    // Filter activities if rule specifies which activities to show
+    if (rule.activities && Array.isArray(rule.activities) && rule.activities.length > 0) {
+      console.log('[Consently DPDPA] Filtering activities for rule:', rule.rule_name);
+      console.log('[Consently DPDPA] Rule activities:', rule.activities);
+      console.log('[Consently DPDPA] Available activities before filter:', activities.length);
+      
+      // Store original activities
+      const originalActivities = [...activities];
+      
+      // Filter activities based on rule
+      const filteredActivities = activities.filter(activity => 
+        rule.activities.includes(activity.id)
+      );
+      
+      console.log('[Consently DPDPA] Filtered activities count:', filteredActivities.length);
+      
+      if (filteredActivities.length > 0) {
+        // Update global activities array (used by widget)
+        activities.length = 0;
+        activities.push(...filteredActivities);
         
-        // Handle trigger type
-        if (rule.trigger_type === 'onPageLoad') {
-          // Show notice immediately or after delay
-          showNoticeForRule(rule);
-          return true; // Rule matched and notice will be shown
-        } else if (rule.trigger_type === 'onClick' && rule.element_selector) {
-          setupClickTrigger(rule);
-          return true; // Rule matched, trigger set up
-        } else if (rule.trigger_type === 'onFormSubmit' && rule.element_selector) {
-          setupFormSubmitTrigger(rule);
-          return true; // Rule matched, trigger set up
+        // Update config activities (if used elsewhere)
+        if (config.activities) {
+          config.activities = filteredActivities;
         }
+      } else {
+        console.warn('[Consently DPDPA] No activities matched rule filter:', rule.activities);
+        // Keep original activities if filter results in empty
       }
     }
     
-    console.log('[Consently DPDPA] No matching rules found');
-    return false; // No rules matched
+    // Filter purposes within activities if rule specifies which purposes to show
+    if (rule.activity_purposes && typeof rule.activity_purposes === 'object') {
+      console.log('[Consently DPDPA] Filtering purposes for rule:', rule.rule_name);
+      console.log('[Consently DPDPA] Rule activity_purposes:', rule.activity_purposes);
+      
+      // Filter purposes for each activity
+      activities.forEach(activity => {
+        const allowedPurposeIds = rule.activity_purposes[activity.id];
+        
+        // Only filter if:
+        // 1. allowedPurposeIds is defined (activity is in activity_purposes object)
+        // 2. allowedPurposeIds is an array
+        // 3. allowedPurposeIds has at least one element (non-empty array)
+        // If activity is not in activity_purposes, or array is empty, show all purposes
+        if (allowedPurposeIds && Array.isArray(allowedPurposeIds) && allowedPurposeIds.length > 0) {
+          console.log('[Consently DPDPA] Filtering purposes for activity:', activity.id, 'Allowed purposes:', allowedPurposeIds);
+          
+          // Filter purposes within this activity
+          if (activity.purposes && Array.isArray(activity.purposes)) {
+            const originalPurposeCount = activity.purposes.length;
+            activity.purposes = activity.purposes.filter(purpose => 
+              allowedPurposeIds.includes(purpose.id)
+            );
+            console.log('[Consently DPDPA] Filtered purposes for activity:', activity.id, 'from', originalPurposeCount, 'to', activity.purposes.length);
+            
+            // Warn if filtering results in no purposes
+            if (activity.purposes.length === 0) {
+              console.warn('[Consently DPDPA] Warning: Activity', activity.id, 'has no purposes after filtering!');
+            }
+          }
+        } else {
+          // Activity not in activity_purposes or empty array = show all purposes
+          console.log('[Consently DPDPA] Showing all purposes for activity:', activity.id, '(no purpose filtering specified)');
+        }
+      });
+    }
+    
+    // Update notice content if rule has notice_content
+    const notice = rule.notice_content;
+    if (notice) {
+      if (notice.title) config.title = notice.title;
+      if (notice.message) config.message = notice.message;
+      if (notice.html) config.privacyNoticeHTML = notice.html;
+    }
   }
 
-  // Record consent to API
+  // Record consent to API (with enhanced error handling and validation)
   async function recordConsent(consentData) {
     try {
+      // Validate consent data
+      if (!consentData || typeof consentData !== 'object') {
+        throw new Error('Invalid consent data');
+      }
+      
+      if (!consentData.widgetId || !consentData.visitorId || !consentData.consentStatus) {
+        throw new Error('Missing required consent fields');
+      }
+      
+      // Validate consent status
+      if (!['accepted', 'rejected', 'partial'].includes(consentData.consentStatus)) {
+        throw new Error('Invalid consent status');
+      }
+      
+      // Validate activity arrays
+      if (consentData.acceptedActivities && !Array.isArray(consentData.acceptedActivities)) {
+        console.warn('[Consently DPDPA] Invalid acceptedActivities, converting to array');
+        consentData.acceptedActivities = [];
+      }
+      
+      if (consentData.rejectedActivities && !Array.isArray(consentData.rejectedActivities)) {
+        console.warn('[Consently DPDPA] Invalid rejectedActivities, converting to array');
+        consentData.rejectedActivities = [];
+      }
+      
+      // Limit activity array sizes (security: prevent abuse)
+      if (consentData.acceptedActivities && consentData.acceptedActivities.length > 100) {
+        console.warn('[Consently DPDPA] Too many accepted activities, limiting to 100');
+        consentData.acceptedActivities = consentData.acceptedActivities.slice(0, 100);
+      }
+      
+      if (consentData.rejectedActivities && consentData.rejectedActivities.length > 100) {
+        console.warn('[Consently DPDPA] Too many rejected activities, limiting to 100');
+        consentData.rejectedActivities = consentData.rejectedActivities.slice(0, 100);
+      }
+      
       const scriptSrc = currentScript.src;
       let apiBase;
       
-      if (scriptSrc && scriptSrc.includes('http')) {
-        const url = new URL(scriptSrc);
-        apiBase = url.origin;
-      } else {
+      try {
+        if (scriptSrc && scriptSrc.includes('http')) {
+          const url = new URL(scriptSrc);
+          apiBase = url.origin;
+        } else {
+          apiBase = window.location.origin;
+        }
+      } catch (e) {
+        console.error('[Consently DPDPA] Error parsing script URL:', e);
         apiBase = window.location.origin;
       }
       
       const apiUrl = `${apiBase}/api/dpdpa/consent-record`;
       
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(consentData)
-      });
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      if (!response.ok) {
-        throw new Error('Failed to record consent');
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(consentData),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          // Try to get error details from response
+          let errorMessage = 'Failed to record consent';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+            console.error('[Consently DPDPA] API error response:', errorData);
+          } catch (e) {
+            // Ignore JSON parse errors
+          }
+          
+          throw new Error(errorMessage + ' (HTTP ' + response.status + ')');
+        }
+        
+        const result = await response.json();
+        console.log('[Consently DPDPA] Consent recorded successfully');
+        return result;
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timeout: Could not record consent');
+        }
+        throw fetchError;
       }
-      
-      const result = await response.json();
-      console.log('[Consently DPDPA] Consent recorded successfully');
-      return result;
     } catch (error) {
       console.error('[Consently DPDPA] Failed to record consent:', error);
-      throw error;
+      
+      // Don't expose internal error details to user
+      const userFriendlyError = error instanceof Error 
+        ? (error.message.includes('timeout') ? error.message : 'Failed to save consent. Please try again.')
+        : 'Failed to save consent. Please try again.';
+      
+      throw new Error(userFriendlyError);
+    }
+  }
+
+  // Track rule match for analytics
+  async function trackRuleMatch(rule) {
+    try {
+      // Don't track if rule is already tracked for this session
+      const sessionKey = `consently_dpdpa_rule_tracked_${widgetId}_${rule.id}`;
+      if (sessionStorage.getItem(sessionKey)) {
+        return; // Already tracked in this session
+      }
+      sessionStorage.setItem(sessionKey, 'true');
+      
+      const scriptSrc = currentScript.src;
+      let apiBase;
+      
+      try {
+        if (scriptSrc && scriptSrc.includes('http')) {
+          const url = new URL(scriptSrc);
+          apiBase = url.origin;
+        } else {
+          apiBase = window.location.origin;
+        }
+      } catch (e) {
+        console.error('[Consently DPDPA] Error parsing script URL:', e);
+        apiBase = window.location.origin;
+      }
+      
+      const apiUrl = `${apiBase}/api/dpdpa/analytics/rule-match`;
+      
+      // Detect device type
+      const userAgent = navigator.userAgent || '';
+      const deviceType = /mobile|iphone|ipod|blackberry|windows phone|android.*mobile/i.test(userAgent) 
+        ? 'Mobile' 
+        : /tablet|ipad|playbook|silk|android(?!.*mobi)/i.test(userAgent) 
+        ? 'Tablet' 
+        : 'Desktop';
+      
+      const matchEvent = {
+        widgetId: widgetId,
+        visitorId: getVisitorId(),
+        ruleId: rule.id,
+        ruleName: rule.rule_name,
+        urlPattern: rule.url_pattern,
+        pageUrl: window.location.pathname,
+        matchedAt: new Date().toISOString(),
+        triggerType: rule.trigger_type,
+        userAgent: userAgent,
+        deviceType: deviceType,
+        language: navigator.language || 'en',
+        country: undefined // Can be set via IP geolocation on server
+      };
+      
+      // Send analytics event (fire and forget - don't block UI)
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(matchEvent),
+        keepalive: true // Important for page unload scenarios
+      }).catch(error => {
+        console.error('[Consently DPDPA] Failed to track rule match:', error);
+      });
+      
+      console.log('[Consently DPDPA] Rule match tracked:', rule.rule_name);
+    } catch (error) {
+      console.error('[Consently DPDPA] Error tracking rule match:', error);
+      // Don't throw - analytics failures shouldn't break the widget
+    }
+  }
+  
+  // Track consent event for analytics
+  async function trackConsentEvent(consentData, rule) {
+    try {
+      const scriptSrc = currentScript.src;
+      let apiBase;
+      
+      try {
+        if (scriptSrc && scriptSrc.includes('http')) {
+          const url = new URL(scriptSrc);
+          apiBase = url.origin;
+        } else {
+          apiBase = window.location.origin;
+        }
+      } catch (e) {
+        console.error('[Consently DPDPA] Error parsing script URL:', e);
+        apiBase = window.location.origin;
+      }
+      
+      const apiUrl = `${apiBase}/api/dpdpa/analytics/consent`;
+      
+      // Detect device type
+      const userAgent = navigator.userAgent || '';
+      const deviceType = /mobile|iphone|ipod|blackberry|windows phone|android.*mobile/i.test(userAgent) 
+        ? 'Mobile' 
+        : /tablet|ipad|playbook|silk|android(?!.*mobi)/i.test(userAgent) 
+        ? 'Tablet' 
+        : 'Desktop';
+      
+      const consentEvent = {
+        widgetId: widgetId,
+        visitorId: getVisitorId(),
+        ruleId: rule ? rule.id : undefined,
+        ruleName: rule ? rule.rule_name : undefined,
+        consentStatus: consentData.consentStatus,
+        acceptedActivities: consentData.acceptedActivities || [],
+        rejectedActivities: consentData.rejectedActivities || [],
+        consentedAt: new Date().toISOString(),
+        userAgent: userAgent,
+        deviceType: deviceType,
+        language: navigator.language || 'en',
+        country: undefined // Can be set via IP geolocation on server
+      };
+      
+      // Send analytics event (fire and forget - don't block UI)
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(consentEvent),
+        keepalive: true // Important for page unload scenarios
+      }).catch(error => {
+        console.error('[Consently DPDPA] Failed to track consent event:', error);
+      });
+      
+      console.log('[Consently DPDPA] Consent event tracked:', consentData.consentStatus);
+    } catch (error) {
+      console.error('[Consently DPDPA] Error tracking consent event:', error);
+      // Don't throw - analytics failures shouldn't break the widget
+    }
+  }
+
+  // Check if user has consented to activities required for current page
+  function checkConsentForCurrentPage(existingConsent) {
+    if (!existingConsent || !existingConsent.timestamp) {
+      return false;
+    }
+    
+    // Get activity IDs from existing consent (both accepted and rejected)
+    const consentedActivityIds = [
+      ...(existingConsent.acceptedActivities || []),
+      ...(existingConsent.rejectedActivities || [])
+    ];
+    
+    // Determine which activities are required for current page
+    let requiredActivityIds;
+    
+    // Check if we have a matched rule with specific activities
+    if (config._matchedRule && config._matchedRule.activities && Array.isArray(config._matchedRule.activities)) {
+      requiredActivityIds = config._matchedRule.activities;
+      console.log('[Consently DPDPA] Checking consent for page-specific activities:', requiredActivityIds);
+    } else {
+      // No rule matched or rule doesn't specify activities - use all activities
+      requiredActivityIds = activities.map(a => a.id);
+      console.log('[Consently DPDPA] Checking consent for all activities:', requiredActivityIds);
+    }
+    
+    // Check if user has consented to all required activities
+    const allConsented = requiredActivityIds.every(activityId => 
+      consentedActivityIds.includes(activityId)
+    );
+    
+    if (allConsented) {
+      console.log('[Consently DPDPA] User has consented to all required activities for this page');
+      return true;
+    } else {
+      const missingActivities = requiredActivityIds.filter(id => !consentedActivityIds.includes(id));
+      console.log('[Consently DPDPA] User has not consented to all required activities:', missingActivities);
+      return false;
     }
   }
 
@@ -511,50 +965,93 @@
       return;
     }
 
-    // If consent exists and is valid, check if it covers all current activities
-    if (existingConsent && existingConsent.timestamp) {
-      // Get activity IDs from existing consent (both accepted and rejected)
-      const consentedActivityIds = [
-        ...(existingConsent.acceptedActivities || []),
-        ...(existingConsent.rejectedActivities || [])
-      ];
-      
-      // Get current activity IDs from fetched config
-      const currentActivityIds = activities.map(a => a.id);
-      
-      // Check if there are new activities not covered by existing consent
-      const newActivities = currentActivityIds.filter(id => !consentedActivityIds.includes(id));
-      
-      if (newActivities.length > 0) {
-        console.log('[Consently DPDPA] New activities detected, showing widget for re-consent', {
-          newActivityIds: newActivities,
-          previouslyConsented: consentedActivityIds.length,
-          currentActivities: currentActivityIds.length
-        });
-        
-        // Check for display rules first (page-specific notices)
-        const ruleMatched = evaluateDisplayRules();
-        
-        // If no rule matched, use default behavior
-        if (!ruleMatched && config.autoShow) {
-          setTimeout(() => {
-            showConsentWidget();
-          }, config.showAfterDelay || 1000);
+    // Evaluate display rules FIRST to determine which rule matches (if any)
+    const matchedRule = evaluateDisplayRules();
+    
+    // Handle non-onPageLoad triggers (set up but don't apply rule yet)
+    if (matchedRule) {
+      if (matchedRule.trigger_type === 'onClick' && matchedRule.element_selector) {
+        setupClickTrigger(matchedRule);
+        // Track rule match when clicked (tracked in setupClickTrigger via applyRule)
+        // For onClick triggers, check consent against all activities (rule applies when clicked)
+        if (existingConsent && existingConsent.timestamp) {
+          // Check consent against all activities for now
+          const allActivityIds = activities.map(a => a.id);
+          const consentedActivityIds = [
+            ...(existingConsent.acceptedActivities || []),
+            ...(existingConsent.rejectedActivities || [])
+          ];
+          const allConsented = allActivityIds.every(id => consentedActivityIds.includes(id));
+          if (allConsented) {
+            applyConsent(existingConsent);
+          }
         }
-        return;
+        return; // Don't show widget on page load for onClick triggers
+      } else if (matchedRule.trigger_type === 'onFormSubmit' && matchedRule.element_selector) {
+        setupFormSubmitTrigger(matchedRule);
+        // Track rule match when submitted (tracked in setupFormSubmitTrigger via applyRule)
+        // For onFormSubmit triggers, check consent against all activities (rule applies when submitted)
+        if (existingConsent && existingConsent.timestamp) {
+          // Check consent against all activities for now
+          const allActivityIds = activities.map(a => a.id);
+          const consentedActivityIds = [
+            ...(existingConsent.acceptedActivities || []),
+            ...(existingConsent.rejectedActivities || [])
+          ];
+          const allConsented = allActivityIds.every(id => consentedActivityIds.includes(id));
+          if (allConsented) {
+            applyConsent(existingConsent);
+          }
+        }
+        return; // Don't show widget on page load for onFormSubmit triggers
+      } else if (matchedRule.trigger_type === 'onScroll') {
+        setupScrollTrigger(matchedRule);
+        // For onScroll triggers, check consent against all activities (rule applies when scrolled)
+        if (existingConsent && existingConsent.timestamp) {
+          // Check consent against all activities for now
+          const allActivityIds = activities.map(a => a.id);
+          const consentedActivityIds = [
+            ...(existingConsent.acceptedActivities || []),
+            ...(existingConsent.rejectedActivities || [])
+          ];
+          const allConsented = allActivityIds.every(id => consentedActivityIds.includes(id));
+          if (allConsented) {
+            applyConsent(existingConsent);
+          }
+        }
+        return; // Don't show widget on page load for onScroll triggers
       }
       
-      // All activities covered by existing consent
-      console.log('[Consently DPDPA] Valid consent found, all activities covered');
-      applyConsent(existingConsent);
-      return;
+      // For onPageLoad triggers, apply rule now (filters activities)
+      if (matchedRule.trigger_type === 'onPageLoad') {
+        applyRule(matchedRule);
+        // Track rule match for analytics
+        trackRuleMatch(matchedRule);
+      }
+    }
+    
+    // Check if existing consent covers the activities required for this page
+    // (After rule is applied, so we check against filtered activities if rule specifies them)
+    if (existingConsent && existingConsent.timestamp) {
+      const hasRequiredConsent = checkConsentForCurrentPage(existingConsent);
+      
+      if (hasRequiredConsent) {
+        console.log('[Consently DPDPA] Valid consent found for current page');
+        applyConsent(existingConsent);
+        return;
+      } else {
+        console.log('[Consently DPDPA] Consent exists but does not cover all activities for this page');
+      }
     }
 
-    // Check for display rules first (page-specific notices)
-    const ruleMatched = evaluateDisplayRules();
-    
-    // If no rule matched, use default behavior
-    if (!ruleMatched && config.autoShow) {
+    // Show widget if:
+    // 1. A rule matched with onPageLoad trigger, OR
+    // 2. No rule matched and autoShow is enabled
+    if (matchedRule && matchedRule.trigger_type === 'onPageLoad') {
+      // Rule matched, show widget with rule-specific content
+      showNoticeForRule(matchedRule);
+    } else if (!matchedRule && config.autoShow) {
+      // No rule matched, use default behavior
       setTimeout(() => {
         showConsentWidget();
       }, config.showAfterDelay || 1000);
@@ -1465,10 +1962,18 @@
   async function saveConsent(overallStatus, overlay) {
     const acceptedActivities = [];
     const rejectedActivities = [];
+    const activityPurposeConsents = {}; // Track purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
 
     Object.keys(activityConsents).forEach(activityId => {
       if (activityConsents[activityId].status === 'accepted') {
         acceptedActivities.push(activityId);
+        
+        // Track purposes for this activity if purposes are filtered
+        const activity = activities.find(a => a.id === activityId);
+        if (activity && activity.purposes && Array.isArray(activity.purposes)) {
+          // Store consented purpose IDs for this activity
+          activityPurposeConsents[activityId] = activity.purposes.map(p => p.id);
+        }
       } else if (activityConsents[activityId].status === 'rejected') {
         rejectedActivities.push(activityId);
       }
@@ -1480,14 +1985,24 @@
       finalStatus = 'partial';
     }
 
+    // Include rule context if a rule was matched
+    const ruleContext = config._matchedRule ? {
+      ruleId: config._matchedRule.id,
+      ruleName: config._matchedRule.rule_name,
+      urlPattern: config._matchedRule.url_pattern,
+      pageUrl: window.location.pathname
+    } : undefined;
+    
     const consentData = {
       widgetId: widgetId,
       visitorId: getVisitorId(),
       visitorEmail: visitorEmail || undefined,
       consentStatus: finalStatus,
       acceptedActivities: acceptedActivities,
+      ruleContext: ruleContext, // NEW: Track which rule triggered this consent
       rejectedActivities: rejectedActivities,
       activityConsents: activityConsents,
+      activityPurposeConsents: Object.keys(activityPurposeConsents).length > 0 ? activityPurposeConsents : undefined, // NEW: Track purpose-level consent
       metadata: {
         language: navigator.language || 'en',
         referrer: document.referrer || null,
@@ -1518,6 +2033,9 @@
 
       // Apply consent
       applyConsent(storageData);
+
+      // Track consent event for analytics
+      trackConsentEvent(consentData, config._matchedRule || null);
 
       // Show floating preference centre button
       showFloatingPreferenceButton();

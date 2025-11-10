@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createPublicClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
+import type { ConsentRecordRequest, ConsentDetails, RuleContext, PartialRuleContext } from '@/types/dpdpa-widget.types';
+import { consentRecordRequestSchema } from '@/types/dpdpa-widget.types';
 
 /**
  * Public API endpoint to record DPDPA consent
@@ -10,28 +12,7 @@ import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
  * No authentication required - it's publicly accessible
  */
 
-interface ConsentRecordRequest {
-  widgetId: string;
-  visitorId: string;
-  visitorEmail?: string;
-  consentStatus: 'accepted' | 'rejected' | 'partial';
-  acceptedActivities: string[];
-  rejectedActivities: string[];
-  activityConsents: Record<string, { status: string; timestamp: string }>;
-  metadata?: {
-    ipAddress?: string;
-    userAgent?: string;
-    deviceType?: string;
-    browser?: string;
-    os?: string;
-    country?: string;
-    language?: string;
-    referrer?: string;
-    currentUrl?: string;
-    pageTitle?: string;
-  };
-  consentDuration?: number; // in days
-}
+// Types moved to @/types/dpdpa-widget.types.ts
 
 // Helper function to hash email for privacy
 function hashEmail(email: string): string {
@@ -198,23 +179,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: ConsentRecordRequest = await request.json();
-
-    // Validate required fields
-    if (!body.widgetId || !body.visitorId || !body.consentStatus) {
+    // Parse and validate request body
+    let body: ConsentRecordRequest;
+    try {
+      body = await request.json();
+    } catch (error) {
       return NextResponse.json(
-        { error: 'Missing required fields: widgetId, visitorId, consentStatus' },
-        { status: 400 }
+        { 
+          error: 'Invalid JSON in request body',
+          code: 'INVALID_JSON'
+        },
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
       );
     }
 
-    // Validate consent status
-    if (!['accepted', 'rejected', 'partial'].includes(body.consentStatus)) {
+    // Validate request using Zod schema
+    const validationResult = consentRecordRequestSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid consent status. Must be accepted, rejected, or partial' },
-        { status: 400 }
+        { 
+          error: 'Validation failed',
+          code: 'VALIDATION_ERROR',
+          details: validationResult.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message,
+            code: issue.code,
+          }))
+        },
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
       );
     }
+
+    // Use validated data
+    body = validationResult.data;
 
     // Create public supabase client (no auth required for this endpoint)
     const supabase = createPublicClient(
@@ -258,8 +265,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + consentDuration);
 
-    // Hash email if provided
-    const visitorEmailHash = body.visitorEmail ? hashEmail(body.visitorEmail) : null;
+    // Note: visitor_email_hash field doesn't exist in schema, storing in consent_details instead
 
     // Check if consent record already exists for this visitor
     const { data: existingConsent, error: existingConsentError } = await supabase
@@ -267,7 +273,7 @@ export async function POST(request: NextRequest) {
       .select('id')
       .eq('widget_id', body.widgetId)
       .eq('visitor_id', body.visitorId)
-      .order('consent_timestamp', { ascending: false })
+      .order('consent_given_at', { ascending: false })
       .limit(1)
       .maybeSingle(); // Use maybeSingle() instead of single() to handle no records gracefully
 
@@ -278,102 +284,185 @@ export async function POST(request: NextRequest) {
 
     let result;
 
+    // Build consent_details JSONB with rule context, activity consents, and extra metadata
+    // Validate and sanitize rule context (only include if all required fields are present)
+    const ruleContext: RuleContext | null = body.ruleContext && 
+      body.ruleContext.ruleId && 
+      body.ruleContext.ruleName && 
+      body.ruleContext.urlPattern && 
+      body.ruleContext.pageUrl ? {
+      ruleId: body.ruleContext.ruleId,
+      ruleName: body.ruleContext.ruleName,
+      urlPattern: body.ruleContext.urlPattern,
+      pageUrl: body.ruleContext.pageUrl,
+      matchedAt: body.ruleContext.matchedAt || new Date().toISOString(),
+    } : null;
+
+    // Validate activity IDs are UUIDs (security: prevent injection)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validatedAcceptedActivities = (body.acceptedActivities || []).filter(id => 
+      typeof id === 'string' && uuidRegex.test(id)
+    );
+    const validatedRejectedActivities = (body.rejectedActivities || []).filter(id => 
+      typeof id === 'string' && uuidRegex.test(id)
+    );
+
+    // Limit number of activities (prevent abuse)
+    if (validatedAcceptedActivities.length > 100 || validatedRejectedActivities.length > 100) {
+      return NextResponse.json(
+        { 
+          error: 'Too many activities in consent record',
+          code: 'TOO_MANY_ACTIVITIES'
+        },
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      );
+    }
+
+    // Validate activityPurposeConsents if provided
+    let validatedActivityPurposeConsents: Record<string, string[]> | undefined = undefined;
+    if (body.activityPurposeConsents && typeof body.activityPurposeConsents === 'object') {
+      validatedActivityPurposeConsents = {};
+      for (const [activityId, purposeIds] of Object.entries(body.activityPurposeConsents)) {
+        // Validate activity ID is UUID
+        if (typeof activityId === 'string' && uuidRegex.test(activityId)) {
+          // Validate purpose IDs are UUIDs
+          if (Array.isArray(purposeIds)) {
+            const validatedPurposeIds = purposeIds.filter(id => 
+              typeof id === 'string' && uuidRegex.test(id)
+            );
+            if (validatedPurposeIds.length > 0) {
+              validatedActivityPurposeConsents[activityId] = validatedPurposeIds;
+            }
+          }
+        }
+      }
+      // Set to undefined if empty
+      if (Object.keys(validatedActivityPurposeConsents).length === 0) {
+        validatedActivityPurposeConsents = undefined;
+      }
+    }
+
+    const consentDetails: ConsentDetails = {
+      activityConsents: body.activityConsents || {},
+      activityPurposeConsents: validatedActivityPurposeConsents, // Store purpose-level consent
+      ruleContext: ruleContext,
+      metadata: {
+        referrer: referrer || undefined,
+        currentUrl: currentUrl || undefined,
+        pageTitle: pageTitle || undefined,
+        ipAddress: ipAddress || undefined,
+        userAgent: userAgent || undefined,
+        deviceType: deviceType || undefined,
+        browser: browser || undefined,
+        os: os || undefined,
+        country: country || undefined,
+        language: language || undefined,
+      }
+    };
+
     if (existingConsent) {
       // Update existing consent record
       const { data, error } = await supabase
         .from('dpdpa_consent_records')
         .update({
           consent_status: body.consentStatus,
-          accepted_activities: body.acceptedActivities || [],
-          rejected_activities: body.rejectedActivities || [],
-          activity_consents: body.activityConsents || {},
-          visitor_email_hash: visitorEmailHash,
+          consented_activities: validatedAcceptedActivities,
+          rejected_activities: validatedRejectedActivities,
+          consent_details: consentDetails, // Store rule context and activity consents
           ip_address: ipAddress,
           user_agent: userAgent,
           device_type: deviceType,
           browser: browser,
           os: os,
-          country: country,
+          country_code: country?.substring(0, 3) || null, // Truncate to 3 chars for country_code
           language: language,
-          referrer: referrer,
-          current_url: currentUrl,
-          page_title: pageTitle,
-          last_updated: new Date().toISOString(),
-          expires_at: expiresAt.toISOString(),
-          widget_version: '1.0.0'
+          updated_at: new Date().toISOString(),
+          consent_expires_at: expiresAt.toISOString()
         })
         .eq('id', existingConsent.id)
         .select()
         .single();
 
       if (error) {
-        console.error('[Consent Record API] Error updating consent record:', error);
-        console.error('[Consent Record API] Error details:', JSON.stringify(error, null, 2));
-        console.error('[Consent Record API] Update payload:', {
-          id: existingConsent.id,
-          consent_status: body.consentStatus,
-          accepted_activities: body.acceptedActivities?.length || 0,
-          rejected_activities: body.rejectedActivities?.length || 0
+        console.error('[Consent Record API] Error updating consent record:', {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          widgetId: body.widgetId,
+          visitorId: body.visitorId,
+          timestamp: new Date().toISOString(),
         });
         return NextResponse.json(
           { 
             error: 'Failed to update consent record',
-            details: error.message,
-            code: error.code
+            code: 'UPDATE_FAILED'
           },
-          { status: 500 }
+          { 
+            status: 500,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+            }
+          }
         );
       }
 
       result = data;
     } else {
+      // Generate unique consent_id
+      const consentId = `${body.widgetId}_${body.visitorId}_${Date.now()}`;
+      
       // Create new consent record
       const { data, error } = await supabase
         .from('dpdpa_consent_records')
         .insert({
           widget_id: body.widgetId,
           visitor_id: body.visitorId,
-          visitor_email_hash: visitorEmailHash,
+          consent_id: consentId,
           consent_status: body.consentStatus,
-          accepted_activities: body.acceptedActivities || [],
-          rejected_activities: body.rejectedActivities || [],
-          activity_consents: body.activityConsents || {},
+          consented_activities: validatedAcceptedActivities,
+          rejected_activities: validatedRejectedActivities,
+          consent_details: consentDetails, // Store rule context and activity consents
           ip_address: ipAddress,
           user_agent: userAgent,
           device_type: deviceType,
           browser: browser,
           os: os,
-          country: country,
+          country_code: country?.substring(0, 3) || null, // Truncate to 3 chars for country_code
           language: language,
-          referrer: referrer,
-          current_url: currentUrl,
-          page_title: pageTitle,
-          consent_timestamp: new Date().toISOString(),
-          last_updated: new Date().toISOString(),
-          expires_at: expiresAt.toISOString(),
-          consent_version: '1.0',
-          widget_version: '1.0.0'
+          consent_given_at: new Date().toISOString(),
+          consent_expires_at: expiresAt.toISOString(),
+          privacy_notice_version: '2.0' // Updated version for display rules support
         })
         .select()
         .single();
 
       if (error) {
-        console.error('[Consent Record API] Error creating consent record:', error);
-        console.error('[Consent Record API] Error details:', JSON.stringify(error, null, 2));
-        console.error('[Consent Record API] Insert payload:', {
-          widget_id: body.widgetId,
-          visitor_id: body.visitorId,
-          consent_status: body.consentStatus,
-          accepted_activities: body.acceptedActivities?.length || 0,
-          rejected_activities: body.rejectedActivities?.length || 0
+        console.error('[Consent Record API] Error creating consent record:', {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          widgetId: body.widgetId,
+          visitorId: body.visitorId,
+          timestamp: new Date().toISOString(),
         });
         return NextResponse.json(
           { 
             error: 'Failed to create consent record',
-            details: error.message,
-            code: error.code
+            code: 'CREATE_FAILED'
           },
-          { status: 500 }
+          { 
+            status: 500,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+            }
+          }
         );
       }
 
@@ -396,10 +485,27 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error recording consent:', error);
+    // Enhanced error logging for production
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('[Consent Record API] Unexpected error:', {
+      error: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+    });
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        error: 'Internal server error',
+        code: 'INTERNAL_ERROR'
+      },
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        }
+      }
     );
   }
 }
