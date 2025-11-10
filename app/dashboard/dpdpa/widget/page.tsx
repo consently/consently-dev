@@ -39,7 +39,11 @@ import {
   Edit,
   ChevronUp,
   ChevronDown,
-  TestTube
+  TestTube,
+  Filter,
+  FileText,
+  HelpCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
@@ -1243,9 +1247,30 @@ export default function DPDPAWidgetPage() {
           size="xl"
         >
           <div className="space-y-6">
+              {/* Quick Info Banner */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-medium text-gray-900 mb-1">Display Rule Quick Guide</h5>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      Display rules let you show different consent notices on different pages. Configure the URL pattern, 
+                      trigger type, and optionally filter which activities/purposes to show.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Basic Information */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-900 border-b pb-2">Basic Information</h4>
+                <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Settings className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900">Basic Information</h4>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1288,7 +1313,12 @@ export default function DPDPAWidgetPage() {
 
               {/* URL Matching */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-900 border-b pb-2">URL Matching</h4>
+                <div className="flex items-center gap-2 pb-2 border-b border-purple-200">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Route className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900">URL Matching</h4>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1352,7 +1382,12 @@ export default function DPDPAWidgetPage() {
 
               {/* Trigger Configuration */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-900 border-b pb-2">Trigger Configuration</h4>
+                <div className="flex items-center gap-2 pb-2 border-b border-green-200">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Zap className="h-5 w-5 text-green-600" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900">Trigger Configuration</h4>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1438,7 +1473,13 @@ export default function DPDPAWidgetPage() {
 
               {/* Activity Filtering */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-900 border-b pb-2">Activity Filtering</h4>
+                <div className="flex items-center gap-2 pb-2 border-b border-orange-200">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Filter className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900">Activity Filtering</h4>
+                  <HelpCircle className="h-4 w-4 text-gray-400 ml-auto cursor-help" title="Select specific activities to show. Leave empty to show all activities." />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Activities (Optional)
@@ -1452,7 +1493,7 @@ export default function DPDPAWidgetPage() {
                     ) : (
                       <div className="space-y-2">
                         {activities.map((activity) => (
-                          <label key={activity.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                          <label key={activity.id} className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-3 rounded-lg border border-transparent hover:border-blue-200 transition-all">
                             <Checkbox
                               checked={(editingRule.activities || []).includes(activity.id)}
                               onChange={(e) => {
@@ -1477,8 +1518,28 @@ export default function DPDPAWidgetPage() {
                                 }
                               }}
                             />
-                            <span className="text-sm text-gray-700">{activity.activityName}</span>
-                            <Badge variant="secondary" className="ml-auto">{activity.industry}</Badge>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-medium text-gray-900">{activity.activityName}</span>
+                                <Badge variant="secondary" className="text-xs">{activity.industry}</Badge>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <code className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono">
+                                  ID: {activity.id.slice(0, 8)}...
+                                </code>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    navigator.clipboard.writeText(activity.id);
+                                    toast.success('Activity ID copied!');
+                                  }}
+                                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                                >
+                                  Copy Full ID
+                                </button>
+                              </div>
+                            </div>
                           </label>
                         ))}
                       </div>
@@ -1490,10 +1551,18 @@ export default function DPDPAWidgetPage() {
               {/* Purpose Filtering - NEW */}
               {(editingRule.activities && editingRule.activities.length > 0) && (
                 <div className="space-y-4">
-                  <h4 className="font-semibold text-gray-900 border-b pb-2">Purpose Filtering (Optional)</h4>
-                  <p className="text-xs text-gray-500 mb-3">
-                    Select specific purposes to show for each activity. If no purposes are selected for an activity, all purposes will be shown.
-                  </p>
+                  <div className="flex items-center gap-2 pb-2 border-b border-pink-200">
+                    <div className="p-2 bg-pink-100 rounded-lg">
+                      <CheckCircle2 className="h-5 w-5 text-pink-600" />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">Purpose Filtering (Advanced)</h4>
+                    <HelpCircle className="h-4 w-4 text-gray-400 ml-auto cursor-help" title="Fine-tune which purposes to show for each activity" />
+                  </div>
+                  <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
+                    <p className="text-sm text-pink-800">
+                      <strong>💡 Tip:</strong> Select specific purposes to show for each activity. Leave "Show all purposes" checked to display all purposes for an activity.
+                    </p>
+                  </div>
                   <div className="space-y-4">
                     {editingRule.activities.map((activityId) => {
                       const activity = activities.find(a => a.id === activityId);
@@ -1602,7 +1671,12 @@ export default function DPDPAWidgetPage() {
 
               {/* Notice Content Override */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-900 border-b pb-2">Notice Content (Optional)</h4>
+                <div className="flex items-center gap-2 pb-2 border-b border-indigo-200">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <FileText className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900">Notice Content (Optional)</h4>
+                </div>
                 <p className="text-xs text-gray-500 mb-3">
                   Override the default widget title, message, or HTML content for this rule. Leave empty to use default widget content.
                 </p>
