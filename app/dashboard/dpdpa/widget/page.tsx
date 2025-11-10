@@ -508,8 +508,8 @@ export default function DPDPAWidgetPage() {
       rule_name: 'New Display Rule',
       url_pattern: '',
       url_match_type: 'contains',
-      trigger_type: 'onPageLoad',
-      trigger_delay: 1000,
+      trigger_type: 'onFormSubmit', // Default: Show widget before form submission
+      trigger_delay: 0, // No delay for form submit by default
       scroll_threshold: 50, // Default scroll threshold
       priority: 100,
       is_active: true,
@@ -1364,11 +1364,25 @@ export default function DPDPAWidgetPage() {
                       onChange={(e) => setEditingRule({ ...editingRule, trigger_type: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     >
+                      <option value="onFormSubmit">On Form Submit (Recommended)</option>
                       <option value="onPageLoad">On Page Load</option>
                       <option value="onClick">On Click</option>
-                      <option value="onFormSubmit">On Form Submit</option>
                       <option value="onScroll">On Scroll</option>
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {editingRule.trigger_type === 'onFormSubmit' && (
+                        'Widget shows before any form submission. Auto-detects all forms if no selector provided.'
+                      )}
+                      {editingRule.trigger_type === 'onPageLoad' && (
+                        'Widget shows immediately when the page loads.'
+                      )}
+                      {editingRule.trigger_type === 'onClick' && (
+                        'Widget shows when user clicks a specific element. Requires element selector.'
+                      )}
+                      {editingRule.trigger_type === 'onScroll' && (
+                        'Widget shows when user scrolls to a certain threshold.'
+                      )}
+                    </p>
                   </div>
                   
                   <div>
@@ -1389,14 +1403,19 @@ export default function DPDPAWidgetPage() {
                 {(editingRule.trigger_type === 'onClick' || editingRule.trigger_type === 'onFormSubmit') && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Element Selector (CSS)
+                      Element Selector (CSS) {editingRule.trigger_type === 'onFormSubmit' && <span className="text-gray-500 font-normal">(Optional)</span>}
+                      {editingRule.trigger_type === 'onClick' && <span className="text-red-500">*</span>}
                     </label>
                     <Input
                       value={editingRule.element_selector || ''}
                       onChange={(e) => setEditingRule({ ...editingRule, element_selector: e.target.value })}
-                      placeholder="e.g., #submit-button or .contact-form"
+                      placeholder={editingRule.trigger_type === 'onFormSubmit' ? 'e.g., form#contact-form (leave empty to auto-detect all forms)' : 'e.g., #submit-button or .cta-button'}
                     />
-                    <p className="text-xs text-gray-500 mt-1">CSS selector for the element to trigger on</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {editingRule.trigger_type === 'onFormSubmit' 
+                        ? 'Optional: Target a specific form. If empty, widget will intercept ALL form submissions on the page.'
+                        : 'CSS selector for the element to trigger on click'}
+                    </p>
                   </div>
                 )}
 

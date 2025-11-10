@@ -396,22 +396,90 @@
     }, { once: true });
   }
 
-  // Setup form submit trigger
+  // Setup form submit trigger with auto-detection
   function setupFormSubmitTrigger(rule) {
-    const form = document.querySelector(rule.element_selector);
-    if (!form) {
-      console.warn('[Consently DPDPA] Form not found for submit trigger:', rule.element_selector);
+    let targetForms = [];
+    
+    // If element_selector is provided, use it
+    if (rule.element_selector) {
+      const form = document.querySelector(rule.element_selector);
+      if (form) {
+        targetForms = [form];
+      } else {
+        console.warn('[Consently DPDPA] Form not found for submit trigger:', rule.element_selector);
+      }
+    } else {
+      // Auto-detect all forms on the page
+      targetForms = Array.from(document.querySelectorAll('form'));
+      console.log('[Consently DPDPA] Auto-detected forms:', targetForms.length);
+    }
+    
+    if (targetForms.length === 0) {
+      console.warn('[Consently DPDPA] No forms found on page for submit trigger');
       return;
     }
     
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      applyRule(rule);
-      trackRuleMatch(rule);
-      showConsentWidget();
-      // Note: After consent is given, you'll need to handle form submission
-      // This can be done via a custom event listener
-    }, { once: true });
+    // Store original form handlers to re-trigger after consent
+    const formHandlers = new WeakMap();
+    
+    targetForms.forEach(form => {
+      const submitHandler = (e) => {
+        // Check if consent already given
+        const existingConsent = ConsentStorage.get(`consently_dpdpa_consent_${widgetId}`);
+        const hasConsent = existingConsent && existingConsent.timestamp;
+        
+        // If no consent, prevent form submission and show widget
+        if (!hasConsent) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          console.log('[Consently DPDPA] Form submission intercepted - showing consent widget');
+          
+          // Apply rule and show widget
+          applyRule(rule);
+          trackRuleMatch(rule);
+          
+          // Store the form and event for later submission
+          const formData = new FormData(form);
+          const submitButton = e.submitter || form.querySelector('[type="submit"]');
+          
+          // Show widget and handle consent
+          showConsentWidget();
+          
+          // Listen for consent completion to resume form submission
+          window.addEventListener('consentlyDPDPAConsent', function handleConsent(consentEvent) {
+            console.log('[Consently DPDPA] Consent received, allowing form submission');
+            
+            // Remove this listener
+            window.removeEventListener('consentlyDPDPAConsent', handleConsent);
+            
+            // Re-submit the form after a short delay
+            setTimeout(() => {
+              // Remove the submit listener temporarily to avoid recursion
+              form.removeEventListener('submit', submitHandler);
+              
+              // Trigger form submission
+              if (submitButton) {
+                submitButton.click();
+              } else {
+                form.submit();
+              }
+              
+              // Re-attach listener for future submissions
+              setTimeout(() => {
+                form.addEventListener('submit', submitHandler, { capture: true });
+              }, 100);
+            }, 300);
+          }, { once: true });
+        } else {
+          console.log('[Consently DPDPA] Consent already exists, allowing form submission');
+        }
+      };
+      
+      // Use capture phase to intercept before other handlers
+      form.addEventListener('submit', submitHandler, { capture: true });
+      console.log('[Consently DPDPA] Form submit listener attached:', form.id || form.name || 'unnamed form');
+    });
   }
 
   // Setup scroll trigger
@@ -601,6 +669,12 @@
       console.log('[Consently DPDPA] Rule activities:', rule.activities);
       console.log('[Consently DPDPA] Available activities before filter:', activities.length);
       
+      // Debug: Log all activity IDs for comparison
+      console.log('[Consently DPDPA] Available activity IDs:', activities.map(a => ({
+        id: a.id,
+        name: a.activity_name || a.activityName
+      })));
+      
       // Store original activities
       const originalActivities = [...activities];
       
@@ -610,6 +684,14 @@
       );
       
       console.log('[Consently DPDPA] Filtered activities count:', filteredActivities.length);
+      
+      // Debug: Show why activities didn't match
+      if (filteredActivities.length === 0 && activities.length > 0) {
+        console.error('[Consently DPDPA] ❌ ACTIVITY ID MISMATCH!');
+        console.error('[Consently DPDPA] Rule expects activity IDs:', rule.activities);
+        console.error('[Consently DPDPA] But widget has activity IDs:', activities.map(a => a.id));
+        console.error('[Consently DPDPA] → Please update your display rule with the correct activity IDs from above');
+      }
       
       if (filteredActivities.length > 0) {
         // Update global activities array (used by widget)
