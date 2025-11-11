@@ -1920,11 +1920,24 @@
 
   // Attach event listeners
   function attachEventListeners(overlay, widget) {
-    // Close button
+    // Close button (X) - same behavior as Cancel, reject all activities
     const closeBtn = widget.querySelector('#dpdpa-close-btn');
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        hideWidget(overlay);
+      closeBtn.addEventListener('click', async () => {
+        // First check if there are any activities at all
+        if (!activities || activities.length === 0) {
+          console.error('[Consently DPDPA] No activities available to close');
+          hideWidget(overlay);
+          return;
+        }
+        
+        // Reject all activities
+        activities.forEach(activity => {
+          setActivityConsent(activity.id, 'rejected');
+        });
+        
+        // Save consent as rejected
+        await saveConsent('rejected', overlay);
       });
     }
 
@@ -2018,11 +2031,24 @@
       });
     }
 
-    // Cancel button
+    // Cancel button - reject all activities and save consent
     const cancelBtn = widget.querySelector('#dpdpa-cancel-btn');
     if (cancelBtn) {
-      cancelBtn.addEventListener('click', () => {
-        hideWidget(overlay);
+      cancelBtn.addEventListener('click', async () => {
+        // First check if there are any activities at all
+        if (!activities || activities.length === 0) {
+          console.error('[Consently DPDPA] No activities available to cancel');
+          hideWidget(overlay);
+          return;
+        }
+        
+        // Reject all activities
+        activities.forEach(activity => {
+          setActivityConsent(activity.id, 'rejected');
+        });
+        
+        // Save consent as rejected
+        await saveConsent('rejected', overlay);
       });
       // Enhanced hover effects
       cancelBtn.addEventListener('mouseenter', () => {
@@ -2098,10 +2124,23 @@
       });
     });
 
-    // Close on overlay click
-    overlay.addEventListener('click', (e) => {
+    // Close on overlay click - same behavior as Cancel, reject all activities
+    overlay.addEventListener('click', async (e) => {
       if (e.target === overlay) {
-        hideWidget(overlay);
+        // First check if there are any activities at all
+        if (!activities || activities.length === 0) {
+          console.error('[Consently DPDPA] No activities available');
+          hideWidget(overlay);
+          return;
+        }
+        
+        // Reject all activities
+        activities.forEach(activity => {
+          setActivityConsent(activity.id, 'rejected');
+        });
+        
+        // Save consent as rejected
+        await saveConsent('rejected', overlay);
       }
     });
   }

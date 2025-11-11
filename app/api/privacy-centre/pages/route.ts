@@ -96,14 +96,29 @@ export async function GET(request: NextRequest) {
     // Group records by URL to get page statistics
     const pageMap = new Map<string, PageInfo>();
 
+    // Count records without URLs for debugging
+    let recordsWithoutUrl = 0;
+    let totalRecordsProcessed = 0;
+
     (consentRecords || []).forEach((record: any) => {
+      totalRecordsProcessed++;
+      
       // Extract current_url and page_title from consent_details.metadata
+      // Try multiple possible locations for backward compatibility
       const metadata = record.consent_details?.metadata || {};
-      const rawUrl = metadata.currentUrl || null;
+      let rawUrl = metadata.currentUrl || metadata.current_url || null;
+      
+      // Fallback: if no URL in metadata, try to use referrer or construct from widget data
+      // This helps catch older records that might not have currentUrl
+      if (!rawUrl && metadata.referrer) {
+        // Use referrer as fallback
+        rawUrl = metadata.referrer;
+      }
       
       // Skip records without a URL
       if (!rawUrl) {
-        console.log('[Privacy Centre Pages API] Record without URL:', record.id);
+        recordsWithoutUrl++;
+        console.log('[Privacy Centre Pages API] Record without URL:', record.id, 'created at:', record.consent_given_at);
         return;
       }
 
@@ -117,6 +132,9 @@ export async function GET(request: NextRequest) {
 
       // Store the original URL for display (before normalization)
       const displayUrl = rawUrl;
+      
+      // Get page title from metadata, with fallbacks
+      const pageTitle = metadata.pageTitle || metadata.page_title || null;
 
       if (!existing) {
         // Validate consentTimestamp before using it
@@ -135,7 +153,7 @@ export async function GET(request: NextRequest) {
         // First time seeing this page - use normalized URL as key but store original for display
         pageMap.set(url, {
           url: displayUrl, // Store original URL for display
-          title: metadata.pageTitle || null,
+          title: pageTitle,
           firstVisit: consentTimestamp,
           lastVisit: consentTimestamp,
           consentGiven: record.consent_status !== 'rejected',
@@ -186,8 +204,8 @@ export async function GET(request: NextRequest) {
         }
 
         // Update title if not set
-        if (!existing.title && metadata.pageTitle) {
-          existing.title = metadata.pageTitle;
+        if (!existing.title && pageTitle) {
+          existing.title = pageTitle;
         }
       }
     });
@@ -213,6 +231,15 @@ export async function GET(request: NextRequest) {
         const dateB = new Date(b.lastVisit);
         return dateB.getTime() - dateA.getTime();
       });
+
+    // Log statistics for debugging
+    console.log('[Privacy Centre Pages API] Processing complete:', {
+      totalRecords: totalRecordsProcessed,
+      recordsWithoutUrl,
+      uniquePages: pages.length,
+      widgetId,
+      visitorId
+    });
 
     return NextResponse.json({
       pages,

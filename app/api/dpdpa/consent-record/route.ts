@@ -294,24 +294,68 @@ export async function POST(request: NextRequest) {
 
     // Note: visitor_email_hash field doesn't exist in schema, storing in consent_details instead
 
-    // Check if consent record already exists for this visitor
-    const { data: existingConsent, error: existingConsentError } = await supabase
-      .from('dpdpa_consent_records')
-      .select('id')
-      .eq('widget_id', body.widgetId)
-      .eq('visitor_id', body.visitorId)
-      .order('consent_given_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(); // Use maybeSingle() instead of single() to handle no records gracefully
+    // Check if consent record already exists for this visitor AND this specific page URL
+    // This allows tracking consent per page, which is needed for the Pages tab
+    let existingConsent = null;
+    
+    if (currentUrl) {
+      // Helper function to normalize URLs for comparison
+      function normalizeUrl(urlString: string): string {
+        try {
+          const url = new URL(urlString);
+          // Remove query parameters and hash for comparison
+          url.search = '';
+          url.hash = '';
+          // Normalize trailing slash
+          let path = url.pathname;
+          if (path.length > 1 && path.endsWith('/')) {
+            path = path.slice(0, -1);
+          }
+          url.pathname = path;
+          return url.toString();
+        } catch (e) {
+          return urlString;
+        }
+      }
+      
+      const normalizedCurrentUrl = normalizeUrl(currentUrl);
+      
+      // Get all consent records for this visitor and widget
+      const { data: allConsents, error: existingConsentError } = await supabase
+        .from('dpdpa_consent_records')
+        .select('id, consent_details')
+        .eq('widget_id', body.widgetId)
+        .eq('visitor_id', body.visitorId)
+        .order('consent_given_at', { ascending: false });
 
-    if (existingConsentError) {
-      console.error('[Consent Record API] Error checking for existing consent:', {
-        error: existingConsentError.message,
-        code: existingConsentError.code,
-        widgetId: body.widgetId,
-        visitorId: body.visitorId,
-      });
-      // Continue with creating new record if check fails
+      if (existingConsentError) {
+        console.error('[Consent Record API] Error checking for existing consent:', {
+          error: existingConsentError.message,
+          code: existingConsentError.code,
+          widgetId: body.widgetId,
+          visitorId: body.visitorId,
+        });
+        // Continue with creating new record if check fails
+      }
+      
+      // Find a record that matches the current URL
+      if (allConsents && allConsents.length > 0) {
+        for (const record of allConsents) {
+          const recordUrl = record.consent_details?.metadata?.currentUrl;
+          if (recordUrl) {
+            const normalizedRecordUrl = normalizeUrl(recordUrl);
+            if (normalizedRecordUrl === normalizedCurrentUrl) {
+              existingConsent = { id: record.id };
+              console.log('[Consent Record API] Found existing consent for this URL, will update');
+              break;
+            }
+          }
+        }
+        
+        if (!existingConsent) {
+          console.log('[Consent Record API] No existing consent for this URL, will create new record');
+        }
+      }
     }
 
     let result;

@@ -218,11 +218,14 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="h-8 bg-gray-200 rounded animate-pulse w-64"></div>
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <div className="h-12 bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl animate-pulse"></div>
+          <div className="h-8 bg-gray-100 rounded-lg animate-pulse w-3/4"></div>
+        </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 bg-gray-200 rounded animate-pulse"></div>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl animate-pulse shadow-sm"></div>
           ))}
         </div>
       </div>
@@ -230,35 +233,65 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Data Subject Rights</h2>
-        <p className="text-gray-600 mt-2">
-          Exercise your rights under the Digital Personal Data Protection Act (DPDP) 2023
-        </p>
+    <div className="space-y-6 md:space-y-8 max-w-5xl mx-auto">
+      {/* Modern Header with Gradient */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl blur-2xl"></div>
+        <div className="relative bg-gradient-to-br from-white to-blue-50/50 border border-blue-100 rounded-2xl p-6 md:p-8 shadow-lg">
+          <div className="flex items-start gap-4">
+            <div className="hidden sm:flex h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 items-center justify-center shadow-lg flex-shrink-0">
+              <MessageSquare className="h-6 w-6 md:h-7 md:w-7 text-white" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-3">
+                Data Subject Rights
+              </h2>
+              <p className="text-gray-600 text-sm md:text-base leading-relaxed">
+                Exercise your rights under the Digital Personal Data Protection Act (DPDP) 2023. 
+                Request access, correction, erasure, or file grievances about your personal data.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Rights Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {RIGHTS_INFO.map((right) => {
           const Icon = right.icon;
+          const colorClasses = {
+            blue: 'from-blue-50 via-indigo-50 to-purple-50 border-blue-200 hover:border-blue-400',
+            amber: 'from-amber-50 via-yellow-50 to-orange-50 border-amber-200 hover:border-amber-400',
+            red: 'from-red-50 via-pink-50 to-rose-50 border-red-200 hover:border-red-400',
+            purple: 'from-purple-50 via-violet-50 to-fuchsia-50 border-purple-200 hover:border-purple-400',
+            green: 'from-green-50 via-emerald-50 to-teal-50 border-green-200 hover:border-green-400',
+          };
+          const iconColorClasses = {
+            blue: 'from-blue-500 to-indigo-600',
+            amber: 'from-amber-500 to-orange-600',
+            red: 'from-red-500 to-pink-600',
+            purple: 'from-purple-500 to-violet-600',
+            green: 'from-green-500 to-emerald-600',
+          };
           return (
             <Card
               key={right.type}
-              className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-blue-500"
+              className={`hover:shadow-xl transition-all duration-300 cursor-pointer border-2 bg-gradient-to-br ${colorClasses[right.color as keyof typeof colorClasses]} overflow-hidden group`}
               onClick={() => handleOpenRequestModal(right.type)}
             >
-              <CardHeader>
-                <div className={`h-12 w-12 rounded-lg bg-${right.color}-100 flex items-center justify-center mb-3`}>
-                  <Icon className={`h-6 w-6 text-${right.color}-600`} />
+              <CardHeader className="pb-4">
+                <div className={`h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br ${iconColorClasses[right.color as keyof typeof iconColorClasses]} flex items-center justify-center mb-3 md:mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+                  <Icon className="h-6 w-6 md:h-7 md:w-7 text-white" />
                 </div>
-                <CardTitle className="text-lg">{right.title}</CardTitle>
-                <CardDescription className="text-sm">{right.description}</CardDescription>
+                <CardTitle className="text-lg md:text-xl font-bold text-gray-900 mb-2">{right.title}</CardTitle>
+                <CardDescription className="text-xs md:text-sm text-gray-600 leading-relaxed">{right.description}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-xs text-gray-500 mb-3">{right.section}</p>
-                <Button size="sm" className="w-full">
+              <CardContent className="pt-0">
+                <p className="text-xs text-gray-500 mb-4 font-medium">{right.section}</p>
+                <Button 
+                  size="sm" 
+                  className="w-full bg-gradient-to-r from-gray-900 to-gray-700 hover:from-gray-800 hover:to-gray-600 text-white shadow-md hover:shadow-lg transition-all"
+                >
                   <Send className="h-4 w-4 mr-2" />
                   Raise Request
                 </Button>
@@ -269,90 +302,154 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
       </div>
 
       {/* Request Tracker */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-900">My Requests</h3>
-          <Button variant="outline" size="sm" onClick={fetchRequests}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+      <div className="mt-6 md:mt-8">
+        {/* Action Bar */}
+        <div className="bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl p-4 md:p-5 shadow-sm mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg md:text-xl font-bold text-gray-900">My Requests</h3>
+              <p className="text-xs md:text-sm text-gray-600 mt-1">
+                Track the status of your data subject rights requests
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchRequests} className="flex-shrink-0">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {requests.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Requests Yet</h3>
-              <p className="text-gray-600 mb-6">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-gray-50 to-white">
+            <CardContent className="py-16 md:py-20 text-center">
+              <div className="inline-flex h-20 w-20 md:h-24 md:w-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 items-center justify-center mb-6">
+                <MessageSquare className="h-10 w-10 md:h-12 md:w-12 text-blue-500" />
+              </div>
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">No Requests Yet</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto text-sm md:text-base">
                 You haven't submitted any rights requests. Click on any of the cards above to get started.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 md:space-y-6">
             {requests.map((request) => {
               const rightInfo = getRightInfo(request.requestType);
               const Icon = rightInfo?.icon || MessageSquare;
+              const isCompleted = request.status === 'completed';
+              const isRejected = request.status === 'rejected';
 
               return (
-                <Card key={request.id} className="border-l-4 border-l-blue-500">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                          <Icon className="h-5 w-5 text-blue-600" />
+                <Card 
+                  key={request.id} 
+                  className={`border-0 shadow-lg transition-all duration-300 overflow-hidden ${
+                    isCompleted
+                      ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 ring-2 ring-green-200'
+                      : isRejected
+                      ? 'bg-gradient-to-br from-red-50 via-pink-50 to-rose-50 ring-2 ring-red-200'
+                      : 'bg-gradient-to-br from-white to-gray-50 hover:from-blue-50/30'
+                  }`}
+                >
+                  <CardHeader className="pb-4 md:pb-5">
+                    <div className="flex items-start justify-between gap-3 md:gap-4">
+                      <div className="flex items-start gap-3 md:gap-4 flex-1 min-w-0">
+                        <div className={`h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-br ${
+                          isCompleted 
+                            ? 'from-green-500 to-emerald-600' 
+                            : isRejected
+                            ? 'from-red-500 to-pink-600'
+                            : 'from-blue-500 to-indigo-600'
+                        } flex items-center justify-center flex-shrink-0 shadow-lg`}>
+                          <Icon className="h-5 w-5 md:h-6 md:w-6 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg">{request.requestTitle}</CardTitle>
-                          <CardDescription className="mt-1">
+                          <div className="flex items-start gap-2 mb-2 flex-wrap">
+                            <CardTitle className="text-base md:text-xl font-bold text-gray-900 line-clamp-2 flex-1">
+                              {request.requestTitle}
+                            </CardTitle>
+                            <div className="flex-shrink-0">
+                              {getStatusBadge(request.status)}
+                            </div>
+                          </div>
+                          <CardDescription className="text-xs md:text-sm text-gray-600">
                             {rightInfo?.title || request.requestType}
                           </CardDescription>
                         </div>
                       </div>
-                      {getStatusBadge(request.status)}
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-700 mb-4">{request.requestDescription}</p>
+                  <CardContent className="border-t border-gray-200/50 bg-white/50 backdrop-blur-sm pt-5 md:pt-6">
+                    <div className="space-y-4 md:space-y-5">
+                      <p className="text-sm md:text-base text-gray-700 leading-relaxed">{request.requestDescription}</p>
 
-                    {/* Response */}
-                    {request.responseMessage && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-blue-900 mb-1">Response:</p>
-                        <p className="text-sm text-blue-800">{request.responseMessage}</p>
-                      </div>
-                    )}
-
-                    {/* Rejection Reason */}
-                    {request.rejectionReason && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-red-900 mb-1">Rejection Reason:</p>
-                        <p className="text-sm text-red-800">{request.rejectionReason}</p>
-                      </div>
-                    )}
-
-                    {/* Metadata */}
-                    <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Submitted: {new Date(request.createdAt).toLocaleDateString()}
-                      </span>
-                      {request.dueDate && (
-                        <span className="flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Due: {new Date(request.dueDate).toLocaleDateString()}
-                        </span>
+                      {/* Response */}
+                      {request.responseMessage && (
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 md:p-5">
+                          <div className="flex items-start gap-2 mb-2">
+                            <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm md:text-base font-bold text-blue-900">Response:</p>
+                          </div>
+                          <p className="text-sm md:text-base text-blue-800 leading-relaxed ml-7">{request.responseMessage}</p>
+                        </div>
                       )}
-                      {request.completedAt && (
-                        <span className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Completed: {new Date(request.completedAt).toLocaleDateString()}
-                        </span>
+
+                      {/* Rejection Reason */}
+                      {request.rejectionReason && (
+                        <div className="bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-4 md:p-5">
+                          <div className="flex items-start gap-2 mb-2">
+                            <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm md:text-base font-bold text-red-900">Rejection Reason:</p>
+                          </div>
+                          <p className="text-sm md:text-base text-red-800 leading-relaxed ml-7">{request.rejectionReason}</p>
+                        </div>
                       )}
-                      <span className={`flex items-center gap-1 ${request.isVerified ? 'text-green-600' : 'text-amber-600'}`}>
-                        {request.isVerified ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                        {request.isVerified ? 'Verified' : 'Pending Verification'}
-                      </span>
+
+                      {/* Metadata */}
+                      <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs md:text-sm">
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <span className="font-medium">Submitted:</span>
+                            <span className="text-gray-700">{new Date(request.createdAt).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}</span>
+                          </div>
+                          {request.dueDate && (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                              <span className="font-medium">Due:</span>
+                              <span className="text-gray-700">{new Date(request.dueDate).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })}</span>
+                            </div>
+                          )}
+                          {request.completedAt && (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                              <span className="font-medium">Completed:</span>
+                              <span className="text-gray-700">{new Date(request.completedAt).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })}</span>
+                            </div>
+                          )}
+                          <div className={`flex items-center gap-2 ${request.isVerified ? 'text-green-600' : 'text-amber-600'}`}>
+                            {request.isVerified ? (
+                              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            )}
+                            <span className="font-medium">
+                              {request.isVerified ? 'Verified' : 'Pending Verification'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -364,13 +461,15 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
 
       {/* Request Modal */}
       <Modal isOpen={showRequestModal} onClose={handleCloseRequestModal} title={`Submit ${getRightInfo(selectedRightType || '')?.title || 'Request'}`}>
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            {getRightInfo(selectedRightType || '')?.description}
-          </p>
+        <div className="space-y-5 md:space-y-6">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+            <p className="text-sm md:text-base text-gray-700 leading-relaxed">
+              {getRightInfo(selectedRightType || '')?.description}
+            </p>
+          </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm md:text-base font-semibold text-gray-900 mb-2">
               Email Address <span className="text-red-500">*</span>
             </label>
             <Input
@@ -379,33 +478,36 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="text-sm md:text-base"
             />
-            <p className="text-xs text-gray-500 mt-1">We'll send verification and updates to this email</p>
+            <p className="text-xs md:text-sm text-gray-500 mt-2">We'll send verification and updates to this email</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Name (Optional)</label>
+              <label className="block text-sm md:text-base font-semibold text-gray-900 mb-2">Name (Optional)</label>
               <Input
                 type="text"
                 placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="text-sm md:text-base"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone (Optional)</label>
+              <label className="block text-sm md:text-base font-semibold text-gray-900 mb-2">Phone (Optional)</label>
               <Input
                 type="tel"
                 placeholder="+91 XXXXX XXXXX"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                className="text-sm md:text-base"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm md:text-base font-semibold text-gray-900 mb-2">
               Request Title <span className="text-red-500">*</span>
             </label>
             <Input
@@ -414,30 +516,36 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
               value={requestTitle}
               onChange={(e) => setRequestTitle(e.target.value)}
               required
+              className="text-sm md:text-base"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm md:text-base font-semibold text-gray-900 mb-2">
               Request Details <span className="text-red-500">*</span>
             </label>
             <Textarea
               placeholder="Please provide details about your request..."
               value={requestDescription}
               onChange={(e) => setRequestDescription(e.target.value)}
-              rows={5}
+              rows={6}
               required
+              className="text-sm md:text-base"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs md:text-sm text-gray-500 mt-2">
               Be as specific as possible to help us process your request efficiently
             </p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={handleCloseRequestModal}>
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={handleCloseRequestModal} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleSubmitRequest} disabled={submitting}>
+            <Button 
+              onClick={handleSubmitRequest} 
+              disabled={submitting}
+              className="w-full sm:w-auto bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all"
+            >
               {submitting ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
