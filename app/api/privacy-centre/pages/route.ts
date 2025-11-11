@@ -55,13 +55,13 @@ export async function GET(request: NextRequest) {
 
     // Fetch all consent records for this visitor and widget
     // Group by current_url to show unique pages
+    // Note: current_url and page_title are stored in consent_details.metadata
     const { data: consentRecords, error: recordsError } = await supabase
       .from('dpdpa_consent_records')
       .select('*')
       .eq('widget_id', widgetId)
       .eq('visitor_id', visitorId)
-      .not('current_url', 'is', null)
-      .order('consent_timestamp', { ascending: false });
+      .order('consent_given_at', { ascending: false });
 
     if (recordsError) {
       console.error('[Privacy Centre Pages API] Error fetching consent records:', recordsError);
@@ -75,44 +75,51 @@ export async function GET(request: NextRequest) {
     const pageMap = new Map<string, PageInfo>();
 
     (consentRecords || []).forEach((record: any) => {
-      const url = record.current_url;
+      // Extract current_url and page_title from consent_details.metadata
+      const metadata = record.consent_details?.metadata || {};
+      const url = metadata.currentUrl || null;
+      
+      // Skip records without a URL
       if (!url) return;
 
       const existing = pageMap.get(url);
+      const consentTimestamp = record.consent_given_at || record.created_at;
+      const consentedActivities = record.consented_activities || [];
+      const rejectedActivities = record.rejected_activities || [];
 
       if (!existing) {
         // First time seeing this page
         pageMap.set(url, {
           url,
-          title: record.page_title || null,
-          firstVisit: record.consent_timestamp,
-          lastVisit: record.consent_timestamp,
+          title: metadata.pageTitle || null,
+          firstVisit: consentTimestamp,
+          lastVisit: consentTimestamp,
           consentGiven: record.consent_status !== 'rejected',
-          consentTimestamp: record.consent_timestamp,
+          consentTimestamp: consentTimestamp,
           consentStatus: record.consent_status,
-          activitiesCount: (record.accepted_activities?.length || 0) + (record.rejected_activities?.length || 0),
+          activitiesCount: consentedActivities.length + rejectedActivities.length,
         });
       } else {
         // Update with latest visit info
-        const currentTimestamp = new Date(record.consent_timestamp);
+        const currentTimestamp = new Date(consentTimestamp);
         const firstTimestamp = new Date(existing.firstVisit);
         const lastTimestamp = new Date(existing.lastVisit);
 
         if (currentTimestamp < firstTimestamp) {
-          existing.firstVisit = record.consent_timestamp;
+          existing.firstVisit = consentTimestamp;
         }
 
         if (currentTimestamp > lastTimestamp) {
-          existing.lastVisit = record.consent_timestamp;
-          existing.consentTimestamp = record.consent_timestamp;
+          existing.lastVisit = consentTimestamp;
+          existing.consentTimestamp = consentTimestamp;
           existing.consentStatus = record.consent_status;
           existing.consentGiven = record.consent_status !== 'rejected';
-          existing.activitiesCount = (record.accepted_activities?.length || 0) + (record.rejected_activities?.length || 0);
+          existing.activitiesCount = consentedActivities.length + rejectedActivities.length;
         }
 
         // Update title if not set
-        if (!existing.title && record.page_title) {
-          existing.title = record.page_title;
+        if (!existing.title && metadata.pageTitle) {
+          existing.title = metadata.pageTitle;
         }
       }
     });

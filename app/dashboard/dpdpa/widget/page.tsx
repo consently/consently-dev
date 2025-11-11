@@ -392,10 +392,43 @@ export default function DPDPAWidgetPage() {
     const activityIds = new Set(activities.map(a => a.id));
     const validSelectedActivities = config.selectedActivities.filter(id => activityIds.has(id));
     
+    // Clean up display rules: remove invalid activity IDs from all rules
+    const validActivityIds = new Set(validSelectedActivities);
+    const cleanedDisplayRules = (config.displayRules || []).map(rule => {
+      // Clean up activities array
+      let cleanedActivities: string[] | undefined = undefined;
+      if (rule.activities && rule.activities.length > 0) {
+        cleanedActivities = rule.activities.filter(id => validActivityIds.has(id));
+        // If all activities were invalid, set to undefined (show all)
+        if (cleanedActivities.length === 0) {
+          cleanedActivities = undefined;
+        }
+      }
+      
+      // Clean up activity_purposes object
+      let cleanedActivityPurposes: Record<string, string[]> | undefined = undefined;
+      if (rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0) {
+        const cleaned: Record<string, string[]> = {};
+        for (const [activityId, purposes] of Object.entries(rule.activity_purposes)) {
+          if (validActivityIds.has(activityId) && purposes && purposes.length > 0) {
+            cleaned[activityId] = purposes;
+          }
+        }
+        cleanedActivityPurposes = Object.keys(cleaned).length > 0 ? cleaned : undefined;
+      }
+      
+      return {
+        ...rule,
+        activities: cleanedActivities,
+        activity_purposes: cleanedActivityPurposes,
+      };
+    });
+    
     // Update config with only valid activities for validation
     const configToSave = {
       ...config,
-      selectedActivities: validSelectedActivities
+      selectedActivities: validSelectedActivities,
+      displayRules: cleanedDisplayRules
     };
 
     // Validate with cleaned config
@@ -459,11 +492,12 @@ export default function DPDPAWidgetPage() {
         throw new Error(data.error || 'Failed to save configuration');
       }
 
-      // Update config with cleaned activities and new widget ID if created
+      // Update config with cleaned activities, display rules, and new widget ID if created
       setConfig(prev => ({
         ...prev,
         ...(data.widgetId && !prev.widgetId ? { widgetId: data.widgetId } : {}),
-        selectedActivities: validSelectedActivities
+        selectedActivities: validSelectedActivities,
+        displayRules: cleanedDisplayRules
       }));
 
       if (!silent) {
@@ -544,6 +578,56 @@ export default function DPDPAWidgetPage() {
   };
 
   const handleSaveRule = (rule: DisplayRule) => {
+    // Get valid activity IDs from widget's selected activities
+    const validActivityIds = new Set(config.selectedActivities);
+    
+    // Validate and filter rule activities
+    let validatedActivities: string[] | undefined = undefined;
+    if (rule.activities && rule.activities.length > 0) {
+      const invalidActivityIds: string[] = [];
+      validatedActivities = rule.activities.filter(activityId => {
+        const isValid = validActivityIds.has(activityId);
+        if (!isValid) {
+          invalidActivityIds.push(activityId);
+        }
+        return isValid;
+      });
+      
+      if (invalidActivityIds.length > 0) {
+        toast.warning('Some activity IDs in this rule are not in your widget\'s selected activities', {
+          description: `Removed ${invalidActivityIds.length} invalid activity ID(s). Please select the correct activities.`,
+        });
+      }
+      
+      // If all activities were invalid AND user explicitly selected activities (not empty), show error
+      if (validatedActivities.length === 0 && rule.activities && rule.activities.length > 0) {
+        // User selected activities but none were valid
+        toast.error('Cannot save rule: No valid activities', {
+          description: 'All selected activities are invalid. Widget will NOT show with this rule. Please select activities from your widget\'s selected activities list, or leave empty to show all activities.',
+        });
+        return; // Don't save rule
+      }
+      
+      // If user didn't select any activities (empty array), set to undefined (show all activities)
+      if (validatedActivities && validatedActivities.length === 0) {
+        validatedActivities = undefined;
+      }
+    }
+    
+    // Clean up activity_purposes: remove entries for invalid activities
+    let validatedActivityPurposes: Record<string, string[]> | undefined = undefined;
+    if (rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0) {
+      const cleaned: Record<string, string[]> = {};
+      for (const [activityId, purposes] of Object.entries(rule.activity_purposes)) {
+        // Only include if activity is valid and purposes array is not empty
+        if (validActivityIds.has(activityId) && purposes && purposes.length > 0) {
+          cleaned[activityId] = purposes;
+        }
+      }
+      // Return undefined if cleaned object is empty
+      validatedActivityPurposes = Object.keys(cleaned).length > 0 ? cleaned : undefined;
+    }
+    
     // Clean up rule: remove empty notice_content fields and ensure proper structure
     const cleanedRule: DisplayRule = {
       ...rule,
@@ -556,23 +640,8 @@ export default function DPDPAWidgetPage() {
         ...(rule.notice_content.message ? { message: rule.notice_content.message } : {}),
         ...(rule.notice_content.html ? { html: rule.notice_content.html } : {})
       } : undefined,
-      activities: rule.activities && rule.activities.length > 0 ? rule.activities : undefined,
-      // Clean up activity_purposes: remove empty arrays and empty objects
-      activity_purposes: (() => {
-        if (!rule.activity_purposes || Object.keys(rule.activity_purposes).length === 0) {
-          return undefined;
-        }
-        // Remove activities with empty purpose arrays (empty = show all, so we can remove it)
-        const cleaned: Record<string, string[]> = {};
-        for (const [activityId, purposes] of Object.entries(rule.activity_purposes)) {
-          // Only include if purposes array is not empty (empty means show all, so we skip it)
-          if (purposes && purposes.length > 0) {
-            cleaned[activityId] = purposes;
-          }
-        }
-        // Return undefined if cleaned object is empty
-        return Object.keys(cleaned).length > 0 ? cleaned : undefined;
-      })(),
+      activities: validatedActivities,
+      activity_purposes: validatedActivityPurposes,
       element_selector: rule.element_selector || undefined,
       trigger_delay: rule.trigger_delay || undefined,
     };
@@ -1481,10 +1550,15 @@ export default function DPDPAWidgetPage() {
                   <HelpCircle className="h-4 w-4 text-gray-400 ml-auto cursor-help" title="Select specific activities to show in this rule" />
                 </div>
                 
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-2">
                   <p className="text-sm text-orange-800">
                     <strong>ℹ️ Important:</strong> Select which activities to show when this rule triggers. Leave all unchecked to show all activities.
                   </p>
+                  <div className="bg-red-50 border border-red-300 rounded p-2 mt-2">
+                    <p className="text-xs text-red-800">
+                      <strong>⚠️ Critical:</strong> The activities you select here MUST be from your widget's selected activities list. If you select activities that don't exist in your widget, or if ALL selected activities are invalid, the widget will NOT show on the page and users will NOT be able to save consent.
+                    </p>
+                  </div>
                 </div>
 
                 <div>

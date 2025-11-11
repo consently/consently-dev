@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('dpdpa_consent_records')
       .select('*', { count: 'exact' })
-      .order('consent_timestamp', { ascending: false });
+      .order('consent_given_at', { ascending: false });
 
     // Filter by widgets owned by the user
     const { data: widgets } = await supabase
@@ -223,6 +223,19 @@ export async function POST(request: NextRequest) {
     // Use validated data
     body = validationResult.data;
 
+    // Enhanced logging to diagnose 500 error
+    console.log('[Consent Record API] Received request:', {
+      widgetId: body.widgetId,
+      visitorId: body.visitorId,
+      consentStatus: body.consentStatus,
+      acceptedActivitiesCount: body.acceptedActivities?.length || 0,
+      rejectedActivitiesCount: body.rejectedActivities?.length || 0,
+      acceptedActivities: body.acceptedActivities,
+      rejectedActivities: body.rejectedActivities,
+      hasRuleContext: !!body.ruleContext,
+      timestamp: new Date().toISOString()
+    });
+
     // Create public supabase client (no auth required for this endpoint)
     const supabase = createPublicClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -238,9 +251,23 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (widgetError || !widgetConfig) {
+      console.error('[Consent Record API] Widget validation failed:', {
+        widgetId: body.widgetId,
+        error: widgetError?.message,
+        code: widgetError?.code,
+        details: widgetError?.details,
+      });
       return NextResponse.json(
-        { error: 'Invalid widget ID or widget is not active' },
-        { status: 404 }
+        { 
+          error: 'Invalid widget ID or widget is not active',
+          code: 'INVALID_WIDGET'
+        },
+        { 
+          status: 404,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
       );
     }
 
@@ -278,7 +305,12 @@ export async function POST(request: NextRequest) {
       .maybeSingle(); // Use maybeSingle() instead of single() to handle no records gracefully
 
     if (existingConsentError) {
-      console.error('[Consent Record API] Error checking for existing consent:', existingConsentError);
+      console.error('[Consent Record API] Error checking for existing consent:', {
+        error: existingConsentError.message,
+        code: existingConsentError.code,
+        widgetId: body.widgetId,
+        visitorId: body.visitorId,
+      });
       // Continue with creating new record if check fails
     }
 
@@ -347,6 +379,111 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate and adjust consent status to match database constraint
+    // Database constraint requires:
+    // - 'accepted': at least one consented activity
+    // - 'rejected': at least one rejected activity
+    // - 'partial': at least one consented AND one rejected activity
+    // - 'revoked': no requirements
+    let finalConsentStatus = body.consentStatus;
+    const hasAcceptedActivities = validatedAcceptedActivities.length > 0;
+    const hasRejectedActivities = validatedRejectedActivities.length > 0;
+
+    // Adjust status based on actual activity arrays to satisfy database constraint
+    if (finalConsentStatus === 'accepted' && !hasAcceptedActivities) {
+      // If status is 'accepted' but no accepted activities, check if we have rejected
+      if (hasRejectedActivities) {
+        finalConsentStatus = 'rejected';
+      } else {
+        // If no activities at all, this is invalid - reject the request
+        console.error('[Consent Record API] Invalid consent: accepted status but no accepted activities', {
+          widgetId: body.widgetId,
+          visitorId: body.visitorId,
+          acceptedCount: validatedAcceptedActivities.length,
+          rejectedCount: validatedRejectedActivities.length,
+        });
+        return NextResponse.json(
+          { 
+            error: 'Invalid consent: accepted status requires at least one accepted activity',
+            code: 'INVALID_CONSENT_STATUS'
+          },
+          { 
+            status: 400,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+            }
+          }
+        );
+      }
+    } else if (finalConsentStatus === 'rejected' && !hasRejectedActivities) {
+      // If status is 'rejected' but no rejected activities, check if we have accepted
+      if (hasAcceptedActivities) {
+        finalConsentStatus = 'accepted';
+      } else {
+        // If no activities at all, this is invalid - reject the request
+        console.error('[Consent Record API] Invalid consent: rejected status but no rejected activities', {
+          widgetId: body.widgetId,
+          visitorId: body.visitorId,
+          acceptedCount: validatedAcceptedActivities.length,
+          rejectedCount: validatedRejectedActivities.length,
+        });
+        return NextResponse.json(
+          { 
+            error: 'Invalid consent: rejected status requires at least one rejected activity',
+            code: 'INVALID_CONSENT_STATUS'
+          },
+          { 
+            status: 400,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+            }
+          }
+        );
+      }
+    } else if (finalConsentStatus === 'partial') {
+      // Partial requires both accepted and rejected activities
+      if (!hasAcceptedActivities || !hasRejectedActivities) {
+        // Adjust to match what we actually have
+        if (hasAcceptedActivities && !hasRejectedActivities) {
+          finalConsentStatus = 'accepted';
+        } else if (!hasAcceptedActivities && hasRejectedActivities) {
+          finalConsentStatus = 'rejected';
+        } else {
+          // No activities at all - invalid
+          console.error('[Consent Record API] Invalid consent: partial status but no activities', {
+            widgetId: body.widgetId,
+            visitorId: body.visitorId,
+            acceptedCount: validatedAcceptedActivities.length,
+            rejectedCount: validatedRejectedActivities.length,
+          });
+          return NextResponse.json(
+            { 
+              error: 'Invalid consent: partial status requires at least one accepted and one rejected activity',
+              code: 'INVALID_CONSENT_STATUS'
+            },
+            { 
+              status: 400,
+              headers: {
+                'Access-Control-Allow-Origin': '*',
+              }
+            }
+          );
+        }
+      }
+    }
+
+    // Log status adjustment if it was changed
+    if (finalConsentStatus !== body.consentStatus) {
+      console.log('[Consent Record API] Adjusted consent status to match activity arrays', {
+        originalStatus: body.consentStatus,
+        adjustedStatus: finalConsentStatus,
+        acceptedCount: validatedAcceptedActivities.length,
+        rejectedCount: validatedRejectedActivities.length,
+        widgetId: body.widgetId,
+        visitorId: body.visitorId,
+      });
+    }
+
     const consentDetails: ConsentDetails = {
       activityConsents: body.activityConsents || {},
       activityPurposeConsents: validatedActivityPurposeConsents, // Store purpose-level consent
@@ -370,7 +507,7 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabase
         .from('dpdpa_consent_records')
         .update({
-          consent_status: body.consentStatus,
+          consent_status: finalConsentStatus, // Use adjusted status
           consented_activities: validatedAcceptedActivities,
           rejected_activities: validatedRejectedActivities,
           consent_details: consentDetails, // Store rule context and activity consents
@@ -414,48 +551,99 @@ export async function POST(request: NextRequest) {
 
       result = data;
     } else {
-      // Generate unique consent_id
-      const consentId = `${body.widgetId}_${body.visitorId}_${Date.now()}`;
+      // Generate unique consent_id with random component to avoid collisions
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const consentId = `${body.widgetId}_${body.visitorId}_${timestamp}_${randomSuffix}`;
       
       // Create new consent record
+      const insertData = {
+        widget_id: body.widgetId,
+        visitor_id: body.visitorId,
+        consent_id: consentId,
+        consent_status: finalConsentStatus, // Use adjusted status
+        consented_activities: validatedAcceptedActivities,
+        rejected_activities: validatedRejectedActivities,
+        consent_details: consentDetails, // Store rule context and activity consents
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        device_type: deviceType,
+        browser: browser,
+        os: os,
+        country_code: country?.substring(0, 3) || null, // Truncate to 3 chars for country_code
+        region: null, // Region not tracked yet
+        language: language,
+        consent_given_at: new Date().toISOString(),
+        consent_expires_at: expiresAt.toISOString(),
+        privacy_notice_version: '2.0' // Updated version for display rules support
+      };
+      
+      console.log('[Consent Record API] Attempting to insert consent record:', {
+        widgetId: body.widgetId,
+        visitorId: body.visitorId,
+        originalConsentStatus: body.consentStatus,
+        finalConsentStatus: finalConsentStatus,
+        acceptedCount: validatedAcceptedActivities.length,
+        rejectedCount: validatedRejectedActivities.length,
+        hasRuleContext: !!ruleContext,
+        hasPurposeConsents: !!validatedActivityPurposeConsents
+      });
+      
       const { data, error } = await supabase
         .from('dpdpa_consent_records')
-        .insert({
-          widget_id: body.widgetId,
-          visitor_id: body.visitorId,
-          consent_id: consentId,
-          consent_status: body.consentStatus,
-          consented_activities: validatedAcceptedActivities,
-          rejected_activities: validatedRejectedActivities,
-          consent_details: consentDetails, // Store rule context and activity consents
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          device_type: deviceType,
-          browser: browser,
-          os: os,
-          country_code: country?.substring(0, 3) || null, // Truncate to 3 chars for country_code
-          language: language,
-          consent_given_at: new Date().toISOString(),
-          consent_expires_at: expiresAt.toISOString(),
-          privacy_notice_version: '2.0' // Updated version for display rules support
-        })
+        .insert(insertData)
         .select()
         .single();
 
       if (error) {
+        // Check if this is a constraint violation
+        const isConstraintViolation = error.code === '23514' || // Check constraint violation
+                                     error.message?.includes('valid_consent_activities') ||
+                                     error.hint?.includes('valid_consent_activities');
+        
         console.error('[Consent Record API] Error creating consent record:', {
           error: error.message,
           code: error.code,
           details: error.details,
           hint: error.hint,
+          isConstraintViolation,
           widgetId: body.widgetId,
           visitorId: body.visitorId,
+          originalConsentStatus: body.consentStatus,
+          finalConsentStatus: finalConsentStatus,
+          acceptedCount: validatedAcceptedActivities.length,
+          rejectedCount: validatedRejectedActivities.length,
+          insertData: JSON.stringify(insertData, null, 2),
           timestamp: new Date().toISOString(),
         });
+        
+        // Return more specific error for constraint violations
+        if (isConstraintViolation) {
+          return NextResponse.json(
+            { 
+              error: 'Invalid consent data: status does not match activity arrays',
+              code: 'CONSTRAINT_VIOLATION',
+              details: {
+                status: finalConsentStatus,
+                acceptedCount: validatedAcceptedActivities.length,
+                rejectedCount: validatedRejectedActivities.length,
+                message: 'The consent status must match the provided activities according to database constraints.'
+              }
+            },
+            { 
+              status: 400,
+              headers: {
+                'Access-Control-Allow-Origin': '*',
+              }
+            }
+          );
+        }
+        
         return NextResponse.json(
           { 
             error: 'Failed to create consent record',
-            code: 'CREATE_FAILED'
+            code: 'CREATE_FAILED',
+            details: error.message
           },
           { 
             status: 500,
@@ -473,7 +661,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       consentId: result.id,
-      expiresAt: result.expires_at,
+      expiresAt: result.consent_expires_at, // Fixed: use correct column name
       message: 'Consent recorded successfully'
     }, {
       status: 200,

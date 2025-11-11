@@ -275,7 +275,45 @@ export async function PUT(request: NextRequest) {
     if (configData.customCSS !== undefined) updatePayload.custom_css = configData.customCSS;
     if (configData.isActive !== undefined) updatePayload.is_active = configData.isActive;
     if (configData.supportedLanguages !== undefined) updatePayload.supported_languages = configData.supportedLanguages;
-    if (configData.displayRules !== undefined) updatePayload.display_rules = configData.displayRules;
+    
+    // Validate and clean display rules
+    if (configData.displayRules !== undefined) {
+      // Get the selected_activities to validate against
+      const selectedActivities = updatePayload.selected_activities || configData.selectedActivities || [];
+      
+      // Clean display rules: ensure rule activities are subset of selected_activities
+      const cleanedDisplayRules = (configData.displayRules || []).map((rule: any) => {
+        // If rule has activities specified, filter to only include those in selected_activities
+        if (rule.activities && Array.isArray(rule.activities) && rule.activities.length > 0) {
+          const validRuleActivities = rule.activities.filter((activityId: string) => 
+            selectedActivities.includes(activityId)
+          );
+          
+          // Log if any activities were filtered out
+          if (validRuleActivities.length !== rule.activities.length) {
+            const invalidActivities = rule.activities.filter((id: string) => !selectedActivities.includes(id));
+            console.warn('[Widget Config API] Display rule has activities not in selected_activities:', {
+              ruleId: rule.id,
+              ruleName: rule.rule_name,
+              invalidActivities,
+              validActivities: validRuleActivities
+            });
+          }
+          
+          return { ...rule, activities: validRuleActivities };
+        }
+        
+        // If no activities specified, rule shows all selected_activities (no change needed)
+        return rule;
+      });
+      
+      updatePayload.display_rules = cleanedDisplayRules;
+      
+      console.log('[Widget Config API] Display rules validated:', {
+        rulesCount: cleanedDisplayRules.length,
+        selectedActivitiesCount: selectedActivities.length
+      });
+    }
 
     // Update widget configuration
     const { data, error } = await supabase

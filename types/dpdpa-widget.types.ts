@@ -268,11 +268,11 @@ export const consentRecordRequestSchema = z.object({
   consentStatus: z.enum(['accepted', 'rejected', 'partial']),
   acceptedActivities: z.array(z.string().uuid()),
   rejectedActivities: z.array(z.string().uuid()),
-  activityConsents: z.record(z.object({
+  activityConsents: z.record(z.string(), z.object({
     status: z.string(),
     timestamp: z.string(),
-  })),
-  activityPurposeConsents: z.record(z.string().uuid(), z.array(z.string().uuid())).optional(), // { activity_id: [purpose_id_1, purpose_id_2] }
+  })), // z.record(keySchema, valueSchema) - keys can be any string (including UUIDs)
+  activityPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // { activity_id: [purpose_id_1, purpose_id_2] } - keys can be any string
   ruleContext: z.object({
     ruleId: z.string().optional(),
     ruleName: z.string().optional(),
@@ -289,7 +289,7 @@ export const consentRecordRequestSchema = z.object({
     country: z.string().optional(),
     language: z.string().optional(),
     referrer: z.string().optional(),
-    currentUrl: z.string().url().optional(),
+    currentUrl: z.string().optional(), // Removed strict .url() validation to allow edge cases
     pageTitle: z.string().optional(),
   }).optional(),
   consentDuration: z.number().int().min(1).max(3650).optional(),

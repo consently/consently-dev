@@ -704,26 +704,39 @@
       );
       
       console.log('[Consently DPDPA] Filtered activities count:', filteredActivities.length);
+      console.log('[Consently DPDPA] Rule specifies:', rule.activities.length, 'activities');
+      console.log('[Consently DPDPA] Widget has:', availableActivityIds.length, 'activities');
+      console.log('[Consently DPDPA] Matched:', filteredActivities.length, 'activities');
       
-      // If no valid activities after filtering, fall back to showing all activities
+      // IMPORTANT: Always apply the filter, even if it results in 0 activities
+      // This is the correct behavior - if rule specifies activities that don't exist,
+      // show nothing rather than showing everything
       if (filteredActivities.length === 0) {
-        console.warn('[Consently DPDPA] No valid activities matched rule filter. Showing all activities as fallback.');
+        console.warn('[Consently DPDPA] ⚠️ No activities matched rule filter!');
         console.warn('[Consently DPDPA] Rule activity IDs:', rule.activities);
         console.warn('[Consently DPDPA] Widget activity IDs:', availableActivityIds);
-        // Keep original activities (don't filter)
-      } else {
-        // Update global activities array (used by widget)
-        activities.length = 0;
-        activities.push(...filteredActivities);
-        
-        // Update config activities (if used elsewhere)
-        if (config.activities) {
-          config.activities = filteredActivities;
-        }
-        
-        // Also update the rule's activities array to only include valid IDs
-        // This ensures activity_purposes filtering works correctly
-        rule.activities = validRuleActivityIds;
+        console.warn('[Consently DPDPA] → Widget will show ZERO activities (correct behavior)');
+        console.warn('[Consently DPDPA] → Fix: Ensure rule activities are in widget\'s selected_activities list');
+      }
+      
+      // Update global activities array (used by widget) - ALWAYS filter
+      activities.length = 0;
+      activities.push(...filteredActivities);
+      
+      // Update config activities (if used elsewhere)
+      if (config.activities) {
+        config.activities = filteredActivities;
+      }
+      
+      // Also update the rule's activities array to only include valid IDs
+      // This ensures activity_purposes filtering works correctly
+      rule.activities = validRuleActivityIds;
+      
+      // IMPORTANT: If no activities remain after filtering, don't show the widget
+      if (filteredActivities.length === 0) {
+        console.warn('[Consently DPDPA] ⚠️ Not showing widget because no activities remain after display rule filtering');
+        console.warn('[Consently DPDPA] This is the correct behavior - fix by ensuring rule activities match widget activities');
+        return; // Exit early, don't show widget
       }
     }
     
@@ -760,7 +773,7 @@
           if (activity.purposes && Array.isArray(activity.purposes)) {
             const originalPurposeCount = activity.purposes.length;
             activity.purposes = activity.purposes.filter(purpose => 
-              allowedPurposeIds.includes(purpose.id)
+              allowedPurposeIds.includes(purpose.purposeId || purpose.id) // Use purposeId (actual purpose UUID) with fallback
             );
             console.log('[Consently DPDPA] Filtered purposes for activity:', activity.id, 'from', originalPurposeCount, 'to', activity.purposes.length);
             
@@ -788,6 +801,9 @@
   // Record consent to API (with enhanced error handling and validation)
   async function recordConsent(consentData) {
     try {
+      // UUID validation regex
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
       // Validate consent data
       if (!consentData || typeof consentData !== 'object') {
         throw new Error('Invalid consent data');
@@ -802,7 +818,7 @@
         throw new Error('Invalid consent status');
       }
       
-      // Validate activity arrays
+      // Validate and filter activity arrays to only include valid UUIDs
       if (consentData.acceptedActivities && !Array.isArray(consentData.acceptedActivities)) {
         console.warn('[Consently DPDPA] Invalid acceptedActivities, converting to array');
         consentData.acceptedActivities = [];
@@ -811,6 +827,47 @@
       if (consentData.rejectedActivities && !Array.isArray(consentData.rejectedActivities)) {
         console.warn('[Consently DPDPA] Invalid rejectedActivities, converting to array');
         consentData.rejectedActivities = [];
+      }
+      
+      // Filter to only valid UUIDs
+      if (consentData.acceptedActivities) {
+        const originalLength = consentData.acceptedActivities.length;
+        consentData.acceptedActivities = consentData.acceptedActivities.filter(id => 
+          typeof id === 'string' && uuidRegex.test(id)
+        );
+        if (consentData.acceptedActivities.length !== originalLength) {
+          console.warn('[Consently DPDPA] Filtered out invalid UUIDs from acceptedActivities');
+        }
+      }
+      
+      if (consentData.rejectedActivities) {
+        const originalLength = consentData.rejectedActivities.length;
+        consentData.rejectedActivities = consentData.rejectedActivities.filter(id => 
+          typeof id === 'string' && uuidRegex.test(id)
+        );
+        if (consentData.rejectedActivities.length !== originalLength) {
+          console.warn('[Consently DPDPA] Filtered out invalid UUIDs from rejectedActivities');
+        }
+      }
+      
+      // Validate and filter activityPurposeConsents
+      if (consentData.activityPurposeConsents && typeof consentData.activityPurposeConsents === 'object') {
+        const filtered = {};
+        for (const [activityId, purposeIds] of Object.entries(consentData.activityPurposeConsents)) {
+          // Validate activity ID is UUID
+          if (typeof activityId === 'string' && uuidRegex.test(activityId)) {
+            // Validate purpose IDs are UUIDs
+            if (Array.isArray(purposeIds)) {
+              const validPurposeIds = purposeIds.filter(id => 
+                typeof id === 'string' && uuidRegex.test(id)
+              );
+              if (validPurposeIds.length > 0) {
+                filtered[activityId] = validPurposeIds;
+              }
+            }
+          }
+        }
+        consentData.activityPurposeConsents = Object.keys(filtered).length > 0 ? filtered : undefined;
       }
       
       // Limit activity array sizes (security: prevent abuse)
@@ -822,6 +879,28 @@
       if (consentData.rejectedActivities && consentData.rejectedActivities.length > 100) {
         console.warn('[Consently DPDPA] Too many rejected activities, limiting to 100');
         consentData.rejectedActivities = consentData.rejectedActivities.slice(0, 100);
+      }
+      
+      // Clean up metadata - handle empty strings and invalid URLs
+      if (consentData.metadata) {
+        // Convert empty strings to undefined for optional fields
+        if (consentData.metadata.referrer === '' || consentData.metadata.referrer === null) {
+          consentData.metadata.referrer = undefined;
+        }
+        if (consentData.metadata.pageTitle === '' || consentData.metadata.pageTitle === null) {
+          consentData.metadata.pageTitle = undefined;
+        }
+        
+        // Validate currentUrl is a valid URL, otherwise set to undefined
+        if (consentData.metadata.currentUrl) {
+          try {
+            // Try to create a URL object to validate
+            new URL(consentData.metadata.currentUrl);
+          } catch (e) {
+            console.warn('[Consently DPDPA] Invalid currentUrl, removing:', consentData.metadata.currentUrl);
+            consentData.metadata.currentUrl = undefined;
+          }
+        }
       }
       
       const scriptSrc = currentScript.src;
@@ -860,15 +939,31 @@
         if (!response.ok) {
           // Try to get error details from response
           let errorMessage = 'Failed to record consent';
+          let validationDetails = null;
           try {
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
-            console.error('[Consently DPDPA] API error response:', errorData);
+            
+            // Log validation details if available
+            if (errorData.details && Array.isArray(errorData.details)) {
+              validationDetails = errorData.details;
+              console.error('[Consently DPDPA] Validation errors:', validationDetails);
+              console.error('[Consently DPDPA] Full error response:', errorData);
+            } else {
+              console.error('[Consently DPDPA] API error response:', errorData);
+            }
           } catch (e) {
             // Ignore JSON parse errors
+            console.error('[Consently DPDPA] Failed to parse error response:', e);
           }
           
-          throw new Error(errorMessage + ' (HTTP ' + response.status + ')');
+          // Include validation details in error message for debugging
+          if (validationDetails && validationDetails.length > 0) {
+            const detailMessages = validationDetails.map(d => `${d.field}: ${d.message}`).join('; ');
+            throw new Error(errorMessage + ' (HTTP ' + response.status + ') - ' + detailMessages);
+          } else {
+            throw new Error(errorMessage + ' (HTTP ' + response.status + ')');
+          }
         }
         
         const result = await response.json();
@@ -1230,6 +1325,14 @@
   async function showConsentWidget() {
     if (document.getElementById('consently-dpdpa-widget')) {
       return; // Already shown
+    }
+    
+    // Validate that there are activities to show
+    if (!activities || activities.length === 0) {
+      console.error('[Consently DPDPA] Cannot show widget: No activities available');
+      console.error('[Consently DPDPA] This may be due to display rules filtering out all activities');
+      console.error('[Consently DPDPA] Check your widget configuration and display rules');
+      return; // Don't show widget if no activities
     }
 
     const theme = config.theme || {};
@@ -2034,6 +2137,13 @@
 
   // Handle accept selected (only checked activities)
   async function handleAcceptSelected(overlay) {
+    // First check if there are any activities at all
+    if (!activities || activities.length === 0) {
+      console.error('[Consently DPDPA] No activities available to consent to');
+      alert('No activities available. Please contact the website administrator.');
+      return;
+    }
+    
     const checkboxes = document.querySelectorAll('.activity-checkbox:checked');
     if (checkboxes.length === 0) {
       alert('Please select at least one activity');
@@ -2054,6 +2164,13 @@
 
   // Handle accept all
   async function handleAcceptAll(overlay) {
+    // First check if there are any activities at all
+    if (!activities || activities.length === 0) {
+      console.error('[Consently DPDPA] No activities available to consent to');
+      alert('No activities available. Please contact the website administrator.');
+      return;
+    }
+    
     // Check all checkboxes first
     const checkboxes = document.querySelectorAll('.activity-checkbox');
     checkboxes.forEach(cb => {
@@ -2073,6 +2190,13 @@
 
   // Save consent
   async function saveConsent(overallStatus, overlay) {
+    // Validate that we have activities to save consent for
+    if (!activities || activities.length === 0) {
+      console.error('[Consently DPDPA] Cannot save consent: No activities available');
+      alert('Cannot save consent. No activities available. Please contact the website administrator.');
+      return;
+    }
+    
     const acceptedActivities = [];
     const rejectedActivities = [];
     const activityPurposeConsents = {}; // Track purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
@@ -2085,7 +2209,10 @@
         const activity = activities.find(a => a.id === activityId);
         if (activity && activity.purposes && Array.isArray(activity.purposes)) {
           // Store consented purpose IDs for this activity
-          activityPurposeConsents[activityId] = activity.purposes.map(p => p.id);
+          // Use purposeId (the actual purpose UUID) not id (which is activity_purpose join table ID)
+          activityPurposeConsents[activityId] = activity.purposes
+            .map(p => p.purposeId || p.id) // Fallback to id if purposeId not available
+            .filter(id => id); // Remove any undefined/null values
         }
       } else if (activityConsents[activityId].status === 'rejected') {
         rejectedActivities.push(activityId);
