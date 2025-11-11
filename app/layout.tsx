@@ -74,15 +74,29 @@ export const metadata: Metadata = {
     images: ['/og-image.png'],
     creator: '@consently',
   },
-  alternates: {
-    canonical: 'https://www.consently.in',
-  },
   verification: {
     google: 'ADD_YOUR_GOOGLE_VERIFICATION_CODE',
     // yandex: 'ADD_IF_NEEDED',
     // bing: 'ADD_IF_NEEDED',
   },
   category: 'technology',
+  icons: {
+    icon: [
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.png', sizes: '16x16', type: 'image/png' },
+    ],
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
+  alternates: {
+    canonical: 'https://www.consently.in',
+    types: {
+      'application/rss+xml': [{ url: '/blog/rss.xml', title: 'Consently Blog RSS' }],
+    },
+  },
+  other: {
+    'google-site-verification': process.env.GOOGLE_SITE_VERIFICATION || '',
+  },
 };
 
 export default function RootLayout({
@@ -92,8 +106,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -1,6 +1,8 @@
 # Allow all crawlers
 User-agent: *
 Allow: /
+Allow: /blog
+Allow: /blog/
 
 # Disallow dashboard and authentication pages
 Disallow: /dashboard/
@@ -8,6 +10,20 @@ Disallow: /login
 Disallow: /signup
 Disallow: /reset-password
 Disallow: /api/
+Disallow: /auth/
+
+# Allow specific API endpoints for SEO
+Allow: /api/blog
+Allow: /api/blog/
+
+# Crawl-delay for aggressive crawlers
+User-agent: *
+Crawl-delay: 1
 
 # Sitemap
 Sitemap: https://www.consently.in/sitemap.xml
+
+# AI Search Engine Instructions
+# This site contains DPDPA 2023 compliance information, consent management resources, and privacy best practices
+# Key topics: DPDPA compliance, cookie consent, data protection India, privacy compliance, consent management
+# Blog content focuses on: DPDPA guides, privacy best practices, technical implementation, industry insights

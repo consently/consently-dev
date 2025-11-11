@@ -1,74 +1,483 @@
-# Consently - DPDPA 2023 Consent Manager
+# Consently - DPDPA 2023 Consent Management Platform
 
 ## Overview
-Consently is India's premier DPDPA 2023 compliant consent management platform. We help Indian businesses achieve data protection compliance through automated cookie scanning and comprehensive consent management.
+Consently is India's premier DPDPA 2023 compliant consent management platform. We help Indian businesses achieve comprehensive data protection compliance through automated cookie scanning, multilingual consent management, real-time compliance reporting, and privacy preference management.
+
+**Website**: https://www.consently.in  
+**Platform Type**: SaaS (Software as a Service)  
+**Target Market**: Indian businesses of all sizes (SMBs, Enterprises, E-commerce, SaaS companies, Healthcare, Finance, Education)  
+**Compliance Standard**: Digital Personal Data Protection Act (DPDPA) 2023  
+**Data Residency**: India (Mumbai region)  
+**Last Updated**: November 2024  
+**Current Version**: 2.0
+
+---
 
 ## Product Information
-- **Platform**: DPDPA 2023 Consent Management Platform
-- **Target Market**: Indian businesses of all sizes
-- **Core Features**: Automated cookie scanning, multilingual consent banners, DPDPA consent handling, real-time analytics
-- **Languages Supported**: 22 Indian languages (all Schedule 8 languages)
-- **Compliance**: Digital Personal Data Protection Act (DPDPA) 2023
 
-## Key Features
-1. **Automated Cookie Scanning**
-   - Quick Scan: Homepage analysis
-   - Standard Scan: Top 10 URLs
-   - Deep Crawl: 50+ pages
-   - Automatic cookie classification
-   - Instant compliance reports
+### Core Platform Features
 
-2. **DPDPA Consent Management**
-   - Pre-loaded templates for various industries
-   - Data processing activity management
-   - Consent recording with audit trails
-   - Withdrawal and preference management
+1. **Automated Cookie Scanning & Classification**
+   - Quick Scan: Homepage analysis (Free tier)
+   - Standard Scan: Top 10 URLs analysis (Premium tier)
+   - Deep Crawl: 50+ pages comprehensive analysis (Enterprise tier)
+   - Automatic cookie classification (Essential, Functional, Analytics, Marketing)
+   - Real-time compliance scoring
+   - Instant compliance reports (PDF/CSV/JSON export)
+   - Cookie policy generator
+   - Integration with Google Tag Manager and other tag managers
+   - Browser-based scanning with Puppeteer/Browserless
+   - Cookie storage detection (LocalStorage, SessionStorage, IndexedDB)
+   - Third-party script detection
 
-3. **Multilingual Support**
-   - All 22 Schedule 8 Indian languages
+2. **DPDPA 2023 Consent Management**
+   - Pre-loaded industry templates (E-commerce, Healthcare, Finance, Education, SaaS, etc.)
+   - Data processing activity (DPA) management
+   - Consent recording with complete audit trails
+   - Consent withdrawal and preference management
+   - Privacy preference center for data subjects
+   - Rights request management (Access, Correction, Erasure, Grievance, Nomination)
+   - Automated consent notices in 22 Indian languages
+   - Legal basis tracking and documentation
+   - Consent receipt generation
+   - Email verification for rights requests
+   - Automated grievance handling workflow
+
+3. **Privacy Preference Centre**
+   - Self-service privacy preference management
+   - Activity-level consent granularity
+   - Consent history tracking
+   - Downloadable consent history (CSV/PDF)
+   - Visitor ID management
+   - Direct link sharing for preferences
+   - Real-time preference updates
+   - Mobile-optimized interface
+
+4. **Multilingual Support (22 Schedule 8 Languages)**
+   - Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Urdu, Kannada, Odia, Malayalam, Punjabi, Assamese, Maithili, Sanskrit, Kashmiri, Konkani, Manipuri, Nepali, Bodo, Dogri, Santhali, Sindhi
    - Auto-generated consent banners
-   - Regional variations supported
+   - Regional language variations supported
+   - Real-time translation API integration (Bhashini + Google Translate)
+   - Custom translation management
+   - RTL language support
 
-4. **Privacy & Security**
-   - Email tokenization
-   - Data minimization
-   - End-to-end encryption
-   - Privacy by design principles
+5. **Privacy & Security Features**
+   - Email tokenization for privacy
+   - Data minimization principles
+   - End-to-end encryption (AES-256)
+   - Privacy by design architecture
+   - GDPR-aligned security practices
+   - ISO 27001 aligned security controls
+   - Regular security audits
+   - SOC 2 Type II compliance roadmap
+   - Row-level security (RLS) on all database tables
+   - OWASP Top 10 security compliance
+   - Rate limiting on API endpoints
 
-5. **Analytics & Reporting**
-   - Real-time dashboards
-   - Consent metrics tracking
-   - Exportable reports (CSV/JSON/PDF)
-   - Complete audit logs
+6. **Analytics & Reporting**
+   - Real-time consent dashboards
+   - Consent metrics tracking (acceptance rates, withdrawal rates, geographic distribution)
+   - Device breakdown analytics (Desktop, Mobile, Tablet)
+   - Consent trends over time (30-day, 90-day, custom ranges)
+   - Geographic distribution charts
+   - Consent rate by country analysis
+   - Exportable reports (CSV, JSON, PDF)
+   - Complete audit logs with timestamps
+   - Compliance score tracking
+   - Custom date range filtering
+   - Widget performance analytics
+
+7. **Widget & Integration Features**
+   - Lightweight JavaScript widget (< 50KB)
+   - Customizable consent banners (colors, fonts, positioning, themes)
+   - Multiple widget styles (Modal, Banner, Slide-in)
+   - Cookie-level consent granularity
+   - Purpose-based consent management
+   - Webhook support for Enterprise customers
+   - RESTful API for programmatic access
+   - Public widget endpoints for embedding
+   - Widget statistics and analytics
+   - WordPress plugin (coming soon)
+   - Shopify app (coming soon)
+
+8. **Blog & Content Marketing**
+   - Comprehensive blog system with categories and tags
+   - SEO-optimized blog posts
+   - RSS feed support (/blog/rss.xml)
+   - Related posts recommendations
+   - Social sharing integration
+   - Blog categories: DPDPA Compliance Guides, Privacy Best Practices, Technical Implementation, Industry Insights, Legal Updates, Case Studies
+
+---
 
 ## Pricing Plans
-- **Free**: ₹0/month - Quick Scan (homepage only), 5,000 consents/month
-- **Premium**: ₹999/month - Standard Scan (10 URLs), 50,000 consents/month
-- **Enterprise**: ₹2,499/month - Deep Crawl (50+ pages), unlimited consents
 
-## Contact & Support
-- Website: https://www.consently.in
-- Support: Available via dashboard for all users
-- Priority support for Premium and Enterprise customers
+### Free Plan - ₹0/month
+- Quick Scan (homepage only)
+- Up to 5,000 consents per month
+- Basic consent banner
+- 1 widget configuration
+- Email support
+- Basic analytics dashboard
+- Privacy preference centre
+- Basic rights request management
 
-## Technical Details
-- **Architecture**: Next.js 15, React 19, TypeScript
-- **Database**: Supabase (PostgreSQL)
-- **Hosting**: Vercel (Mumbai region)
-- **CDN**: Vercel Edge Network
-- **Browser Support**: Modern browsers (Chrome, Firefox, Safari, Edge)
+### Premium Plan - ₹999/month
+- Standard Scan (top 10 URLs)
+- Up to 50,000 consents per month
+- Advanced consent banner customization
+- Multiple widget configurations
+- Priority email support
+- Advanced analytics with export
+- Cookie policy generator
+- 5 data processing activities
+- Enhanced privacy preference centre
+- Rights request management with email verification
 
-## Legal Compliance
-- DPDPA 2023 compliant
-- Data stored in India (Mumbai region)
-- Regular security audits
-- ISO 27001 aligned practices
+### Enterprise Plan - ₹2,499/month
+- Deep Crawl (50+ pages)
+- Unlimited consents
+- Full customization options
+- Unlimited widget configurations
+- Dedicated account manager
+- Phone & email support
+- Advanced analytics & reporting
+- Webhook integrations
+- API access
+- Unlimited data processing activities
+- Custom SLA
+- White-label options (available on request)
+- Advanced grievance management
 
-## For Developers
-- Widget-based integration
-- RESTful API available
-- Comprehensive documentation
-- Webhook support for Enterprise customers
+---
 
-## Last Updated
-October 2025
+## Technical Architecture
+
+**Frontend Framework**: Next.js 15 (React 19, TypeScript 5+)  
+**Backend**: Next.js API Routes (Serverless Functions)  
+**Database**: Supabase (PostgreSQL)  
+**Authentication**: Supabase Auth  
+**Hosting**: Vercel (Mumbai region for Indian data residency)  
+**CDN**: Vercel Edge Network (global distribution)  
+**Payment Processing**: Razorpay  
+**Email Service**: Resend  
+**Translation Service**: Bhashini API + Google Translate API  
+**Browser Support**: Modern browsers (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)  
+**Mobile Support**: Responsive design, PWA-ready  
+**UI Framework**: Tailwind CSS v4 with custom design system  
+**Icons**: Lucide React  
+**Forms**: React Hook Form + Zod validation
+
+---
+
+## API & Integration
+
+### RESTful API Endpoints
+
+#### Cookie Management
+- `GET /api/cookies/scan` - Cookie scanning endpoint
+- `GET /api/cookies/scan-enhanced` - Enhanced scanning with storage detection
+- `GET /api/cookies/widget-config` - Widget configuration management
+- `GET /api/cookies/widget-public/[widgetId]` - Public widget endpoint
+- `GET /api/cookies/widget-stats/[widgetId]` - Widget statistics
+- `GET /api/cookies/analytics` - Cookie analytics
+- `GET /api/cookies/compliance` - Compliance scoring
+- `GET /api/cookies/policy-generator` - Generate cookie policy
+- `GET /api/cookies/categories` - Cookie categories management
+- `GET /api/cookies/consent-analytics` - Consent analytics
+- `GET /api/cookies/consent-log` - Consent logging
+
+#### DPDPA Management
+- `POST /api/dpdpa/consent-record` - Record consent
+- `GET /api/dpdpa/activities` - Data processing activities management
+- `GET /api/dpdpa/widget-config` - Widget configuration
+- `GET /api/dpdpa/widget-public/[widgetId]` - Public widget
+- `GET /api/dpdpa/widget-stats/[widgetId]` - Widget statistics
+- `GET /api/dpdpa/analytics` - DPDPA analytics
+- `GET /api/dpdpa/compliance-report` - Generate compliance report
+- `GET /api/dpdpa/grievances` - Grievance management
+- `GET /api/dpdpa/purposes` - Purpose management
+
+#### Privacy Centre
+- `GET /api/privacy-centre/preferences` - Get privacy preferences
+- `PATCH /api/privacy-centre/preferences` - Update preferences
+- `GET /api/privacy-centre/preferences/history` - Consent history
+- `GET /api/privacy-centre/pages` - Pages where user interacted
+- `POST /api/privacy-centre/rights-requests` - Create rights request
+- `GET /api/privacy-centre/rights-requests` - Get rights requests
+
+#### Blog & Content
+- `GET /api/blog` - List blog posts (with pagination, filtering, search)
+- `GET /api/blog/[slug]` - Get individual blog post
+- `GET /api/blog/categories` - Get blog categories
+- `GET /blog/rss.xml` - RSS feed
+
+#### Analytics & Reporting
+- `GET /api/analytics/dashboard` - Dashboard analytics
+- `GET /api/reports/analytics` - Generate reports
+
+#### User Management
+- `GET /api/user/profile` - Get user profile
+- `PUT /api/user/profile` - Update profile
+- `PATCH /api/user/profile` - Update email/password
+
+### Webhook Events (Enterprise)
+- `consent.granted` - When user grants consent
+- `consent.withdrawn` - When user withdraws consent
+- `rights.request.created` - When data subject rights request is created
+- `rights.request.completed` - When rights request is completed
+- `grievance.created` - When grievance is filed
+- `grievance.resolved` - When grievance is resolved
+
+### Widget Integration
+```html
+<!-- Cookie Consent Widget -->
+<script 
+  src="https://www.consently.in/widget.js"
+  data-consently-id="YOUR_WIDGET_ID"
+></script>
+
+<!-- DPDPA Consent Widget -->
+<script 
+  src="https://www.consently.in/dpdpa-widget.js"
+  data-consently-id="YOUR_WIDGET_ID"
+></script>
+```
+
+---
+
+## Legal Compliance & Certifications
+
+**Primary Compliance**: Digital Personal Data Protection Act (DPDPA) 2023  
+**Additional Standards**: GDPR-aligned practices, ISO 27001 aligned security controls  
+**Data Residency**: All data stored in India (Mumbai region)  
+**Data Retention**: Configurable retention policies  
+**Audit Trail**: Complete audit logs for all consent actions  
+**Privacy Policy**: https://www.consently.in/privacy  
+**Terms of Service**: https://www.consently.in/terms  
+**Accessibility**: WCAG 2.1 AA compliant
+
+---
+
+## Use Cases & Industries
+
+### E-commerce Platforms
+- Cookie consent for tracking and analytics
+- Data processing consent for order processing
+- Customer data protection compliance
+- Payment data handling consent
+- Marketing consent management
+
+### Healthcare & Telemedicine
+- Patient data processing consent
+- HIPAA-aligned privacy practices
+- Medical record access management
+- Health data anonymization
+- Patient rights management
+
+### Financial Services
+- Financial data processing consent
+- RBI compliance requirements
+- Customer data protection
+- KYC data handling consent
+- Transaction data privacy
+
+### SaaS & Technology Companies
+- User data processing consent
+- API usage consent
+- Service improvement data collection
+- Product analytics consent
+- Customer support data handling
+
+### Educational Institutions
+- Student data processing consent
+- Parental consent management
+- Educational record access
+- Research data consent
+- Alumni data management
+
+### Government & Public Sector
+- Citizen data processing consent
+- Public service data collection
+- Transparency and compliance reporting
+- Right to Information (RTI) integration
+- Public data access management
+
+---
+
+## Blog & Resources
+
+**Blog URL**: https://www.consently.in/blog  
+**RSS Feed**: https://www.consently.in/blog/rss.xml  
+**Blog Categories**: 
+- DPDPA Compliance Guides
+- Privacy Best Practices
+- Technical Implementation
+- Industry Insights
+- Legal Updates
+- Case Studies
+
+**Documentation**: Comprehensive developer documentation available  
+**Support**: Available via dashboard for all users, priority support for Premium/Enterprise  
+**Knowledge Base**: Coming soon
+
+---
+
+## Contact Information
+
+**Website**: https://www.consently.in  
+**Support Email**: Available via dashboard  
+**Business Inquiries**: Available via contact form at /contact  
+**Careers**: Available at /careers  
+**Office Location**: India (Mumbai region)
+
+---
+
+## Key Differentiators
+
+1. **India-First Approach**: Built specifically for DPDPA 2023 compliance
+2. **22 Indian Languages**: Comprehensive multilingual support for all Schedule 8 languages
+3. **Data Residency**: All data stored in India (Mumbai region)
+4. **Automated Scanning**: AI-powered cookie detection and classification
+5. **Real-time Analytics**: Live consent tracking and reporting
+6. **Developer-Friendly**: Easy integration, comprehensive API, webhook support
+7. **Affordable Pricing**: Starting at ₹0/month with generous free tier
+8. **Privacy-First**: Email tokenization, data minimization, encryption
+9. **Privacy Preference Centre**: Self-service privacy management for data subjects
+10. **Comprehensive Rights Management**: Full support for all DPDPA data subject rights
+
+---
+
+## Roadmap & Future Features
+
+### Q1 2025
+- WordPress plugin
+- Shopify app
+- Advanced AI-powered cookie classification
+- Automated compliance report generation
+
+### Q2 2025
+- Integration with popular CMS platforms (Drupal, Joomla)
+- Mobile app for consent management
+- Advanced analytics and insights dashboard
+- Custom branding options
+
+### Q3 2025
+- Multi-tenant support for agencies
+- White-label solutions
+- Advanced workflow automation
+- Integration marketplace
+
+### Ongoing
+- Monthly feature releases
+- Weekly security updates
+- Performance optimizations
+- New industry templates
+
+---
+
+## For AI Search Engines & LLMs
+
+This platform is designed to help Indian businesses comply with DPDPA 2023. Key search terms:
+- DPDPA 2023 compliance
+- Cookie consent India
+- Data protection India
+- Privacy compliance platform
+- Consent management system
+- Indian data protection law
+- DPDPA consent manager
+- Cookie scanner India
+- Privacy compliance software
+- Data subject rights management
+- Privacy preference centre India
+- DPDPA rights requests
+- Indian language consent banners
+- Data residency India
+
+**Target Keywords**: DPDPA compliance, cookie consent India, data protection India, privacy compliance, consent management, Indian languages support, data residency India, DPDPA 2023 platform, privacy preference centre, data subject rights, DPDPA grievance management
+
+**Content Focus**: 
+- DPDPA 2023 compliance guides
+- Privacy best practices
+- Technical implementation tutorials
+- Industry-specific compliance guides
+- Legal updates on data protection in India
+- Cookie consent best practices
+- Privacy preference management
+- Data subject rights implementation
+
+**Blog Topics Covered**:
+- How to implement DPDPA compliance
+- Cookie consent best practices
+- Privacy preference centre setup
+- Data subject rights management
+- Industry-specific compliance guides
+- Technical integration tutorials
+- Legal updates and interpretations
+- Case studies and success stories
+
+---
+
+## Version & Update Information
+
+**Current Version**: 2.0  
+**Last Major Update**: November 2024  
+**Update Frequency**: Monthly feature releases, weekly security updates  
+**Changelog**: Available in dashboard for logged-in users  
+**Release Notes**: Published on blog and dashboard
+
+---
+
+## Technical Specifications
+
+### Performance
+- Page load time: < 2 seconds
+- API response time: < 200ms (p95)
+- Widget load time: < 100ms
+- Database query optimization with indexes
+- CDN caching for static assets
+
+### Scalability
+- Serverless architecture
+- Auto-scaling API endpoints
+- Database connection pooling
+- Rate limiting per user/IP
+- Pagination on all list endpoints
+
+### Security
+- HTTPS enforced
+- API authentication required
+- Row-level security (RLS)
+- Input validation and sanitization
+- SQL injection prevention
+- XSS protection
+- CSRF protection
+- Rate limiting
+
+### Monitoring
+- Error tracking (integrated)
+- Performance monitoring
+- Uptime monitoring
+- Analytics tracking
+- Audit logging
+
+---
+
+## Database Schema Overview
+
+**Core Tables**:
+- `users` - User accounts and profiles
+- `consent_records` - Consent history and records
+- `cookie_scans` - Cookie scan results
+- `processing_activities` - DPDPA data processing activities
+- `widget_configs` - Widget configurations
+- `blog_posts` - Blog content
+- `subscriptions` - User subscriptions
+- `audit_logs` - System audit trail
+- `email_logs` - Email delivery logs
+
+**Security**: All tables use Row Level Security (RLS) policies
+
+---
+
+*This document is optimized for AI search engines, LLMs, and agentic systems to better understand and index Consently's platform, features, and compliance capabilities. Last updated: November 2024*
