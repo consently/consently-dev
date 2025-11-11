@@ -517,14 +517,15 @@ export function ConsentNoticeTemplate({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-stretch">
             <button
               onClick={onCancel}
-              className="flex-1 min-w-[140px] px-6 py-3 rounded-lg font-semibold border-2 transition-all"
+              className="flex-1 min-w-[140px] px-6 py-3.5 rounded-lg font-semibold border-2 transition-all text-center whitespace-nowrap overflow-hidden text-ellipsis"
               style={{
                 borderColor: `${config.textColor}30`,
                 color: config.textColor,
               }}
+              title={translations.cancelButton}
             >
               {translations.cancelButton}
             </button>
@@ -532,12 +533,13 @@ export function ConsentNoticeTemplate({
             {selectedActivities.size > 0 && selectedActivities.size < activities.length && (
               <button
                 onClick={handleAcceptSelected}
-                className="flex-1 min-w-[140px] px-6 py-3 rounded-lg font-semibold border-2 transition-all"
+                className="flex-1 min-w-[140px] px-6 py-3.5 rounded-lg font-semibold border-2 transition-all text-center whitespace-nowrap overflow-hidden text-ellipsis"
                 style={{
                   borderColor: config.primaryColor,
                   backgroundColor: `${config.primaryColor}15`,
                   color: config.primaryColor,
                 }}
+                title={translations.acceptSelectedButton}
               >
                 {translations.acceptSelectedButton}
               </button>
@@ -545,11 +547,13 @@ export function ConsentNoticeTemplate({
 
             <button
               onClick={handleAcceptAll}
-              className="flex-1 min-w-[140px] px-6 py-3 rounded-lg font-semibold shadow-lg transition-all hover:shadow-xl"
+              className="flex-1 min-w-[140px] px-6 py-3.5 rounded-lg font-semibold shadow-lg transition-all hover:shadow-xl text-center whitespace-nowrap overflow-hidden text-ellipsis"
               style={{
                 backgroundColor: config.primaryColor,
                 color: '#ffffff',
+                minHeight: '44px',
               }}
+              title={translations.acceptButton}
             >
               {translations.acceptButton}
             </button>

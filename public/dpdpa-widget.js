@@ -2280,17 +2280,105 @@
       // Show floating preference centre button
       showFloatingPreferenceButton();
 
-      // Offer receipt options
-      try { showReceiptOptions(storageData); } catch (e) { /* noop */ }
+      // Update widget to show success state before hiding
+      showSuccessState(overlay, acceptedActivities, rejectedActivities, finalStatus);
 
-      // Hide widget
-      hideWidget(overlay);
+      // Offer receipt options after a delay
+      setTimeout(() => {
+        try { showReceiptOptions(storageData); } catch (e) { /* noop */ }
+      }, 2000);
+
+      // Hide widget after showing success state
+      setTimeout(() => {
+        hideWidget(overlay);
+      }, 3000);
 
       console.log('[Consently DPDPA] Consent saved successfully');
     } catch (error) {
       console.error('[Consently DPDPA] Failed to save consent:', error);
       alert('Failed to save your consent preferences. Please try again.');
     }
+  }
+
+  // Show success state in widget after consent
+  function showSuccessState(overlay, acceptedActivities, rejectedActivities, status) {
+    const widget = overlay.querySelector('#consently-dpdpa-widget');
+    if (!widget) return;
+
+    const theme = config.theme || {};
+    const primaryColor = theme.primaryColor || '#3b82f6';
+    const backgroundColor = theme.backgroundColor || '#ffffff';
+    const textColor = theme.textColor || '#1f2937';
+    const borderRadius = theme.borderRadius || 12;
+
+    // Get activity names
+    const acceptedNames = acceptedActivities.map(id => {
+      const activity = activities.find(a => a.id === id);
+      return activity ? activity.activity_name : id;
+    }).filter(Boolean);
+
+    const rejectedNames = rejectedActivities.map(id => {
+      const activity = activities.find(a => a.id === id);
+      return activity ? activity.activity_name : id;
+    }).filter(Boolean);
+
+    // Create success message
+    let statusText = '';
+    let statusIcon = '';
+    if (status === 'accepted') {
+      statusText = 'All activities accepted';
+      statusIcon = '✓';
+    } else if (status === 'partial') {
+      statusText = 'Preferences saved';
+      statusIcon = '✓';
+    } else {
+      statusText = 'Preferences saved';
+      statusIcon = '✓';
+    }
+
+    // Update widget content with success state
+    widget.style.transition = 'all 0.3s ease';
+    widget.innerHTML = `
+      <div style="padding: 32px; text-align: center; font-family: ${theme.fontFamily || 'system-ui, sans-serif'};">
+        <div style="width: 64px; height: 64px; margin: 0 auto 20px; background: linear-gradient(135deg, ${primaryColor}15, ${primaryColor}25); border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: scaleIn 0.3s ease;">
+          <div style="width: 48px; height: 48px; background: ${primaryColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+            ${statusIcon}
+          </div>
+        </div>
+        <h2 style="margin: 0 0 12px; font-size: 24px; font-weight: 700; color: ${textColor};">
+          ${statusText}
+        </h2>
+        <p style="margin: 0 0 24px; font-size: 14px; color: ${textColor}CC; line-height: 1.6;">
+          Your privacy preferences have been saved successfully.
+        </p>
+        ${acceptedNames.length > 0 ? `
+        <div style="background: ${primaryColor}08; border-left: 3px solid ${primaryColor}; border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left;">
+          <div style="font-size: 12px; font-weight: 600; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+            Accepted (${acceptedNames.length})
+          </div>
+          <div style="font-size: 13px; color: ${textColor}; line-height: 1.8;">
+            ${acceptedNames.map(name => `• ${name}`).join('<br>')}
+          </div>
+        </div>
+        ` : ''}
+        ${rejectedNames.length > 0 ? `
+        <div style="background: #f3f4f608; border-left: 3px solid #9ca3af; border-radius: 8px; padding: 16px; text-align: left;">
+          <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+            Rejected (${rejectedNames.length})
+          </div>
+          <div style="font-size: 13px; color: ${textColor}CC; line-height: 1.8;">
+            ${rejectedNames.map(name => `• ${name}`).join('<br>')}
+          </div>
+        </div>
+        ` : ''}
+      </div>
+      <style>
+        @keyframes scaleIn {
+          from { transform: scale(0); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      </style>
+    `;
   }
 
   // Hide widget
@@ -2362,6 +2450,15 @@
       return;
     }
 
+    // Check if cookie widget button exists - if so, add DPDPA option to that menu instead
+    const cookieWidgetBtn = document.getElementById('consently-float-btn');
+    if (cookieWidgetBtn) {
+      // Add DPDPA option to existing cookie widget menu
+      addDPDPAToCookieMenu(cookieWidgetBtn);
+      return;
+    }
+
+    // If cookie widget doesn't exist, create our own button on the right side
     const visitorId = getVisitorId();
     const button = document.createElement('div');
     button.id = 'dpdpa-float-btn';
@@ -2370,7 +2467,7 @@
         #dpdpa-float-btn {
           position: fixed;
           bottom: 20px;
-          left: 20px;
+          right: 20px;
           z-index: 9998;
           cursor: pointer;
         }
@@ -2384,8 +2481,8 @@
           border-radius: 50%;
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
           transition: all 0.3s;
-          width: 56px;
-          height: 56px;
+          width: 48px;
+          height: 48px;
           color: white;
         }
         .dpdpa-float-trigger:hover {
@@ -2395,8 +2492,7 @@
         .dpdpa-float-tooltip {
           position: absolute;
           bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
+          right: 0;
           margin-bottom: 12px;
           background: #1f2937;
           color: white;
@@ -2413,8 +2509,7 @@
           content: '';
           position: absolute;
           top: 100%;
-          left: 50%;
-          transform: translateX(-50%);
+          right: 12px;
           border: 6px solid transparent;
           border-top-color: #1f2937;
         }
@@ -2437,6 +2532,76 @@
       openPrivacyCentre();
     });
   }
+
+  // Add DPDPA option to existing cookie widget menu
+  function addDPDPAToCookieMenu(cookieWidgetBtn) {
+    const menu = cookieWidgetBtn.querySelector('#consently-float-menu');
+    if (!menu) return;
+
+    // Check if DPDPA option already exists
+    if (menu.querySelector('#consently-dpdpa-prefs-btn')) return;
+
+    // Find the section label or create one
+    let sectionLabel = menu.querySelector('.section-label');
+    if (!sectionLabel || sectionLabel.textContent !== 'DPDPA Preferences') {
+      // Add divider and section label
+      const divider = document.createElement('div');
+      divider.className = 'divider';
+      divider.style.cssText = 'height: 1px; background: #e5e7eb; margin: 4px 0;';
+      
+      const label = document.createElement('div');
+      label.className = 'section-label';
+      label.style.cssText = 'padding: 8px 16px; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; background: #f9fafb;';
+      label.textContent = 'DPDPA Preferences';
+      
+      // Find the consent ID section (last child) and insert before it
+      const consentIdSection = menu.querySelector('div[style*="padding: 12px 16px"]');
+      if (consentIdSection) {
+        menu.insertBefore(divider, consentIdSection);
+        menu.insertBefore(label, consentIdSection);
+      } else {
+        menu.appendChild(divider);
+        menu.appendChild(label);
+      }
+    }
+
+    // Add DPDPA preferences button
+    const dpdpaBtn = document.createElement('button');
+    dpdpaBtn.id = 'consently-dpdpa-prefs-btn';
+    dpdpaBtn.style.cssText = 'width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; cursor: pointer; font-size: 14px; color: #374151; transition: background 0.15s; display: flex; align-items: center; gap: 8px;';
+    dpdpaBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
+      </svg>
+      DPDPA Preferences
+    `;
+    
+    dpdpaBtn.addEventListener('mouseenter', function() {
+      this.style.background = '#f3f4f6';
+    });
+    dpdpaBtn.addEventListener('mouseleave', function() {
+      this.style.background = 'white';
+    });
+    
+    dpdpaBtn.addEventListener('click', function() {
+      menu.classList.remove('show');
+      openPrivacyCentre();
+    });
+
+    // Insert before consent ID section
+    const consentIdSection = menu.querySelector('div[style*="padding: 12px 16px"]');
+    if (consentIdSection) {
+      menu.insertBefore(dpdpaBtn, consentIdSection);
+    } else {
+      menu.appendChild(dpdpaBtn);
+    }
+  }
+
+  // Listen for custom event from cookie widget
+  window.addEventListener('consently-open-dpdpa-prefs', function() {
+    openPrivacyCentre();
+  });
 
   function openGrievanceForm() {
     // Simple modal form
@@ -2527,7 +2692,8 @@
   }
 
   // Public API
-  window.consentlyDPDPA = {
+  window.consentlyDPDPA = window.consentlyDPDPA || {};
+  window.consentlyDPDPA[widgetId] = {
     show: function() {
       showConsentWidget();
     },
@@ -2553,7 +2719,16 @@
     downloadReceipt: function() {
       const consent = this.getConsent();
       if (consent) downloadConsentReceipt(consent);
+    },
+    
+    openPrivacyCentre: function() {
+      openPrivacyCentre();
     }
+  };
+
+  // Also expose a global function for backward compatibility
+  window.ConsentlyDPDPA = {
+    openPrivacyCentre: openPrivacyCentre
   };
 
   // Initialize on DOM ready

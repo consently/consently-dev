@@ -273,15 +273,48 @@
         console.log('[Consently] Fetching config from:', apiUrl);
       }
       
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        cache: 'no-store'
-      });
+      let response;
+      try {
+        // Create abort controller for timeout (more compatible than AbortSignal.timeout)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        // Handle network errors (ERR_NETWORK_IO_SUSPENDED, timeout, etc.)
+        if (fetchError.name === 'AbortError') {
+          if (!isPolling) {
+            console.warn('[Consently] Config fetch timeout - will retry');
+          }
+          throw new Error('Request timeout');
+        }
+        // Handle network suspension errors (page unloading, tab backgrounded)
+        // These errors are non-critical and can be safely ignored
+        if (fetchError.message && (
+          fetchError.message.includes('ERR_NETWORK_IO_SUSPENDED') ||
+          fetchError.message.includes('Failed to fetch') ||
+          fetchError.message.includes('network') ||
+          fetchError.message.includes('aborted')
+        )) {
+          if (!isPolling) {
+            console.warn('[Consently] Network request suspended (page may be unloading) - this is normal');
+          }
+          // Don't throw - just return false to allow graceful degradation
+          return false;
+        }
+        throw fetchError;
+      }
       
       if (!response.ok) {
         // Handle 404 - widget doesn't exist
@@ -1328,6 +1361,9 @@
     // Get consent ID from the consent data or generate from timestamp
     const consentId = existingConsent.consentId || `con_${existingConsent.timestamp}_${Math.random().toString(36).substr(2, 5)}`;
     
+    // Check if DPDPA widget exists
+    const hasDPDPA = typeof window.ConsentlyDPDPA !== 'undefined' || document.querySelector('script[data-dpdpa-widget-id]');
+    
     const button = document.createElement('div');
     button.id = 'consently-float-btn';
     button.innerHTML = `
@@ -1403,17 +1439,32 @@
         .consently-float-menu button.revoke:hover {
           background: #fef2f2;
         }
+        .consently-float-menu .divider {
+          height: 1px;
+          background: #e5e7eb;
+          margin: 4px 0;
+        }
+        .consently-float-menu .section-label {
+          padding: 8px 16px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          background: #f9fafb;
+        }
       </style>
-      <div class="consently-float-trigger" title="Cookie Preferences">
+      <div class="consently-float-trigger" title="Privacy Preferences">
         ${CONSENTLY_LOGO_SVG}
       </div>
       <div class="consently-float-menu" id="consently-float-menu">
+        <div class="section-label">Cookie Preferences</div>
         <button id="consently-manage-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
           </svg>
-          Preferences
+          Cookie Preferences
         </button>
         <button id="consently-revoke-btn" class="revoke">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1421,8 +1472,19 @@
             <line x1="15" y1="9" x2="9" y2="15"/>
             <line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
-          Revoke Consent
+          Revoke Cookie Consent
         </button>
+        ${hasDPDPA ? `
+        <div class="divider"></div>
+        <div class="section-label">DPDPA Preferences</div>
+        <button id="consently-dpdpa-prefs-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
+          </svg>
+          DPDPA Preferences
+        </button>
+        ` : ''}
         <div style="padding: 12px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
           <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Your Consent ID:</div>
           <div style="font-family: monospace; font-size: 10px; color: #374151; word-break: break-all; user-select: all; cursor: text;" title="Click to select">${consentId}</div>
@@ -1459,6 +1521,94 @@
       menu.classList.remove('show');
       revokeConsent();
     });
+    
+    // DPDPA preferences button (if exists)
+    if (hasDPDPA) {
+      const dpdpaBtn = document.getElementById('consently-dpdpa-prefs-btn');
+      if (dpdpaBtn) {
+        dpdpaBtn.addEventListener('click', function() {
+          menu.classList.remove('show');
+          // Try to open DPDPA privacy centre
+          if (typeof window.ConsentlyDPDPA !== 'undefined' && window.ConsentlyDPDPA.openPrivacyCentre) {
+            window.ConsentlyDPDPA.openPrivacyCentre();
+          } else {
+            // Fallback: trigger DPDPA widget to show preferences
+            const dpdpaWidget = document.getElementById('dpdpa-float-btn');
+            if (dpdpaWidget) {
+              dpdpaWidget.querySelector('.dpdpa-float-trigger')?.click();
+            } else {
+              // Try to find and trigger DPDPA widget initialization
+              window.dispatchEvent(new CustomEvent('consently-open-dpdpa-prefs'));
+            }
+          }
+        });
+      }
+    }
+
+    // Listen for DPDPA widget loading after cookie widget
+    // Check periodically if DPDPA widget loads later
+    let dpdpaCheckInterval = setInterval(function() {
+      const dpdpaScript = document.querySelector('script[data-dpdpa-widget-id]');
+      const dpdpaExists = dpdpaScript || typeof window.ConsentlyDPDPA !== 'undefined';
+      
+      if (dpdpaExists && !menu.querySelector('#consently-dpdpa-prefs-btn')) {
+        // DPDPA widget loaded, add it to menu
+        const divider = document.createElement('div');
+        divider.className = 'divider';
+        divider.style.cssText = 'height: 1px; background: #e5e7eb; margin: 4px 0;';
+        
+        const label = document.createElement('div');
+        label.className = 'section-label';
+        label.style.cssText = 'padding: 8px 16px; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; background: #f9fafb;';
+        label.textContent = 'DPDPA Preferences';
+        
+        const dpdpaBtn = document.createElement('button');
+        dpdpaBtn.id = 'consently-dpdpa-prefs-btn';
+        dpdpaBtn.style.cssText = 'width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; cursor: pointer; font-size: 14px; color: #374151; transition: background 0.15s; display: flex; align-items: center; gap: 8px;';
+        dpdpaBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
+          </svg>
+          DPDPA Preferences
+        `;
+        
+        dpdpaBtn.addEventListener('mouseenter', function() {
+          this.style.background = '#f3f4f6';
+        });
+        dpdpaBtn.addEventListener('mouseleave', function() {
+          this.style.background = 'white';
+        });
+        
+        dpdpaBtn.addEventListener('click', function() {
+          menu.classList.remove('show');
+          if (typeof window.ConsentlyDPDPA !== 'undefined' && window.ConsentlyDPDPA.openPrivacyCentre) {
+            window.ConsentlyDPDPA.openPrivacyCentre();
+          } else {
+            window.dispatchEvent(new CustomEvent('consently-open-dpdpa-prefs'));
+          }
+        });
+
+        const consentIdSection = menu.querySelector('div[style*="padding: 12px 16px"]');
+        if (consentIdSection) {
+          menu.insertBefore(divider, consentIdSection);
+          menu.insertBefore(label, consentIdSection);
+          menu.insertBefore(dpdpaBtn, consentIdSection);
+        } else {
+          menu.appendChild(divider);
+          menu.appendChild(label);
+          menu.appendChild(dpdpaBtn);
+        }
+        
+        // Stop checking once added
+        clearInterval(dpdpaCheckInterval);
+      }
+    }, 1000);
+
+    // Stop checking after 10 seconds to avoid infinite polling
+    setTimeout(function() {
+      clearInterval(dpdpaCheckInterval);
+    }, 10000);
   }
 
   // Revoke consent function

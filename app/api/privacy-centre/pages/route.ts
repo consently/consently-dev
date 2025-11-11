@@ -71,26 +71,70 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Helper function to normalize URLs for consistent grouping
+    // Removes query parameters and fragments, normalizes trailing slashes
+    function normalizeUrl(urlString: string): string {
+      try {
+        const url = new URL(urlString);
+        // Remove query parameters and hash for grouping
+        url.search = '';
+        url.hash = '';
+        // Normalize trailing slash (keep it consistent)
+        let path = url.pathname;
+        if (path.length > 1 && path.endsWith('/')) {
+          path = path.slice(0, -1);
+        }
+        url.pathname = path;
+        return url.toString();
+      } catch (e) {
+        // If URL parsing fails, return original
+        console.warn('[Privacy Centre Pages API] Failed to parse URL:', urlString);
+        return urlString;
+      }
+    }
+
     // Group records by URL to get page statistics
     const pageMap = new Map<string, PageInfo>();
 
     (consentRecords || []).forEach((record: any) => {
       // Extract current_url and page_title from consent_details.metadata
       const metadata = record.consent_details?.metadata || {};
-      const url = metadata.currentUrl || null;
+      const rawUrl = metadata.currentUrl || null;
       
       // Skip records without a URL
-      if (!url) return;
+      if (!rawUrl) {
+        console.log('[Privacy Centre Pages API] Record without URL:', record.id);
+        return;
+      }
+
+      // Normalize URL for consistent grouping
+      const url = normalizeUrl(rawUrl);
 
       const existing = pageMap.get(url);
       const consentTimestamp = record.consent_given_at || record.created_at;
       const consentedActivities = record.consented_activities || [];
       const rejectedActivities = record.rejected_activities || [];
 
+      // Store the original URL for display (before normalization)
+      const displayUrl = rawUrl;
+
       if (!existing) {
-        // First time seeing this page
+        // Validate consentTimestamp before using it
+        if (!consentTimestamp) {
+          console.warn('[Privacy Centre Pages API] Record without valid timestamp:', record.id);
+          return;
+        }
+        
+        // Validate that consentTimestamp is a valid date
+        const testDate = new Date(consentTimestamp);
+        if (isNaN(testDate.getTime())) {
+          console.warn('[Privacy Centre Pages API] Record with invalid date:', record.id, consentTimestamp);
+          return;
+        }
+
+        // First time seeing this page - use normalized URL as key but store original for display
         pageMap.set(url, {
-          url,
+          url: displayUrl, // Store original URL for display
           title: metadata.pageTitle || null,
           firstVisit: consentTimestamp,
           lastVisit: consentTimestamp,
@@ -101,9 +145,31 @@ export async function GET(request: NextRequest) {
         });
       } else {
         // Update with latest visit info
+        // Validate timestamps before creating Date objects
+        if (!consentTimestamp || !existing.firstVisit || !existing.lastVisit) {
+          console.warn('[Privacy Centre Pages API] Invalid timestamp values:', {
+            consentTimestamp,
+            firstVisit: existing.firstVisit,
+            lastVisit: existing.lastVisit
+          });
+          // Skip this record if timestamps are invalid
+          return;
+        }
+
         const currentTimestamp = new Date(consentTimestamp);
         const firstTimestamp = new Date(existing.firstVisit);
         const lastTimestamp = new Date(existing.lastVisit);
+
+        // Check if dates are valid
+        if (isNaN(currentTimestamp.getTime()) || isNaN(firstTimestamp.getTime()) || isNaN(lastTimestamp.getTime())) {
+          console.warn('[Privacy Centre Pages API] Invalid date values:', {
+            currentTimestamp: consentTimestamp,
+            firstTimestamp: existing.firstVisit,
+            lastTimestamp: existing.lastVisit
+          });
+          // Skip this record if dates are invalid
+          return;
+        }
 
         if (currentTimestamp < firstTimestamp) {
           existing.firstVisit = consentTimestamp;
@@ -115,6 +181,8 @@ export async function GET(request: NextRequest) {
           existing.consentStatus = record.consent_status;
           existing.consentGiven = record.consent_status !== 'rejected';
           existing.activitiesCount = consentedActivities.length + rejectedActivities.length;
+          // Update URL to the most recent one (in case formats changed)
+          existing.url = displayUrl;
         }
 
         // Update title if not set
@@ -125,9 +193,26 @@ export async function GET(request: NextRequest) {
     });
 
     // Convert map to array and sort by last visit (most recent first)
-    const pages = Array.from(pageMap.values()).sort((a, b) => {
-      return new Date(b.lastVisit).getTime() - new Date(a.lastVisit).getTime();
-    });
+    // Filter out pages with invalid dates and sort valid ones
+    const pages = Array.from(pageMap.values())
+      .filter(page => {
+        // Validate that lastVisit is a valid date
+        if (!page.lastVisit) {
+          console.warn('[Privacy Centre Pages API] Page with invalid lastVisit:', page.url);
+          return false;
+        }
+        const date = new Date(page.lastVisit);
+        if (isNaN(date.getTime())) {
+          console.warn('[Privacy Centre Pages API] Page with invalid date:', page.url, page.lastVisit);
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.lastVisit);
+        const dateB = new Date(b.lastVisit);
+        return dateB.getTime() - dateA.getTime();
+      });
 
     return NextResponse.json({
       pages,

@@ -202,76 +202,79 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Manage Your Consent Preferences</h2>
-        <p className="text-gray-600 mt-2">
-          Update your consent preferences for {widgetName || domain}. You can change these at any time.
+      <div className="border-b pb-4">
+        <h2 className="text-3xl font-bold text-gray-900">Manage Your Consent Preferences</h2>
+        <p className="text-gray-600 mt-2 text-base">
+          Update your consent preferences for <span className="font-semibold">{widgetName || domain}</span>. You can change these at any time.
         </p>
       </div>
 
       {/* Visitor ID Display */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
-              <Info className="h-4 w-4 text-blue-600" />
-              Your Visitor ID
-            </h3>
-            <p className="text-xs text-gray-600 mb-2">
-              Save this ID to access your preferences later. You can bookmark this page or use this ID to access the Preference Centre.
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-white px-3 py-2 rounded border border-blue-200 font-mono text-gray-900 break-all select-all">
-                {visitorId}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(visitorId);
-                  toast.success('Visitor ID copied to clipboard!');
-                }}
-                className="flex-shrink-0"
-              >
-                <Copy className="h-3 w-3 mr-1" />
-                Copy
-              </Button>
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                Your Visitor ID
+              </h3>
+              <p className="text-xs text-gray-600 mb-3">
+                Save this ID to access your preferences later. You can bookmark this page or use this ID to access the Preference Centre.
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <code className="flex-1 min-w-[200px] text-xs bg-white px-3 py-2.5 rounded-md border border-blue-200 font-mono text-gray-900 break-all select-all shadow-sm">
+                  {visitorId}
+                </code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(visitorId);
+                    toast.success('Visitor ID copied to clipboard!');
+                  }}
+                  className="flex-shrink-0 bg-white hover:bg-gray-50"
+                >
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-3 break-words">
+                <span className="font-medium">Direct link:</span>{' '}
+                <a 
+                  href={`${typeof window !== 'undefined' ? window.location.origin : ''}/privacy-centre/${widgetId}?visitorId=${visitorId}`}
+                  className="text-blue-600 hover:text-blue-700 hover:underline break-all"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {typeof window !== 'undefined' ? window.location.origin : ''}/privacy-centre/{widgetId}?visitorId={visitorId}
+                </a>
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Direct link: <a 
-                href={`${typeof window !== 'undefined' ? window.location.origin : ''}/privacy-centre/${widgetId}?visitorId=${visitorId}`}
-                className="text-blue-600 hover:underline break-all"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {typeof window !== 'undefined' ? window.location.origin : ''}/privacy-centre/{widgetId}?visitorId={visitorId}
-              </a>
-            </p>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={handleAcceptAll} variant="outline" size="sm">
+      <div className="flex flex-wrap gap-2.5 pb-2">
+        <Button onClick={handleAcceptAll} variant="outline" size="sm" className="bg-white hover:bg-green-50 border-green-200 text-green-700">
           <Check className="h-4 w-4 mr-2" />
           Accept All
         </Button>
-        <Button onClick={handleRejectAll} variant="outline" size="sm">
+        <Button onClick={handleRejectAll} variant="outline" size="sm" className="bg-white hover:bg-red-50 border-red-200 text-red-700">
           <X className="h-4 w-4 mr-2" />
           Reject All
         </Button>
-        <Button onClick={fetchPreferences} variant="outline" size="sm">
+        <Button onClick={fetchPreferences} variant="outline" size="sm" className="bg-white">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
-        <Button onClick={() => handleDownloadHistory('csv')} variant="outline" size="sm">
+        <Button onClick={() => handleDownloadHistory('csv')} variant="outline" size="sm" className="bg-white">
           <Download className="h-4 w-4 mr-2" />
           Download CSV
         </Button>
-        <Button onClick={() => handleDownloadHistory('pdf')} variant="outline" size="sm">
+        <Button onClick={() => handleDownloadHistory('pdf')} variant="outline" size="sm" className="bg-white">
           <Download className="h-4 w-4 mr-2" />
           Download PDF
         </Button>
@@ -301,49 +304,59 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                     : 'border-gray-200 bg-white'
                 }`}
               >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-3">
                         <Checkbox
                           checked={isAccepted}
                           onCheckedChange={(checked) =>
                             handlePreferenceChange(activity.id, checked ? 'accepted' : 'rejected')
                           }
-                          className="mt-1"
+                          className="mt-1.5 flex-shrink-0"
                         />
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{activity.name}</CardTitle>
-                          <CardDescription className="mt-1">
-                            <Badge variant="outline" className="mr-2">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg font-semibold text-gray-900 mb-2">{activity.name}</CardTitle>
+                          <CardDescription className="flex flex-wrap items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
                               {activity.industry}
                             </Badge>
                             {activity.consentGivenAt && (
                               <span className="text-xs text-gray-500">
-                                Last updated: {new Date(activity.lastUpdated || activity.consentGivenAt).toLocaleDateString()}
+                                Last updated: {new Date(activity.lastUpdated || activity.consentGivenAt).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
                               </span>
                             )}
                           </CardDescription>
                         </div>
                       </div>
+                      
+                      {/* Purpose Summary */}
+                      {(activity.purposes || []).length > 0 && (
+                        <div className="ml-9 mt-3 text-sm">
+                          <p className="font-medium text-gray-700 mb-2">Purposes:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(activity.purposes || []).map((purpose) => (
+                              <Badge key={purpose.id} variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                {purpose.purposeName}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleActivityExpanded(activity.id)}
+                      className="flex-shrink-0"
+                      title={isExpanded ? 'Hide details' : 'Show details'}
                     >
                       <Info className="h-4 w-4" />
                     </Button>
-                  </div>
-
-                  {/* Purpose Summary */}
-                  <div className="ml-9 mt-3 text-sm text-gray-700">
-                    <p className="font-medium mb-1">Purposes:</p>
-                    <ul className="list-disc list-inside space-y-1 text-gray-600">
-                      {(activity.purposes || []).map((purpose) => (
-                        <li key={purpose.id}>{purpose.purposeName}</li>
-                      ))}
-                    </ul>
                   </div>
                 </CardHeader>
 
