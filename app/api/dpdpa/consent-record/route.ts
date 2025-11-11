@@ -701,6 +701,114 @@ export async function POST(request: NextRequest) {
       result = data;
     }
 
+    // Sync consent to visitor_consent_preferences table for preference center
+    // This ensures that consent given on any page (career, contact, etc.) shows up in manage preferences
+    try {
+      // Handle revoked status - mark all existing preferences as withdrawn
+      if (finalConsentStatus === 'revoked') {
+        const { error: revokeError } = await supabase
+          .from('visitor_consent_preferences')
+          .update({ 
+            consent_status: 'withdrawn',
+            last_updated: new Date().toISOString(),
+          })
+          .eq('visitor_id', body.visitorId)
+          .eq('widget_id', body.widgetId);
+
+        if (revokeError) {
+          console.error('[Consent Record API] Error withdrawing preferences:', {
+            error: revokeError.message,
+            code: revokeError.code,
+            widgetId: body.widgetId,
+            visitorId: body.visitorId,
+          });
+        } else {
+          console.log('[Consent Record API] Successfully withdrew all preferences');
+        }
+      } else {
+        // For accepted/rejected/partial status, sync individual activities
+        const preferenceUpdates: Array<{
+          visitor_id: string;
+          widget_id: string;
+          activity_id: string;
+          consent_status: 'accepted' | 'rejected';
+          ip_address: string | null;
+          user_agent: string | null;
+          device_type: 'Desktop' | 'Mobile' | 'Tablet' | 'Unknown' | null;
+          language: string | null;
+          expires_at: string;
+          consent_version: string;
+        }> = [];
+
+        // Add accepted activities
+        for (const activityId of validatedAcceptedActivities) {
+          preferenceUpdates.push({
+            visitor_id: body.visitorId,
+            widget_id: body.widgetId,
+            activity_id: activityId,
+            consent_status: 'accepted',
+            ip_address: ipAddress || null,
+            user_agent: userAgent || null,
+            device_type: deviceType || null,
+            language: language || null,
+            expires_at: expiresAt.toISOString(),
+            consent_version: '1.0',
+          });
+        }
+
+        // Add rejected activities
+        for (const activityId of validatedRejectedActivities) {
+          preferenceUpdates.push({
+            visitor_id: body.visitorId,
+            widget_id: body.widgetId,
+            activity_id: activityId,
+            consent_status: 'rejected',
+            ip_address: ipAddress || null,
+            user_agent: userAgent || null,
+            device_type: deviceType || null,
+            language: language || null,
+            expires_at: expiresAt.toISOString(),
+            consent_version: '1.0',
+          });
+        }
+
+        // Only upsert if we have activities to sync
+        if (preferenceUpdates.length > 0) {
+          const { error: syncError } = await supabase
+            .from('visitor_consent_preferences')
+            .upsert(preferenceUpdates, {
+              onConflict: 'visitor_id,widget_id,activity_id',
+              ignoreDuplicates: false,
+            });
+
+          if (syncError) {
+            // Log error but don't fail the request - consent was already recorded
+            console.error('[Consent Record API] Error syncing to visitor_consent_preferences:', {
+              error: syncError.message,
+              code: syncError.code,
+              widgetId: body.widgetId,
+              visitorId: body.visitorId,
+              activityCount: preferenceUpdates.length,
+            });
+          } else {
+            console.log('[Consent Record API] Successfully synced consent to visitor_consent_preferences:', {
+              widgetId: body.widgetId,
+              visitorId: body.visitorId,
+              acceptedCount: validatedAcceptedActivities.length,
+              rejectedCount: validatedRejectedActivities.length,
+            });
+          }
+        }
+      }
+    } catch (syncError) {
+      // Log error but don't fail the request - consent was already recorded successfully
+      console.error('[Consent Record API] Unexpected error syncing preferences:', {
+        error: syncError instanceof Error ? syncError.message : 'Unknown error',
+        widgetId: body.widgetId,
+        visitorId: body.visitorId,
+      });
+    }
+
     // Return success response
     return NextResponse.json({
       success: true,
