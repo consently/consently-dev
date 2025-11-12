@@ -39,11 +39,14 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Error fetching blog posts:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { error: 'Failed to fetch blog posts' },
+        { error: 'Failed to fetch blog posts', details: error.message },
         { status: 500 }
       );
     }
+
+    console.log(`Fetched ${posts?.length || 0} blog posts`);
 
     // Get total count
     const { count: totalCount } = await supabase

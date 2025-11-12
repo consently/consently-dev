@@ -14,10 +14,7 @@ import { consentRecordRequestSchema } from '@/types/dpdpa-widget.types';
 
 // Types moved to @/types/dpdpa-widget.types.ts
 
-// Helper function to hash email for privacy
-function hashEmail(email: string): string {
-  return crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
-}
+// Note: Email/phone hashing functions removed - visitor ID is based on device fingerprinting only
 
 // Helper function to detect device type from user agent
 function detectDeviceType(userAgent: string): 'Desktop' | 'Mobile' | 'Tablet' | 'Unknown' {
@@ -543,7 +540,7 @@ export async function POST(request: NextRequest) {
         os: os || undefined,
         country: country || undefined,
         language: language || undefined,
-      }
+      },
     };
 
     if (existingConsent) {

@@ -201,6 +201,7 @@
   let activities = [];
   let activityConsents = {};
   let visitorEmail = (currentScript && currentScript.getAttribute('data-dpdpa-email')) || null;
+  let visitorPhone = (currentScript && currentScript.getAttribute('data-dpdpa-phone')) || null;
   let globalClickHandler = null; // Global reference to cleanup language menu listener
   let primaryColor = '#4c8bf5'; // Default primary color, updated when config loads
 
@@ -241,13 +242,146 @@
     }
   };
 
-  // Generate or retrieve persistent visitor ID
-  function getVisitorId() {
-    let visitorId = ConsentStorage.get('consently_dpdpa_visitor_id');
-    if (!visitorId) {
-      visitorId = 'vis_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 15);
-      ConsentStorage.set('consently_dpdpa_visitor_id', visitorId, 365 * 10); // 10 years
+  // Simple hash function for privacy (using Web Crypto API if available, fallback to simple hash)
+  async function hashString(str) {
+    if (!str) return null;
+    
+    // Normalize the string (lowercase, trim)
+    const normalized = str.toLowerCase().trim();
+    
+    // Use Web Crypto API if available (more secure)
+    if (window.crypto && window.crypto.subtle) {
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(normalized);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+      } catch (e) {
+        // Fallback to simple hash if crypto fails
+      }
     }
+    
+    // Simple hash fallback (for older browsers)
+    let hash = 0;
+    for (let i = 0; i < normalized.length; i++) {
+      const char = normalized.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0');
+  }
+
+  // Generate device fingerprint based on browser/device characteristics
+  function generateDeviceFingerprint() {
+    const components = [];
+    
+    // User agent
+    if (navigator.userAgent) {
+      components.push(navigator.userAgent);
+    }
+    
+    // Screen resolution
+    if (screen.width && screen.height) {
+      components.push(`${screen.width}x${screen.height}`);
+    }
+    
+    // Color depth
+    if (screen.colorDepth) {
+      components.push(`cd${screen.colorDepth}`);
+    }
+    
+    // Timezone
+    try {
+      components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+    } catch (e) {}
+    
+    // Language
+    if (navigator.language) {
+      components.push(navigator.language);
+    }
+    
+    // Platform
+    if (navigator.platform) {
+      components.push(navigator.platform);
+    }
+    
+    // Hardware concurrency (CPU cores)
+    if (navigator.hardwareConcurrency) {
+      components.push(`hc${navigator.hardwareConcurrency}`);
+    }
+    
+    // Device memory (if available)
+    if (navigator.deviceMemory) {
+      components.push(`dm${navigator.deviceMemory}`);
+    }
+    
+    // Canvas fingerprint (simplified - just check if canvas is available)
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillText('Device fingerprint', 2, 2);
+        components.push(canvas.toDataURL().substring(0, 50));
+      }
+    } catch (e) {}
+    
+    return components.join('|');
+  }
+
+  // Generate or retrieve persistent visitor ID based on device fingerprint
+  async function getVisitorId() {
+    // Check if we already have a visitor ID stored
+    let visitorId = ConsentStorage.get('consently_dpdpa_visitor_id');
+    if (visitorId) {
+      return visitorId;
+    }
+    
+    // Try to get stored device fingerprint hash
+    let deviceFingerprintHash = ConsentStorage.get('consently_dpdpa_device_hash');
+    
+    // If no stored hash, generate device fingerprint and hash it
+    if (!deviceFingerprintHash) {
+      const deviceFingerprint = generateDeviceFingerprint();
+      deviceFingerprintHash = await hashString(deviceFingerprint);
+      ConsentStorage.set('consently_dpdpa_device_hash', deviceFingerprintHash, 365 * 10);
+    }
+    
+    // Generate visitor ID from hash (consistent format)
+    visitorId = 'vis_' + deviceFingerprintHash.substring(0, 16);
+    ConsentStorage.set('consently_dpdpa_visitor_id', visitorId, 365 * 10);
+    
+    return visitorId;
+  }
+
+  // Synchronous version for immediate use
+  function getVisitorIdSync() {
+    let visitorId = ConsentStorage.get('consently_dpdpa_visitor_id');
+    if (visitorId) {
+      return visitorId;
+    }
+    
+    // Try to get stored device fingerprint hash
+    let deviceFingerprintHash = ConsentStorage.get('consently_dpdpa_device_hash');
+    
+    // If no stored hash, generate device fingerprint and hash it synchronously
+    if (!deviceFingerprintHash) {
+      const deviceFingerprint = generateDeviceFingerprint();
+      let hash = 0;
+      for (let i = 0; i < deviceFingerprint.length; i++) {
+        const char = deviceFingerprint.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      deviceFingerprintHash = Math.abs(hash).toString(16).padStart(8, '0');
+      ConsentStorage.set('consently_dpdpa_device_hash', deviceFingerprintHash, 365 * 10);
+    }
+    
+    visitorId = 'vis_' + deviceFingerprintHash.substring(0, 16);
+    ConsentStorage.set('consently_dpdpa_visitor_id', visitorId, 365 * 10);
+    
     return visitorId;
   }
 
@@ -1026,7 +1160,7 @@
       
       const matchEvent = {
         widgetId: widgetId,
-        visitorId: getVisitorId(),
+        visitorId: getVisitorIdSync(),
         ruleId: rule.id,
         ruleName: rule.rule_name,
         urlPattern: rule.url_pattern,
@@ -1086,7 +1220,7 @@
       
       const consentEvent = {
         widgetId: widgetId,
-        visitorId: getVisitorId(),
+        visitorId: getVisitorIdSync(),
         ruleId: rule ? rule.id : undefined,
         ruleName: rule ? rule.rule_name : undefined,
         consentStatus: consentData.consentStatus,
@@ -2274,8 +2408,7 @@
     
     const consentData = {
       widgetId: widgetId,
-      visitorId: getVisitorId(),
-      visitorEmail: visitorEmail || undefined,
+      visitorId: getVisitorIdSync(),
       consentStatus: finalStatus,
       acceptedActivities: acceptedActivities,
       ruleContext: ruleContext, // NEW: Track which rule triggered this consent
@@ -2450,7 +2583,7 @@
   }
 
   function downloadConsentReceipt(consent) {
-    const visitorId = getVisitorId();
+    const visitorId = getVisitorIdSync();
     const receiptData = {
       widgetId,
       visitorId,
@@ -2467,7 +2600,7 @@
   }
 
   function openPrivacyCentre() {
-    const visitorId = getVisitorId();
+    const visitorId = getVisitorIdSync();
     const scriptSrc = currentScript.src;
     let baseUrl;
     
@@ -2498,7 +2631,7 @@
     }
 
     // If cookie widget doesn't exist, create our own button on the right side
-    const visitorId = getVisitorId();
+    const visitorId = getVisitorIdSync();
     const button = document.createElement('div');
     button.id = 'dpdpa-float-btn';
     button.innerHTML = `
@@ -2689,7 +2822,7 @@
   }
 
   function showReceiptOptions(consent) {
-    const visitorId = getVisitorId();
+    const visitorId = getVisitorIdSync();
     const bar = document.createElement('div');
     bar.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:999999;background:#111827;color:#fff;padding:12px 16px;border-radius:12px;display:flex;flex-direction:column;gap:8px;align-items:center;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);font-family:system-ui,sans-serif;font-size:13px;max-width:90%;min-width:300px;`;
     bar.innerHTML = `
@@ -2753,6 +2886,12 @@
     
     setUserEmail: function(email) {
       visitorEmail = email || null;
+      // Note: Email is not used for visitor ID generation (device fingerprinting only)
+    },
+    
+    setUserPhone: function(phone) {
+      visitorPhone = phone || null;
+      // Note: Phone is not used for visitor ID generation (device fingerprinting only)
     },
     
     downloadReceipt: function() {

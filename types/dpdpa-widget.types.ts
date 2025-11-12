@@ -217,7 +217,6 @@ export interface DataCategoryPublic {
 export interface ConsentRecordRequest {
   widgetId: string;
   visitorId: string;
-  visitorEmail?: string;
   consentStatus: 'accepted' | 'rejected' | 'partial';
   acceptedActivities: string[];
   rejectedActivities: string[];
@@ -264,7 +263,6 @@ export interface ConsentDetails {
 export const consentRecordRequestSchema = z.object({
   widgetId: z.string().min(1).max(100),
   visitorId: z.string().min(1).max(200),
-  visitorEmail: z.string().email().optional().or(z.literal('')),
   consentStatus: z.enum(['accepted', 'rejected', 'partial']),
   acceptedActivities: z.array(z.string().uuid()),
   rejectedActivities: z.array(z.string().uuid()),

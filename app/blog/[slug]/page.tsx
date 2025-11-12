@@ -29,13 +29,19 @@ async function getBlogPost(slug: string) {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/blog/${slug}`, {
       next: { revalidate: 3600 },
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`Failed to fetch blog post: ${response.status}`, errorData);
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error fetching blog post:', error);
     return null;
@@ -69,7 +75,7 @@ export async function generateMetadata({
       type: 'article',
       publishedTime: post.published_at,
       authors: [post.author_name],
-      tags: post.tags,
+      tags: Array.isArray(post.tags) ? post.tags : [],
       images: post.featured_image ? [post.featured_image] : [],
     },
     twitter: {
@@ -117,7 +123,7 @@ export default async function BlogPostPage({
       '@type': 'WebPage',
       '@id': `https://www.consently.in/blog/${post.slug}`,
     },
-    keywords: post.tags.join(', '),
+    keywords: Array.isArray(post.tags) ? post.tags.join(', ') : '',
     articleSection: post.category,
   };
 
@@ -154,7 +160,7 @@ export default async function BlogPostPage({
             <header className="mb-8">
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <Badge variant="secondary">{post.category}</Badge>
-                {post.tags.map((tag) => (
+                {Array.isArray(post.tags) && post.tags.length > 0 && post.tags.map((tag: string) => (
                   <Badge key={tag} variant="outline" className="text-xs">
                     <Tag className="h-3 w-3 mr-1" />
                     {tag}
