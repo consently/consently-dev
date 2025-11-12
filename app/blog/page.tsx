@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowRight, Tag, BookOpen } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Blog - DPDPA Compliance & Privacy Insights',
@@ -42,18 +43,54 @@ interface BlogPost {
   views: number;
 }
 
-async function getBlogPosts(page: number = 1, limit: number = 12) {
+async function getBlogPosts(page: number = 1, limit: number = 12, category?: string, tag?: string, search?: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/blog?page=${page}&limit=${limit}`, {
-      next: { revalidate: 3600 }, // Revalidate every hour
-    });
+    const supabase = await createClient();
+    
+    let query = supabase
+      .from('blog_posts')
+      .select('*', { count: 'exact' })
+      .eq('published', true)
+      .order('published_at', { ascending: false });
 
-    if (!response.ok) {
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    if (tag) {
+      query = query.contains('tags', [tag]);
+    }
+
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,excerpt.ilike.%${search}%,content.ilike.%${search}%`);
+    }
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data: posts, error, count } = await query.range(from, to);
+
+    if (error) {
+      console.error('Error fetching blog posts:', error);
       return { posts: [], pagination: { page: 1, limit, total: 0, totalPages: 0 } };
     }
 
-    return await response.json();
+    const total = count || 0;
+    // Ensure tags are arrays for all posts
+    const normalizedPosts = (posts || []).map((post: any) => ({
+      ...post,
+      tags: Array.isArray(post.tags) ? post.tags : (post.tags ? [post.tags] : []),
+    }));
+    
+    return {
+      posts: normalizedPosts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   } catch (error) {
     console.error('Error fetching blog posts:', error);
     return { posts: [], pagination: { page: 1, limit, total: 0, totalPages: 0 } };
@@ -62,16 +99,31 @@ async function getBlogPosts(page: number = 1, limit: number = 12) {
 
 async function getCategories() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/blog/categories`, {
-      next: { revalidate: 3600 },
-    });
+    const supabase = await createClient();
+    
+    const { data: categories, error } = await supabase
+      .from('blog_posts')
+      .select('category')
+      .eq('published', true);
 
-    if (!response.ok) {
+    if (error) {
+      console.error('Error fetching categories:', error);
       return { categories: [] };
     }
 
-    return await response.json();
+    // Count posts per category
+    const categoryCounts = (categories || []).reduce((acc: Record<string, number>, item) => {
+      const cat = item.category || 'Uncategorized';
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      categories: Object.entries(categoryCounts).map(([name, count]) => ({
+        name,
+        count,
+      })),
+    };
   } catch (error) {
     console.error('Error fetching categories:', error);
     return { categories: [] };
@@ -81,10 +133,11 @@ async function getCategories() {
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams: { page?: string; category?: string; tag?: string; search?: string };
+  searchParams: Promise<{ page?: string; category?: string; tag?: string; search?: string }>;
 }) {
-  const page = parseInt(searchParams.page || '1');
-  const { posts, pagination } = await getBlogPosts(page);
+  const params = await searchParams;
+  const page = parseInt(params.page || '1');
+  const { posts, pagination } = await getBlogPosts(page, 12, params.category, params.tag, params.search);
   const { categories } = await getCategories();
 
   const jsonLd = {
@@ -163,7 +216,9 @@ export default async function BlogPage({
             ) : (
               <>
                 <div className="grid md:grid-cols-2 gap-6 mb-8">
-                  {posts.map((post: BlogPost) => (
+                  {posts.map((post: BlogPost) => {
+                    const tags = Array.isArray(post.tags) ? post.tags : [];
+                    return (
                     <Card key={post.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                       {post.featured_image && (
                         <div className="aspect-video w-full bg-gradient-to-br from-blue-100 to-purple-100 relative overflow-hidden">
@@ -177,7 +232,7 @@ export default async function BlogPage({
                       <CardHeader>
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <Badge variant="secondary">{post.category}</Badge>
-                          {post.tags.slice(0, 2).map((tag) => (
+                          {tags.slice(0, 2).map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">
                               <Tag className="h-3 w-3 mr-1" />
                               {tag}
@@ -214,9 +269,10 @@ export default async function BlogPage({
                             <ArrowRight className="h-4 w-4 ml-2" />
                           </Button>
                         </Link>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
 
                 {/* Pagination */}

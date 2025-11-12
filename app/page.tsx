@@ -69,9 +69,6 @@ export default function Home() {
               <span className="text-2xl font-bold text-gray-900">Consently</span>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/blog">
-                <Button variant="ghost" className="hidden sm:flex">Blog</Button>
-              </Link>
               <Link href="/pricing">
                 <Button variant="ghost" className="hidden sm:flex">Pricing</Button>
               </Link>
