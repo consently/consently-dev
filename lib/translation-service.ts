@@ -1,14 +1,21 @@
 /**
- * Google Translation Service
- * Provides translation capabilities using Google Cloud Translation API
+ * Multi-Provider Translation Service
+ * Provides translation capabilities using Google Cloud Translation API and Bhashini
+ * 
+ * Strategy:
+ * - Google Translate: High-quality for 12 major Indian languages (hi, bn, ta, te, mr, gu, kn, ml, pa, or, ur, as)
+ * - Bhashini: Fallback for remaining Schedule 8 languages (ne, sa, ks, sd, mai, doi, etc.)
  * 
  * Environment variables:
- * - GOOGLE_TRANSLATE_API_KEY: Google Cloud Translation API key (required)
+ * - GOOGLE_TRANSLATE_API_KEY: Google Cloud Translation API key (preferred)
+ * - BHASHINI_API_KEY: Bhashini API key (fallback)
+ * - BHASHINI_USER_ID: Bhashini User ID (fallback)
  */
 
 import { translateWithGoogle, translateBatchGoogle, isIndianLanguageSupported as isGoogleSupported } from './google-translate';
+import { translateWithBhashini, translateBatchBhashini, isIndianLanguageSupported as isBhashiniSupported } from './bhashini-translate';
 
-export type TranslationProvider = 'google';
+export type TranslationProvider = 'google' | 'bhashini';
 
 export interface TranslationOptions {
   provider?: TranslationProvider;
@@ -18,7 +25,7 @@ export interface TranslationOptions {
 
 export interface TranslationResult {
   translatedText: string;
-  provider: 'google' | 'cache' | 'none';
+  provider: 'google' | 'bhashini' | 'cache' | 'none';
   cached: boolean;
   error?: string;
 }
@@ -58,10 +65,25 @@ function saveToCache(text: string, translation: string, targetLang: string, sour
 }
 
 /**
- * Always use Google as the provider
+ * Select the best translation provider for a language
  */
-function getProvider(options?: TranslationOptions): TranslationProvider {
-  return 'google';
+function getProviderForLanguage(targetLanguage: string): TranslationProvider {
+  // Google Translate has better quality for these 12 languages
+  if (isGoogleSupported(targetLanguage) && isGoogleConfigured()) {
+    return 'google';
+  }
+  
+  // Bhashini supports more Indian languages (including Schedule 8 languages)
+  if (isBhashiniSupported(targetLanguage) && isBhashiniConfigured()) {
+    return 'bhashini';
+  }
+  
+  // Default to Google if available
+  if (isGoogleConfigured()) {
+    return 'google';
+  }
+  
+  return 'bhashini';
 }
 
 /**
@@ -69,6 +91,13 @@ function getProvider(options?: TranslationOptions): TranslationProvider {
  */
 function isGoogleConfigured(): boolean {
   return !!process.env.GOOGLE_TRANSLATE_API_KEY;
+}
+
+/**
+ * Check if Bhashini API is configured
+ */
+function isBhashiniConfigured(): boolean {
+  return !!(process.env.BHASHINI_API_KEY && process.env.BHASHINI_USER_ID);
 }
 
 /**
@@ -102,19 +131,36 @@ export async function translate(
   }
 
   try {
-    // Check if Google Translate is configured
-    if (!isGoogleConfigured()) {
-      console.warn('[Translation Service] Google Translate API not configured');
-      return {
-        translatedText: text,
-        provider: 'none',
-        cached: false,
-        error: 'Google Translate API key not configured',
-      };
+    // Select the best provider for this language
+    const provider = getProviderForLanguage(targetLanguage);
+    
+    let translatedText: string;
+    
+    if (provider === 'google') {
+      // Check if Google Translate is configured
+      if (!isGoogleConfigured()) {
+        console.warn('[Translation Service] Google Translate not configured, trying Bhashini');
+        if (isBhashiniConfigured()) {
+          translatedText = await translateWithBhashini(text, targetLanguage, sourceLanguage);
+        } else {
+          throw new Error('No translation provider configured');
+        }
+      } else {
+        translatedText = await translateWithGoogle(text, targetLanguage, sourceLanguage);
+      }
+    } else {
+      // Use Bhashini
+      if (!isBhashiniConfigured()) {
+        console.warn('[Translation Service] Bhashini not configured, trying Google');
+        if (isGoogleConfigured()) {
+          translatedText = await translateWithGoogle(text, targetLanguage, sourceLanguage);
+        } else {
+          throw new Error('No translation provider configured');
+        }
+      } else {
+        translatedText = await translateWithBhashini(text, targetLanguage, sourceLanguage);
+      }
     }
-
-    // Use Google Translate
-    const translatedText = await translateWithGoogle(text, targetLanguage, sourceLanguage);
 
     // Cache the result
     if (options?.cacheResults !== false && translatedText !== text) {
@@ -123,7 +169,7 @@ export async function translate(
 
     return {
       translatedText,
-      provider: 'google',
+      provider,
       cached: false,
     };
 
@@ -154,19 +200,35 @@ export async function translateBatch(
   options?: TranslationOptions
 ): Promise<TranslationResult[]> {
   try {
-    // Check if Google Translate is configured
-    if (!isGoogleConfigured()) {
-      console.warn('[Translation Service] Google Translate API not configured');
-      return texts.map(text => ({
-        translatedText: text,
-        provider: 'none' as const,
-        cached: false,
-        error: 'Google Translate API key not configured',
-      }));
+    // Select the best provider for this language
+    const provider = getProviderForLanguage(targetLanguage);
+    
+    let translations: string[];
+    
+    if (provider === 'google') {
+      if (!isGoogleConfigured()) {
+        console.warn('[Translation Service] Google not configured, trying Bhashini');
+        if (isBhashiniConfigured()) {
+          translations = await translateBatchBhashini(texts, targetLanguage, sourceLanguage);
+        } else {
+          throw new Error('No translation provider configured');
+        }
+      } else {
+        translations = await translateBatchGoogle(texts, targetLanguage, sourceLanguage);
+      }
+    } else {
+      // Use Bhashini
+      if (!isBhashiniConfigured()) {
+        console.warn('[Translation Service] Bhashini not configured, trying Google');
+        if (isGoogleConfigured()) {
+          translations = await translateBatchGoogle(texts, targetLanguage, sourceLanguage);
+        } else {
+          throw new Error('No translation provider configured');
+        }
+      } else {
+        translations = await translateBatchBhashini(texts, targetLanguage, sourceLanguage);
+      }
     }
-
-    // Use Google Translate
-    const translations = await translateBatchGoogle(texts, targetLanguage, sourceLanguage);
 
     return translations.map((translatedText, index) => {
       // Cache each result
@@ -176,7 +238,7 @@ export async function translateBatch(
 
       return {
         translatedText,
-        provider: 'google' as const,
+        provider,
         cached: false,
       };
     });
@@ -199,18 +261,25 @@ export async function translateBatch(
 }
 
 /**
- * Check if a language is supported by Google Translate
+ * Check if a language is supported by any translation provider
  */
 export function isLanguageSupported(languageCode: string): boolean {
-  return isGoogleSupported(languageCode);
+  return isGoogleSupported(languageCode) || isBhashiniSupported(languageCode);
 }
 
 /**
- * Get all supported Indian language codes from Google Translate
+ * Get all supported Indian language codes from all providers
  */
 export async function getSupportedLanguages(): Promise<string[]> {
   const { INDIAN_LANGUAGES_GOOGLE } = await import('./google-translate');
-  return Object.keys(INDIAN_LANGUAGES_GOOGLE).sort();
+  const { INDIAN_LANGUAGES_BHASHINI } = await import('./bhashini-translate');
+  
+  // Combine languages from both providers (unique set)
+  const googleLangs = Object.keys(INDIAN_LANGUAGES_GOOGLE);
+  const bhashiniLangs = Object.keys(INDIAN_LANGUAGES_BHASHINI);
+  const allLangs = [...new Set([...googleLangs, ...bhashiniLangs])];
+  
+  return allLangs.sort();
 }
 
 /**

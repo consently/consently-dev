@@ -83,13 +83,15 @@ export default function ActivityStatsPage() {
       setLoading(true);
       const response = await fetch(`/api/dpdpa/activity-stats/${activityId}?range=${range}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch activity stats');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to fetch activity stats');
       }
       const data = await response.json();
       setStats(data);
     } catch (error) {
       console.error('Error fetching activity stats:', error);
-      toast.error('Failed to load activity statistics');
+      toast.error(error instanceof Error ? error.message : 'Failed to load activity statistics');
     } finally {
       setLoading(false);
     }

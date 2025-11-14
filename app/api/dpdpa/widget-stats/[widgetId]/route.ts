@@ -171,7 +171,7 @@ export async function GET(
 
       // Count accepts/rejects for each activity
       consents?.forEach(consent => {
-        consent.accepted_activities?.forEach((activityId: string) => {
+        consent.consented_activities?.forEach((activityId: string) => {
           const stat = activityMap.get(activityId);
           if (stat) {
             stat.accepted++;

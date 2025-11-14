@@ -110,7 +110,7 @@
     <path d="M10.5 13.5l-2-2-1.41 1.41L10.5 16.5l6-6-1.41-1.41z"/>
   </svg>`;
 
-  // Translation helper with timeout and error handling
+  // Translation helper with timeout and error handling (single text - kept for backward compatibility)
   async function translateText(text, targetLang, timeout = 5000) {
     if (targetLang === 'en' || !targetLang || !text) return text;
     
@@ -151,20 +151,106 @@
     return text;
   }
 
+  // Batch translation helper - MUCH faster than sequential calls
+  async function translateBatch(texts, targetLang, timeout = 10000) {
+    if (targetLang === 'en' || !targetLang || !texts || texts.length === 0) {
+      return texts || [];
+    }
+
+    // Filter out empty texts and check cache
+    const textsToTranslate = [];
+    const cachedResults = [];
+    const textIndices = [];
+
+    texts.forEach((text, index) => {
+      if (!text) {
+        cachedResults[index] = text;
+        return;
+      }
+      
+      const cacheKey = `${targetLang}:${text}`;
+      if (translationCache[cacheKey]) {
+        cachedResults[index] = translationCache[cacheKey];
+      } else {
+        textsToTranslate.push(text);
+        textIndices.push(index);
+      }
+    });
+
+    // If all texts are cached or empty, return cached results
+    if (textsToTranslate.length === 0) {
+      return cachedResults;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const apiBase = config.apiBase || window.location.origin;
+      const response = await fetch(`${apiBase}/api/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts: textsToTranslate, target: targetLang, source: 'en' }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        const translations = data.translations || textsToTranslate;
+        
+        // Map translations back to original indices and cache them
+        translations.forEach((translated, i) => {
+          const originalText = textsToTranslate[i];
+          const cacheKey = `${targetLang}:${originalText}`;
+          translationCache[cacheKey] = translated;
+          cachedResults[textIndices[i]] = translated;
+        });
+
+        return cachedResults;
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        console.warn('[Consently] Batch translation timeout');
+      } else {
+        console.error('[Consently] Batch translation error:', error);
+      }
+    }
+    
+    // Fallback: return original texts for failed translations
+    return texts.map((text, index) => cachedResults[index] !== undefined ? cachedResults[index] : text);
+  }
+
   function languageLabel(code) {
     const map = { 
-      en: 'English', hi: 'हिंदी', pa: 'ਪੰਜਾਬੀ', te: 'తెలుగు', ta: 'தமிழ்',
-      bn: 'বাংলা', mr: 'मराठी', gu: 'ગુજરાતી', kn: 'ಕನ್ನಡ', ml: 'മലയാളം',
-      or: 'ଓଡ଼ିଆ', ur: 'اردو', as: 'অসমীয়া'
+      // English
+      en: 'English',
+      // Google Translate supported (12 major languages)
+      hi: 'हिंदी', bn: 'বাংলা', ta: 'தமிழ்', te: 'తెలుగు',
+      mr: 'मराठी', gu: 'ગુજરાતી', kn: 'ಕನ್ನಡ', ml: 'മലയാളം',
+      pa: 'ਪੰਜਾਬੀ', or: 'ଓଡ଼ିଆ', ur: 'اردو', as: 'অসমীয়া',
+      // Bhashini supported (additional Schedule 8 languages)
+      ne: 'नेपाली', sa: 'संस्कृतम्', ks: 'कॉशुर', sd: 'सिन्धी',
+      mai: 'मैथिली', doi: 'डोगरी', kok: 'कोंकणी', mni: 'মৈতৈলোন্',
+      brx: 'बड़ो', sat: 'ᱥᱟᱱᱛᱟᱲᱤ'
     };
     return map[code] || '';
   }
 
   function languageFlag(code) {
+    // All Schedule 8 languages use Indian flag
     const map = { 
-      en: '🇮🇳', hi: '🇮🇳', pa: '🇮🇳', te: '🇮🇳', ta: '🇮🇳',
-      bn: '🇮🇳', mr: '🇮🇳', gu: '🇮🇳', kn: '🇮🇳', ml: '🇮🇳',
-      or: '🇮🇳', ur: '🇮🇳', as: '🇮🇳'
+      en: '🇮🇳',
+      // Google Translate supported
+      hi: '🇮🇳', bn: '🇮🇳', ta: '🇮🇳', te: '🇮🇳',
+      mr: '🇮🇳', gu: '🇮🇳', kn: '🇮🇳', ml: '🇮🇳',
+      pa: '🇮🇳', or: '🇮🇳', ur: '🇮🇳', as: '🇮🇳',
+      // Bhashini supported
+      ne: '🇮🇳', sa: '🇮🇳', ks: '🇮🇳', sd: '🇮🇳',
+      mai: '🇮🇳', doi: '🇮🇳', kok: '🇮🇳', mni: '🇮🇳',
+      brx: '🇮🇳', sat: '🇮🇳'
     };
     return map[code] || '🌐';
   }
@@ -655,13 +741,16 @@
     const rejectButton = config.rejectButton || {};
     const settingsButton = config.settingsButton || {};
 
-    // Translate text
+    // Translate text using batch translation (much faster!)
     isTranslating = true;
-    const title = await translateText(config.title, selectedLanguage);
-    const message = await translateText(config.message, selectedLanguage);
-    const acceptText = await translateText(config.acceptButton?.text || 'Accept All', selectedLanguage);
-    const rejectText = await translateText(config.rejectButton?.text || 'Reject All', selectedLanguage);
-    const settingsText = await translateText(config.settingsButton?.text || 'Cookie Settings', selectedLanguage);
+    const textsToTranslate = [
+      config.title || 'We value your privacy',
+      config.message || 'We use cookies to enhance your browsing experience.',
+      config.acceptButton?.text || 'Accept All',
+      config.rejectButton?.text || 'Reject All',
+      config.settingsButton?.text || 'Cookie Settings'
+    ];
+    const [title, message, acceptText, rejectText, settingsText] = await translateBatch(textsToTranslate, selectedLanguage);
     isTranslating = false;
 
     const banner = document.createElement('div');
@@ -744,6 +833,9 @@
       line-height: 1.5;
       border-radius: ${borderRadius}px;
       animation: ${position === 'top' ? 'slideDown' : position.includes('center') ? 'fadeIn' : 'slideUp'} 0.3s ease-out;
+      box-sizing: border-box;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     `;
 
     banner.innerHTML = `
@@ -892,9 +984,49 @@
           .consently-container {
             flex-direction: column;
             align-items: flex-start;
+            gap: 16px;
+          }
+          .consently-content {
+            min-width: 100%;
           }
           .consently-actions {
             width: 100%;
+            flex-direction: column;
+          }
+          .consently-btn {
+            width: 100%;
+            margin: 0 0 8px 0;
+          }
+          .consently-title {
+            font-size: 16px;
+          }
+          .consently-message {
+            font-size: 13px;
+          }
+          .consently-lang-selector {
+            top: 8px;
+            right: 8px;
+          }
+          #consently-banner {
+            padding: 16px !important;
+            padding-top: 48px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          #consently-banner {
+            padding: 12px !important;
+            padding-top: 44px !important;
+            font-size: 13px !important;
+          }
+          .consently-title {
+            font-size: 15px !important;
+          }
+          .consently-message {
+            font-size: 12px !important;
+          }
+          .consently-btn {
+            padding: 8px 16px !important;
+            font-size: 13px !important;
           }
         }
       </style>
@@ -1295,13 +1427,16 @@
       const banner = document.getElementById('consently-banner');
       if (banner) banner.style.display = 'none';
 
-      // Translate modal text
+      // Translate modal text using batch translation (much faster!)
       isTranslating = true;
-      const modalTitle = await translateText('Preferences', selectedLanguage);
-      const modalDescription = await translateText('Manage your cookie preferences. Some cookies are necessary for the website to function.', selectedLanguage);
-      const saveButtonText = await translateText('Save Preferences', selectedLanguage);
-      const cancelButtonText = await translateText('Cancel', selectedLanguage);
-      const requiredLabel = await translateText('Required', selectedLanguage);
+      const modalTexts = [
+        'Preferences',
+        'Manage your cookie preferences. Some cookies are necessary for the website to function.',
+        'Save Preferences',
+        'Cancel',
+        'Required'
+      ];
+      const [modalTitle, modalDescription, saveButtonText, cancelButtonText, requiredLabel] = await translateBatch(modalTexts, selectedLanguage);
       isTranslating = false;
 
     const theme = config.theme || {};
@@ -1320,6 +1455,8 @@
       justify-content: center;
       padding: 20px;
       animation: fadeIn 0.2s ease-out;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     `;
 
     // Load saved preferences from cookie (not temp prefs)
@@ -1329,11 +1466,29 @@
     const consentDate = existingConsent && existingConsent.timestamp ? new Date(existingConsent.timestamp).toLocaleString() : 'N/A';
     console.log('[Consently] Loading preferences:', existingCategories);
     
+    // Translate all category texts in one batch call (much faster!)
+    const categoryTexts = [
+      'Strictly necessary cookies',
+      'Essential for website functionality',
+      'Performance',
+      'Help us understand visitor behavior',
+      'Targeting',
+      'Used for targeted advertising',
+      'Social Media',
+      'Cookies from social media platforms for sharing content'
+    ];
+    const [
+      necessaryName, necessaryDesc,
+      analyticsName, analyticsDesc,
+      marketingName, marketingDesc,
+      socialName, socialDesc
+    ] = await translateBatch(categoryTexts, selectedLanguage);
+    
     const categories = [
-      { id: 'necessary', name: await translateText('Strictly necessary cookies', selectedLanguage), description: await translateText('Essential for website functionality', selectedLanguage), required: true },
-      { id: 'analytics', name: await translateText('Performance', selectedLanguage), description: await translateText('Help us understand visitor behavior', selectedLanguage), required: false },
-      { id: 'marketing', name: await translateText('Targeting', selectedLanguage), description: await translateText('Used for targeted advertising', selectedLanguage), required: false },
-      { id: 'social', name: await translateText('Social Media', selectedLanguage), description: await translateText('Cookies from social media platforms for sharing content', selectedLanguage), required: false }
+      { id: 'necessary', name: necessaryName, description: necessaryDesc, required: true },
+      { id: 'analytics', name: analyticsName, description: analyticsDesc, required: false },
+      { id: 'marketing', name: marketingName, description: marketingDesc, required: false },
+      { id: 'social', name: socialName, description: socialDesc, required: false }
     ];
 
     let categoriesHTML = '';
@@ -1388,12 +1543,53 @@
           padding: 24px;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
+        @media (max-width: 768px) {
+          .consently-modal-content {
+            max-width: 100%;
+            margin: 10px;
+            padding: 20px;
+            max-height: 90vh;
+          }
+          .consently-modal-content h2 {
+            font-size: 20px !important;
+          }
+          #consently-modal {
+            padding: 10px !important;
+            align-items: flex-end !important;
+          }
+          #consently-lang-btn {
+            font-size: 12px !important;
+            padding: 6px 10px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .consently-modal-content {
+            padding: 16px;
+            border-radius: 12px 12px 0 0;
+            max-height: 95vh;
+          }
+          .consently-modal-content h2 {
+            font-size: 18px !important;
+          }
+          #consently-modal {
+            padding: 0 !important;
+            align-items: flex-end !important;
+          }
+          #consently-lang-btn {
+            font-size: 11px !important;
+            padding: 5px 8px !important;
+          }
+          #consently-lang-btn svg {
+            width: 14px !important;
+            height: 14px !important;
+          }
+        }
       </style>
       <div class="consently-modal-content">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 12px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 0;">
             ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" style="height: 32px; width: auto; object-fit: contain; margin-bottom: 8px; display: block;" onerror="this.style.display='none'">` : ''}
-            <h2 style="margin: 0; font-size: 24px; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+            <h2 style="margin: 0; font-size: 24px; color: #1f2937; display: flex; align-items: center; gap: 8px; word-wrap: break-word;">
               ${!theme.logoUrl ? CONSENTLY_LOGO_SVG : ''}
               <span>${modalTitle}</span>
             </h2>

@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
       });
 
       consents?.forEach(consent => {
-        consent.accepted_activities?.forEach((activityId: string) => {
+        consent.consented_activities?.forEach((activityId: string) => {
           const stat = activityMap.get(activityId);
           if (stat) stat.accepted++;
         });
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
           id: c.id,
           timestamp: c.consent_timestamp,
           status: c.consent_status,
-          acceptedActivities: c.accepted_activities,
+          acceptedActivities: c.consented_activities,
           rejectedActivities: c.rejected_activities,
           deviceType: c.device_type,
           browser: c.browser,
