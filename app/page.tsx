@@ -218,118 +218,43 @@ export default function Home() {
       </section>
 
       {/* DPDPA Compliance Highlight */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white mb-6 shadow-lg shadow-blue-500/20">
-              <Shield className="h-4 w-4 mr-2" />
-              DPDPA 2023 Compliance
-            </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Complete Data Protection Compliance
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Comprehensive DPDPA 2023 compliance platform with industry templates, granular consent management, and complete data subject rights handling.
-            </p>
-          </div>
-
-          {/* Core DPDPA Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            <FeatureCard
-              icon={<FileText className="h-6 w-6" />}
-              title="Industry Templates"
-              description="Pre-loaded templates for 8+ industries: E-commerce, Banking, Healthcare, Education, Real Estate, Travel, Telecom, and more. Get started in minutes."
-              gradient="from-blue-500 to-blue-600"
-            />
-            <FeatureCard
-              icon={<Database className="h-6 w-6" />}
-              title="Processing Activities Management"
-              description="Create, edit, and manage data processing activities with purpose definitions, data categories, retention periods, and legal basis tracking."
-              gradient="from-purple-500 to-purple-600"
-            />
-            <FeatureCard
-              icon={<Layers className="h-6 w-6" />}
-              title="Customizable Consent Widgets"
-              description="Modal, banner, or slide-in widgets with full customization. Choose layout, position, theme, and display rules for page-specific notices."
-              gradient="from-pink-500 to-pink-600"
-            />
-            <FeatureCard
-              icon={<CheckCircle2 className="h-6 w-6" />}
-              title="Granular Consent Management"
-              description="Per-activity consent tracking. Users can accept or reject individual processing activities with full transparency and control."
-              gradient="from-green-500 to-green-600"
-            />
-            <FeatureCard
-              icon={<FileCheck className="h-6 w-6" />}
-              title="Consent Records & Audit Trail"
-              description="Complete consent history with unique IDs, timestamps, IP addresses, device info, and searchable records. Export to CSV/JSON/PDF."
-              gradient="from-indigo-500 to-indigo-600"
-            />
-            <FeatureCard
-              icon={<Shield className="h-6 w-6" />}
-              title="Privacy Notice Generator"
-              description="Auto-generate comprehensive privacy notices from your processing activities. Includes all required DPDPA disclosures and data rights information."
-              gradient="from-cyan-500 to-cyan-600"
-            />
-            <FeatureCard
-              icon={<Search className="h-6 w-6" />}
-              title="Data Subject Rights"
-              description="Complete rights management: Access, Correction, Erasure, Grievance Redressal, and Nomination. Automated workflows with 72-hour response tracking."
-              gradient="from-orange-500 to-orange-600"
-            />
-            <FeatureCard
-              icon={<BarChart3 className="h-6 w-6" />}
-              title="Real-time Analytics"
-              description="Track consent rates, activity-level metrics, device breakdown, geographic distribution, and consent trends with interactive dashboards."
-              gradient="from-red-500 to-red-600"
-            />
-            <FeatureCard
-              icon={<Globe className="h-6 w-6" />}
-              title="22 Indian Languages"
-              description="Full support for all Schedule 8 languages with auto-translation. Users can switch languages and see translated consent notices instantly."
-              gradient="from-teal-500 to-teal-600"
-            />
-          </div>
-
-          {/* Additional Features Banner */}
-          <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 rounded-3xl p-8 md:p-12 text-white shadow-2xl">
-            <div className="grid lg:grid-cols-2 gap-8 items-center">
+          <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 rounded-3xl p-12 text-white shadow-2xl">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <h3 className="text-2xl sm:text-3xl font-bold mb-4">
-                  Enterprise-Grade Features
-                </h3>
-                <p className="text-lg text-blue-50 mb-6 leading-relaxed">
-                  Advanced capabilities for large organizations including display rules, consent receipts, email verification, grievance management, and comprehensive compliance reporting.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-300" />
-                    <span className="text-sm">Display Rules</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-300" />
-                    <span className="text-sm">Consent Receipts</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-300" />
-                    <span className="text-sm">Grievance Handling</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-300" />
-                    <span className="text-sm">Compliance Reports</span>
-                  </div>
+                <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-white/20 backdrop-blur-sm mb-6">
+                  <Shield className="h-4 w-4 mr-2" />
+                  DPDPA 2023 Compliance
                 </div>
+                <h2 className="text-3xl sm:text-4xl font-bold mb-6">
+                  Complete Data Protection Compliance
+                </h2>
+                <p className="text-xl text-blue-50 mb-8 leading-relaxed">
+                  Comprehensive DPDPA 2023 compliance platform with industry templates, granular consent management, data subject rights handling, and complete audit trails. Get started in minutes with pre-loaded templates.
+                </p>
+                <Link href="/pricing">
+                  <Button size="lg" variant="secondary" className="text-blue-600">
+                    Learn More
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                  <Zap className="h-8 w-8 mb-3" />
-                  <h4 className="text-lg font-semibold mb-2">Page-Specific Rules</h4>
-                  <p className="text-sm text-blue-100">Show different consent notices based on URL patterns, triggers, and user behavior.</p>
+                  <FileText className="h-8 w-8 mb-3" />
+                  <h3 className="text-xl font-semibold mb-2">Industry Templates</h3>
+                  <p className="text-blue-100">8+ pre-loaded templates • E-commerce, Banking, Healthcare & more</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                  <FileCheck className="h-8 w-8 mb-3" />
-                  <h4 className="text-lg font-semibold mb-2">Consent Receipts</h4>
-                  <p className="text-sm text-blue-100">Downloadable consent receipts with unique IDs for compliance documentation.</p>
+                  <Database className="h-8 w-8 mb-3" />
+                  <h3 className="text-xl font-semibold mb-2">Consent Management</h3>
+                  <p className="text-blue-100">Granular per-activity tracking • Complete audit trails & reports</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
+                  <CheckCircle2 className="h-8 w-8 mb-3" />
+                  <h3 className="text-xl font-semibold mb-2">Data Subject Rights</h3>
+                  <p className="text-blue-100">Access, Correction, Erasure • Automated workflows & tracking</p>
                 </div>
               </div>
             </div>
