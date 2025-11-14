@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
+import { INDIAN_LANGUAGES } from '@/lib/constants/indian-languages';
 
 interface Purpose {
   id: string;
@@ -1311,34 +1312,31 @@ export default function DPDPAWidgetPage() {
             setEditingRule(null);
           }}
           title={editingRule.id.startsWith('rule_') && !config.displayRules?.find(r => r.id === editingRule.id) 
-            ? 'Create Display Rule' 
-            : 'Edit Display Rule'}
+            ? '✨ Create Display Rule' 
+            : '✏️ Edit Display Rule'}
           size="xl"
         >
-          <div className="space-y-6">
+          <div className="space-y-5">
               {/* Quick Info Banner */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-r-lg p-4 shadow-sm">
                 <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-                  </div>
-                  <div className="flex-1">
-                    <h5 className="font-medium text-gray-900 mb-1">Display Rule Quick Guide</h5>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      Display rules let you show different consent notices on different pages. Configure the URL pattern, 
-                      trigger type, and optionally filter which activities/purposes to show.
+                  <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      Display rules let you show different consent notices on different pages. Configure URL patterns, triggers, and filter activities/purposes.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Basic Information */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-blue-200">
+              {/* Basic Information - Always Visible */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
                   <div className="p-2 bg-blue-100 rounded-lg">
-                    <Settings className="h-5 w-5 text-blue-600" />
+                    <Settings className="h-4 w-4 text-blue-600" />
                   </div>
                   <h4 className="font-semibold text-gray-900">Basic Information</h4>
+                  <span className="ml-auto text-xs text-red-500 font-medium">* Required</span>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -1368,26 +1366,31 @@ export default function DPDPAWidgetPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="flex items-center gap-2">
+                <div className="col-span-2">
+                  <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
                     <Checkbox
                       checked={editingRule.is_active}
                       onChange={(e) => setEditingRule({ ...editingRule, is_active: e.target.checked })}
                     />
-                    <span className="text-sm font-medium text-gray-700">Active</span>
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-gray-900">Rule Active</span>
+                      <p className="text-xs text-gray-500 mt-0.5">Only active rules are evaluated and shown to visitors</p>
+                    </div>
                   </label>
-                  <p className="text-xs text-gray-500 mt-1">Only active rules are evaluated</p>
                 </div>
               </div>
 
-              {/* URL Matching */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-purple-200">
+              {/* URL Matching - Accordion */}
+              <Accordion
+                title="URL Matching"
+                defaultOpen={true}
+                icon={
                   <div className="p-2 bg-purple-100 rounded-lg">
-                    <Route className="h-5 w-5 text-purple-600" />
+                    <Route className="h-4 w-4 text-purple-600" />
                   </div>
-                  <h4 className="font-semibold text-gray-900">URL Matching</h4>
-                </div>
+                }
+              >
+                <div className="space-y-4">
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1447,16 +1450,20 @@ export default function DPDPAWidgetPage() {
                     </Button>
                   </div>
                 </div>
-              </div>
-
-              {/* Trigger Configuration */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-green-200">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Zap className="h-5 w-5 text-green-600" />
-                  </div>
-                  <h4 className="font-semibold text-gray-900">Trigger Configuration</h4>
                 </div>
+              </Accordion>
+
+              {/* Trigger Configuration - Accordion */}
+              <Accordion
+                title="Trigger Configuration"
+                defaultOpen={false}
+                icon={
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Zap className="h-4 w-4 text-green-600" />
+                  </div>
+                }
+              >
+                <div className="space-y-4">
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1538,44 +1545,47 @@ export default function DPDPAWidgetPage() {
                     <p className="text-xs text-gray-500 mt-1">Show widget when user scrolls to this percentage of the page (0-100). Default: 50%</p>
                   </div>
                 )}
-              </div>
-
-              {/* Activity Filtering */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-orange-200">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Filter className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <h4 className="font-semibold text-gray-900">Activity Filtering</h4>
-                  <HelpCircle className="h-4 w-4 text-gray-400 ml-auto cursor-help" title="Select specific activities to show in this rule" />
                 </div>
+              </Accordion>
+
+              {/* Activity Filtering - Accordion */}
+              <Accordion
+                title="Activity Filtering"
+                defaultOpen={true}
+                icon={
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Filter className="h-4 w-4 text-orange-600" />
+                  </div>
+                }
+              >
+                <div className="space-y-4">
                 
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-2">
-                  <p className="text-sm text-orange-800">
-                    <strong>ℹ️ Important:</strong> Select which activities to show when this rule triggers. Leave all unchecked to show all activities.
-                  </p>
-                  <div className="bg-red-50 border border-red-300 rounded p-2 mt-2">
-                    <p className="text-xs text-red-800">
-                      <strong>⚠️ Critical:</strong> The activities you select here MUST be from your widget's selected activities list. If you select activities that don't exist in your widget, or if ALL selected activities are invalid, the widget will NOT show on the page and users will NOT be able to save consent.
+                {/* Compact warning */}
+                <div className="bg-red-50 border-l-4 border-red-400 rounded-r-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-red-800 leading-relaxed">
+                      <strong className="font-semibold">Critical:</strong> Selected activities must be from your widget's selected activities list. Invalid selections will prevent the widget from showing.
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-semibold text-gray-900">
-                      Select Activities <span className="text-xs font-normal text-gray-500">(Leave empty to show all)</span>
+                      Select Activities
                     </label>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
                       {(editingRule.activities || []).length > 0 ? (
                         <span className="text-orange-600 font-medium">
                           {(editingRule.activities || []).length} selected
                         </span>
                       ) : (
-                        <span>All activities will be shown</span>
+                        <span className="text-gray-500">All activities</span>
                       )}
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mb-3">Leave empty to show all activities from your widget</p>
                   
                   <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-80 overflow-y-auto bg-white shadow-sm">
                     {activities.length === 0 ? (
@@ -1590,57 +1600,70 @@ export default function DPDPAWidgetPage() {
                         return (
                           <div
                             key={activity.id}
-                            className={`p-4 transition-all ${
+                            className={`relative transition-all duration-200 ${
                               isSelected 
-                                ? 'bg-orange-50 border-l-4 border-l-orange-500' 
-                                : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                                ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-l-4 border-l-orange-500 shadow-sm' 
+                                : 'bg-white border-l-4 border-l-transparent hover:bg-gray-50 hover:border-l-gray-300'
                             }`}
                           >
-                            <label className="flex items-start gap-3 cursor-pointer group">
-                              <Checkbox
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  const currentActivities = editingRule.activities || [];
-                                  const currentActivityPurposes = editingRule.activity_purposes || {};
-                                  
-                                  if (checked) {
-                                    setEditingRule({ 
-                                      ...editingRule, 
-                                      activities: [...currentActivities, activity.id]
-                                    });
-                                  } else {
-                                    const { [activity.id]: removed, ...restPurposes } = currentActivityPurposes;
-                                    setEditingRule({ 
-                                      ...editingRule, 
-                                      activities: currentActivities.filter(id => id !== activity.id),
-                                      activity_purposes: Object.keys(restPurposes).length > 0 ? restPurposes : undefined
-                                    });
-                                  }
-                                }}
-                                className="mt-0.5"
-                              />
+                            <label className="flex items-start gap-3 p-4 cursor-pointer group">
+                              <div className="flex items-center justify-center">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    const currentActivities = editingRule.activities || [];
+                                    const currentActivityPurposes = editingRule.activity_purposes || {};
+                                    
+                                    if (checked) {
+                                      setEditingRule({ 
+                                        ...editingRule, 
+                                        activities: [...currentActivities, activity.id]
+                                      });
+                                    } else {
+                                      const { [activity.id]: removed, ...restPurposes } = currentActivityPurposes;
+                                      setEditingRule({ 
+                                        ...editingRule, 
+                                        activities: currentActivities.filter(id => id !== activity.id),
+                                        activity_purposes: Object.keys(restPurposes).length > 0 ? restPurposes : undefined
+                                      });
+                                    }
+                                  }}
+                                  className="mt-1 flex-shrink-0 w-5 h-5"
+                                />
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                  <div className="flex-1">
-                                    <h6 className="text-sm font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
-                                      {activity.activityName}
-                                    </h6>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Badge variant="secondary" className="text-xs">
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h6 className={`text-sm font-semibold truncate transition-colors ${
+                                        isSelected ? 'text-orange-900' : 'text-gray-900 group-hover:text-orange-600'
+                                      }`}>
+                                        {activity.activityName}
+                                      </h6>
+                                      {isSelected && (
+                                        <Badge className="bg-orange-500 text-white text-xs flex-shrink-0">
+                                          <CheckCircle className="h-3 w-3 mr-1" />
+                                          Selected
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                      <Badge variant="secondary" className="text-xs flex-shrink-0">
                                         {activity.industry}
                                       </Badge>
                                       {activity.purposes && activity.purposes.length > 0 && (
-                                        <span className="text-xs text-gray-500">
+                                        <span className="text-xs text-gray-600 whitespace-nowrap flex items-center gap-1">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
                                           {activity.purposes.length} {activity.purposes.length === 1 ? 'purpose' : 'purposes'}
                                         </span>
                                       )}
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">
-                                    <span className="text-[10px] uppercase font-medium text-gray-500">ID:</span>
+                                <div className="flex items-center gap-2 flex-wrap mt-3">
+                                  <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-gray-200 text-xs">
+                                    <span className="text-[10px] uppercase font-semibold text-gray-500">ID:</span>
                                     <code className="text-xs text-gray-700 font-mono">
                                       {activity.id.slice(0, 8)}...
                                     </code>
@@ -1651,38 +1674,49 @@ export default function DPDPAWidgetPage() {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       navigator.clipboard.writeText(activity.id);
-                                      toast.success(`Activity ID copied: ${activity.activityName}`);
+                                      toast.success(`Copied: ${activity.activityName}`);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-white text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 rounded transition-colors flex-shrink-0"
                                   >
                                     <Copy className="h-3 w-3" />
-                                    Copy ID
+                                    Copy
                                   </button>
                                 </div>
                               </div>
                             </label>
+                            {isSelected && (
+                              <div className="absolute top-2 right-2">
+                                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
+                              </div>
+                            )}
                           </div>
                         );
                       })
                     )}
                   </div>
                 </div>
-              </div>
+                </div>
+              </Accordion>
 
-              {/* Purpose Filtering - NEW */}
+              {/* Purpose Filtering - Accordion (Only show if activities are selected) */}
               {(editingRule.activities && editingRule.activities.length > 0) && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-pink-200">
+                <Accordion
+                  title="Purpose Filtering (Advanced)"
+                  defaultOpen={false}
+                  icon={
                     <div className="p-2 bg-pink-100 rounded-lg">
-                      <CheckCircle2 className="h-5 w-5 text-pink-600" />
+                      <CheckCircle2 className="h-4 w-4 text-pink-600" />
                     </div>
-                    <h4 className="font-semibold text-gray-900">Purpose Filtering (Advanced)</h4>
-                    <HelpCircle className="h-4 w-4 text-gray-400 ml-auto cursor-help" title="Fine-tune which purposes to show for each activity" />
-                  </div>
-                  <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
-                    <p className="text-sm text-pink-800">
-                      <strong>💡 Tip:</strong> Select specific purposes to show for each activity. Leave "Show all purposes" checked to display all purposes for an activity.
-                    </p>
+                  }
+                >
+                  <div className="space-y-4">
+                  <div className="bg-pink-50 border-l-4 border-pink-400 rounded-r-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-pink-600 text-sm">💡</span>
+                      <p className="text-xs text-pink-800 leading-relaxed">
+                        Select specific purposes to show for each activity. Leave "Show all purposes" checked to display all purposes.
+                      </p>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     {editingRule.activities.map((activityId) => {
@@ -1695,13 +1729,13 @@ export default function DPDPAWidgetPage() {
                       const isAllPurposesSelected = !selectedPurposes || selectedPurposes.length === 0;
                       
                       return (
-                        <div key={activityId} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-medium text-gray-900">{activity.activityName}</h5>
-                            <Badge variant="secondary">{activity.industry}</Badge>
+                        <div key={activityId} className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <h5 className="font-medium text-gray-900 truncate flex-1 min-w-0">{activity.activityName}</h5>
+                            <Badge variant="secondary" className="flex-shrink-0">{activity.industry}</Badge>
                           </div>
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                          <div className="space-y-3">
+                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
                               <Checkbox
                                 checked={isAllPurposesSelected}
                                 onChange={(e) => {
@@ -1723,63 +1757,67 @@ export default function DPDPAWidgetPage() {
                                     });
                                   }
                                 }}
+                                className="flex-shrink-0"
                               />
                               <span className="text-sm font-medium text-gray-700">Show all purposes</span>
                               {isAllPurposesSelected && (
-                                <Badge variant="outline" className="ml-auto text-xs text-green-600">
+                                <Badge variant="outline" className="ml-auto text-xs text-green-600 flex-shrink-0">
                                   {activity.purposes.length} purposes
                                 </Badge>
                               )}
                             </label>
                             {!isAllPurposesSelected && selectedPurposes && (
-                              <div className="ml-6 space-y-2 border-l-2 border-blue-200 pl-4 bg-blue-50/50 rounded p-2">
+                              <div className="ml-8 space-y-2 border-l-2 border-blue-200 pl-4 bg-blue-50/30 rounded-r p-3">
                                 <p className="text-xs text-blue-700 font-medium mb-2">
                                   Filtering: {selectedPurposes.length} of {activity.purposes.length} purposes
                                 </p>
-                                {activity.purposes.map((purpose) => (
-                                  <label key={purpose.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded">
-                                    <Checkbox
-                                      checked={selectedPurposes.includes(purpose.id)}
-                                      onChange={(e) => {
-                                        const checked = e.target.checked;
-                                        const currentActivityPurposes = editingRule.activity_purposes || {};
-                                        const currentPurposes = currentActivityPurposes[activityId] || [];
-                                        
-                                        if (checked) {
-                                          setEditingRule({
-                                            ...editingRule,
-                                            activity_purposes: {
-                                              ...currentActivityPurposes,
-                                              [activityId]: [...currentPurposes, purpose.id]
-                                            }
-                                          });
-                                        } else {
-                                          const newPurposes = currentPurposes.filter(id => id !== purpose.id);
-                                          // If no purposes selected, remove from activity_purposes (show all)
-                                          if (newPurposes.length === 0) {
-                                            const { [activityId]: removed, ...rest } = currentActivityPurposes;
-                                            setEditingRule({
-                                              ...editingRule,
-                                              activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
-                                            });
-                                          } else {
+                                <div className="space-y-2">
+                                  {activity.purposes.map((purpose) => (
+                                    <label key={purpose.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                                      <Checkbox
+                                        checked={selectedPurposes.includes(purpose.id)}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          const currentActivityPurposes = editingRule.activity_purposes || {};
+                                          const currentPurposes = currentActivityPurposes[activityId] || [];
+                                          
+                                          if (checked) {
                                             setEditingRule({
                                               ...editingRule,
                                               activity_purposes: {
                                                 ...currentActivityPurposes,
-                                                [activityId]: newPurposes
+                                                [activityId]: [...currentPurposes, purpose.id]
                                               }
                                             });
+                                          } else {
+                                            const newPurposes = currentPurposes.filter(id => id !== purpose.id);
+                                            // If no purposes selected, remove from activity_purposes (show all)
+                                            if (newPurposes.length === 0) {
+                                              const { [activityId]: removed, ...rest } = currentActivityPurposes;
+                                              setEditingRule({
+                                                ...editingRule,
+                                                activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
+                                              });
+                                            } else {
+                                              setEditingRule({
+                                                ...editingRule,
+                                                activity_purposes: {
+                                                  ...currentActivityPurposes,
+                                                  [activityId]: newPurposes
+                                                }
+                                              });
+                                            }
                                           }
-                                        }
-                                      }}
-                                    />
-                                    <span className="text-sm text-gray-700">{purpose.purposeName}</span>
-                                    <Badge variant="outline" className="ml-auto text-xs">
-                                      {purpose.legalBasis.replace('-', ' ')}
-                                    </Badge>
-                                  </label>
-                                ))}
+                                        }}
+                                        className="flex-shrink-0"
+                                      />
+                                      <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{purpose.purposeName}</span>
+                                      <Badge variant="outline" className="ml-auto text-xs flex-shrink-0">
+                                        {purpose.legalBasis.replace('-', ' ')}
+                                      </Badge>
+                                    </label>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1787,19 +1825,23 @@ export default function DPDPAWidgetPage() {
                       );
                     })}
                   </div>
-                </div>
+                  </div>
+                </Accordion>
               )}
 
-              {/* Notice Content Override */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-indigo-200">
+              {/* Notice Content Override - Accordion */}
+              <Accordion
+                title="Notice Content (Optional)"
+                defaultOpen={false}
+                icon={
                   <div className="p-2 bg-indigo-100 rounded-lg">
-                    <FileText className="h-5 w-5 text-indigo-600" />
+                    <FileText className="h-4 w-4 text-indigo-600" />
                   </div>
-                  <h4 className="font-semibold text-gray-900">Notice Content (Optional)</h4>
-                </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  Override the default widget title, message, or HTML content for this rule. Leave empty to use default widget content.
+                }
+              >
+                <div className="space-y-4">
+                <p className="text-xs text-gray-500 mb-4">
+                  Override the default widget title, message, or HTML content for this rule. Leave empty to use defaults.
                 </p>
                 
                 <div className="space-y-3">
@@ -1858,10 +1900,11 @@ export default function DPDPAWidgetPage() {
                     <p className="text-xs text-gray-500 mt-1">HTML content will override the generated privacy notice</p>
                   </div>
                 </div>
-              </div>
+                </div>
+              </Accordion>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t">
+            {/* Actions - Sticky Footer */}
+            <div className="flex gap-3 pt-6 border-t-2 border-gray-200 sticky bottom-0 bg-white">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1880,7 +1923,7 @@ export default function DPDPAWidgetPage() {
                   }
                   handleSaveRule(editingRule);
                 }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
               >
                 <Save className="h-4 w-4 mr-2" />
                 Save Rule
@@ -2555,21 +2598,15 @@ export default function DPDPAWidgetPage() {
                     <strong>🌐 Auto-Translation:</strong> When users select a language, all widget text will be automatically translated in real-time.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                   {[
-                    { code: 'en', name: 'English', flag: '🇮🇳' },
-                    { code: 'hi', name: 'Hindi (हिंदी)', flag: '🇮🇳' },
-                    { code: 'pa', name: 'Punjabi (ਪੰਜਾਬੀ)', flag: '🇮🇳' },
-                    { code: 'te', name: 'Telugu (తెలుగు)', flag: '🇮🇳' },
-                    { code: 'ta', name: 'Tamil (தமிழ்)', flag: '🇮🇳' },
-                    { code: 'bn', name: 'Bengali (বাংলা)', flag: '🇮🇳' },
-                    { code: 'mr', name: 'Marathi (मराठी)', flag: '🇮🇳' },
-                    { code: 'gu', name: 'Gujarati (ગુજરાતી)', flag: '🇮🇳' },
-                    { code: 'kn', name: 'Kannada (ಕನ್ನಡ)', flag: '🇮🇳' },
-                    { code: 'ml', name: 'Malayalam (മലയാളം)', flag: '🇮🇳' },
-                    { code: 'or', name: 'Odia (ଓଡ଼ିଆ)', flag: '🇮🇳' },
-                    { code: 'ur', name: 'Urdu (اردو)', flag: '🇮🇳' },
-                    { code: 'as', name: 'Assamese (অসমীয়া)', flag: '🇮🇳' },
+                    { code: 'en', name: 'English', flag: '🇬🇧' },
+                    // All 22 Schedule 8 Indian Languages
+                    ...INDIAN_LANGUAGES.map(lang => ({
+                      code: lang.code,
+                      name: `${lang.name} (${lang.nativeName})`,
+                      flag: '🇮🇳'
+                    }))
                   ].map(lang => (
                     <button
                       key={lang.code}

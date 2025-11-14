@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
+import { INDIAN_LANGUAGES } from '@/lib/constants/indian-languages';
 
 const COOKIE_CATEGORIES = [
   {
@@ -1258,20 +1259,15 @@ export default function CookieWidgetPage() {
                   <strong>🌐 Auto-Translation:</strong> When users select a language, all widget text will be automatically translated in real-time.
                 </p>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
                 {[
                   { code: 'en', name: 'English', flag: '🇬🇧' },
-                  { code: 'hi', name: 'Hindi (हिंदी)', flag: '🇮🇳' },
-                  { code: 'pa', name: 'Punjabi (ਪੰਜਾਬੀ)', flag: '🇮🇳' },
-                  { code: 'te', name: 'Telugu (తెలుగు)', flag: '🇮🇳' },
-                  { code: 'ta', name: 'Tamil (தமிழ்)', flag: '🇮🇳' },
-                  { code: 'bn', name: 'Bengali (বাংলা)', flag: '🇮🇳' },
-                  { code: 'mr', name: 'Marathi (मराठी)', flag: '🇮🇳' },
-                  { code: 'gu', name: 'Gujarati (ગુજરાતી)', flag: '🇮🇳' },
-                  { code: 'kn', name: 'Kannada (ಕನ್ನಡ)', flag: '🇮🇳' },
-                  { code: 'ml', name: 'Malayalam (മലയാളം)', flag: '🇮🇳' },
-                  { code: 'or', name: 'Odia (ଓଡ଼ିଆ)', flag: '🇮🇳' },
-                  { code: 'ur', name: 'Urdu (اردو)', flag: '🇮🇳' },
+                  // All 22 Schedule 8 Indian Languages
+                  ...INDIAN_LANGUAGES.map(lang => ({
+                    code: lang.code,
+                    name: `${lang.name} (${lang.nativeName})`,
+                    flag: '🇮🇳'
+                  }))
                 ].map(lang => (
                   <button
                     key={lang.code}

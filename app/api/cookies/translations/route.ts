@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit';
 import { z } from 'zod';
+import { INDIAN_LANGUAGES } from '@/lib/constants/indian-languages';
 
 /**
  * Widget Translations API
@@ -546,12 +547,12 @@ function getSupportedLanguages() {
     { code: 'ko', name: '한국어', rtl: false },
     { code: 'ar', name: 'العربية', rtl: true },
     { code: 'he', name: 'עברית', rtl: true },
-    // Indian Languages (Schedule 8)
-    { code: 'hi', name: 'हिन्दी', rtl: false },
-    { code: 'bn', name: 'বাংলা', rtl: false },
-    { code: 'ta', name: 'தமிழ்', rtl: false },
-    { code: 'te', name: 'తెలుగు', rtl: false },
-    { code: 'mr', name: 'मराठी', rtl: false },
+    // All 22 Schedule 8 Indian Languages
+    ...INDIAN_LANGUAGES.map(lang => ({
+      code: lang.code,
+      name: lang.nativeName,
+      rtl: lang.rtl
+    }))
   ];
 }
 

@@ -10,6 +10,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Input } from '@/components/ui/input';
 import { loginSchema, type LoginInput } from '@/lib/schemas';
 
@@ -145,9 +146,8 @@ export default function LoginPage() {
               required
             />
 
-            <Input
+            <PasswordInput
               {...register('password')}
-              type="password"
               label="Password"
               placeholder="••••••••"
               error={errors.password?.message}
@@ -171,7 +171,7 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md" size="lg" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

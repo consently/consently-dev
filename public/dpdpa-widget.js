@@ -878,6 +878,19 @@
     // Store the matched rule for consent tracking
     config._matchedRule = rule;
     
+    // WARNING: If a rule matches a specific URL pattern but doesn't specify activities,
+    // it will show ALL activities from the widget configuration
+    const currentPath = window.location.pathname || '/';
+    if (rule.url_pattern && rule.url_pattern !== '*' && rule.url_pattern !== '/*') {
+      if (!rule.activities || !Array.isArray(rule.activities) || rule.activities.length === 0) {
+        console.warn('[Consently DPDPA] ⚠️ Display rule matched for:', currentPath);
+        console.warn('[Consently DPDPA] ⚠️ Rule:', rule.rule_name, 'matches URL pattern:', rule.url_pattern);
+        console.warn('[Consently DPDPA] ⚠️ BUT rule does not specify which activities to show!');
+        console.warn('[Consently DPDPA] ⚠️ Showing ALL activities from widget configuration:', activities.length);
+        console.warn('[Consently DPDPA] ⚠️ To fix: Add "activities" array to the display rule with only the activities you want to show');
+      }
+    }
+    
     // Filter activities if rule specifies which activities to show
     if (rule.activities && Array.isArray(rule.activities) && rule.activities.length > 0) {
       console.log('[Consently DPDPA] Filtering activities for rule:', rule.rule_name);
@@ -2050,7 +2063,13 @@ Digital Personal Data Protection Act, 2023
       // Rule matched, show widget with rule-specific content
       showNoticeForRule(matchedRule);
     } else if (!matchedRule && config.autoShow) {
-      // No rule matched, use default behavior
+      // No rule matched, use default behavior - show ALL activities
+      const currentPath = window.location.pathname || '/';
+      console.warn('[Consently DPDPA] ⚠️ No display rule matched for current page:', currentPath);
+      console.warn('[Consently DPDPA] ⚠️ Showing ALL activities from widget configuration:', activities.length);
+      console.warn('[Consently DPDPA] ⚠️ To show only specific activities for this page, create a display rule with:');
+      console.warn('[Consently DPDPA] ⚠️   - url_pattern matching this page (e.g., "/contact")');
+      console.warn('[Consently DPDPA] ⚠️   - activities array with only the activities you want to show');
       setTimeout(() => {
         showConsentWidget();
       }, config.showAfterDelay || 1000);
@@ -3096,60 +3115,88 @@ Digital Personal Data Protection Act, 2023
       return activity ? activity.activity_name : id;
     }).filter(Boolean);
 
-    // Create success message
+    // Create success message with better UI
     let statusText = '';
-    let statusIcon = '';
+    let statusSubtext = '';
     if (status === 'accepted') {
-      statusText = 'All activities accepted';
-      statusIcon = '✓';
+      statusText = 'All Preferences Accepted';
+      statusSubtext = 'Your consent has been recorded for all activities';
     } else if (status === 'partial') {
-      statusText = 'Preferences saved';
-      statusIcon = '✓';
+      statusText = 'Preferences Saved Successfully';
+      statusSubtext = 'Your privacy choices have been saved and applied';
     } else {
-      statusText = 'Preferences saved';
-      statusIcon = '✓';
+      statusText = 'Preferences Saved Successfully';
+      statusSubtext = 'Your privacy choices have been saved and applied';
     }
 
-    // Update widget content with success state
-    widget.style.transition = 'all 0.3s ease';
+    // Update widget content with modern success state
+    widget.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
     widget.innerHTML = `
-      <div style="padding: 32px; text-align: center; font-family: ${theme.fontFamily || 'system-ui, sans-serif'};">
-        <div style="width: 64px; height: 64px; margin: 0 auto 20px; background: linear-gradient(135deg, ${primaryColor}15, ${primaryColor}25); border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: scaleIn 0.3s ease;">
-          <div style="width: 48px; height: 48px; background: ${primaryColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
-            ${statusIcon}
+      <div style="padding: 40px 32px; text-align: center; font-family: ${theme.fontFamily || 'system-ui, sans-serif'}; position: relative; overflow: hidden;">
+        <!-- Animated background gradient -->
+        <div style="position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: radial-gradient(circle, ${primaryColor}15 0%, transparent 70%); border-radius: 50%; transform: translate(30%, -30%);"></div>
+        <div style="position: absolute; bottom: 0; left: 0; width: 150px; height: 150px; background: radial-gradient(circle, ${primaryColor}10 0%, transparent 70%); border-radius: 50%; transform: translate(-30%, 30%);"></div>
+        
+        <div style="position: relative; z-index: 1;">
+          <!-- Modern icon with gradient -->
+          <div style="width: 80px; height: 80px; margin: 0 auto 24px; background: linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd); border-radius: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px ${primaryColor}40, 0 0 0 8px ${primaryColor}15; animation: successPulse 0.6s ease-out;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation: checkmark 0.5s ease-out 0.2s both;">
+              <path d="M20 6L9 17l-5-5"></path>
+            </svg>
           </div>
+          
+          <!-- Success badge -->
+          <div style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M20 6L9 17l-5-5"></path>
+            </svg>
+            Saved
+          </div>
+          
+          <h2 style="margin: 0 0 10px; font-size: 28px; font-weight: 700; color: ${textColor}; letter-spacing: -0.5px;">
+            ${statusText}
+          </h2>
+          <p style="margin: 0 0 32px; font-size: 15px; color: ${textColor}aa; line-height: 1.6; max-width: 400px; margin-left: auto; margin-right: auto;">
+            ${statusSubtext}
+          </p>
+          
+          ${acceptedNames.length > 0 ? `
+          <div style="background: linear-gradient(135deg, ${primaryColor}12, ${primaryColor}08); border: 2px solid ${primaryColor}30; border-radius: 16px; padding: 20px; margin-bottom: 16px; text-align: left; backdrop-filter: blur(10px);">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${primaryColor}" stroke-width="2.5">
+                <path d="M20 6L9 17l-5-5"></path>
+              </svg>
+              Accepted (${acceptedNames.length})
+            </div>
+            <div style="font-size: 14px; color: ${textColor}; line-height: 1.8; font-weight: 500;">
+              ${acceptedNames.map(name => `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: ${primaryColor};"></span>${name}</div>`).join('')}
+            </div>
+          </div>
+          ` : ''}
+          ${rejectedNames.length > 0 ? `
+          <div style="background: linear-gradient(135deg, #f3f4f612, #f3f4f608); border: 2px solid #9ca3af30; border-radius: 16px; padding: 20px; text-align: left; backdrop-filter: blur(10px);">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5">
+                <path d="M18 6L6 18M6 6l12 12"></path>
+              </svg>
+              Rejected (${rejectedNames.length})
+            </div>
+            <div style="font-size: 14px; color: ${textColor}aa; line-height: 1.8; font-weight: 500;">
+              ${rejectedNames.map(name => `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ca3af;"></span>${name}</div>`).join('')}
+            </div>
+          </div>
+          ` : ''}
         </div>
-        <h2 style="margin: 0 0 12px; font-size: 24px; font-weight: 700; color: ${textColor};">
-          ${statusText}
-        </h2>
-        <p style="margin: 0 0 24px; font-size: 14px; color: ${textColor}CC; line-height: 1.6;">
-          Your privacy preferences have been saved successfully.
-        </p>
-        ${acceptedNames.length > 0 ? `
-        <div style="background: ${primaryColor}08; border-left: 3px solid ${primaryColor}; border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left;">
-          <div style="font-size: 12px; font-weight: 600; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-            Accepted (${acceptedNames.length})
-          </div>
-          <div style="font-size: 13px; color: ${textColor}; line-height: 1.8;">
-            ${acceptedNames.map(name => `• ${name}`).join('<br>')}
-          </div>
-        </div>
-        ` : ''}
-        ${rejectedNames.length > 0 ? `
-        <div style="background: #f3f4f608; border-left: 3px solid #9ca3af; border-radius: 8px; padding: 16px; text-align: left;">
-          <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-            Rejected (${rejectedNames.length})
-          </div>
-          <div style="font-size: 13px; color: ${textColor}CC; line-height: 1.8;">
-            ${rejectedNames.map(name => `• ${name}`).join('<br>')}
-          </div>
-        </div>
-        ` : ''}
       </div>
       <style>
-        @keyframes scaleIn {
-          from { transform: scale(0); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
+        @keyframes successPulse {
+          0% { transform: scale(0); opacity: 0; }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes checkmark {
+          0% { stroke-dasharray: 0 24; stroke-dashoffset: 24; opacity: 0; }
+          100% { stroke-dasharray: 24 0; stroke-dashoffset: 0; opacity: 1; }
         }
       </style>
     `;

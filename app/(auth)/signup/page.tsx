@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { signupSchema, type SignupInput } from '@/lib/schemas';
 
@@ -94,10 +95,10 @@ export default function SignupPage() {
         </Link>
 
         {/* Signup Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Your Account</h1>
-            <p className="text-gray-600">Start your 14-day free trial today</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h1>
+            <p className="text-gray-600">Start your <span className="font-semibold text-blue-600">1 month free trial</span> today</p>
           </div>
 
           {/* OAuth Buttons */}
@@ -172,9 +173,8 @@ export default function SignupPage() {
               required
             />
 
-            <Input
+            <PasswordInput
               {...register('password')}
-              type="password"
               label="Password"
               placeholder="••••••••"
               helperText="Minimum 8 characters"
@@ -183,9 +183,8 @@ export default function SignupPage() {
               required
             />
 
-            <Input
+            <PasswordInput
               {...register('confirmPassword')}
-              type="password"
               label="Confirm Password"
               placeholder="••••••••"
               error={errors.confirmPassword?.message}
@@ -211,7 +210,7 @@ export default function SignupPage() {
               disabled={isLoading}
             />
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md" size="lg" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -232,7 +231,7 @@ export default function SignupPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-gray-500">
-          No credit card required • 14-day free trial • Cancel anytime
+          No credit card required • 1 month free trial • Cancel anytime
         </p>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { SuccessNotification } from '@/components/ui/success-notification';
 import {
   Check,
   X,
@@ -56,6 +57,7 @@ interface PreferenceCentreProps {
 export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [widgetName, setWidgetName] = useState('');
   const [domain, setDomain] = useState('');
@@ -130,7 +132,16 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         throw new Error('Failed to save preferences');
       }
 
-      toast.success('Preferences saved successfully');
+      // Show modern success notification
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
+      
+      // Also show toast as fallback
+      toast.success('Preferences saved successfully', {
+        description: 'Your privacy choices have been applied immediately',
+        duration: 3000,
+      });
+      
       await fetchPreferences(); // Refresh to get updated timestamps
     } catch (error) {
       console.error('Error saving preferences:', error);
@@ -212,7 +223,20 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   }
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 md:space-y-8 max-w-5xl mx-auto relative">
+      {/* Success Notification */}
+      {showSuccess && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4" style={{ animation: 'slideIn 0.3s ease-out' }}>
+          <SuccessNotification
+            title="Preferences Saved!"
+            message="Your privacy choices have been saved and applied successfully. You can update them anytime."
+            variant="preferences"
+            onClose={() => setShowSuccess(false)}
+            autoClose={true}
+            duration={5000}
+          />
+        </div>
+      )}
       {/* Modern Header with Gradient */}
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl blur-2xl"></div>

@@ -81,7 +81,7 @@ export default function AboutPage() {
                 <p>
                   We recognized that while global solutions exist, Indian businesses needed a platform that 
                   understands the unique requirements of DPDPA 2023, supports 22 Indian languages, and offers 
-                  pricing that works for businesses of all sizes—from startups to enterprises.
+                  solutions that work for businesses of all sizes—from startups to enterprises.
                 </p>
                 <p>
                   Our team combines expertise in data privacy law, software engineering, and user experience 
@@ -121,7 +121,7 @@ export default function AboutPage() {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Transparency</h3>
                 <p className="text-gray-600">
-                  No hidden costs, no surprises. We believe in clear pricing and honest communication.
+                  No hidden costs, no surprises. We believe in honest communication and clear value.
                 </p>
               </div>
             </div>
@@ -138,7 +138,7 @@ export default function AboutPage() {
               </p>
               <Link href="/signup">
                 <Button size="lg" variant="secondary">
-                  Start Free Trial
+                  Claim Your Free Month
                 </Button>
               </Link>
             </CardContent>

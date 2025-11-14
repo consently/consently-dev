@@ -23,6 +23,7 @@ import {
   Info
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { INDIAN_LANGUAGES } from '@/lib/constants/indian-languages';
 
 const bannerCustomizationSchema = z.object({
   // Content
@@ -95,11 +96,12 @@ const FONT_OPTIONS = [
 
 const LANGUAGE_OPTIONS = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'hi', name: 'Hindi (हिंदी)', flag: '🇮🇳' },
-  { code: 'bn', name: 'Bengali (বাংলা)', flag: '🇮🇳' },
-  { code: 'ta', name: 'Tamil (தமிழ்)', flag: '🇮🇳' },
-  { code: 'te', name: 'Telugu (తెలుగు)', flag: '🇮🇳' },
-  { code: 'mr', name: 'Marathi (मराठी)', flag: '🇮🇳' },
+  // All 22 Schedule 8 Indian Languages
+  ...INDIAN_LANGUAGES.map(lang => ({
+    code: lang.code,
+    name: `${lang.name} (${lang.nativeName})`,
+    flag: '🇮🇳'
+  }))
 ];
 
 // Helper function to safely extract hostname from URL

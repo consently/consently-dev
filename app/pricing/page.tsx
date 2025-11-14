@@ -2,16 +2,18 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/ui/footer';
-import { Shield, CheckCircle2, ArrowRight, Zap, Star, Crown, Search, Sparkles } from 'lucide-react';
+import { ScrollingBanner } from '@/components/ui/scrolling-banner';
+import { Shield, CheckCircle2, ArrowRight, Zap, Star, Crown, Search, Sparkles, Gift, Rocket, Calendar } from 'lucide-react';
 
 export const metadata = {
   title: 'Pricing - Consently',
-  description: 'Transparent pricing for DPDPA 2023 compliance. Choose the plan that fits your needs.',
+  description: 'Pre-launch offer: Get 1 month free trial. DPDPA 2023 compliance made simple for Indian businesses.',
 };
 
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-blue-50">
+      <ScrollingBanner />
       {/* Navigation */}
       <nav className="border-b border-blue-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,307 +38,144 @@ export default function PricingPage() {
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white mb-6 shadow-lg shadow-blue-500/20">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Flexible Cookie Scanning Plans
+            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white mb-6 shadow-lg shadow-blue-500/20">
+              <Rocket className="h-4 w-4 mr-2" />
+              Pre-Launch Special Offer
             </div>
             <h1 className="text-4xl sm:text-6xl font-bold text-gray-900 mb-6 tracking-tight">
-              Simple, Transparent Pricing
+              Start Your Journey to DPDPA Compliance
             </h1>
             <p className="text-xl sm:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Choose your cookie scanning depth. All plans include DPDPA 2023 compliance features, multi-language support, and automated consent management.
+              We're launching soon! Join our pre-launch program and get <span className="font-bold text-blue-600">1 month free trial</span> on all plans. Experience full DPDPA 2023 compliance features, multi-language support, and automated consent management.
             </p>
           </div>
 
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Free Plan */}
-            <Card className="relative border-2 border-gray-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="pb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 text-white flex items-center justify-center shadow-lg">
-                    <Zap className="h-6 w-6" />
-                  </div>
+          {/* Pre-Launch Offer Card */}
+          <div className="max-w-4xl mx-auto">
+            <Card className="relative border-2 border-blue-500 shadow-2xl bg-gradient-to-br from-blue-50 via-white to-indigo-50 overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-200/30 to-indigo-200/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-purple-200/30 to-blue-200/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+              
+              <CardHeader className="relative z-10 pb-8 text-center">
+                <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white mb-6 shadow-xl mx-auto">
+                  <Gift className="h-10 w-10" />
                 </div>
-                <CardTitle className="text-3xl font-bold">Free</CardTitle>
-                <CardDescription className="text-base">Perfect for getting started</CardDescription>
-                <div className="mt-6">
-                  <span className="text-5xl font-bold text-gray-900">₹0</span>
-                  <span className="text-gray-600 text-lg">/month</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-6 pb-6 border-b border-gray-200">
-                  <p className="text-sm font-semibold text-gray-700 flex items-center">
-                    <Search className="h-4 w-4 mr-2 text-gray-600" />
-                    Quick Scan - Homepage only
-                  </p>
-                </div>
-                <Link href="/signup">
-                  <Button variant="outline" className="w-full mb-6 text-base py-6">
-                    Get Started Free
-                  </Button>
-                </Link>
-                <ul className="space-y-4">
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Homepage cookie scanning</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Up to 5,000 consents/month</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Basic cookie consent banner</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">DPDPA consent management</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Automatic cookie classification</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Email support</span>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Premium Plan */}
-            <Card className="relative border-2 border-blue-600 shadow-2xl scale-105 bg-gradient-to-b from-blue-50 to-white">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-lg">
-                  Most Popular
-                </span>
-              </div>
-              <CardHeader className="pb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-lg">
-                    <Star className="h-6 w-6" />
-                  </div>
-                </div>
-                <CardTitle className="text-3xl font-bold">Premium</CardTitle>
-                <CardDescription className="text-base">Best for growing businesses</CardDescription>
-                <div className="mt-6">
-                  <span className="text-5xl font-bold text-gray-900">₹999</span>
-                  <span className="text-gray-600 text-lg">/month</span>
+                <CardTitle className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+                  Pre-Launch Special Offer
+                </CardTitle>
+                <CardDescription className="text-xl text-gray-600 mb-6">
+                  Get <span className="font-bold text-blue-600 text-2xl">1 Month Free Trial</span> on All Plans
+                </CardDescription>
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mb-8">
+                  <Calendar className="h-4 w-4" />
+                  <span>Limited time offer for early adopters</span>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="mb-6 pb-6 border-b border-gray-200">
-                  <p className="text-sm font-semibold text-blue-600 flex items-center">
-                    <Search className="h-4 w-4 mr-2" />
-                    Standard Scan - Top 10 URLs
-                  </p>
-                </div>
-                <Link href="/signup">
-                  <Button className="w-full mb-6 text-base py-6 shadow-lg shadow-blue-500/30">
-                    Get Started
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <ul className="space-y-4">
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 font-medium">Top 10 most important URLs</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Up to 50,000 consents/month</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Advanced cookie analytics dashboard</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Custom banner branding & colors</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">All 22 Indian languages</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Priority email support (24h response)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Export reports (CSV/JSON/PDF)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Scan history (last 50 scans)</span>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Enterprise Plan */}
-            <Card className="relative border-2 border-purple-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="pb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white flex items-center justify-center shadow-lg">
-                    <Crown className="h-6 w-6" />
+              
+              <CardContent className="relative z-10">
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">What's Included</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="flex items-start gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Full Platform Access</h4>
+                        <p className="text-sm text-gray-600">Experience all features across all plans</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">DPDPA Compliance Tools</h4>
+                        <p className="text-sm text-gray-600">Complete consent management solution</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">22 Indian Languages</h4>
+                        <p className="text-sm text-gray-600">Multi-language support included</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Priority Support</h4>
+                        <p className="text-sm text-gray-600">Dedicated support during trial</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <CardTitle className="text-3xl font-bold">Enterprise</CardTitle>
-                <CardDescription className="text-base">For large-scale deployments</CardDescription>
-                <div className="mt-6">
-                  <span className="text-5xl font-bold text-gray-900">₹2,499</span>
-                  <span className="text-gray-600 text-lg">/month</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-6 pb-6 border-b border-gray-200">
-                  <p className="text-sm font-semibold text-purple-600 flex items-center">
-                    <Search className="h-4 w-4 mr-2" />
-                    Deep Crawl - 50+ pages
+                
+                <div className="text-center">
+                  <p className="text-gray-600 mb-6 text-lg">
+                    Pricing details will be revealed soon. Join now to secure your spot and get 1 month free!
+                  </p>
+                  <Link href="/signup">
+                    <Button size="lg" className="text-lg px-12 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl shadow-blue-500/30 text-white">
+                      Claim Your Free Month
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <p className="text-sm text-gray-500 mt-4">
+                    No credit card required • Cancel anytime
                   </p>
                 </div>
-                <Link href="/signup">
-                  <Button variant="outline" className="w-full mb-6 text-base py-6 border-purple-600 text-purple-600 hover:bg-purple-50">
-                    Get Started
-                  </Button>
-                </Link>
-                <ul className="space-y-4">
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 font-medium">Entire website scan (50+ pages)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Unlimited consents & page views</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Advanced compliance reporting</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Dedicated account manager</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">99.9% uptime SLA guarantee</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Custom API integrations</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">24/7 phone & email support</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">White-label options available</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">Unlimited scan history</span>
-                  </li>
-                </ul>
               </CardContent>
             </Card>
           </div>
 
-          {/* Cookie Scanning Features Comparison */}
+          {/* Features Overview */}
           <div className="mt-24">
             <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Detailed Feature Comparison
+                Everything You Need for DPDPA Compliance
               </h2>
-              <p className="text-xl text-gray-600">See exactly what's included in each plan</p>
+              <p className="text-xl text-gray-600">Comprehensive features included in all plans</p>
             </div>
-            <Card className="max-w-5xl mx-auto shadow-xl">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gradient-to-r from-blue-50 to-purple-50">
-                      <tr className="border-b-2 border-blue-200">
-                        <th className="text-left py-4 px-6 font-bold text-gray-900">Feature</th>
-                        <th className="text-center py-4 px-6 font-bold text-gray-900">Free</th>
-                        <th className="text-center py-4 px-6 font-bold text-blue-600">Premium</th>
-                        <th className="text-center py-4 px-6 font-bold text-purple-600">Enterprise</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Cookie Scan Depth</td>
-                        <td className="text-center py-4 px-6 text-gray-600">Homepage only</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">Top 10 URLs</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">Entire website (50+ pages)</td>
-                      </tr>
-                      <tr className="border-b bg-blue-50/30 hover:bg-blue-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Monthly Consents</td>
-                        <td className="text-center py-4 px-6 text-gray-600">5,000</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">50,000</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">Unlimited</td>
-                      </tr>
-                      <tr className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Automatic Cookie Classification</td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                      </tr>
-                      <tr className="border-b bg-blue-50/30 hover:bg-blue-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Compliance Score & Insights</td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                      </tr>
-                      <tr className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Export Reports</td>
-                        <td className="text-center py-4 px-6 text-gray-600">CSV only</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">CSV, JSON, PDF</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">All + Custom</td>
-                      </tr>
-                      <tr className="border-b bg-blue-50/30 hover:bg-blue-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Scan History</td>
-                        <td className="text-center py-4 px-6 text-gray-600">Last 5 scans</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">Last 50 scans</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">Unlimited</td>
-                      </tr>
-                      <tr className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Auto Banner Generation</td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                      </tr>
-                      <tr className="border-b bg-blue-50/30 hover:bg-blue-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Multi-language Support</td>
-                        <td className="text-center py-4 px-6 text-gray-600">Basic</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">22 Languages</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">22 Languages</td>
-                      </tr>
-                      <tr className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Custom Branding</td>
-                        <td className="text-center py-4 px-6 text-gray-400">—</td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                        <td className="text-center py-4 px-6"><CheckCircle2 className="h-5 w-5 text-green-500 inline" /></td>
-                      </tr>
-                      <tr className="border-b bg-blue-50/30 hover:bg-blue-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">Priority Support</td>
-                        <td className="text-center py-4 px-6 text-gray-400">—</td>
-                        <td className="text-center py-4 px-6 text-gray-600">24h response</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">24/7 dedicated</td>
-                      </tr>
-                      <tr className="hover:bg-gray-50">
-                        <td className="py-4 px-6 font-medium text-gray-900">SLA & Uptime Guarantee</td>
-                        <td className="text-center py-4 px-6 text-gray-400">—</td>
-                        <td className="text-center py-4 px-6 text-gray-400">—</td>
-                        <td className="text-center py-4 px-6 text-gray-900 font-medium">99.9%</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <Card className="border-2 border-gray-200 hover:shadow-xl transition-all">
+                <CardHeader>
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center mb-4">
+                    <Search className="h-6 w-6" />
+                  </div>
+                  <CardTitle>Automated Cookie Scanning</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">Scan from homepage to entire website. Automatically classify cookies and generate compliance reports.</p>
+                </CardContent>
+              </Card>
+              <Card className="border-2 border-gray-200 hover:shadow-xl transition-all">
+                <CardHeader>
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white flex items-center justify-center mb-4">
+                    <Shield className="h-6 w-6" />
+                  </div>
+                  <CardTitle>DPDPA Consent Management</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">Complete consent handling with pre-loaded templates for various industries and use cases.</p>
+                </CardContent>
+              </Card>
+              <Card className="border-2 border-gray-200 hover:shadow-xl transition-all">
+                <CardHeader>
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 text-white flex items-center justify-center mb-4">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <CardTitle>22 Indian Languages</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">Support for all Schedule 8 languages with auto-generated consent banners.</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </section>
@@ -370,21 +209,31 @@ export default function PricingPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Is there a free trial?</CardTitle>
+                <CardTitle className="text-lg">What's the pre-launch offer?</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  Yes! All plans come with a 14-day free trial. No credit card required to get started.
+                  We're offering <strong>1 month free trial</strong> to all early adopters who sign up during our pre-launch period. This gives you full access to explore all features before we reveal our pricing.
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">What payment methods do you accept?</CardTitle>
+                <CardTitle className="text-lg">When will pricing be available?</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  We accept all major credit/debit cards, UPI, and net banking through our secure payment gateway.
+                  We're finalizing our pricing structure and will announce it soon. Early adopters who join now will be grandfathered into special pricing when we launch.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Do I need a credit card to start?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">
+                  No credit card required! Sign up now and enjoy your free month. We'll notify you before your trial ends.
                 </p>
               </CardContent>
             </Card>
@@ -399,11 +248,11 @@ export default function PricingPage() {
             Ready to Get Started?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Start your free 14-day trial today. No credit card required.
+            Claim your <strong className="text-white">1 month free trial</strong> today. No credit card required.
           </p>
           <Link href="/signup">
             <Button size="lg" variant="secondary" className="text-blue-600">
-              Start Free Trial
+              Claim Your Free Month
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
