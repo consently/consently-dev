@@ -1,0 +1,645 @@
+[
+  {
+    "id": "TC001",
+    "title": "User Registration with Email Verification",
+    "description": "Verify that a new user can register using a valid email and password and complete email verification to activate the account.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Sign Up page from the Landing Page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid email, password, and confirm password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Receive verification email and click verification link"
+      },
+      {
+        "type": "assertion",
+        "description": "Account should be activated and user redirected to Onboarding Wizard"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "User Login with Email/Password",
+    "description": "Ensure existing users can login successfully with valid email and password credentials.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Login page from the Landing Page"
+      },
+      {
+        "type": "action",
+        "description": "Input registered email and correct password"
+      },
+      {
+        "type": "action",
+        "description": "Click Login button"
+      },
+      {
+        "type": "assertion",
+        "description": "User should be authenticated and redirected to Dashboard"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "User Login with OAuth Providers",
+    "description": "Verify login functionality using supported OAuth providers such as Google and Microsoft.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Login page"
+      },
+      {
+        "type": "action",
+        "description": "Click 'Login with Google' button"
+      },
+      {
+        "type": "action",
+        "description": "Complete OAuth flow successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "User should be authenticated and taken to Dashboard"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Password Reset Functionality",
+    "description": "Ensure users can request a password reset email and successfully reset their password.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Password Reset page"
+      },
+      {
+        "type": "action",
+        "description": "Enter registered email and submit request"
+      },
+      {
+        "type": "action",
+        "description": "Receive password reset email and click link"
+      },
+      {
+        "type": "action",
+        "description": "Enter a new valid password and submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Password reset succeeds and user can login with new password"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Dashboard Loading and Sidebar Navigation",
+    "description": "Verify that after login, the Dashboard loads with metrics overview and sidebar navigation works correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login successfully and reach Dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Dashboard overview widgets are visible with correct data"
+      },
+      {
+        "type": "action",
+        "description": "Use sidebar to navigate to Cookies, DPDPA, Reports, and Settings"
+      },
+      {
+        "type": "assertion",
+        "description": "Each selected section loads correctly without errors"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Automated Cookie Scanning with Accurate Classification",
+    "description": "Validate that the cookie scanning feature scans the website, classifies cookies with over 95% accuracy, and displays results for review and saving.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Dashboard → Cookies → Scan Website"
+      },
+      {
+        "type": "action",
+        "description": "Enter target website URL and start scan"
+      },
+      {
+        "type": "assertion",
+        "description": "Cookies are listed with automatic classification"
+      },
+      {
+        "type": "assertion",
+        "description": "Classification accuracy should be above 95%"
+      },
+      {
+        "type": "action",
+        "description": "Edit cookie classifications manually"
+      },
+      {
+        "type": "action",
+        "description": "Save edited results"
+      },
+      {
+        "type": "assertion",
+        "description": "Saved classifications persist and can be reviewed later"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Cookie Banner Customization and Widget Deployment",
+    "description": "Confirm that users can customize cookie banners, preview changes, generate banner code, and deploy widget correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Go to Dashboard → Cookies → Customize Banner"
+      },
+      {
+        "type": "action",
+        "description": "Adjust banner text, colors, and behavior settings"
+      },
+      {
+        "type": "action",
+        "description": "Preview the customized banner"
+      },
+      {
+        "type": "assertion",
+        "description": "Banner preview matches customization settings"
+      },
+      {
+        "type": "action",
+        "description": "Generate widget code"
+      },
+      {
+        "type": "action",
+        "description": "Embed widget code in sample website environment"
+      },
+      {
+        "type": "assertion",
+        "description": "Banner displays and functions as customized on sample site"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "DPDPA Consent Processing Activities Setup with Industry Templates",
+    "description": "Test setup of data processing activities using pre-built industry-specific templates and manual adjustments.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Dashboard → DPDPA → Activities"
+      },
+      {
+        "type": "action",
+        "description": "Select an industry template and apply it"
+      },
+      {
+        "type": "assertion",
+        "description": "Template processing activities populate correctly"
+      },
+      {
+        "type": "action",
+        "description": "Modify individual processing activity details"
+      },
+      {
+        "type": "action",
+        "description": "Save the activities configuration"
+      },
+      {
+        "type": "assertion",
+        "description": "Saved activities are persisted and retrievable"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "DPDPA Consent Widget Configuration and Consent Collection",
+    "description": "Validate configuration of the DPDPA consent widget, code generation, embedding, and end-user granular consent collection.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Dashboard → DPDPA → Widget Configuration"
+      },
+      {
+        "type": "action",
+        "description": "Configure widget settings and generate embedding code"
+      },
+      {
+        "type": "action",
+        "description": "Embed widget code on test site"
+      },
+      {
+        "type": "action",
+        "description": "Visit the test site as an end user"
+      },
+      {
+        "type": "assertion",
+        "description": "Consent notice is displayed with activity review"
+      },
+      {
+        "type": "action",
+        "description": "Provide granular consent selections and submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Unique Consent ID is generated and consent is recorded accurately"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Consent ID Verification and Cross-Device Preference Sync",
+    "description": "Ensure end-users can verify their Consent ID on a new device and previously given preferences load correctly with error handling.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "On a different device, navigate to Consent ID verification input"
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid Consent ID and submit"
+      },
+      {
+        "type": "assertion",
+        "description": "User preferences are loaded and reflected correctly"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid or malformed Consent ID"
+      },
+      {
+        "type": "assertion",
+        "description": "Appropriate error message is displayed and verification denied"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Analytics Dashboard with Filtering and Data Export",
+    "description": "Test that real-time consent trends, device and geographic breakdowns display correctly and reports export in supported formats.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Dashboard → Reports"
+      },
+      {
+        "type": "assertion",
+        "description": "Consent trends and charts for device and geographic breakdowns load accurately"
+      },
+      {
+        "type": "action",
+        "description": "Apply filters based on date range, device type, and region"
+      },
+      {
+        "type": "assertion",
+        "description": "Charts refresh and reflect filtered data correctly"
+      },
+      {
+        "type": "action",
+        "description": "Export reports in PDF and CSV formats"
+      },
+      {
+        "type": "assertion",
+        "description": "Exported files are generated without errors and contain accurate data"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Audit Trail Viewing and Export",
+    "description": "Verify complete audit logs can be searched by criteria and exported as compliance reports in multiple formats.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Go to Dashboard → Audit"
+      },
+      {
+        "type": "action",
+        "description": "Search audit trail using filters like date, user, and action"
+      },
+      {
+        "type": "assertion",
+        "description": "Audit records matching criteria are displayed with complete details"
+      },
+      {
+        "type": "action",
+        "description": "Generate export of audit records in CSV and PDF"
+      },
+      {
+        "type": "assertion",
+        "description": "Exported files accurately reflect the audit data queried"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Privacy Centre Consent Management and Data Subject Rights Requests",
+    "description": "Test that end-users can access Privacy Centre, manage their consents, and submit data subject rights requests successfully.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Visit Privacy Centre via provided widget link"
+      },
+      {
+        "type": "assertion",
+        "description": "Privacy Centre UI loads with user consent info"
+      },
+      {
+        "type": "action",
+        "description": "Modify cookie and DPDPA consent preferences"
+      },
+      {
+        "type": "action",
+        "description": "Submit updated consents"
+      },
+      {
+        "type": "assertion",
+        "description": "Consent changes are saved and reflected in backend"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to Rights Requests section"
+      },
+      {
+        "type": "action",
+        "description": "Submit a Data Access and Deletion request"
+      },
+      {
+        "type": "assertion",
+        "description": "Request is submitted successfully and acknowledgment received"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Settings Profile Update and Security 2FA Enablement",
+    "description": "Validate updating user profile details and enabling/disabling two-factor authentication from settings.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Dashboard → Settings → Profile Tab"
+      },
+      {
+        "type": "action",
+        "description": "Update profile information and save changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Profile details are updated correctly"
+      },
+      {
+        "type": "action",
+        "description": "Go to Security Tab and enable 2FA"
+      },
+      {
+        "type": "action",
+        "description": "Complete 2FA setup with authenticator app or SMS"
+      },
+      {
+        "type": "assertion",
+        "description": "2FA is enabled and works on next login attempt"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Subscription Payment Processing via Razorpay",
+    "description": "Confirm subscriptions can be purchased using Razorpay with successful payment and invoice generation.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Dashboard → Settings → Billing Tab"
+      },
+      {
+        "type": "action",
+        "description": "Select subscription plan and initiate payment"
+      },
+      {
+        "type": "action",
+        "description": "Complete Razorpay payment flow successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "Payment is processed and invoice is generated and accessible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Error Handling - Invalid Login Credentials",
+    "description": "Verify system properly rejects login attempts with invalid credentials and displays appropriate error messages.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Login page"
+      },
+      {
+        "type": "action",
+        "description": "Input valid email and incorrect password"
+      },
+      {
+        "type": "action",
+        "description": "Click Login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Login fails with error message indicating invalid credentials"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Error Handling - Expired Email Verification Link",
+    "description": "Ensure expired or invalid email verification links are handled gracefully with clear instructions.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to verify email using expired or malformed verification link"
+      },
+      {
+        "type": "assertion",
+        "description": "System shows a clear message about the expired/invalid link and provides next steps"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Performance - API Response Time Below 500ms",
+    "description": "Validate that key API endpoints respond within 500 milliseconds under normal load conditions.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Execute requests to critical APIs: authentication, consent submission, cookie scanning"
+      },
+      {
+        "type": "assertion",
+        "description": "Each API responds within 500ms on average during testing"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Performance - Consent Widget Load Time Under 1 second",
+    "description": "Ensure the DPDPA consent widget loads and renders fully within 1 second on supported devices and networks.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Embed DPDPA consent widget on a test website"
+      },
+      {
+        "type": "action",
+        "description": "Load the test website on various devices and network conditions"
+      },
+      {
+        "type": "assertion",
+        "description": "Widget load time is recorded under 1 second consistently"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Accessibility and Localization - Multi-language Support and WCAG 2.1 AA",
+    "description": "Confirm all user interfaces support switching among 22 Indian languages and conform to WCAG 2.1 AA accessibility standards.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Switch UI language through settings to each supported Indian language one by one"
+      },
+      {
+        "type": "assertion",
+        "description": "All UI text is translated and no untranslated segments appear"
+      },
+      {
+        "type": "action",
+        "description": "Use screen readers, keyboard navigation, and color contrast analyzers on key pages"
+      },
+      {
+        "type": "assertion",
+        "description": "UI meets WCAG 2.1 AA criteria without blocking usability"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Onboarding Wizard Multi-step User Flow",
+    "description": "Test that new users completing onboarding wizard experience seamless navigation through all steps and final dashboard access.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a new user redirected to onboarding wizard"
+      },
+      {
+        "type": "action",
+        "description": "Complete each step of the wizard with valid inputs"
+      },
+      {
+        "type": "assertion",
+        "description": "Next steps appear correctly and no errors occur"
+      },
+      {
+        "type": "action",
+        "description": "Finish onboarding wizard"
+      },
+      {
+        "type": "assertion",
+        "description": "Dashboard loads successfully at completion"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Consent Data Persistence and Recovery",
+    "description": "Verify that consent data is stored reliably and can be recovered accurately after logout or session expiration.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Submit consents using the widget on a test website"
+      },
+      {
+        "type": "action",
+        "description": "Log out and log back in"
+      },
+      {
+        "type": "action",
+        "description": "Access consent records through Dashboard → DPDPA → Records"
+      },
+      {
+        "type": "assertion",
+        "description": "Previously submitted consents appear complete and accurate"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Rate Limiting Middleware Functionality",
+    "description": "Test the rate limiting middleware blocks excessive API requests and returns appropriate error codes.",
+    "category": "security",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send rapid repeated API requests exceeding allowed limit"
+      },
+      {
+        "type": "assertion",
+        "description": "System blocks requests and responds with rate limit exceeded error"
+      }
+    ]
+  }
+]

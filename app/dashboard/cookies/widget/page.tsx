@@ -482,20 +482,26 @@ export default function CookieWidgetPage() {
           text: config.bannerContent?.acceptButtonText || 'Accept All',
           backgroundColor: config.theme.primaryColor || '#3b82f6',
           textColor: '#ffffff',
-          borderRadius: config.theme.borderRadius || 8
+          borderRadius: config.theme.borderRadius || 8,
+          fontSize: 14,
+          fontWeight: 'medium' as const
         },
         rejectButton: {
           text: config.bannerContent?.rejectButtonText || 'Reject All',
           backgroundColor: 'transparent',
           textColor: config.theme.primaryColor || '#3b82f6',
           borderColor: config.theme.primaryColor || '#3b82f6',
-          borderRadius: config.theme.borderRadius || 8
+          borderRadius: config.theme.borderRadius || 8,
+          fontSize: 14,
+          fontWeight: 'medium' as const
         },
         settingsButton: {
           text: config.bannerContent?.settingsButtonText || 'Cookie Settings',
           backgroundColor: '#f3f4f6',
           textColor: config.theme.textColor || '#1f2937',
-          borderRadius: config.theme.borderRadius || 8
+          borderRadius: config.theme.borderRadius || 8,
+          fontSize: 14,
+          fontWeight: 'medium' as const
         },
         showRejectButton: true,
         showSettingsButton: true,

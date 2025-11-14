@@ -466,6 +466,65 @@
     }
   }
 
+  // Show error message to site owners (visible but non-intrusive)
+  function showWidgetError(message, isCritical = false) {
+    // Only show visible errors in development or if explicitly enabled
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                         window.location.hostname.includes('127.0.0.1') ||
+                         window.location.hostname.includes('consently.in');
+    
+    if (!isDevelopment && !isCritical) {
+      // In production, only log to console
+      console.warn('[Consently DPDPA]', message);
+      return;
+    }
+    
+    // Create a subtle error banner for site owners
+    const errorBanner = document.createElement('div');
+    errorBanner.id = 'consently-widget-error';
+    errorBanner.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: ${isCritical ? '#fee2e2' : '#fef3c7'};
+      border: 1px solid ${isCritical ? '#fca5a5' : '#fcd34d'};
+      border-radius: 8px;
+      padding: 12px 16px;
+      max-width: 400px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      color: ${isCritical ? '#991b1b' : '#92400e'};
+    `;
+    
+    errorBanner.innerHTML = `
+      <div style="display: flex; align-items: flex-start; gap: 8px;">
+        <span style="font-size: 18px;">${isCritical ? '⚠️' : 'ℹ️'}</span>
+        <div style="flex: 1;">
+          <strong style="display: block; margin-bottom: 4px;">Consently Widget ${isCritical ? 'Error' : 'Notice'}</strong>
+          <div>${message}</div>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" 
+                style="background: none; border: none; font-size: 18px; cursor: pointer; color: inherit; opacity: 0.6; padding: 0; line-height: 1;">
+          ×
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(errorBanner);
+    
+    // Auto-remove after 10 seconds for non-critical errors
+    if (!isCritical) {
+      setTimeout(() => {
+        if (errorBanner.parentElement) {
+          errorBanner.remove();
+        }
+      }, 10000);
+    }
+  }
+
   // Fetch widget configuration from API
   async function fetchWidgetConfig() {
     try {
@@ -496,7 +555,33 @@
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Handle specific error cases
+        if (response.status === 404) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || 'Widget configuration not found';
+          
+          console.error('[Consently DPDPA] Widget not found:', {
+            widgetId: widgetId,
+            status: response.status,
+            error: errorMessage,
+            hint: 'This widget may have been deleted. Please check your Consently dashboard and create a new widget if needed.'
+          });
+          
+          // Show user-friendly error message
+          showWidgetError(
+            `Widget ID "${widgetId}" not found. This widget may have been deleted. ` +
+            `Please check your Consently dashboard or contact support if this persists.`,
+            true
+          );
+          
+          return { success: false, error: 'WIDGET_NOT_FOUND', status: 404 };
+        } else if (response.status === 429) {
+          console.warn('[Consently DPDPA] Rate limit exceeded. Retrying later...');
+          return { success: false, error: 'RATE_LIMIT', status: 429 };
+        } else {
+          const errorText = await response.text().catch(() => response.statusText);
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
       }
       
       const data = await response.json();
@@ -517,10 +602,21 @@
         console.warn('[Consently DPDPA] No activities found in configuration!');
         console.log('[Consently DPDPA] Full config:', data);
       }
-      return true;
+      return { success: true };
     } catch (error) {
+      // Network errors or other exceptions
       console.error('[Consently DPDPA] Failed to load configuration:', error);
-      return false;
+      
+      // Check if it's a network error
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        showWidgetError(
+          'Unable to connect to Consently service. Please check your internet connection.',
+          false
+        );
+        return { success: false, error: 'NETWORK_ERROR' };
+      }
+      
+      return { success: false, error: 'UNKNOWN_ERROR', message: error.message };
     }
   }
 
@@ -1899,9 +1995,26 @@ Digital Personal Data Protection Act, 2023
 
   // Initialize widget
   async function init() {
-    const success = await fetchWidgetConfig();
-    if (!success) {
-      console.error('[Consently DPDPA] Failed to initialize widget');
+    const result = await fetchWidgetConfig();
+    if (!result || !result.success) {
+      if (result && result.error === 'WIDGET_NOT_FOUND') {
+        // Widget not found - error already shown, just exit
+        console.error('[Consently DPDPA] Widget initialization failed: Widget not found');
+      } else if (result && result.error === 'RATE_LIMIT') {
+        // Rate limited - retry after delay
+        console.warn('[Consently DPDPA] Rate limited, retrying in 5 seconds...');
+        setTimeout(init, 5000);
+        return;
+      } else {
+        // Other errors
+        console.error('[Consently DPDPA] Failed to initialize widget:', result?.error || 'Unknown error');
+        if (result && result.error === 'NETWORK_ERROR') {
+          // Network error - retry once after delay
+          console.warn('[Consently DPDPA] Network error, retrying in 3 seconds...');
+          setTimeout(init, 3000);
+          return;
+        }
+      }
       return;
     }
 

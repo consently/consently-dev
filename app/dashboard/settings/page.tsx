@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, Lock, Bell, CreditCard, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,17 @@ import { NotificationsTab } from '@/components/settings/NotificationsTab';
 import { BillingTab } from '@/components/settings/BillingTab';
 import type { SettingsTab } from '@/types/settings';
 
-export default function SettingsPage() {
+function SettingsContent() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+
+  // Handle tab query parameter
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['profile', 'security', 'notifications', 'billing'].includes(tabParam)) {
+      setActiveTab(tabParam as SettingsTab);
+    }
+  }, [searchParams]);
   
   // Fetch user profile data
   const { data: profileData, loading, error, refetch, updateProfile, updating } = useUserProfile();
@@ -111,5 +121,30 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+            <p className="text-gray-600 mt-2">
+              Manage your account settings and preferences
+            </p>
+          </div>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">Loading settings...</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <SettingsContent />
+    </Suspense>
   );
 }

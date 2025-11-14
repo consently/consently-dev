@@ -54,8 +54,35 @@ export default function SignupPage() {
       }
 
       if (authData?.user) {
-        toast.success('Account created successfully! Welcome to Consently.');
-        router.push('/dashboard');
+        // Email verification is disabled, so user is automatically confirmed
+        // Create user profile if it doesn't exist
+        const { data: existingProfile } = await supabase
+          .from('users')
+          .select('onboarding_completed')
+          .eq('id', authData.user.id)
+          .single();
+
+        // If profile doesn't exist, create it
+        if (!existingProfile) {
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              email: authData.user.email!,
+              full_name: data.fullName,
+              auth_provider: 'email',
+              onboarding_completed: false,
+            });
+
+          if (profileError) {
+            console.error('Error creating user profile:', profileError);
+            // Continue anyway - profile might be created by trigger or callback
+          }
+        }
+
+        // Always redirect to onboarding for new signups
+        toast.success('Account created successfully! Let\'s get you started.');
+        router.push('/dashboard/setup/onboarding');
       }
     } catch (error: any) {
       toast.error('An unexpected error occurred');
@@ -68,19 +95,32 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Get the current origin (handles both localhost and production)
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
       if (error) {
-        toast.error(error.message);
+        console.error('OAuth error:', error);
+        toast.error(`Failed to sign in with ${provider}: ${error.message}`);
+        setIsLoading(false);
+        return;
       }
+
+      // OAuth redirect will happen automatically, so we don't need to do anything else
+      // The loading state will be reset when the page redirects
     } catch (error: any) {
-      toast.error('Failed to sign up with ' + provider);
-    } finally {
+      console.error('OAuth exception:', error);
+      toast.error(`Failed to sign up with ${provider}. Please try again.`);
       setIsLoading(false);
     }
   };

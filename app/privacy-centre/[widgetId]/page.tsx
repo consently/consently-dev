@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { PrivacyCentre } from '@/components/privacy-centre/privacy-centre';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Shield, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
-export default function PrivacyCentrePage() {
+function PrivacyCentreContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const widgetId = params.widgetId as string;
@@ -46,7 +46,7 @@ export default function PrivacyCentrePage() {
       }
 
       // Generate new visitor ID
-      const newVisitorId = generateUUID();
+      const newVisitorId = uuidv4();
       localStorage.setItem(`consently_visitor_${widgetId}`, newVisitorId);
       setVisitorId(newVisitorId);
       setLoading(false);
@@ -106,4 +106,24 @@ export default function PrivacyCentrePage() {
   }
 
   return <PrivacyCentre visitorId={visitorId} widgetId={widgetId} />;
+}
+
+export default function PrivacyCentrePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+          <Card className="w-full max-w-md">
+            <CardContent className="py-12 text-center">
+              <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Privacy Centre</h2>
+              <p className="text-gray-600">Please wait while we prepare your privacy dashboard...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <PrivacyCentreContent />
+    </Suspense>
+  );
 }

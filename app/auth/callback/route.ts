@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -6,7 +7,7 @@ import type { NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') ?? '/dashboard';
+  const next = requestUrl.searchParams.get('next');
 
   if (code) {
     const cookieStore = await cookies();
@@ -29,10 +30,59 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
-      return NextResponse.redirect(new URL(next, request.url));
+    if (error) {
+      console.error('Auth callback error:', error);
+      // Redirect to login with error message
+      const url = new URL('/login', request.url);
+      url.searchParams.set('error', 'oauth_failed');
+      url.searchParams.set('message', error.message);
+      return NextResponse.redirect(url);
+    }
+
+    if (sessionData?.user) {
+      // Use service role client to check/create user profile (bypasses RLS)
+      const serviceClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
+      // Check onboarding status for new users
+      if (!next) {
+        // Fetch user profile to check onboarding status
+        const { data: profile } = await serviceClient
+          .from('users')
+          .select('onboarding_completed')
+          .eq('id', sessionData.user.id)
+          .single();
+
+        // If profile doesn't exist, create it (for OAuth users)
+        if (!profile) {
+          await serviceClient
+            .from('users')
+            .insert({
+              id: sessionData.user.id,
+              email: sessionData.user.email!,
+              full_name: sessionData.user.user_metadata?.full_name || null,
+              auth_provider: sessionData.user.app_metadata?.provider || 'email',
+              onboarding_completed: false,
+            })
+            .select()
+            .single();
+
+          // Redirect to onboarding for new users
+          return NextResponse.redirect(new URL('/dashboard/setup/onboarding', request.url));
+        }
+
+        // Redirect to onboarding if not completed
+        if (!profile.onboarding_completed) {
+          return NextResponse.redirect(new URL('/dashboard/setup/onboarding', request.url));
+        }
+      }
+
+      // Use provided next URL or default to dashboard
+      return NextResponse.redirect(new URL(next || '/dashboard', request.url));
     }
   }
 

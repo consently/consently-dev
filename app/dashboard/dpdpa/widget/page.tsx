@@ -3303,7 +3303,10 @@ export default function DPDPAWidgetPage() {
 
                   {/* Copy Button */}
                   <Button 
-                    onClick={() => {
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       navigator.clipboard.writeText(getPlatformSpecificCode(selectedPlatform));
                       setCopySuccess(true);
                       toast.success('✅ Code copied to clipboard!', {

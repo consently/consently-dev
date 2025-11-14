@@ -33,20 +33,44 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
 
     try {
+      // Redirect directly to update-password page
+      // Supabase will append hash fragments (#access_token=...&type=recovery) to this URL
+      // Note: This URL must be whitelisted in Supabase Dashboard > Authentication > URL Configuration
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const redirectUrl = `${baseUrl}/auth/update-password`;
+      
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {
-        toast.error(error.message);
+        // Show clear error message
+        let errorMessage = 'Unable to send reset email. Please try again.';
+        
+        if (error.message.includes('400')) {
+          errorMessage = 'Invalid email address or account not found. Please check your email and try again.';
+        } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+          errorMessage = 'Too many requests. Please wait a few minutes before trying again.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+        setIsLoading(false);
         return;
       }
 
       setIsSuccess(true);
-      toast.success('Password reset email sent!');
+      toast.success('Password reset email sent! Check your inbox for instructions.', {
+        duration: 5000,
+      });
     } catch (error: any) {
-      toast.error('An unexpected error occurred');
-    } finally {
+      console.error('Password reset error:', error);
+      toast.error('An unexpected error occurred. Please try again.', {
+        duration: 5000,
+      });
       setIsLoading(false);
     }
   };

@@ -119,12 +119,20 @@ export default function PricingPage() {
                   <p className="text-gray-600 mb-6 text-lg">
                     Pricing details will be revealed soon. Join now to secure your spot and get 1 month free!
                   </p>
-                  <Link href="/signup">
-                    <Button size="lg" className="text-lg px-12 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl shadow-blue-500/30 text-white">
-                      Claim Your Free Month
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                    <Link href="/signup">
+                      <Button size="lg" className="text-lg px-12 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl shadow-blue-500/30 text-white">
+                        Claim Your Free Month
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/settings?tab=billing">
+                      <Button size="lg" variant="outline" className="text-lg px-12 py-6 border-2 border-blue-600 text-blue-600 hover:bg-blue-50">
+                        Choose a Plan
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    </Link>
+                  </div>
                   <p className="text-sm text-gray-500 mt-4">
                     No credit card required • Cancel anytime
                   </p>

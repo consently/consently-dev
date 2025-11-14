@@ -92,7 +92,7 @@ export default function AuditLogsPage() {
     }
   };
 
-  const handleExport = async (format: 'csv' | 'json') => {
+  const handleExport = async (format: 'csv' | 'json' | 'pdf') => {
     try {
       const params = new URLSearchParams({ format });
       if (startDate) params.append('start_date', startDate);
@@ -100,7 +100,10 @@ export default function AuditLogsPage() {
 
       const response = await fetch(`/api/audit/export?${params}`);
       
-      if (!response.ok) throw new Error('Failed to export logs');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to export logs' }));
+        throw new Error(errorData.error || 'Failed to export logs');
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -113,7 +116,7 @@ export default function AuditLogsPage() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting logs:', error);
-      alert('Failed to export logs');
+      alert(error instanceof Error ? error.message : 'Failed to export logs');
     }
   };
 
@@ -144,6 +147,10 @@ export default function AuditLogsPage() {
           <Button variant="outline" onClick={() => handleExport('json')}>
             <Download className="mr-2 h-4 w-4" />
             Export JSON
+          </Button>
+          <Button variant="outline" onClick={() => handleExport('pdf')}>
+            <Download className="mr-2 h-4 w-4" />
+            Export PDF
           </Button>
           <Button onClick={fetchLogs}>
             <RefreshCw className="mr-2 h-4 w-4" />

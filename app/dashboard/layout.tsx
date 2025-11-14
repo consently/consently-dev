@@ -16,6 +16,7 @@ import {
   X,
   ChevronDown,
   User,
+  FileCheck,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -42,7 +43,14 @@ const navigation = [
       { name: 'Consent Records', href: '/dashboard/dpdpa/records' },
     ],
   },
-  { name: 'Reports & Analytics', href: '/dashboard/reports', icon: BarChart3 },
+  {
+    name: 'Reports & Analytics',
+    icon: BarChart3,
+    children: [
+      { name: 'Analytics Dashboard', href: '/dashboard/reports' },
+      { name: 'Audit Logs', href: '/dashboard/audit' },
+    ],
+  },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
@@ -50,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Cookie Consent', 'DPDPA Consent']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Cookie Consent', 'DPDPA Consent', 'Reports & Analytics']);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, setUser, clearUser } = useUserStore();
 
@@ -66,10 +74,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       } = await supabase.auth.getUser();
 
       if (authUser) {
+        // Fetch user profile to check onboarding status
+        const { data: profile } = await supabase
+          .from('users')
+          .select('onboarding_completed, full_name')
+          .eq('id', authUser.id)
+          .single();
+
+        // If profile doesn't exist, create it (for OAuth users)
+        if (!profile) {
+          const { data: newProfile } = await supabase
+            .from('users')
+            .insert({
+              id: authUser.id,
+              email: authUser.email!,
+              full_name: authUser.user_metadata?.full_name || null,
+              auth_provider: authUser.app_metadata?.provider || 'email',
+              onboarding_completed: false,
+            })
+            .select()
+            .single();
+
+          // Redirect to onboarding if not completed
+          if (pathname !== '/dashboard/setup/onboarding') {
+            router.push('/dashboard/setup/onboarding');
+            return;
+          }
+        } else {
+          // Redirect to onboarding if not completed and not already on onboarding page
+          if (!profile.onboarding_completed && pathname !== '/dashboard/setup/onboarding') {
+            router.push('/dashboard/setup/onboarding');
+            return;
+          }
+        }
+
         setUser({
           id: authUser.id,
           email: authUser.email!,
-          fullName: authUser.user_metadata?.full_name || '',
+          fullName: profile?.full_name || authUser.user_metadata?.full_name || '',
           companyName: authUser.user_metadata?.company_name || '',
           emailVerified: !!authUser.email_confirmed_at,
           twoFactorEnabled: false,
@@ -82,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
 
     fetchUser();
-  }, [supabase, router, setUser]);
+  }, [supabase, router, setUser, pathname]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();

@@ -1,275 +1,131 @@
 # Consently Documentation
 
-## 📚 **Documentation Index**
+> 📚 **For the complete documentation index, see [INDEX.md](./INDEX.md)**
 
-### **🎯 Start Here**
 
-If you're implementing DPDPA consent management for the first time:
 
-**👉 [DPDPA Complete Implementation Guide](./DPDPA_COMPLETE_IMPLEMENTATION_GUIDE.md)**
+## 📁 Documentation Structure
 
-This is your **complete, step-by-step guide** showing:
-- How industry templates work
-- How to create processing activities
-- How activities become consent notices
-- The complete integration flow
-- Real-world examples
-- Compliance checklist
+### Guides
 
----
+*Implementation guides, configuration guides, and how-to documentation*
 
-### **📖 DPDPA Documentation**
+- **[Blog Section & SEO Improvements - Implementation Summary](./guides/BLOG_SEO_IMPLEMENTATION.md)**
+- **[Consent ID System - Implementation Guide](./guides/CONSENT_ID_IMPLEMENTATION_GUIDE.md)**
+- **[Cookie Consent Module - Production Implementation Guide](./guides/COOKIE_MODULE_IMPLEMENTATION.md)**
+- **[Cross-Device Consent Implementation (Option 1)](./guides/CROSS_DEVICE_CONSENT_IMPLEMENTATION.md)**
+- **[Consently Dashboard Improvements - Implementation Guide](./guides/DASHBOARD_IMPROVEMENTS_IMPLEMENTATION.md)**
+- **[Display Rules UI Implementation](./guides/DISPLAY_RULES_UI_IMPLEMENTATION.md)**
+- **[DPDPA Complete Implementation Guide](./guides/DPDPA_COMPLETE_IMPLEMENTATION_GUIDE.md)**
+- **[DPDPA Consent Widget - Complete Implementation Guide](./guides/DPDPA_WIDGET_IMPLEMENTATION.md)**
+- **[Export Results & Generate Consent Banner - Implementation Summary](./guides/EXPORT_AND_BANNER_IMPLEMENTATION.md)**
+- **[🎉 Consent ID System - Implementation Summary](./guides/IMPLEMENTATION_SUMMARY.md)**
+- **[OAuth Configuration Guide](./guides/OAUTH_CONFIGURATION_GUIDE.md)**
+- **[onScroll Trigger & Analytics Implementation](./guides/ONSCROLL_AND_ANALYTICS_IMPLEMENTATION.md)**
+- **[Page-Specific Notices Implementation Guide](./guides/PAGE_SPECIFIC_NOTICES_IMPLEMENTATION.md)**
+- **[🎉 Privacy Centre Implementation - COMPLETE](./guides/PRIVACY_CENTRE_IMPLEMENTATION.md)**
+- **[Consently - Production Implementation Summary](./guides/PRODUCTION_IMPLEMENTATION_SUMMARY.md)**
+- **[Table View Implementation for DPDPA Widget](./guides/TABLE_VIEW_IMPLEMENTATION.md)**
+- **[Version 2.0 Implementation Summary](./guides/VERSION_2_IMPLEMENTATION_SUMMARY.md)**
+- **[Version 2.0 Implementation Verification Checklist](./guides/VERSION_2_IMPLEMENTATION_VERIFICATION.md)**
+- **[Widget Migration Instructions](./guides/WIDGET_MIGRATION_INSTRUCTIONS.md)**
 
-| Document | Purpose | When to Use |
-|----------|---------|-------------|
-| **[DPDPA Complete Implementation Guide](./DPDPA_COMPLETE_IMPLEMENTATION_GUIDE.md)** | End-to-end setup guide | ⭐ **START HERE** - First time implementation |
-| **[DPDPA Widget Implementation](./DPDPA_WIDGET_IMPLEMENTATION.md)** | Technical widget details | After setup, for customization |
+### Fixes
 
----
+*Bug fixes, patches, and diagnostic reports*
 
-### **🍪 Cookie Consent Documentation**
+- **[Consent Banner Fixes - Same Device Issue](./fixes/CONSENT_FIXES.md)**
+- **[Contact Page Consent Notice Fix](./fixes/CONTACT_PAGE_CONSENT_FIX.md)**
+- **[Cookie Banner Persistence & Performance Fixes](./fixes/COOKIE_BANNER_PERSISTENCE_FIX.md)**
+- **[Cookie Consent Module - Diagnostic Report & Resolution](./fixes/COOKIE_MODULE_DIAGNOSTIC_REPORT.md)**
+- **[Cookie Consent Module Fixes](./fixes/COOKIE_MODULE_FIXES.md)**
+- **[Widget Configuration Debug Checklist](./fixes/DEBUG_WIDGET_CONFIG.md)**
+- **[Display Rules Consent Save Issue - Root Cause & Fix](./fixes/DISPLAY_RULES_CONSENT_SAVE_FIX.md)**
+- **[DPDPA Module Comprehensive Fix & Review](./fixes/DPDPA_COMPREHENSIVE_FIX.md)**
+- **[DPDPA Consent Record 500 Error Fix](./fixes/DPDPA_CONSENT_RECORD_FIX.md)**
+- **[DPDPA Purposes Functionality - Diagnostic Report](./fixes/DPDPA_PURPOSES_DIAGNOSTIC.md)**
+- **[DPDPA Widget Activities Display Fix](./fixes/DPDPA_WIDGET_ACTIVITIES_FIX.md)**
+- **[DPDPA Widget Visibility Issue - Root Cause Analysis & Fix](./fixes/DPDPA_WIDGET_FIX_REPORT.md)**
+- **[DPDPA Module Fixes - Implementation Summary](./fixes/FIXES_APPLIED.md)**
+- **[Fixes Summary - Consently Issues Resolution](./fixes/FIXES_SUMMARY.md)**
+- **[Widget Configuration Sync Issue - Root Cause & Fix](./fixes/FIX_SUMMARY.md)**
+- **[Industry Templates Fix Documentation](./fixes/INDUSTRY_TEMPLATES_FIX.md)**
+- **[Issue Diagnostic Guide](./fixes/ISSUE_DIAGNOSTIC.md)**
+- **[Language Switching Lag & Blank Screen Fix](./fixes/LANGUAGE_SWITCHING_FIX.md)**
+- **[Live Widget Sync Issues - Complete Diagnostic Report](./fixes/LIVE_WIDGET_SYNC_DIAGNOSTIC.md)**
+- **[Onboarding Flow Fix - No Email Verification](./fixes/ONBOARDING_FLOW_FIX.md)**
+- **[Production Fixes & Improvements Summary](./fixes/PRODUCTION_FIXES_SUMMARY.md)**
+- **[Purposes Foreign Key Fix](./fixes/PURPOSES_FOREIGN_KEY_FIX.md)**
+- **[Testing Guide: New Activities Consent Validation Fix](./fixes/TESTING_NEW_ACTIVITIES_FIX.md)**
+- **[Update Activity & Custom Purpose Fix - Implementation Summary](./fixes/UPDATE_ACTIVITY_AND_CUSTOM_PURPOSE_FIX.md)**
 
-| Document | Purpose |
-|----------|---------|
-| **[Cookie Module Implementation](./COOKIE_MODULE_IMPLEMENTATION.md)** | Cookie consent features |
-| **[Export and Banner Implementation](./EXPORT_AND_BANNER_IMPLEMENTATION.md)** | Banner customization |
+### Summaries
 
----
+*Implementation summaries, production reports, and status updates*
 
-### **📊 General Documentation**
+- **[Bhashini Translation Lag & Overlay Fix - Solutions](./summaries/BHASHINI_OPTIMIZATION_SOLUTION.md)**
+- **[Cookie Management API Documentation](./summaries/COOKIE_APIS_DOCUMENTATION.md)**
+- **[Cookie Module APIs - Implementation Summary](./summaries/COOKIE_APIS_IMPLEMENTED.md)**
+- **[Cookie Banner Live Preview vs Live Site Sync Report](./summaries/COOKIE_BANNER_LIVE_PREVIEW_SYNC.md)**
+- **[Cookie Scanner - Page Scanning Limits](./summaries/COOKIE_SCANNER_PAGE_LIMITS.md)**
+- **[Production-Grade Cookie Scanner](./summaries/COOKIE_SCANNER_PRODUCTION.md)**
+- **[Cookie Scanner Production Refactor](./summaries/COOKIE_SCANNER_REFACTOR.md)**
+- **[DPDPA Module - Comprehensive Analysis & Recommendations](./summaries/DPDPA_FINDINGS_AND_RECOMMENDATIONS.md)**
+- **[DPDPA Module Cross-Check Report](./summaries/DPDPA_MODULE_CROSS_CHECK_REPORT.md)**
+- **[DPDPA Module Production Readiness Audit Report](./summaries/DPDPA_PRODUCTION_AUDIT.md)**
+- **[DPDPA Widget Live Site Review](./summaries/DPDPA_WIDGET_LIVE_SITE_REVIEW.md)**
+- **[🇮🇳 Indian Languages Support](./summaries/INDIAN_LANGUAGES_SUPPORT.md)**
+- **[Live Widget Sync - Troubleshooting Checklist](./summaries/LIVE_WIDGET_SYNC_CHECKLIST.md)**
+- **[🔍 Privacy Centre Implementation - Current State Review](./summaries/PRIVACY_CENTRE_REVIEW.md)**
+- **[Production Deployment Checklist - Consently](./summaries/PRODUCTION_DEPLOYMENT_CHECKLIST.md)**
+- **[Production Quality Improvements - Version 2.0](./summaries/PRODUCTION_QUALITY_IMPROVEMENTS_V2.md)**
+- **[DPDPA Widget UI/UX Improvements Summary](./summaries/UI_UX_IMPROVEMENTS_SUMMARY.md)**
+- **[DPDPA Widget - Table View Update Summary](./summaries/WIDGET_TABLE_VIEW_SUMMARY.md)**
 
-| Document | Purpose |
-|----------|---------|
-| **[Implementation Summary](./IMPLEMENTATION_SUMMARY.md)** | Platform overview |
-| **[Production Implementation](./PRODUCTION_IMPLEMENTATION_SUMMARY.md)** | Production deployment |
+### Setup
 
----
+*Getting started, setup instructions, and onboarding documentation*
 
-## 🚀 **Quick Start**
+- **[Cookie Scanner Quick Start Guide](./setup/COOKIE_SCANNER_QUICK_START.md)**
+- **[Page-Specific Notices - Quick Start Guide](./setup/PAGE_SPECIFIC_NOTICES_QUICK_START.md)**
 
-### **For DPDPA Compliance:**
+### Features
 
-```bash
-# 1. Create processing activities (or import from templates)
-Dashboard > DPDPA > Processing Activities > Industry Templates
+*Feature documentation, enhancements, and new functionality*
 
-# 2. Configure widget
-Dashboard > DPDPA > Widget > Select Activities
+- **[🚀 Cookie Scanner Enhancement Plan](./features/COOKIE_SCANNER_ENHANCEMENTS.md)**
+- **[Display Rules UI/UX Enhancement Plan](./features/DISPLAY_RULES_UI_ENHANCEMENT.md)**
+- **[DPDPA Widget UI/UX Improvements & Preference Center Integration](./features/DPDPA_WIDGET_UI_IMPROVEMENTS.md)**
+- **[Language Selector Feature for Consent Widgets](./features/LANGUAGE_SELECTOR_FEATURE.md)**
+- **[Cookie Widget Preview Feature](./features/PREVIEW_FEATURE_NOTES.md)**
+- **[🎉 Cookie Scanner Enhancements - Implementation Summary](./features/SCANNER_ENHANCEMENTS_COMPLETE.md)**
 
-# 3. Get embed code
-Dashboard > DPDPA > Integration > Copy Code
+### Architecture
 
-# 4. Deploy to website
-Add script tag to your site before </body>
-```
+*System architecture, design decisions, and technical deep-dives*
 
-### **For Cookie Consent:**
+- **[Cookie Content Management System - How It Works](./architecture/COOKIE_CONTENT_SYSTEM.md)**
+- **[Display Rule Modal UI Redesign](./architecture/DISPLAY_RULE_MODAL_REDESIGN.md)**
+- **[DPDPA Widget Multi-Page Preference Centre Analysis](./architecture/DPDPA_MULTI_PAGE_PREFERENCE_CENTRE_ANALYSIS.md)**
+- **[DPDPA Widget Multi-Page Integration Analysis](./architecture/DPDPA_WIDGET_MULTI_PAGE_ANALYSIS.md)**
+- **[Multi-Tenant Display Rules System - Feasibility Analysis](./architecture/MULTI_TENANT_DISPLAY_RULES_ANALYSIS.md)**
+- **[Page-Specific Purposes Analysis](./architecture/PAGE_SPECIFIC_PURPOSES_ANALYSIS.md)**
+- **[Performance & Scalability Analysis](./architecture/PERFORMANCE_SCALABILITY_ANALYSIS.md)**
+- **[Purposes System Documentation](./architecture/PURPOSES_SYSTEM_DOCUMENTATION.md)**
 
-```bash
-# 1. Scan your website
-Dashboard > Cookies > Scanner
+### Root Documentation
 
-# 2. Configure banner
-Dashboard > Cookies > Widget
+*Essential documentation kept in project root*
 
-# 3. Get embed code
-Dashboard > Cookies > Integration
+- **[🛡️ Consently - DPDPA 2023 Consent Manager](../README.md)**
+- **[Consently - Setup Complete! 🎉](../SETUP.md)**
+- **[🚀 Consent ID System - START HERE](../START_HERE.md)**
 
-# 4. Deploy
-Add script tag to your site
-```
 
----
 
-## ❓ **Common Questions**
+## Quick Links
 
-### **"How do processing activities become consent notices?"**
-
-1. You create/import activities (what data you process)
-2. You select activities in widget config
-3. Widget displays them to users on your website
-4. Users provide granular consent for each activity
-5. Consent is recorded with unique IDs
-
-**[Full explanation here →](./DPDPA_COMPLETE_IMPLEMENTATION_GUIDE.md#-how-activities-become-consent-notices)**
-
----
-
-### **"Where do users see these activities?"**
-
-Activities appear in the **consent widget modal** on your website. Each activity shows:
-- Activity name (e.g., "Marketing Communications")
-- Purpose (why you need this data)
-- Data categories (what data you collect)
-- Retention period (how long you keep it)
-- Accept/Reject buttons
-
----
-
-### **"How do I integrate industry templates?"**
-
-Templates are **pre-configured activities** for your industry:
-
-1. Click "Industry Templates" button
-2. Select your industry (E-commerce, Healthcare, etc.)
-3. Choose which activities to import
-4. Activities are added to your database
-5. Select them in widget configuration
-6. They appear in the widget on your site
-
-**[Detailed guide →](./DPDPA_COMPLETE_IMPLEMENTATION_GUIDE.md#step-1-choose-industry-templates--create-activities)**
-
----
-
-### **"Can I generate privacy notices from activities?"**
-
-Yes! Use the notice generator API:
-
-```javascript
-POST /api/dpdpa/notice-generator
-{
-  "activityIds": ["id1", "id2"],
-  "format": "html"
-}
-```
-
-Returns a complete DPDPA-compliant privacy notice you can:
-- Add to your privacy policy page
-- Share with users
-- Use for documentation
-
-**[Full API docs →](./DPDPA_COMPLETE_IMPLEMENTATION_GUIDE.md#step-3-generate-privacy-notice-optional-but-recommended)**
-
----
-
-## 🔄 **Implementation Flow Diagram**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  1. ADMIN: Choose Industry Template                     │
-│     (E-commerce, Healthcare, Banking, etc.)             │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│  2. SYSTEM: Import Processing Activities                │
-│     - Customer Registration                             │
-│     - Order Processing                                  │
-│     - Marketing Communications                          │
-│     (Saved to database)                                 │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│  3. ADMIN: Configure Consent Widget                     │
-│     - Select which activities to show                   │
-│     - Customize appearance                              │
-│     - Get widget ID and embed code                      │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│  4. ADMIN: Deploy Widget on Website                     │
-│     <script src="widget.js"                             │
-│             data-widget-id="xxx"></script>              │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│  5. USER: Sees Consent Notice                           │
-│     Modal with all selected activities                  │
-│     - Each activity has Accept/Reject button            │
-│     - Shows purpose, data categories, retention         │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│  6. USER: Provides Consent                              │
-│     - Accepts some activities                           │
-│     - Rejects others                                    │
-│     - Gets unique session ID                            │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│  7. SYSTEM: Records Consent                             │
-│     - Stores with unique ID                             │
-│     - Tracks which activities accepted/rejected         │
-│     - Offers download receipt                           │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│  8. ADMIN: Monitor Dashboard                            │
-│     - View all consents                                 │
-│     - Search by session ID or email                     │
-│     - Export compliance reports                         │
-│     - Handle grievances                                 │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🎯 **Key Features Implemented**
-
-### **DPDPA Consent Management**
-- ✅ Industry-specific activity templates
-- ✅ Custom activity creation
-- ✅ Widget configuration with activity selection
-- ✅ Live consent widget (modal/banner/slide-in)
-- ✅ Granular per-activity consent
-- ✅ Unique session IDs
-- ✅ Consent records with search
-- ✅ Privacy notice generator
-- ✅ Grievance management
-- ✅ Compliance reports (JSON/CSV/PDF)
-- ✅ Analytics dashboard
-
-### **User Features**
-- ✅ Accept/reject individual activities
-- ✅ Withdraw/modify consent
-- ✅ Raise grievances
-- ✅ Download consent receipt
-- ✅ Email consent copy
-- ✅ View data rights information
-
-### **Admin Features**
-- ✅ Import bulk activities from templates
-- ✅ Edit/customize activities
-- ✅ Configure multiple widgets
-- ✅ Preview widget appearance
-- ✅ View consent records
-- ✅ Search by session ID or email
-- ✅ Export reports
-- ✅ Track grievances
-- ✅ Activity-level analytics
-
----
-
-## 📧 **Support**
-
-Need help? Check:
-1. **[Complete Implementation Guide](./DPDPA_COMPLETE_IMPLEMENTATION_GUIDE.md)** - Most questions answered here
-2. API documentation in each guide
-3. Code examples in `/public/test-widget.html`
-4. Integration examples in Dashboard > DPDPA > Integration
-
----
-
-## ✅ **Compliance Notes**
-
-All documentation assumes compliance with:
-- **DPDPA 2023** (India)
-- **GDPR** (where applicable)
-- **Best practices** for consent management
-
-Remember:
-- Respond to data rights requests within **72 hours**
-- Maintain **audit trail** of all consents
-- Allow **easy withdrawal** of consent
-- Provide **clear information** about data processing
-- Honor user preferences **immediately**
-
----
-
-**Last Updated:** October 2024
+- [Complete Documentation Index](./INDEX.md)
+- [Getting Started](../SETUP.md)
+- [Start Here](../START_HERE.md)
+- [Main README](../README.md)

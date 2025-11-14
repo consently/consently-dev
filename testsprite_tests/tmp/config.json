@@ -1,0 +1,18 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "loginUser": "demo@consently.app",
+  "loginPassword": "DemoUser123!",
+  "executionArgs": {
+    "projectName": "consently-dev",
+    "projectPath": "/Users/krissdev/consently-dev",
+    "testIds": [],
+    "additionalInstruction": "",
+    "envs": {
+      "API_KEY": "sk-user-4HAD8VQKvZm9eUCkvz7VutcQax3-yFQJAzsCS1Ohhb8NCeQnDn4x6NStrDhZbapJtWE5KGPsQDkSGo5HwVYKVvKbVdBxJuczPgAN9Xxpq32l0Aq-7LCFo4YZGOOm-Gr8LyU"
+    }
+  },
+  "proxy": "http://f6d57d9a-6541-42d2-bbe1-30a9c8271482:KCK9OWatkQamMrxjl2hBbBjBzp92vXz1@tun.testsprite.com:8080"
+}

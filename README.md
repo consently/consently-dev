@@ -151,8 +151,48 @@ consently-dev/
 │   └── utils.ts         # Utility functions
 ├── types/               # TypeScript types
 ├── supabase/           # Supabase SQL schemas
+├── docs/               # Documentation (organized by category)
+│   ├── guides/         # Implementation guides
+│   ├── fixes/          # Bug fixes & patches
+│   ├── features/       # Feature documentation
+│   ├── summaries/     # Project summaries
+│   ├── architecture/   # System architecture
+│   └── setup/         # Setup guides
 └── public/             # Static assets
 ```
+
+## 📚 Documentation
+
+All project documentation is organized in the `docs/` directory. The documentation is automatically categorized and indexed for easy navigation.
+
+### Quick Access
+
+- **[📖 Documentation Index](./docs/INDEX.md)** - Complete index of all documentation
+- **[🚀 Getting Started](./SETUP.md)** - Setup and installation guide
+- **[⭐ Start Here](./START_HERE.md)** - Quick start guide for new developers
+
+### Documentation Categories
+
+- **Guides** (`docs/guides/`) - Step-by-step implementation guides and how-to documentation
+- **Fixes** (`docs/fixes/`) - Bug fixes, patches, and diagnostic reports
+- **Features** (`docs/features/`) - Feature documentation and enhancements
+- **Summaries** (`docs/summaries/`) - Project summaries and status reports
+- **Architecture** (`docs/architecture/`) - System architecture and technical deep-dives
+- **Setup** (`docs/setup/`) - Getting started and quick start guides
+
+### Organizing Documentation
+
+To organize documentation files automatically:
+
+```bash
+npm run organize-docs
+```
+
+This script will:
+- Move root-level markdown files to appropriate categories
+- Organize files in the `docs/` folder
+- Generate an updated `docs/INDEX.md` with all documentation
+- Update `docs/README.md` with navigation links
 
 ## 🎨 Color Theme
 

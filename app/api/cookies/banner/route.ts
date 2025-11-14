@@ -356,30 +356,52 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error creating banner:', error);
+      throw error;
+    }
 
-    // Create initial version
-    await supabase
-      .from('banner_versions')
-      .insert({
-        banner_id: banner.id,
+    if (!banner) {
+      throw new Error('Banner was not created');
+    }
+
+    // Create initial version (non-blocking - don't fail if this fails)
+    try {
+      const { error: versionError } = await supabase
+        .from('banner_versions')
+        .insert({
+          banner_id: banner.id,
+          user_id: user.id,
+          config: config,
+          version: 1,
+          change_description: 'Initial version',
+        });
+
+      if (versionError) {
+        console.warn('Failed to create banner version (non-critical):', versionError);
+        // Don't throw - version history is optional
+      }
+    } catch (versionErr) {
+      console.warn('Error creating banner version (non-critical):', versionErr);
+      // Continue - version history is optional
+    }
+
+    // Log audit (non-blocking)
+    try {
+      await logAudit({
         user_id: user.id,
-        config: config,
-        version: 1,
-        change_description: 'Initial version',
+        action: 'banner_configured',
+        resource_type: 'banner_config',
+        resource_id: banner.id,
+        changes: { created: banner },
+        ip_address: request.headers.get('x-forwarded-for') || undefined,
+        user_agent: request.headers.get('user-agent') || undefined,
+        status: 'success',
       });
-
-    // Log audit
-    await logAudit({
-      user_id: user.id,
-      action: 'banner_configured',
-      resource_type: 'banner_config',
-      resource_id: banner.id,
-      changes: { created: banner },
-      ip_address: request.headers.get('x-forwarded-for') || undefined,
-      user_agent: request.headers.get('user-agent') || undefined,
-      status: 'success',
-    });
+    } catch (auditErr) {
+      console.warn('Failed to log audit (non-critical):', auditErr);
+      // Continue - audit logging is optional
+    }
 
     // Transform to camelCase for response
     const transformedBanner = transformBannerToCamelCase(banner);
@@ -390,10 +412,18 @@ export async function POST(request: NextRequest) {
       message: 'Banner configuration created successfully',
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating banner config:', error);
+    
+    // Return more detailed error information
+    const errorMessage = error?.message || 'Failed to create banner configuration';
+    const errorDetails = error?.details || error?.hint || undefined;
+    
     return NextResponse.json(
-      { error: 'Failed to create banner configuration' },
+      { 
+        error: errorMessage,
+        details: errorDetails ? [errorDetails] : undefined
+      },
       { status: 500 }
     );
   }
@@ -511,41 +541,61 @@ export async function PUT(request: NextRequest) {
 
     if (error) throw error;
 
-    // Get current version number
-    const { data: versions } = await supabase
-      .from('banner_versions')
-      .select('version')
-      .eq('banner_id', id)
-      .order('version', { ascending: false })
-      .limit(1);
+    // Get current version number (non-blocking)
+    let newVersion = 1;
+    try {
+      const { data: versions } = await supabase
+        .from('banner_versions')
+        .select('version')
+        .eq('banner_id', id)
+        .order('version', { ascending: false })
+        .limit(1);
 
-    const newVersion = (versions?.[0]?.version || 0) + 1;
+      newVersion = (versions?.[0]?.version || 0) + 1;
+    } catch (versionErr) {
+      console.warn('Failed to get version number (non-critical):', versionErr);
+      // Continue with version 1
+    }
 
-    // Create new version
-    await supabase
-      .from('banner_versions')
-      .insert({
-        banner_id: id,
+    // Create new version (non-blocking)
+    try {
+      const { error: versionError } = await supabase
+        .from('banner_versions')
+        .insert({
+          banner_id: id,
+          user_id: user.id,
+          config: updatedBanner,
+          version: newVersion,
+          change_description: body.change_description || 'Updated configuration',
+        });
+
+      if (versionError) {
+        console.warn('Failed to create banner version (non-critical):', versionError);
+      }
+    } catch (versionErr) {
+      console.warn('Error creating banner version (non-critical):', versionErr);
+      // Continue - version history is optional
+    }
+
+    // Log audit (non-blocking)
+    try {
+      await logAudit({
         user_id: user.id,
-        config: updatedBanner,
-        version: newVersion,
-        change_description: body.change_description || 'Updated configuration',
+        action: 'banner_configured',
+        resource_type: 'banner_config',
+        resource_id: id,
+        changes: { 
+          before: existingBanner,
+          after: updatedBanner 
+        },
+        ip_address: request.headers.get('x-forwarded-for') || undefined,
+        user_agent: request.headers.get('user-agent') || undefined,
+        status: 'success',
       });
-
-    // Log audit
-    await logAudit({
-      user_id: user.id,
-      action: 'banner_configured',
-      resource_type: 'banner_config',
-      resource_id: id,
-      changes: { 
-        before: existingBanner,
-        after: updatedBanner 
-      },
-      ip_address: request.headers.get('x-forwarded-for') || undefined,
-      user_agent: request.headers.get('user-agent') || undefined,
-      status: 'success',
-    });
+    } catch (auditErr) {
+      console.warn('Failed to log audit (non-critical):', auditErr);
+      // Continue - audit logging is optional
+    }
 
     // Transform to camelCase for response
     const transformedBanner = transformBannerToCamelCase(updatedBanner);
@@ -557,10 +607,18 @@ export async function PUT(request: NextRequest) {
       message: 'Banner configuration updated successfully',
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating banner config:', error);
+    
+    // Return more detailed error information
+    const errorMessage = error?.message || 'Failed to update banner configuration';
+    const errorDetails = error?.details || error?.hint || undefined;
+    
     return NextResponse.json(
-      { error: 'Failed to update banner configuration' },
+      { 
+        error: errorMessage,
+        details: errorDetails ? [errorDetails] : undefined
+      },
       { status: 500 }
     );
   }

@@ -467,10 +467,24 @@ export default function CookieScanPage() {
         if (bannerResult.error) {
           errorMessage = bannerResult.error;
         }
+        
+        // Handle validation errors
         if (bannerResult.details && Array.isArray(bannerResult.details)) {
-          const detailsText = bannerResult.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+          const detailsText = bannerResult.details
+            .map((d: any) => {
+              if (typeof d === 'string') return d;
+              if (d.field && d.message) return `${d.field}: ${d.message}`;
+              return JSON.stringify(d);
+            })
+            .join(', ');
           errorMessage += `. Details: ${detailsText}`;
         }
+        
+        // Show detailed error to user
+        toast.error(errorMessage, {
+          duration: 7000,
+          description: 'Please check your input and try again.'
+        });
         
         throw new Error(errorMessage);
       }
@@ -480,7 +494,9 @@ export default function CookieScanPage() {
         throw new Error('Banner created but no ID returned');
       }
 
-      toast.success('✓ Custom banner template created!');
+      toast.success('✓ Custom banner template created!', {
+        duration: 3000,
+      });
       console.log('Creating widget configuration...');
 
       // Step 2: Create widget configuration with custom settings
@@ -539,7 +555,9 @@ export default function CookieScanPage() {
         throw new Error(widgetResult.error || 'Failed to create widget configuration');
       }
 
-      toast.success('✓ Widget configuration saved!');
+      toast.success('✓ Widget configuration saved!', {
+        duration: 3000,
+      });
       console.log('Complete! Widget ID:', widgetId);
 
       // Show success message with embed code
@@ -549,15 +567,24 @@ export default function CookieScanPage() {
       // Copy embed code to clipboard
       try {
         await navigator.clipboard.writeText(embedCode);
-        toast.success('🎉 Complete! Embed code copied to clipboard!');
+        toast.success('🎉 Complete! Embed code copied to clipboard!', {
+          duration: 5000,
+          description: 'Your cookie consent widget is ready to use.'
+        });
       } catch (e) {
-        toast.success('🎉 Cookie consent widget created successfully!');
+        toast.success('🎉 Cookie consent widget created successfully!', {
+          duration: 5000,
+          description: `Widget ID: ${widgetId}`
+        });
       }
       
-      // Navigate to widget configuration page
+      // Close the modal first
+      setShowCustomizationModal(false);
+      
+      // Navigate to widget configuration page after a short delay
       setTimeout(() => {
         router.push('/dashboard/cookies/widget');
-      }, 2000);
+      }, 1500);
 
     } catch (error) {
       console.error('Banner generation error:', error);

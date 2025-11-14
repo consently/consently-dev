@@ -217,11 +217,19 @@ export function BannerCustomizationModal({
     try {
       setSaving(true);
       await onSave(data);
-      toast.success('Banner configuration saved successfully!');
+      // Don't show success toast here - let the parent component handle it
+      // This allows the parent to show more detailed success messages
       onClose();
     } catch (error) {
       console.error('Error saving banner config:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save configuration');
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to save configuration. Please check the console for details.';
+      toast.error(errorMessage, {
+        duration: 5000,
+        description: 'If this persists, please try again or contact support.'
+      });
+      // Don't close modal on error so user can fix and retry
     } finally {
       setSaving(false);
     }

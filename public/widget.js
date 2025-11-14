@@ -254,6 +254,71 @@
   }
 
   // Fetch widget configuration
+  // Show error message to site owners (visible but non-intrusive)
+  function showWidgetError(message, isCritical = false) {
+    // Only show visible errors in development or if explicitly enabled
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                         window.location.hostname.includes('127.0.0.1') ||
+                         window.location.hostname.includes('consently.in');
+    
+    if (!isDevelopment && !isCritical) {
+      // In production, only log to console
+      console.warn('[Consently]', message);
+      return;
+    }
+    
+    // Prevent duplicate error banners
+    const existingBanner = document.getElementById('consently-widget-error');
+    if (existingBanner) {
+      return;
+    }
+    
+    // Create a subtle error banner for site owners
+    const errorBanner = document.createElement('div');
+    errorBanner.id = 'consently-widget-error';
+    errorBanner.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: ${isCritical ? '#fee2e2' : '#fef3c7'};
+      border: 1px solid ${isCritical ? '#fca5a5' : '#fcd34d'};
+      border-radius: 8px;
+      padding: 12px 16px;
+      max-width: 400px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      color: ${isCritical ? '#991b1b' : '#92400e'};
+    `;
+    
+    errorBanner.innerHTML = `
+      <div style="display: flex; align-items: flex-start; gap: 8px;">
+        <span style="font-size: 18px;">${isCritical ? '⚠️' : 'ℹ️'}</span>
+        <div style="flex: 1;">
+          <strong style="display: block; margin-bottom: 4px;">Consently Widget ${isCritical ? 'Error' : 'Notice'}</strong>
+          <div>${message}</div>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" 
+                style="background: none; border: none; font-size: 18px; cursor: pointer; color: inherit; opacity: 0.6; padding: 0; line-height: 1;">
+          ×
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(errorBanner);
+    
+    // Auto-remove after 10 seconds for non-critical errors
+    if (!isCritical) {
+      setTimeout(() => {
+        if (errorBanner.parentElement) {
+          errorBanner.remove();
+        }
+      }, 10000);
+    }
+  }
+
   async function fetchBannerConfig(isPolling = false) {
     try {
       const scriptSrc = currentScript.src;
@@ -319,12 +384,32 @@
       if (!response.ok) {
         // Handle 404 - widget doesn't exist
         if (response.status === 404) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || 'Widget configuration not found';
+          
           if (!isPolling) {
-            console.error(`[Consently] Widget ${widgetId} not found. Please create this widget in the Consently dashboard.`);
+            console.error(`[Consently] Widget ${widgetId} not found:`, {
+              widgetId: widgetId,
+              status: response.status,
+              error: errorMessage,
+              hint: 'This widget may have been deleted. Please check your Consently dashboard and create a new widget if needed.'
+            });
+            
+            // Show user-friendly error message
+            showWidgetError(
+              `Widget ID "${widgetId}" not found. This widget may have been deleted. ` +
+              `Please check your Consently dashboard or contact support if this persists.`,
+              true
+            );
           }
           // Stop polling if widget doesn't exist
           stopConfigPolling();
           throw new Error(`Widget not found`);
+        } else if (response.status === 429) {
+          if (!isPolling) {
+            console.warn('[Consently] Rate limit exceeded. Retrying later...');
+          }
+          throw new Error('Rate limit exceeded');
         }
         // Other errors
         if (!isPolling) {
@@ -389,6 +474,15 @@
     } catch (error) {
       if (!isPolling) {
         console.error('[Consently] Failed to load config:', error);
+        
+        // Show network error message for non-404 errors
+        if (error.message && !error.message.includes('Widget not found') && 
+            (error.message.includes('timeout') || error.message.includes('fetch'))) {
+          showWidgetError(
+            'Unable to connect to Consently service. Please check your internet connection.',
+            false
+          );
+        }
       }
       config.widgetId = widgetId;
       config.apiEndpoint = '/api/consent/record';
@@ -765,10 +859,11 @@
           border: 1px solid #e5e7eb;
           border-radius: 8px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          z-index: 10;
+          z-index: 10000;
           min-width: 180px;
           max-height: 240px;
           overflow-y: auto;
+          pointer-events: auto;
         }
         .consently-lang-menu-banner button {
           display: flex;
@@ -782,6 +877,8 @@
           cursor: pointer;
           font-size: 13px;
           transition: background 0.15s;
+          pointer-events: auto;
+          user-select: none;
         }
         .consently-lang-menu-banner button:hover {
           background: #f0f9ff;
@@ -931,7 +1028,13 @@
 
     const settingsBtn = document.getElementById('consently-settings');
     if (settingsBtn) {
-      settingsBtn.addEventListener('click', function() {
+      settingsBtn.addEventListener('click', function(e) {
+        // Prevent if language change is in progress
+        if (languageChangeInProgress) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
         showSettingsModal();
       });
     }
@@ -958,13 +1061,27 @@
           return;
         }
         
+        // Ensure language is set before proceeding
+        if (!newLang || newLang === selectedLanguage) {
+          return;
+        }
+        
         languageChangeInProgress = true;
-        langBtnBanner.disabled = true;
+        if (langBtnBanner) langBtnBanner.disabled = true;
         
         try {
+          console.log('[Consently] Changing language from', selectedLanguage, 'to', newLang);
+          
+          // Ensure language is set
           selectedLanguage = newLang;
-          localStorage.setItem('consently_language', newLang);
-          langMenuBanner.style.display = 'none';
+          try {
+            localStorage.setItem('consently_language', newLang);
+          } catch (e) {
+            console.warn('[Consently] Failed to save language preference');
+          }
+          
+          // Close language menu if still open
+          if (langMenuBanner) langMenuBanner.style.display = 'none';
           
           // Remove both banner and backdrop explicitly
           const existingBanner = document.getElementById('consently-banner');
@@ -972,22 +1089,42 @@
           if (existingBanner) existingBanner.remove();
           if (existingBackdrop) existingBackdrop.remove();
           
+          // Show banner with new language
           await showConsentBanner();
         } catch (error) {
           console.error('[Consently] Language change error:', error);
         } finally {
           languageChangeInProgress = false;
+          if (langBtnBanner) langBtnBanner.disabled = false;
         }
       }, 300);
       
       langMenuBanner.querySelectorAll('button[data-lang]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
+          e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Prevent any other handlers from firing
+          
+          // Close the language menu immediately
+          langMenuBanner.style.display = 'none';
+          
           const newLang = this.getAttribute('data-lang');
-          if (newLang !== selectedLanguage) {
+          if (newLang && newLang !== selectedLanguage) {
+            // Update language immediately before any async operations
+            selectedLanguage = newLang;
+            try {
+              localStorage.setItem('consently_language', newLang);
+            } catch (e) {
+              console.warn('[Consently] Failed to save language preference');
+            }
+            
+            // Then trigger the language change handler
             handleLanguageChange(newLang);
           }
-        });
+          
+          // Return false to ensure no further event propagation
+          return false;
+        }, true); // Use capture phase to catch event early
       });
     }
   }
@@ -1355,12 +1492,29 @@
       
       langMenu.querySelectorAll('button[data-lang]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
+          e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Prevent any other handlers
+          
+          // Close the language menu immediately
+          langMenu.style.display = 'none';
+          
           const newLang = this.getAttribute('data-lang');
-          if (newLang !== selectedLanguage) {
+          if (newLang && newLang !== selectedLanguage) {
+            // Update language immediately
+            selectedLanguage = newLang;
+            try {
+              localStorage.setItem('consently_language', newLang);
+            } catch (e) {
+              console.warn('[Consently] Failed to save language preference');
+            }
+            
+            // Then trigger the modal language change handler
             handleModalLanguageChange(newLang);
           }
-        });
+          
+          return false;
+        }, true); // Use capture phase
       });
     }
 

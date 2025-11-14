@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "build:widget": "node scripts/build-widget.js",
-    "test:widget": "npm run dev"
+    "test:widget": "npm run dev",
+    "organize-docs": "tsx scripts/organize-docs.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -31,6 +32,7 @@
     "recharts": "^3.2.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
+    "uuid": "^13.0.0",
     "vercel": "^48.8.0",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
@@ -40,11 +42,13 @@
     "@types/node": "^20.19.20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9.37.0",
     "eslint-config-next": "^15.5.4",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }
