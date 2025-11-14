@@ -92,4 +92,4 @@ export interface UpdateNotificationPreferencesInput {
   marketing_emails?: boolean;
 }
 
-export type SettingsTab = 'profile' | 'security' | 'notifications' | 'billing';
+export type SettingsTab = 'profile' | 'security' | 'notifications';

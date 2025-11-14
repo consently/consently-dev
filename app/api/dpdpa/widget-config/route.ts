@@ -301,7 +301,7 @@ export async function PUT(request: NextRequest) {
     if (configData.isActive !== undefined) updatePayload.is_active = configData.isActive;
     if (configData.supportedLanguages !== undefined) updatePayload.supported_languages = configData.supportedLanguages;
     
-    // Validate and clean display rules
+    // IMPROVED: Validate and clean display rules with empty state detection
     if (configData.displayRules !== undefined) {
       // Get the selected_activities to validate against
       const selectedActivities = updatePayload.selected_activities || configData.selectedActivities || [];
@@ -325,19 +325,53 @@ export async function PUT(request: NextRequest) {
             });
           }
           
+          // EMPTY STATE VALIDATION: Warn if rule will result in zero activities
+          if (validRuleActivities.length === 0) {
+            console.error('[Widget Config API] ⚠️ CRITICAL: Display rule will show ZERO activities!', {
+              ruleId: rule.id,
+              ruleName: rule.rule_name,
+              urlPattern: rule.url_pattern,
+              reason: 'All rule activities filtered out - not in widget selected_activities',
+              fix: 'Add valid activity IDs to rule.activities that exist in widget.selected_activities'
+            });
+            // Mark rule as inactive to prevent showing empty widget
+            return { ...rule, activities: validRuleActivities, is_active: false, _auto_disabled: true };
+          }
+          
           return { ...rule, activities: validRuleActivities };
         }
         
-        // If no activities specified, rule shows all selected_activities (no change needed)
+        // If no activities specified, rule shows all selected_activities
+        // Validate that selected_activities is not empty
+        if (selectedActivities.length === 0) {
+          console.error('[Widget Config API] ⚠️ CRITICAL: Display rule with no activities specified, but widget has NO selected_activities!', {
+            ruleId: rule.id,
+            ruleName: rule.rule_name,
+            urlPattern: rule.url_pattern,
+            fix: 'Add activities to widget.selected_activities or specify activities in rule'
+          });
+          // Mark rule as inactive
+          return { ...rule, is_active: false, _auto_disabled: true };
+        }
+        
         return rule;
       });
       
       updatePayload.display_rules = cleanedDisplayRules;
       
+      // Count auto-disabled rules
+      const autoDisabledCount = cleanedDisplayRules.filter((r: any) => r._auto_disabled).length;
+      
       console.log('[Widget Config API] Display rules validated:', {
         rulesCount: cleanedDisplayRules.length,
+        activeRulesCount: cleanedDisplayRules.filter((r: any) => r.is_active).length,
+        autoDisabledCount,
         selectedActivitiesCount: selectedActivities.length
       });
+      
+      if (autoDisabledCount > 0) {
+        console.warn('[Widget Config API] ⚠️ Some rules were auto-disabled due to empty state. Check logs above for details.');
+      }
     }
 
     // Update widget configuration

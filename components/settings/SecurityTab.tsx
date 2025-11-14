@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Shield, Lock } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import { changePasswordSchema, type ChangePasswordInput } from '@/lib/schemas';
 
 interface SecurityTabProps {
@@ -93,28 +93,6 @@ export function SecurityTab({ onPasswordUpdate, updating }: SecurityTabProps) {
               </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-gray-600" />
-            <CardTitle>Two-Factor Authentication</CardTitle>
-          </div>
-          <CardDescription>Add an extra layer of security to your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div>
-              <p className="font-medium text-gray-900">2FA Status</p>
-              <p className="text-sm text-gray-600 mt-1">Currently disabled</p>
-              <p className="text-xs text-gray-500 mt-2">Coming soon: SMS and authenticator app support</p>
-            </div>
-            <Button variant="outline" disabled>
-              Enable 2FA
-            </Button>
-          </div>
         </CardContent>
       </Card>
 

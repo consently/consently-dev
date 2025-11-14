@@ -97,9 +97,30 @@ export async function GET(
       });
     }
 
+    // OPTIMIZED: Use Supabase joins to fetch all data in ONE query (no N+1 problem)
     const { data: activitiesRaw, error: activitiesError } = await supabase
       .from('processing_activities')
-      .select('id, activity_name, industry, purpose, data_attributes, retention_period')
+      .select(`
+        id,
+        activity_name,
+        industry,
+        activity_purposes(
+          id,
+          purpose_id,
+          legal_basis,
+          custom_description,
+          purposes(
+            id,
+            purpose_name,
+            description
+          ),
+          purpose_data_categories(
+            id,
+            category_name,
+            retention_period
+          )
+        )
+      `)
       .in('id', selectedActivitiesIds)
       .eq('is_active', true);
 
@@ -112,7 +133,7 @@ export async function GET(
       console.log('[Widget Public API] First activity:', {
         id: activitiesRaw[0].id,
         name: activitiesRaw[0].activity_name,
-        hasPurposes: false // Will be checked later
+        hasPurposes: !!activitiesRaw[0].activity_purposes
       });
     } else if (selectedActivitiesIds.length > 0) {
       console.warn('[Widget Public API] No activities found despite selected_activities being non-empty!');
@@ -122,80 +143,39 @@ export async function GET(
       console.warn('  3. Data type mismatch (UUID vs string)');
     }
 
-    // Fetch purposes for each activity
-    const activities = await Promise.all(
-      (activitiesRaw || []).map(async (activity) => {
-        // Fetch purposes with their data categories
-        const { data: activityPurposes, error: purposesError } = await supabase
-          .from('activity_purposes')
-          .select(`
-            id,
-            purpose_id,
-            legal_basis,
-            custom_description,
-            purposes (
-              id,
-              purpose_name,
-              description
-            )
-          `)
-          .eq('activity_id', activity.id);
+    // Transform the joined data into the expected format
+    const activities = (activitiesRaw || []).map((activity: any) => {
+      // Transform purposes with their categories
+      const purposesWithCategories = (activity.activity_purposes || []).map((ap: any) => ({
+        id: ap.id,
+        purposeId: ap.purpose_id,
+        purposeName: ap.purposes?.purpose_name || 'Unknown Purpose',
+        legalBasis: ap.legal_basis,
+        customDescription: ap.custom_description,
+        dataCategories: (ap.purpose_data_categories || []).map((c: any) => ({
+          id: c.id,
+          categoryName: c.category_name,
+          retentionPeriod: c.retention_period,
+        })),
+      }));
 
-        if (purposesError) {
-          console.error('[Widget Public API] Error fetching purposes for activity', activity.id, ':', purposesError);
-        }
+      const processedActivity = {
+        id: activity.id,
+        activity_name: activity.activity_name,
+        industry: activity.industry,
+        // New structure with purposes (the ONLY structure now)
+        purposes: purposesWithCategories,
+      };
 
-        // Fetch data categories for each purpose
-        const purposesWithCategories = await Promise.all(
-          (activityPurposes || []).map(async (ap: any) => {
-            const { data: categories, error: categoriesError } = await supabase
-              .from('purpose_data_categories')
-              .select('*')
-              .eq('activity_purpose_id', ap.id);
+      // Log activity structure for debugging
+      console.log('[Widget Public API] Processed activity:', {
+        id: processedActivity.id,
+        name: processedActivity.activity_name,
+        purposesCount: processedActivity.purposes?.length || 0,
+      });
 
-            if (categoriesError) {
-              console.error('[Widget Public API] Error fetching categories for purpose', ap.id, ':', categoriesError);
-            }
-
-            return {
-              id: ap.id,
-              purposeId: ap.purpose_id,
-              purposeName: ap.purposes?.purpose_name || 'Unknown Purpose',
-              legalBasis: ap.legal_basis,
-              customDescription: ap.custom_description,
-              dataCategories: (categories || []).map((c: any) => ({
-                id: c.id,
-                categoryName: c.category_name,
-                retentionPeriod: c.retention_period,
-              })),
-            };
-          })
-        );
-
-        const processedActivity = {
-          id: activity.id,
-          activity_name: activity.activity_name,
-          industry: activity.industry,
-          // New structure with purposes
-          purposes: purposesWithCategories,
-          // Legacy fields for backward compatibility
-          purpose: activity.purpose,
-          data_attributes: activity.data_attributes || [],
-          retention_period: activity.retention_period,
-        };
-
-        // Log activity structure for debugging
-        console.log('[Widget Public API] Processed activity:', {
-          id: processedActivity.id,
-          name: processedActivity.activity_name,
-          purposesCount: processedActivity.purposes?.length || 0,
-          dataAttributesCount: processedActivity.data_attributes?.length || 0,
-          hasLegacyPurpose: !!processedActivity.purpose
-        });
-
-        return processedActivity;
-      })
-    );
+      return processedActivity;
+    });
 
     console.log('[Widget Public API] Final activities count after processing:', activities.length);
     if (activities.length === 0 && selectedActivitiesIds.length > 0) {
@@ -345,15 +325,13 @@ function generatePrivacyNoticeHTML(activities: any[], domain: string): string {
   const companyName = domain || '[Your Company Name]';
   
   const activitySections = activities.map((activity, index) => {
-    // Use new purposes structure if available, otherwise fall back to legacy
-    const hasNewStructure = activity.purposes && activity.purposes.length > 0;
-    
+    // Use new purposes structure (ONLY structure now - no legacy fallback)
     let purposesList = '';
     let allDataCategories: string[] = [];
     let retentionText = 'N/A';
     
-    if (hasNewStructure) {
-      // New structure: show all purposes
+    if (activity.purposes && activity.purposes.length > 0) {
+      // Show all purposes
       purposesList = activity.purposes.map((p: any) => {
         const dataCategories = p.dataCategories?.map((cat: any) => cat.categoryName) || [];
         allDataCategories.push(...dataCategories);
@@ -368,15 +346,8 @@ function generatePrivacyNoticeHTML(activities: any[], domain: string): string {
         
         return `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis.replace('-', ' '))})</li>`;
       }).join('');
-      
-      if (allDataCategories.length === 0) {
-        allDataCategories = activity.data_attributes || [];
-      }
     } else {
-      // Legacy structure
-      purposesList = activity.purpose ? `<li>${escapeHtml(activity.purpose)}</li>` : '<li>No purposes defined</li>';
-      allDataCategories = activity.data_attributes || [];
-      retentionText = activity.retention_period || 'N/A';
+      purposesList = '<li>No purposes defined</li>';
     }
     
     const dataCategoriesText = allDataCategories.length > 0 

@@ -225,6 +225,79 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // MANUAL SYNC: Create consent record for preference updates
+    // This ensures dpdpa_consent_records stays in sync with visitor_consent_preferences
+    try {
+      // Separate activities by consent status
+      const acceptedActivities = preferences
+        .filter((p) => p.consentStatus === 'accepted')
+        .map((p) => p.activityId);
+      const rejectedActivities = preferences
+        .filter((p) => p.consentStatus === 'rejected' || p.consentStatus === 'withdrawn')
+        .map((p) => p.activityId);
+
+      // Only create consent record if there are activities
+      if (acceptedActivities.length > 0 || rejectedActivities.length > 0) {
+        // Determine consent status
+        let consentStatus: 'accepted' | 'rejected' | 'partial';
+        if (acceptedActivities.length > 0 && rejectedActivities.length === 0) {
+          consentStatus = 'accepted';
+        } else if (rejectedActivities.length > 0 && acceptedActivities.length === 0) {
+          consentStatus = 'rejected';
+        } else {
+          consentStatus = 'partial';
+        }
+
+        // Generate unique consent_id
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        const consentId = `${widgetId}_${visitorId}_${timestamp}_${randomSuffix}`;
+
+        // Build consent details
+        const consentDetails = {
+          activityConsents: {},
+          metadata: {
+            ipAddress: metadata?.ipAddress,
+            userAgent: metadata?.userAgent,
+            deviceType: metadata?.deviceType,
+            language: metadata?.language,
+            source: 'preference_centre'
+          }
+        };
+
+        // Create consent record
+        const { error: consentRecordError } = await supabase
+          .from('dpdpa_consent_records')
+          .insert({
+            widget_id: widgetId,
+            visitor_id: visitorId,
+            consent_id: consentId,
+            consent_status: consentStatus,
+            consented_activities: acceptedActivities,
+            rejected_activities: rejectedActivities,
+            consent_details: consentDetails,
+            ip_address: metadata?.ipAddress || null,
+            user_agent: metadata?.userAgent || null,
+            device_type: (metadata?.deviceType as any) || 'Unknown',
+            language: metadata?.language || 'en',
+            consent_given_at: new Date().toISOString(),
+            consent_expires_at: expiresAt.toISOString(),
+            privacy_notice_version: '3.0'
+          });
+
+        if (consentRecordError) {
+          console.error('[Preference Centre] Error creating consent record:', consentRecordError);
+          // Don't fail the request - preferences were already updated
+          // Log the error but continue
+        } else {
+          console.log('[Preference Centre] Successfully synced preferences to consent record');
+        }
+      }
+    } catch (syncError) {
+      console.error('[Preference Centre] Error syncing to consent records:', syncError);
+      // Don't fail the request - preferences were already updated
+    }
+
     // Note: consent_history is automatically created by database trigger
 
     return NextResponse.json({

@@ -220,8 +220,56 @@ export async function POST(request: NextRequest) {
     // Use validated data
     body = validationResult.data;
 
+    // SERVER-SIDE VALIDATION: Use validation utilities for additional security
+    const { validateUUIDs, validateConsentActivities, sanitizeMetadata, validateActivityPurposeConsents } = await import('@/lib/validation-utils');
+
+    // Validate and filter activity arrays (SERVER-SIDE validation, not just client-side)
+    body.acceptedActivities = validateUUIDs(body.acceptedActivities || [], 100);
+    body.rejectedActivities = validateUUIDs(body.rejectedActivities || [], 100);
+
+    // Validate activity-purpose consents
+    if (body.activityPurposeConsents) {
+      body.activityPurposeConsents = validateActivityPurposeConsents(body.activityPurposeConsents);
+    }
+
+    // Sanitize metadata
+    if (body.metadata) {
+      body.metadata = sanitizeMetadata(body.metadata);
+    }
+
+    // Validate consent status matches activities
+    const activityValidation = validateConsentActivities(
+      body.consentStatus,
+      body.acceptedActivities,
+      body.rejectedActivities
+    );
+
+    if (!activityValidation.valid) {
+      return NextResponse.json(
+        { 
+          error: activityValidation.error || 'Invalid consent data',
+          code: 'INVALID_CONSENT_ACTIVITIES'
+        },
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      );
+    }
+
+    // Use adjusted status if validation suggests it
+    if (activityValidation.adjustedStatus) {
+      console.log('[Consent Record API] Adjusted consent status:', {
+        original: body.consentStatus,
+        adjusted: activityValidation.adjustedStatus
+      });
+      body.consentStatus = activityValidation.adjustedStatus;
+    }
+
     // Enhanced logging
-    console.log('[Consent Record API] Received request:', {
+    console.log('[Consent Record API] Received request (after validation):', {
       widgetId: body.widgetId,
       visitorId: body.visitorId,
       consentStatus: body.consentStatus,
@@ -339,24 +387,8 @@ export async function POST(request: NextRequest) {
     let existingConsent = null;
     
     if (currentUrl) {
-      // Helper function to normalize URLs for comparison
-      function normalizeUrl(urlString: string): string {
-        try {
-          const url = new URL(urlString);
-          // Remove query parameters and hash for comparison
-          url.search = '';
-          url.hash = '';
-          // Normalize trailing slash
-          let path = url.pathname;
-          if (path.length > 1 && path.endsWith('/')) {
-            path = path.slice(0, -1);
-          }
-          url.pathname = path;
-          return url.toString();
-        } catch (e) {
-          return urlString;
-        }
-      }
+      // Import URL normalization utility for consistent URL handling
+      const { normalizeUrl } = await import('@/lib/url-utils');
       
       const normalizedCurrentUrl = normalizeUrl(currentUrl);
       
@@ -463,110 +495,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate and adjust consent status to match database constraint
-    // Database constraint requires:
-    // - 'accepted': at least one consented activity
-    // - 'rejected': at least one rejected activity
-    // - 'partial': at least one consented AND one rejected activity
-    // - 'revoked': no requirements
-    let finalConsentStatus = body.consentStatus;
-    const hasAcceptedActivities = validatedAcceptedActivities.length > 0;
-    const hasRejectedActivities = validatedRejectedActivities.length > 0;
-
-    // Adjust status based on actual activity arrays to satisfy database constraint
-    if (finalConsentStatus === 'accepted' && !hasAcceptedActivities) {
-      // If status is 'accepted' but no accepted activities, check if we have rejected
-      if (hasRejectedActivities) {
-        finalConsentStatus = 'rejected';
-      } else {
-        // If no activities at all, this is invalid - reject the request
-        console.error('[Consent Record API] Invalid consent: accepted status but no accepted activities', {
-          widgetId: body.widgetId,
-          visitorId: body.visitorId,
-          acceptedCount: validatedAcceptedActivities.length,
-          rejectedCount: validatedRejectedActivities.length,
-        });
-        return NextResponse.json(
-          { 
-            error: 'Invalid consent: accepted status requires at least one accepted activity',
-            code: 'INVALID_CONSENT_STATUS'
-          },
-          { 
-            status: 400,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-            }
-          }
-        );
-      }
-    } else if (finalConsentStatus === 'rejected' && !hasRejectedActivities) {
-      // If status is 'rejected' but no rejected activities, check if we have accepted
-      if (hasAcceptedActivities) {
-        finalConsentStatus = 'accepted';
-      } else {
-        // If no activities at all, this is invalid - reject the request
-        console.error('[Consent Record API] Invalid consent: rejected status but no rejected activities', {
-          widgetId: body.widgetId,
-          visitorId: body.visitorId,
-          acceptedCount: validatedAcceptedActivities.length,
-          rejectedCount: validatedRejectedActivities.length,
-        });
-        return NextResponse.json(
-          { 
-            error: 'Invalid consent: rejected status requires at least one rejected activity',
-            code: 'INVALID_CONSENT_STATUS'
-          },
-          { 
-            status: 400,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-            }
-          }
-        );
-      }
-    } else if (finalConsentStatus === 'partial') {
-      // Partial requires both accepted and rejected activities
-      if (!hasAcceptedActivities || !hasRejectedActivities) {
-        // Adjust to match what we actually have
-        if (hasAcceptedActivities && !hasRejectedActivities) {
-          finalConsentStatus = 'accepted';
-        } else if (!hasAcceptedActivities && hasRejectedActivities) {
-          finalConsentStatus = 'rejected';
-        } else {
-          // No activities at all - invalid
-          console.error('[Consent Record API] Invalid consent: partial status but no activities', {
-            widgetId: body.widgetId,
-            visitorId: body.visitorId,
-            acceptedCount: validatedAcceptedActivities.length,
-            rejectedCount: validatedRejectedActivities.length,
-          });
-          return NextResponse.json(
-            { 
-              error: 'Invalid consent: partial status requires at least one accepted and one rejected activity',
-              code: 'INVALID_CONSENT_STATUS'
-            },
-            { 
-              status: 400,
-              headers: {
-                'Access-Control-Allow-Origin': '*',
-              }
-            }
-          );
-        }
-      }
-    }
-
-    // Log status adjustment if it was changed
-    if (finalConsentStatus !== body.consentStatus) {
-      console.log('[Consent Record API] Adjusted consent status to match activity arrays', {
-        originalStatus: body.consentStatus,
-        adjustedStatus: finalConsentStatus,
-        acceptedCount: validatedAcceptedActivities.length,
-        rejectedCount: validatedRejectedActivities.length,
-        widgetId: body.widgetId,
-        visitorId: body.visitorId,
-      });
-    }
+    // Status validation already done above using validation utilities
+    const finalConsentStatus = body.consentStatus;
 
     const consentDetails: ConsentDetails = {
       activityConsents: body.activityConsents || {},

@@ -1673,133 +1673,91 @@
     });
   }
 
-  // Show Consent Success Modal with ID Display
+  // Show Consent Success Modal with ID Display (Compact Version)
   function showConsentSuccessModal(consentID) {
     const modal = document.createElement('div');
     modal.id = 'dpdpa-success-modal';
     modal.style.cssText = `
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.5);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 999999;
+      padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `;
     
     modal.innerHTML = `
-      <div style="background:white;border-radius:24px;padding:56px;max-width:580px;width:90%;box-shadow:0 25px 70px rgba(0,0,0,0.2);text-align:center;animation:scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);">
-        <!-- Success Icon Animation -->
-        <div style="width:96px;height:96px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;box-shadow:0 12px 32px rgba(16,185,129,0.3);animation:pulse 2s ease-in-out infinite;">
-          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div style="background:white;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.2);text-align:center;animation:slideUp 0.3s ease-out;">
+        <!-- Success Icon -->
+        <div style="width:56px;height:56px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 8px 24px rgba(16,185,129,0.3);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M5 13l4 4L19 7" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
         
-        <h2 style="margin:0 0 12px 0;font-size:36px;font-weight:700;color:#059669;letter-spacing:-0.5px;">Consent Saved!</h2>
-        <p style="color:#64748b;font-size:17px;margin:0 0 36px 0;line-height:1.6;max-width:420px;margin-left:auto;margin-right:auto;">Your privacy preferences have been securely recorded and will be respected across our platform.</p>
+        <h2 style="margin:0 0 8px 0;font-size:24px;font-weight:700;color:#059669;">Consent Saved!</h2>
+        <p style="color:#64748b;font-size:14px;margin:0 0 24px 0;line-height:1.5;">Your privacy preferences have been securely recorded.</p>
         
-        <!-- Consent ID Card -->
-        <div style="background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:20px;padding:36px;margin-bottom:28px;box-shadow:0 12px 32px rgba(79,118,246,0.25);position:relative;overflow:hidden;">
-          <!-- Background Pattern -->
-          <div style="position:absolute;top:0;right:0;opacity:0.1;">
-            <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="100" cy="100" r="80" stroke="white" stroke-width="2"/>
-              <circle cx="100" cy="100" r="60" stroke="white" stroke-width="2"/>
-              <circle cx="100" cy="100" r="40" stroke="white" stroke-width="2"/>
-            </svg>
-          </div>
+        <!-- Compact Consent ID Card -->
+        <div style="background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 8px 20px rgba(79,118,246,0.25);">
+          <label style="display:block;color:rgba(255,255,255,0.9);font-size:11px;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:1.2px;">Your Consent ID</label>
           
-          <label style="display:block;color:rgba(255,255,255,0.95);font-size:13px;font-weight:600;margin-bottom:16px;text-transform:uppercase;letter-spacing:1.5px;">Your Unique Consent ID</label>
-          
-          <div style="background:white;border-radius:16px;padding:24px 20px;margin-bottom:20px;position:relative;box-shadow:0 4px 16px rgba(0,0,0,0.1);">
-            <div id="consent-id-display" style="font-size:26px;font-weight:700;color:#1e293b;font-family:ui-monospace,monospace;letter-spacing:3px;word-break:break-all;">
+          <div style="background:white;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <div id="consent-id-display" style="font-size:18px;font-weight:700;color:#1e293b;font-family:ui-monospace,monospace;letter-spacing:2px;word-break:break-all;">
               ${consentID}
             </div>
-            <div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;color:#64748b;font-size:12px;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Encrypted & Secure</span>
-            </div>
           </div>
           
-          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;justify-content:center;">
             <button 
               onclick="window.copyConsentID('${consentID}')"
-              style="flex:1;min-width:140px;padding:14px 20px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:12px;font-weight:600;cursor:pointer;font-size:15px;backdrop-filter:blur(10px);transition:all 0.2s;"
-              onmouseover="this.style.background='rgba(255,255,255,0.35)';this.style.transform='translateY(-2px)'"
-              onmouseout="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(0)'"
+              style="flex:1;padding:10px 16px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.35)'"
+              onmouseout="this.style.background='rgba(255,255,255,0.25)'"
             >
-              <span style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Copy ID
-              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Copy ID
             </button>
             <button 
               onclick="window.downloadConsentReceipt('${consentID}')"
-              style="flex:1;min-width:140px;padding:14px 20px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:12px;font-weight:600;cursor:pointer;font-size:15px;backdrop-filter:blur(10px);transition:all 0.2s;"
-              onmouseover="this.style.background='rgba(255,255,255,0.35)';this.style.transform='translateY(-2px)'"
-              onmouseout="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(0)'"
+              style="flex:1;padding:10px 16px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.35)'"
+              onmouseout="this.style.background='rgba(255,255,255,0.25)'"
             >
-              <span style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Download
-              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Download
             </button>
           </div>
         </div>
         
-        <!-- Important Notice -->
-        <div style="background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);border-left:4px solid #f59e0b;padding:20px;border-radius:14px;margin-bottom:28px;text-align:left;box-shadow:0 4px 12px rgba(245,158,11,0.15);">
-          <div style="display:flex;align-items:start;gap:14px;">
-            <div style="width:40px;height:40px;background:#f59e0b;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div style="flex:1;">
-              <strong style="color:#92400e;display:block;margin-bottom:6px;font-size:15px;">Keep This ID Safe!</strong>
-              <p style="color:#78350f;font-size:14px;margin:0;line-height:1.6;">
-                Use this Consent ID to sync your preferences across devices and manage your privacy settings. We recommend saving it in a secure location.
-              </p>
-            </div>
-          </div>
+        <!-- Compact Notice -->
+        <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:12px;border-radius:8px;margin-bottom:16px;text-align:left;">
+          <p style="color:#78350f;font-size:12px;margin:0;line-height:1.5;">
+            <strong style="color:#92400e;">Keep this ID safe!</strong> Use it to manage your preferences across devices.
+          </p>
         </div>
         
         <!-- Action Button -->
         <button 
           onclick="document.getElementById('dpdpa-success-modal').remove()"
-          style="width:100%;padding:18px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border:none;color:white;border-radius:14px;font-weight:600;font-size:17px;cursor:pointer;box-shadow:0 4px 16px rgba(16,185,129,0.3);transition:all 0.2s;"
-          onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(16,185,129,0.4)'"
-          onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(16,185,129,0.3)'"
+          style="width:100%;padding:12px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border:none;color:white;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;box-shadow:0 4px 12px rgba(16,185,129,0.3);transition:all 0.2s;"
+          onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'"
+          onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'"
         >
-          <span style="display:flex;align-items:center;justify-content:center;gap:10px;">
-            <span>Got it, thanks!</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
+          Got it, thanks! ✓
         </button>
-        
-        <!-- Footer Info -->
-        <p style="margin-top:24px;font-size:13px;color:#94a3b8;line-height:1.5;">
-          You can update your preferences anytime by entering your Consent ID
-        </p>
       </div>
       <style>
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
       </style>
     `;

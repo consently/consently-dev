@@ -16,7 +16,12 @@ function ConsentlyCookieWidget({ widgetId = 'cnsty_mhnhhg68_map2kra3v' }: Consen
     }
 
     const script = document.createElement('script');
-    script.src = 'https://www.consently.in/widget.js';
+    // Use relative path for local development, absolute URL for production
+    // The widget.js script will detect the correct API base URL automatically
+    const widgetUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/widget.js`
+      : '/widget.js';
+    script.src = widgetUrl;
     script.setAttribute('data-consently-id', widgetId);
     script.async = true;
     document.body.appendChild(script);

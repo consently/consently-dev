@@ -3,14 +3,13 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, Lock, Bell, CreditCard, AlertCircle, RefreshCw } from 'lucide-react';
+import { User, Lock, Bell, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { usePasswordUpdate } from '@/hooks/usePasswordUpdate';
 import { ProfileTab } from '@/components/settings/ProfileTab';
 import { SecurityTab } from '@/components/settings/SecurityTab';
 import { NotificationsTab } from '@/components/settings/NotificationsTab';
-import { BillingTab } from '@/components/settings/BillingTab';
 import type { SettingsTab } from '@/types/settings';
 
 function SettingsContent() {
@@ -20,7 +19,7 @@ function SettingsContent() {
   // Handle tab query parameter
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['profile', 'security', 'notifications', 'billing'].includes(tabParam)) {
+    if (tabParam && ['profile', 'security', 'notifications'].includes(tabParam)) {
       setActiveTab(tabParam as SettingsTab);
     }
   }, [searchParams]);
@@ -35,7 +34,6 @@ function SettingsContent() {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Lock },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'billing', label: 'Billing', icon: CreditCard },
   ];
 
   return (
@@ -117,7 +115,6 @@ function SettingsContent() {
             />
           )}
           {activeTab === 'notifications' && <NotificationsTab />}
-          {activeTab === 'billing' && <BillingTab subscription={profileData.subscription} />}
         </div>
       )}
     </div>

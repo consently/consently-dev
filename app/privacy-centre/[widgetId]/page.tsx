@@ -29,15 +29,48 @@ function PrivacyCentreContent() {
       const urlVisitorId = searchParams?.get('visitorId');
       
       if (urlVisitorId) {
-        // Store in localStorage for future visits
+        // Store in localStorage for future visits (both formats for compatibility)
         localStorage.setItem(`consently_visitor_${widgetId}`, urlVisitorId);
+        // Also sync to widget's consent ID format if it's a valid consent ID
+        try {
+          const consentData = localStorage.getItem('consently_consent_id');
+          if (!consentData || JSON.parse(consentData)?.value !== urlVisitorId) {
+            // Store in widget format for synchronization
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 365 * 10);
+            localStorage.setItem('consently_consent_id', JSON.stringify({
+              value: urlVisitorId,
+              expiresAt: expiresAt.toISOString()
+            }));
+          }
+        } catch (e) {
+          // Ignore errors in sync attempt
+        }
         setVisitorId(urlVisitorId);
         setLoading(false);
         return;
       }
 
-      // Check localStorage for existing visitor ID
-      const storedVisitorId = localStorage.getItem(`consently_visitor_${widgetId}`);
+      // Check localStorage for existing visitor ID (Privacy Centre format)
+      let storedVisitorId = localStorage.getItem(`consently_visitor_${widgetId}`);
+      
+      // Fallback: Check widget's consent ID format for synchronization
+      if (!storedVisitorId) {
+        try {
+          const consentData = localStorage.getItem('consently_consent_id');
+          if (consentData) {
+            const parsed = JSON.parse(consentData);
+            const expiresAt = new Date(parsed.expiresAt);
+            if (expiresAt > new Date() && parsed.value) {
+              storedVisitorId = parsed.value;
+              // Sync to Privacy Centre format
+              localStorage.setItem(`consently_visitor_${widgetId}`, storedVisitorId);
+            }
+          }
+        } catch (e) {
+          // Ignore errors, continue to generate new ID
+        }
+      }
       
       if (storedVisitorId) {
         setVisitorId(storedVisitorId);
@@ -48,6 +81,17 @@ function PrivacyCentreContent() {
       // Generate new visitor ID
       const newVisitorId = uuidv4();
       localStorage.setItem(`consently_visitor_${widgetId}`, newVisitorId);
+      // Also store in widget format for synchronization
+      try {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 365 * 10);
+        localStorage.setItem('consently_consent_id', JSON.stringify({
+          value: newVisitorId,
+          expiresAt: expiresAt.toISOString()
+        }));
+      } catch (e) {
+        // Ignore errors, continue
+      }
       setVisitorId(newVisitorId);
       setLoading(false);
     } catch (err) {
