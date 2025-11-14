@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 
 export type AuditAction =
   | 'user.login'
@@ -52,12 +53,23 @@ interface AuditLogData {
 
 /**
  * Create an audit log entry
+ * Uses service role client to bypass RLS when needed
  */
 export async function createAuditLog(data: AuditLogData): Promise<void> {
   try {
-    const supabase = await createClient();
+    // Try with regular client first (respects user context)
+    let supabase = await createClient();
+    
+    // If no userId, use service role client to bypass RLS
+    // This ensures system logs and logs without user context can be created
+    if (!data.userId && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      supabase = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+    }
 
-    const { error } = await supabase
+    const { error, data: insertedData } = await supabase
       .from('audit_logs')
       .insert({
         user_id: data.userId || null,
@@ -69,10 +81,56 @@ export async function createAuditLog(data: AuditLogData): Promise<void> {
         user_agent: data.userAgent || null,
         status: data.status,
         error_message: data.errorMessage || null
-      });
+      })
+      .select()
+      .single();
 
     if (error) {
-      console.error('Failed to create audit log:', error);
+      console.error('Failed to create audit log:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        action: data.action,
+        resourceType: data.resourceType,
+        userId: data.userId
+      });
+      
+      // If regular client fails and we have service role, try with service role
+      if (error.code === '42501' && process.env.SUPABASE_SERVICE_ROLE_KEY && data.userId) {
+        console.log('Retrying audit log creation with service role client...');
+        const serviceSupabase = createServiceClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        
+        const { error: serviceError } = await serviceSupabase
+          .from('audit_logs')
+          .insert({
+            user_id: data.userId || null,
+            action: data.action,
+            resource_type: data.resourceType,
+            resource_id: data.resourceId || null,
+            changes: data.changes || null,
+            ip_address: data.ipAddress || null,
+            user_agent: data.userAgent || null,
+            status: data.status,
+            error_message: data.errorMessage || null
+          });
+          
+        if (serviceError) {
+          console.error('Failed to create audit log with service role:', serviceError);
+        }
+      }
+    } else {
+      // Log success in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Audit log created successfully:', {
+          id: insertedData?.id,
+          action: data.action,
+          resourceType: data.resourceType
+        });
+      }
     }
   } catch (error) {
     console.error('Error creating audit log:', error);
