@@ -1069,26 +1069,76 @@
     window.dispatchEvent(new CustomEvent('consentlyUpdate', { detail: consent }));
   }
 
-  // Record consent via API
+  // Helper: Retry function with exponential backoff
+  async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        
+        // Check if error is retryable (network errors, 5xx, timeout)
+        const isRetryable = 
+          error.name === 'AbortError' ||
+          (error.message && (
+            error.message.includes('timeout') ||
+            error.message.includes('network') ||
+            error.message.includes('Failed to fetch')
+          )) ||
+          (error.status && error.status >= 500);
+        
+        // Don't retry for client errors (4xx)
+        if (!isRetryable || attempt === maxRetries) {
+          throw lastError;
+        }
+        
+        // Calculate delay with exponential backoff: 1s, 2s, 4s
+        const delay = initialDelay * Math.pow(2, attempt - 1);
+        console.log(`[Consently] Retry attempt ${attempt}/${maxRetries} in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError;
+  }
+
+  // Record consent via API (with retry logic)
   async function recordConsent(consent) {
     try {
       const apiBase = config.apiBase || window.location.origin;
-      await fetch(`${apiBase}${config.apiEndpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          widgetId: widgetId,
-          consentId: consent.consentId || 'con_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-          status: consent.status,
-          categories: consent.categories,
-          deviceType: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
-          userAgent: navigator.userAgent,
-          language: navigator.language || 'en'
-        })
-      });
+      
+      // Wrap fetch call with retry logic (3 attempts with exponential backoff)
+      await retryWithBackoff(async () => {
+        const response = await fetch(`${apiBase}${config.apiEndpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            widgetId: widgetId,
+            consentId: consent.consentId || 'con_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            status: consent.status,
+            categories: consent.categories,
+            deviceType: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+            userAgent: navigator.userAgent,
+            language: navigator.language || 'en'
+          })
+        });
+        
+        if (!response.ok) {
+          const error = new Error(`HTTP ${response.status}`);
+          error.status = response.status;
+          throw error;
+        }
+        
+        return response;
+      }, 3, 1000); // 3 retries, starting with 1 second delay
+      
       console.log('[Consently] Consent recorded');
     } catch (error) {
-      console.error('[Consently] Failed to record consent:', error);
+      console.error('[Consently] Failed to record consent after retries:', error);
+      // Don't throw - consent is still saved locally
     }
   }
 

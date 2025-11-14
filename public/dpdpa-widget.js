@@ -200,8 +200,7 @@
   let config = null;
   let activities = [];
   let activityConsents = {};
-  let visitorEmail = (currentScript && currentScript.getAttribute('data-dpdpa-email')) || null;
-  let visitorPhone = (currentScript && currentScript.getAttribute('data-dpdpa-phone')) || null;
+  let consentID = null; // User-visible Consent ID (Format: CNST-XXXX-XXXX-XXXX)
   let globalClickHandler = null; // Global reference to cleanup language menu listener
   let primaryColor = '#4c8bf5'; // Default primary color, updated when config loads
 
@@ -242,7 +241,33 @@
     }
   };
 
-  // Simple hash function for privacy (using Web Crypto API if available, fallback to simple hash)
+  // Consistent hash function - uses same algorithm for both async and sync
+  // Returns 32-character hex string for consistency
+  function hashStringSync(str) {
+    if (!str) return null;
+    
+    // Normalize the string (lowercase, trim)
+    const normalized = str.toLowerCase().trim();
+    
+    // Use a consistent hash algorithm that produces same result every time
+    // This is a modified djb2 hash that produces 32-character hex output
+    let hash1 = 5381;
+    let hash2 = 0;
+    
+    for (let i = 0; i < normalized.length; i++) {
+      const char = normalized.charCodeAt(i);
+      hash1 = ((hash1 << 5) + hash1) + char;
+      hash2 = ((hash2 << 5) + hash2) + (char * 31);
+    }
+    
+    // Combine both hashes and convert to 32-character hex string
+    const combined = Math.abs(hash1) + Math.abs(hash2);
+    const hex = combined.toString(16).padStart(16, '0');
+    // Repeat pattern to get 32 chars for consistency with SHA-256 length
+    return (hex + hex).substring(0, 32);
+  }
+
+  // Async version that uses Web Crypto API if available, otherwise uses sync version
   async function hashString(str) {
     if (!str) return null;
     
@@ -258,131 +283,187 @@
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
       } catch (e) {
-        // Fallback to simple hash if crypto fails
+        // Fallback to sync hash if crypto fails
+        console.warn('[Consently DPDPA] Web Crypto API failed, using fallback hash:', e);
+        return hashStringSync(normalized);
       }
     }
     
-    // Simple hash fallback (for older browsers)
-    let hash = 0;
-    for (let i = 0; i < normalized.length; i++) {
-      const char = normalized.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString(16).padStart(8, '0');
+    // Use sync hash for consistency
+    return hashStringSync(normalized);
   }
 
-  // Generate device fingerprint based on browser/device characteristics
+  // Generate device fingerprint based on stable browser/device characteristics
+  // Uses only stable values that don't change between sessions
   function generateDeviceFingerprint() {
     const components = [];
     
-    // User agent
+    // User agent (stable - only changes with browser updates)
     if (navigator.userAgent) {
       components.push(navigator.userAgent);
     }
     
-    // Screen resolution
+    // Use maximum screen dimensions (more stable than current resolution)
+    // This avoids issues when window is resized
     if (screen.width && screen.height) {
-      components.push(`${screen.width}x${screen.height}`);
+      // Use max available dimensions for stability
+      const maxWidth = Math.max(screen.width, screen.availWidth || screen.width);
+      const maxHeight = Math.max(screen.height, screen.availHeight || screen.height);
+      components.push(`max${maxWidth}x${maxHeight}`);
     }
     
-    // Color depth
+    // Color depth (stable)
     if (screen.colorDepth) {
       components.push(`cd${screen.colorDepth}`);
     }
     
-    // Timezone
+    // Pixel depth (stable)
+    if (screen.pixelDepth) {
+      components.push(`pd${screen.pixelDepth}`);
+    }
+    
+    // Timezone (stable for user's location)
     try {
       components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
     } catch (e) {}
     
-    // Language
+    // Language (stable)
     if (navigator.language) {
       components.push(navigator.language);
     }
     
-    // Platform
+    // Platform (stable)
     if (navigator.platform) {
       components.push(navigator.platform);
     }
     
-    // Hardware concurrency (CPU cores)
+    // Hardware concurrency (CPU cores - stable)
     if (navigator.hardwareConcurrency) {
       components.push(`hc${navigator.hardwareConcurrency}`);
     }
     
-    // Device memory (if available)
+    // Device memory (if available - stable)
     if (navigator.deviceMemory) {
       components.push(`dm${navigator.deviceMemory}`);
     }
     
-    // Canvas fingerprint (simplified - just check if canvas is available)
+    // Max touch points (stable)
+    if (navigator.maxTouchPoints) {
+      components.push(`mtp${navigator.maxTouchPoints}`);
+    }
+    
+    // Vendor (stable)
+    if (navigator.vendor) {
+      components.push(navigator.vendor);
+    }
+    
+    // Canvas fingerprint (simplified - use consistent text for stability)
     try {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        // Use consistent rendering for stability
         ctx.textBaseline = 'top';
         ctx.font = '14px Arial';
-        ctx.fillText('Device fingerprint', 2, 2);
-        components.push(canvas.toDataURL().substring(0, 50));
+        ctx.fillText('ConsentlyDeviceFingerprint', 2, 2);
+        // Use first 50 chars for consistency
+        const canvasData = canvas.toDataURL();
+        components.push(canvasData.substring(0, 50));
       }
     } catch (e) {}
     
     return components.join('|');
   }
 
-  // Generate or retrieve persistent visitor ID based on device fingerprint
-  async function getVisitorId() {
-    // Check if we already have a visitor ID stored
-    let visitorId = ConsentStorage.get('consently_dpdpa_visitor_id');
-    if (visitorId) {
-      return visitorId;
+  // ============================================================================
+  // CONSENT ID SYSTEM - User-visible unique identifier
+  // Format: CNST-XXXX-XXXX-XXXX (no ambiguous characters: 0,O,1,I)
+  // ============================================================================
+
+  // Generate a new Consent ID
+  function generateConsentID() {
+    // Characters to use (excluding ambiguous ones: 0, O, 1, I)
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const segments = [];
+    
+    for (let i = 0; i < 3; i++) {
+      let segment = '';
+      for (let j = 0; j < 4; j++) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        segment += chars.charAt(randomIndex);
+      }
+      segments.push(segment);
     }
     
-    // Try to get stored device fingerprint hash
-    let deviceFingerprintHash = ConsentStorage.get('consently_dpdpa_device_hash');
-    
-    // If no stored hash, generate device fingerprint and hash it
-    if (!deviceFingerprintHash) {
-      const deviceFingerprint = generateDeviceFingerprint();
-      deviceFingerprintHash = await hashString(deviceFingerprint);
-      ConsentStorage.set('consently_dpdpa_device_hash', deviceFingerprintHash, 365 * 10);
-    }
-    
-    // Generate visitor ID from hash (consistent format)
-    visitorId = 'vis_' + deviceFingerprintHash.substring(0, 16);
-    ConsentStorage.set('consently_dpdpa_visitor_id', visitorId, 365 * 10);
-    
-    return visitorId;
+    return 'CNST-' + segments.join('-');
   }
 
-  // Synchronous version for immediate use
-  function getVisitorIdSync() {
-    let visitorId = ConsentStorage.get('consently_dpdpa_visitor_id');
-    if (visitorId) {
-      return visitorId;
+  // Get or generate Consent ID
+  function getConsentID() {
+    // Check if we already have a Consent ID stored
+    let storedID = ConsentStorage.get('consently_consent_id');
+    if (storedID) {
+      console.log('[Consently DPDPA] Using stored Consent ID:', storedID);
+      return storedID;
     }
     
-    // Try to get stored device fingerprint hash
-    let deviceFingerprintHash = ConsentStorage.get('consently_dpdpa_device_hash');
+    // Generate new Consent ID
+    const newID = generateConsentID();
+    ConsentStorage.set('consently_consent_id', newID, 365 * 10); // Store for 10 years
+    console.log('[Consently DPDPA] Generated new Consent ID:', newID);
     
-    // If no stored hash, generate device fingerprint and hash it synchronously
-    if (!deviceFingerprintHash) {
-      const deviceFingerprint = generateDeviceFingerprint();
-      let hash = 0;
-      for (let i = 0; i < deviceFingerprint.length; i++) {
-        const char = deviceFingerprint.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-      }
-      deviceFingerprintHash = Math.abs(hash).toString(16).padStart(8, '0');
-      ConsentStorage.set('consently_dpdpa_device_hash', deviceFingerprintHash, 365 * 10);
+    return newID;
+  }
+
+  // Store Consent ID (used after verification or new consent)
+  function storeConsentID(id) {
+    if (!id) return;
+    try {
+      ConsentStorage.set('consently_consent_id', id, 365 * 10);
+      // Also set in cookie as backup
+      document.cookie = `consently_id=${id}; max-age=${365*24*60*60*10}; path=/; SameSite=Lax`;
+      console.log('[Consently DPDPA] Consent ID stored:', id);
+    } catch (error) {
+      console.error('[Consently DPDPA] Failed to store Consent ID:', error);
+    }
+  }
+
+  // Format Consent ID for display (adds spacing for readability)
+  function formatConsentID(id) {
+    return id; // Already formatted as CNST-XXXX-XXXX-XXXX
+  }
+
+  // Validate Consent ID format
+  function isValidConsentID(id) {
+    if (!id) return false;
+    // Check format: CNST-XXXX-XXXX-XXXX (new format) or vis_xxxxx (legacy format)
+    const newFormat = /^CNST-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(id);
+    const legacyFormat = /^vis_[a-zA-Z0-9]+$/.test(id);
+    return newFormat || legacyFormat;
+  }
+
+  // Verify Consent ID with API
+  async function verifyConsentID(id) {
+    if (!isValidConsentID(id)) {
+      return { valid: false, error: 'Invalid Consent ID format' };
     }
     
-    visitorId = 'vis_' + deviceFingerprintHash.substring(0, 16);
-    ConsentStorage.set('consently_dpdpa_visitor_id', visitorId, 365 * 10);
-    
-    return visitorId;
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/dpdpa/verify-consent-id`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consentID: id,
+          widgetId: widgetId
+        })
+      });
+      
+      return await response.json();
+    } catch (error) {
+      console.error('[Consently DPDPA] Verification error:', error);
+      return { valid: false, error: 'Unable to verify Consent ID' };
+    }
   }
 
   // Fetch widget configuration from API
@@ -932,7 +1013,43 @@
     }
   }
 
-  // Record consent to API (with enhanced error handling and validation)
+  // Helper: Retry function with exponential backoff
+  async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        
+        // Check if error is retryable (network errors, 5xx, timeout)
+        const isRetryable = 
+          error.name === 'AbortError' ||
+          error.message.includes('timeout') ||
+          error.message.includes('network') ||
+          error.message.includes('500') ||
+          error.message.includes('502') ||
+          error.message.includes('503') ||
+          error.message.includes('504');
+        
+        // Don't retry for client errors (4xx)
+        if (!isRetryable || attempt === maxRetries) {
+          throw lastError;
+        }
+        
+        // Calculate delay with exponential backoff: 1s, 2s, 4s
+        const delay = initialDelay * Math.pow(2, attempt - 1);
+        console.log(`[Consently DPDPA] Retry attempt ${attempt}/${maxRetries} in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError;
+  }
+
+  // Record consent to API (with enhanced error handling, validation, and retry logic)
   async function recordConsent(consentData) {
     try {
       // UUID validation regex
@@ -1054,63 +1171,68 @@
       
       const apiUrl = `${apiBase}/api/dpdpa/consent-record`;
       
-      // Add timeout to prevent hanging requests
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(consentData),
-          signal: controller.signal
-        });
+      // Wrap fetch call with retry logic (3 attempts with exponential backoff)
+      const result = await retryWithBackoff(async () => {
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          // Try to get error details from response
-          let errorMessage = 'Failed to record consent';
-          let validationDetails = null;
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-            
-            // Log validation details if available
-            if (errorData.details && Array.isArray(errorData.details)) {
-              validationDetails = errorData.details;
-              console.error('[Consently DPDPA] Validation errors:', validationDetails);
-              console.error('[Consently DPDPA] Full error response:', errorData);
-            } else {
-              console.error('[Consently DPDPA] API error response:', errorData);
+        try {
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(consentData),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            // Try to get error details from response
+            let errorMessage = 'Failed to record consent';
+            let validationDetails = null;
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.error || errorMessage;
+              
+              // Log validation details if available
+              if (errorData.details && Array.isArray(errorData.details)) {
+                validationDetails = errorData.details;
+                console.error('[Consently DPDPA] Validation errors:', validationDetails);
+                console.error('[Consently DPDPA] Full error response:', errorData);
+              } else {
+                console.error('[Consently DPDPA] API error response:', errorData);
+              }
+            } catch (e) {
+              // Ignore JSON parse errors
+              console.error('[Consently DPDPA] Failed to parse error response:', e);
             }
-          } catch (e) {
-            // Ignore JSON parse errors
-            console.error('[Consently DPDPA] Failed to parse error response:', e);
+            
+            // Include validation details in error message for debugging
+            if (validationDetails && validationDetails.length > 0) {
+              const detailMessages = validationDetails.map(d => `${d.field}: ${d.message}`).join('; ');
+              throw new Error(errorMessage + ' (HTTP ' + response.status + ') - ' + detailMessages);
+            } else {
+              throw new Error(errorMessage + ' (HTTP ' + response.status + ')');
+            }
           }
           
-          // Include validation details in error message for debugging
-          if (validationDetails && validationDetails.length > 0) {
-            const detailMessages = validationDetails.map(d => `${d.field}: ${d.message}`).join('; ');
-            throw new Error(errorMessage + ' (HTTP ' + response.status + ') - ' + detailMessages);
-          } else {
-            throw new Error(errorMessage + ' (HTTP ' + response.status + ')');
+          const result = await response.json();
+          console.log('[Consently DPDPA] Consent recorded successfully');
+          return result;
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          
+          if (fetchError.name === 'AbortError') {
+            throw new Error('Request timeout: Could not record consent');
           }
+          throw fetchError;
         }
-        
-        const result = await response.json();
-        console.log('[Consently DPDPA] Consent recorded successfully');
-        return result;
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timeout: Could not record consent');
-        }
-        throw fetchError;
-      }
+      }, 3, 1000); // 3 retries, starting with 1 second delay
+      
+      return result;
     } catch (error) {
       console.error('[Consently DPDPA] Failed to record consent:', error);
       
@@ -1160,7 +1282,7 @@
       
       const matchEvent = {
         widgetId: widgetId,
-        visitorId: getVisitorIdSync(),
+        visitorId: consentID || getConsentID(),
         ruleId: rule.id,
         ruleName: rule.rule_name,
         urlPattern: rule.url_pattern,
@@ -1220,7 +1342,7 @@
       
       const consentEvent = {
         widgetId: widgetId,
-        visitorId: getVisitorIdSync(),
+        visitorId: consentID || getConsentID(),
         ruleId: rule ? rule.id : undefined,
         ruleName: rule ? rule.rule_name : undefined,
         consentStatus: consentData.consentStatus,
@@ -1250,10 +1372,425 @@
     }
   }
 
+  // Show Consent ID Verification Screen
+  async function showVerificationScreen() {
+    const modal = document.createElement('div');
+    modal.id = 'dpdpa-verification-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background:white;border-radius:20px;padding:48px;max-width:520px;width:90%;box-shadow:0 25px 70px rgba(0,0,0,0.2);animation:slideUp 0.3s ease-out;">
+        <!-- Icon and Title -->
+        <div style="text-align:center;margin-bottom:32px;">
+          <div style="width:72px;height:72px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:20px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 8px 24px rgba(79,118,246,0.25);">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="white"/>
+            </svg>
+          </div>
+          <h2 style="margin:0 0 12px 0;font-size:32px;font-weight:700;color:#1a1a1a;letter-spacing:-0.5px;">Welcome Back!</h2>
+          <p style="color:#64748b;font-size:16px;margin:0;line-height:1.5;">Sync your consent preferences across devices</p>
+        </div>
+        
+        <!-- Consent ID Input Section -->
+        <div style="background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);border-radius:16px;padding:28px;margin-bottom:24px;border:1px solid #e2e8f0;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:14px;color:#1e293b;font-size:15px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 17v-2m0-4V7m9 5a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#4F76F6" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Enter your Consent ID
+          </label>
+          <div style="position:relative;margin-bottom:14px;">
+            <input 
+              type="text" 
+              id="consent-id-input"
+              placeholder="CNST-XXXX-XXXX-XXXX"
+              maxlength="19"
+              style="width:100%;padding:16px 16px 16px 44px;border:2px solid #cbd5e1;border-radius:12px;font-size:17px;font-family:ui-monospace,monospace;text-transform:uppercase;box-sizing:border-box;transition:all 0.2s;background:white;"
+              onfocus="this.style.borderColor='#4F76F6';this.style.boxShadow='0 0 0 3px rgba(79,118,246,0.1)'"
+              onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
+            />
+            <svg style="position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <button 
+            id="verify-consent-btn"
+            style="width:100%;padding:16px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border:none;color:white;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(79,118,246,0.3);"
+            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 16px rgba(79,118,246,0.4)'"
+            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 12px rgba(79,118,246,0.3)'"
+          >
+            <span style="display:flex;align-items:center;justify-content:center;gap:8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Verify & Load Preferences
+            </span>
+          </button>
+          <div id="verify-error" style="color:#dc2626;margin-top:12px;font-size:14px;display:none;padding:12px;background:#fee;border-radius:8px;border-left:3px solid #dc2626;"></div>
+        </div>
+        
+        <!-- Divider -->
+        <div style="display:flex;align-items:center;gap:16px;margin:28px 0;">
+          <div style="flex:1;height:1px;background:linear-gradient(to right, transparent, #e2e8f0, transparent);"></div>
+          <span style="color:#94a3b8;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">OR</span>
+          <div style="flex:1;height:1px;background:linear-gradient(to right, #e2e8f0, transparent);"></div>
+        </div>
+        
+        <!-- Start Fresh Button -->
+        <button 
+          id="start-fresh-btn"
+          style="width:100%;padding:16px;background:white;border:2px solid #e2e8f0;color:#1e293b;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;transition:all 0.2s;"
+          onmouseover="this.style.borderColor='#4F76F6';this.style.background='#f8fafc'"
+          onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'"
+        >
+          <span style="display:flex;align-items:center;justify-content:center;gap:10px;">
+            <span style="font-size:20px;">✨</span>
+            <span>Start Fresh - Get New Consent ID</span>
+          </span>
+        </button>
+        
+        <!-- Help Text -->
+        <div style="text-align:center;margin-top:24px;padding:16px;background:#f8fafc;border-radius:12px;">
+          <p style="font-size:13px;color:#64748b;margin:0;line-height:1.6;">
+            <strong style="color:#1e293b;">New here?</strong> Click "Start Fresh" to create your unique Consent ID and begin managing your privacy preferences.
+          </p>
+        </div>
+      </div>
+      <style>
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    const verifyBtn = document.getElementById('verify-consent-btn');
+    const startFreshBtn = document.getElementById('start-fresh-btn');
+    const input = document.getElementById('consent-id-input');
+    const errorDiv = document.getElementById('verify-error');
+    
+    // Auto-format input with better paste support
+    let isFormatting = false;
+    input.addEventListener('input', (e) => {
+      if (isFormatting) return; // Prevent infinite loop
+      isFormatting = true;
+      
+      // Get cursor position before formatting
+      const cursorPos = e.target.selectionStart;
+      const oldValue = e.target.value;
+      
+      // Extract only alphanumeric characters, keeping CNST prefix
+      let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      
+      // Remove CNST prefix if user typed it
+      if (value.startsWith('CNST')) {
+        value = value.substring(4);
+      }
+      
+      // Limit to 12 characters
+      if (value.length > 12) value = value.substring(0, 12);
+      
+      // Format as CNST-XXXX-XXXX-XXXX
+      let formatted = 'CNST-';
+      if (value.length > 0) formatted += value.substring(0, 4);
+      if (value.length > 4) formatted += '-' + value.substring(4, 8);
+      if (value.length > 8) formatted += '-' + value.substring(8, 12);
+      
+      e.target.value = formatted;
+      
+      // Restore cursor position (adjust for added dashes)
+      const dashesBeforeCursor = (oldValue.substring(0, cursorPos).match(/-/g) || []).length;
+      const dashesInNew = (formatted.substring(0, cursorPos).match(/-/g) || []).length;
+      const newCursorPos = cursorPos + (dashesInNew - dashesBeforeCursor);
+      e.target.setSelectionRange(newCursorPos, newCursorPos);
+      
+      isFormatting = false;
+    });
+    
+    verifyBtn.addEventListener('click', async () => {
+      const inputID = input.value.trim();
+      errorDiv.style.display = 'none';
+      
+      if (!inputID || inputID === 'CNST-') {
+        errorDiv.textContent = 'Please enter a Consent ID';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      verifyBtn.textContent = 'Verifying...';
+      verifyBtn.disabled = true;
+      
+      const result = await verifyConsentID(inputID);
+      
+      if (result.valid) {
+        // Store the verified ID
+        storeConsentID(inputID);
+        consentID = inputID;
+        
+        // Close modal
+        modal.remove();
+        
+        // Show success message
+        showToast('✅ Consent ID verified! Your preferences have been loaded.', 'success');
+        
+        // Apply preferences (don't show banner)
+        console.log('[Consently DPDPA] Loaded preferences:', result.preferences);
+        
+      } else {
+        errorDiv.textContent = result.error || 'Consent ID not found. Please check and try again.';
+        errorDiv.style.display = 'block';
+        verifyBtn.textContent = '✓ Verify & Load Preferences';
+        verifyBtn.disabled = false;
+      }
+    });
+    
+    startFreshBtn.addEventListener('click', () => {
+      modal.remove();
+      // Generate new Consent ID and show consent widget
+      consentID = getConsentID();
+      showConsentWidget();
+    });
+  }
+
+  // Show Consent Success Modal with ID Display
+  function showConsentSuccessModal(consentID) {
+    const modal = document.createElement('div');
+    modal.id = 'dpdpa-success-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background:white;border-radius:24px;padding:56px;max-width:580px;width:90%;box-shadow:0 25px 70px rgba(0,0,0,0.2);text-align:center;animation:scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);">
+        <!-- Success Icon Animation -->
+        <div style="width:96px;height:96px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;box-shadow:0 12px 32px rgba(16,185,129,0.3);animation:pulse 2s ease-in-out infinite;">
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 13l4 4L19 7" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        
+        <h2 style="margin:0 0 12px 0;font-size:36px;font-weight:700;color:#059669;letter-spacing:-0.5px;">Consent Saved!</h2>
+        <p style="color:#64748b;font-size:17px;margin:0 0 36px 0;line-height:1.6;max-width:420px;margin-left:auto;margin-right:auto;">Your privacy preferences have been securely recorded and will be respected across our platform.</p>
+        
+        <!-- Consent ID Card -->
+        <div style="background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:20px;padding:36px;margin-bottom:28px;box-shadow:0 12px 32px rgba(79,118,246,0.25);position:relative;overflow:hidden;">
+          <!-- Background Pattern -->
+          <div style="position:absolute;top:0;right:0;opacity:0.1;">
+            <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="100" cy="100" r="80" stroke="white" stroke-width="2"/>
+              <circle cx="100" cy="100" r="60" stroke="white" stroke-width="2"/>
+              <circle cx="100" cy="100" r="40" stroke="white" stroke-width="2"/>
+            </svg>
+          </div>
+          
+          <label style="display:block;color:rgba(255,255,255,0.95);font-size:13px;font-weight:600;margin-bottom:16px;text-transform:uppercase;letter-spacing:1.5px;">Your Unique Consent ID</label>
+          
+          <div style="background:white;border-radius:16px;padding:24px 20px;margin-bottom:20px;position:relative;box-shadow:0 4px 16px rgba(0,0,0,0.1);">
+            <div id="consent-id-display" style="font-size:26px;font-weight:700;color:#1e293b;font-family:ui-monospace,monospace;letter-spacing:3px;word-break:break-all;">
+              ${consentID}
+            </div>
+            <div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;color:#64748b;font-size:12px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Encrypted & Secure</span>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <button 
+              onclick="window.copyConsentID('${consentID}')"
+              style="flex:1;min-width:140px;padding:14px 20px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:12px;font-weight:600;cursor:pointer;font-size:15px;backdrop-filter:blur(10px);transition:all 0.2s;"
+              onmouseover="this.style.background='rgba(255,255,255,0.35)';this.style.transform='translateY(-2px)'"
+              onmouseout="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(0)'"
+            >
+              <span style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Copy ID
+              </span>
+            </button>
+            <button 
+              onclick="window.downloadConsentReceipt('${consentID}')"
+              style="flex:1;min-width:140px;padding:14px 20px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:12px;font-weight:600;cursor:pointer;font-size:15px;backdrop-filter:blur(10px);transition:all 0.2s;"
+              onmouseover="this.style.background='rgba(255,255,255,0.35)';this.style.transform='translateY(-2px)'"
+              onmouseout="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(0)'"
+            >
+              <span style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Download
+              </span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Important Notice -->
+        <div style="background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);border-left:4px solid #f59e0b;padding:20px;border-radius:14px;margin-bottom:28px;text-align:left;box-shadow:0 4px 12px rgba(245,158,11,0.15);">
+          <div style="display:flex;align-items:start;gap:14px;">
+            <div style="width:40px;height:40px;background:#f59e0b;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div style="flex:1;">
+              <strong style="color:#92400e;display:block;margin-bottom:6px;font-size:15px;">Keep This ID Safe!</strong>
+              <p style="color:#78350f;font-size:14px;margin:0;line-height:1.6;">
+                Use this Consent ID to sync your preferences across devices and manage your privacy settings. We recommend saving it in a secure location.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Action Button -->
+        <button 
+          onclick="document.getElementById('dpdpa-success-modal').remove()"
+          style="width:100%;padding:18px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border:none;color:white;border-radius:14px;font-weight:600;font-size:17px;cursor:pointer;box-shadow:0 4px 16px rgba(16,185,129,0.3);transition:all 0.2s;"
+          onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(16,185,129,0.4)'"
+          onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(16,185,129,0.3)'"
+        >
+          <span style="display:flex;align-items:center;justify-content:center;gap:10px;">
+            <span>Got it, thanks!</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        
+        <!-- Footer Info -->
+        <p style="margin-top:24px;font-size:13px;color:#94a3b8;line-height:1.5;">
+          You can update your preferences anytime by entering your Consent ID
+        </p>
+      </div>
+      <style>
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+      </style>
+    `;
+    
+    document.body.appendChild(modal);
+  }
+
+  // Copy Consent ID to clipboard
+  window.copyConsentID = function(id) {
+    navigator.clipboard.writeText(id).then(() => {
+      showToast('📋 Consent ID copied to clipboard!', 'success');
+    }).catch(() => {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = id;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showToast('📋 Consent ID copied!', 'success');
+    });
+  };
+
+  // Download consent receipt
+  window.downloadConsentReceipt = function(consentID) {
+    const date = new Date().toLocaleDateString();
+    const receipt = `
+CONSENT RECEIPT
+===============
+
+Consent ID: ${consentID}
+Date: ${date}
+Widget: ${widgetId}
+
+Your consent preferences have been recorded.
+
+Use this Consent ID to:
+• Sync preferences across devices
+• Manage your consent settings
+• Update your preferences anytime
+
+Keep this ID safe!
+
+---
+Powered by Consently
+Digital Personal Data Protection Act, 2023
+    `.trim();
+    
+    const blob = new Blob([receipt], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `consent-receipt-${consentID}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('📄 Receipt downloaded!', 'success');
+  };
+
+  // Show toast notification
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: ${type === 'success' ? '#10b981' : '#3b82f6'};
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      font-weight: 600;
+      font-size: 15px;
+      z-index: 1000000;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
   // Check if user has consented to activities required for current page
   function checkConsentForCurrentPage(existingConsent) {
     if (!existingConsent || !existingConsent.timestamp) {
       return false;
+    }
+    
+    // Validate expiration first
+    if (existingConsent.expiresAt) {
+      const expiresAt = new Date(existingConsent.expiresAt);
+      if (expiresAt < new Date()) {
+        console.log('[Consently DPDPA] Consent expired');
+        return false;
+      }
     }
     
     // Get activity IDs from existing consent (both accepted and rejected)
@@ -1262,31 +1799,88 @@
       ...(existingConsent.rejectedActivities || [])
     ];
     
-    // Determine which activities are required for current page
-    let requiredActivityIds;
-    
-    // Check if we have a matched rule with specific activities
-    if (config._matchedRule && config._matchedRule.activities && Array.isArray(config._matchedRule.activities)) {
-      requiredActivityIds = config._matchedRule.activities;
-      console.log('[Consently DPDPA] Checking consent for page-specific activities:', requiredActivityIds);
-    } else {
-      // No rule matched or rule doesn't specify activities - use all activities
-      requiredActivityIds = activities.map(a => a.id);
-      console.log('[Consently DPDPA] Checking consent for all activities:', requiredActivityIds);
+    // If user has consented to ANY activities, consider it valid
+    // This prevents the banner from showing again on different pages on the same device
+    // Users have given their consent once, we respect that across all pages
+    if (consentedActivityIds.length > 0) {
+      console.log('[Consently DPDPA] User has existing valid consent for', consentedActivityIds.length, 'activities');
+      return true;
     }
     
-    // Check if user has consented to all required activities
-    const allConsented = requiredActivityIds.every(activityId => 
-      consentedActivityIds.includes(activityId)
-    );
-    
-    if (allConsented) {
-      console.log('[Consently DPDPA] User has consented to all required activities for this page');
-      return true;
-    } else {
-      const missingActivities = requiredActivityIds.filter(id => !consentedActivityIds.includes(id));
-      console.log('[Consently DPDPA] User has not consented to all required activities:', missingActivities);
-      return false;
+    console.log('[Consently DPDPA] No consent activities found');
+    return false;
+  }
+
+  // Check API for existing consent
+  async function checkApiConsent(consentID) {
+    try {
+      const scriptSrc = currentScript.src;
+      let apiBase;
+      
+      if (scriptSrc && scriptSrc.includes('http')) {
+        const url = new URL(scriptSrc);
+        apiBase = url.origin;
+      } else {
+        apiBase = window.location.origin;
+      }
+      
+      // Build API URL with Consent ID
+      const apiUrl = `${apiBase}/api/dpdpa/check-consent?widgetId=${encodeURIComponent(widgetId)}&visitorId=${encodeURIComponent(consentID)}&currentUrl=${encodeURIComponent(window.location.href)}`;
+      
+      console.log('[Consently DPDPA] Checking API for existing consent:', apiUrl);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.warn('[Consently DPDPA] API consent check failed:', response.status, response.statusText);
+        return null;
+      }
+      
+      const data = await response.json();
+      
+      if (data.hasConsent && data.consent) {
+        // Check if this consent was found via cross-device sync
+        if (data.consent.foundByPrincipalId) {
+          console.log('[Consently DPDPA] ✅ Valid consent found via cross-device sync (principal_id)!');
+          console.log('[Consently DPDPA] This means user already consented on another device with the same email.');
+        } else {
+          console.log('[Consently DPDPA] Valid consent found via API (same device):', data.consent);
+        }
+        
+        // Convert API consent format to localStorage format
+        const consentData = {
+          status: data.consent.status,
+          acceptedActivities: data.consent.acceptedActivities || [],
+          rejectedActivities: data.consent.rejectedActivities || [],
+          timestamp: data.consent.timestamp,
+          expiresAt: data.consent.expiresAt,
+          activityConsents: {}, // Will be populated from accepted/rejected activities if needed
+          foundByPrincipalId: data.consent.foundByPrincipalId || false
+        };
+        
+        return consentData;
+      }
+      
+      console.log('[Consently DPDPA] No valid consent found via API');
+      return null;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.warn('[Consently DPDPA] API consent check timed out');
+      } else {
+        console.warn('[Consently DPDPA] API consent check error:', error);
+      }
+      return null; // Fail silently and fall back to localStorage
     }
   }
 
@@ -1298,17 +1892,80 @@
       return;
     }
 
-    // Check for existing consent
-    const existingConsent = ConsentStorage.get(`consently_dpdpa_consent_${widgetId}`);
-    
     // Check DNT
     if (config.respectDNT && navigator.doNotTrack === '1') {
       console.log('[Consently DPDPA] DNT enabled, respecting user preference');
       return;
     }
 
-    // Evaluate display rules FIRST to determine which rule matches (if any)
-    const matchedRule = evaluateDisplayRules();
+    // Check if user has stored Consent ID
+    const storedID = ConsentStorage.get('consently_consent_id');
+    
+    if (storedID) {
+      // User has Consent ID, check if consent exists
+      consentID = storedID;
+      
+      // Check for existing consent - try API first, then fall back to localStorage
+      let existingConsent = null;
+      
+      // First, try to get consent from API (more reliable)
+      console.log('[Consently DPDPA] Checking API for existing consent...');
+      const apiConsent = await checkApiConsent(consentID);
+      
+      if (apiConsent) {
+        // API returned valid consent - use it and sync to localStorage
+        existingConsent = apiConsent;
+        // Store in localStorage for faster future checks
+        ConsentStorage.set(
+          `consently_dpdpa_consent_${widgetId}`,
+          {
+            status: apiConsent.status,
+            acceptedActivities: apiConsent.acceptedActivities,
+            rejectedActivities: apiConsent.rejectedActivities,
+            activityConsents: apiConsent.activityConsents,
+            timestamp: apiConsent.timestamp,
+            expiresAt: apiConsent.expiresAt
+          },
+          config.consentDuration || 365
+        );
+        console.log('[Consently DPDPA] Consent synced from API to localStorage');
+      } else {
+        // API didn't return consent - check localStorage as fallback
+        console.log('[Consently DPDPA] No API consent found, checking localStorage...');
+        const localStorageConsent = ConsentStorage.get(`consently_dpdpa_consent_${widgetId}`);
+        
+        if (localStorageConsent && localStorageConsent.timestamp) {
+          // Validate expiration before using localStorage consent
+          if (localStorageConsent.expiresAt) {
+            const expiresAt = new Date(localStorageConsent.expiresAt);
+            if (expiresAt < new Date()) {
+              console.log('[Consently DPDPA] localStorage consent expired, clearing...');
+              ConsentStorage.delete(`consently_dpdpa_consent_${widgetId}`);
+              existingConsent = null;
+            } else {
+              existingConsent = localStorageConsent;
+              console.log('[Consently DPDPA] Found valid consent in localStorage');
+            }
+          } else {
+            // No expiration date, check by duration
+            const consentAge = (Date.now() - new Date(localStorageConsent.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+            const consentDuration = config.consentDuration || 365;
+            if (consentAge < consentDuration) {
+              existingConsent = localStorageConsent;
+              console.log('[Consently DPDPA] Found valid consent in localStorage (age: ' + Math.round(consentAge) + ' days)');
+            } else {
+              console.log('[Consently DPDPA] localStorage consent expired by duration, clearing...');
+              ConsentStorage.delete(`consently_dpdpa_consent_${widgetId}`);
+              existingConsent = null;
+            }
+          }
+        } else {
+          console.log('[Consently DPDPA] No consent found in localStorage');
+        }
+      }
+
+      // Evaluate display rules FIRST to determine which rule matches (if any)
+      const matchedRule = evaluateDisplayRules();
     
     // Handle non-onPageLoad triggers (set up but don't apply rule yet)
     if (matchedRule) {
@@ -1397,6 +2054,10 @@
       setTimeout(() => {
         showConsentWidget();
       }, config.showAfterDelay || 1000);
+      }
+    } else {
+      // New user - show verification screen first
+      showVerificationScreen();
     }
   }
 
@@ -1643,9 +2304,6 @@
                 </div>
               </div>
             </div>
-            <button id="dpdpa-close-btn" style="background: none; border: none; cursor: pointer; padding: 6px; opacity: 0.5; transition: opacity 0.2s; border-radius: 6px;" aria-label="${t.close}">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
           </div>
         </div>
 
@@ -1769,9 +2427,6 @@
           </button>
           <button id="dpdpa-accept-all-btn" style="flex: 1; min-width: 0; padding: 13px 20px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 8px rgba(59,130,246,0.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${translatedConfig.acceptButtonText}
-          </button>
-          <button id="dpdpa-cancel-btn" style="flex: 1; min-width: 0; padding: 13px 20px; background: white; color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${t.cancel}
           </button>
         </div>
       </div>
@@ -2054,26 +2709,6 @@
 
   // Attach event listeners
   function attachEventListeners(overlay, widget) {
-    // Close button (X) - same behavior as Cancel, reject all activities
-    const closeBtn = widget.querySelector('#dpdpa-close-btn');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', async () => {
-        // First check if there are any activities at all
-        if (!activities || activities.length === 0) {
-          console.error('[Consently DPDPA] No activities available to close');
-          hideWidget(overlay);
-          return;
-        }
-        
-        // Reject all activities
-        activities.forEach(activity => {
-          setActivityConsent(activity.id, 'rejected');
-        });
-        
-        // Save consent as rejected
-        await saveConsent('rejected', overlay);
-      });
-    }
 
     // Checkboxes for activities with enhanced visual feedback (table view)
     const checkboxes = widget.querySelectorAll('.activity-checkbox');
@@ -2165,37 +2800,6 @@
       });
     }
 
-    // Cancel button - reject all activities and save consent
-    const cancelBtn = widget.querySelector('#dpdpa-cancel-btn');
-    if (cancelBtn) {
-      cancelBtn.addEventListener('click', async () => {
-        // First check if there are any activities at all
-        if (!activities || activities.length === 0) {
-          console.error('[Consently DPDPA] No activities available to cancel');
-          hideWidget(overlay);
-          return;
-        }
-        
-        // Reject all activities
-        activities.forEach(activity => {
-          setActivityConsent(activity.id, 'rejected');
-        });
-        
-        // Save consent as rejected
-        await saveConsent('rejected', overlay);
-      });
-      // Enhanced hover effects
-      cancelBtn.addEventListener('mouseenter', () => {
-        cancelBtn.style.background = '#f9fafb';
-        cancelBtn.style.borderColor = '#d1d5db';
-        cancelBtn.style.transform = 'translateY(-1px)';
-      });
-      cancelBtn.addEventListener('mouseleave', () => {
-        cancelBtn.style.background = 'white';
-        cancelBtn.style.borderColor = '#e5e7eb';
-        cancelBtn.style.transform = 'translateY(0)';
-      });
-    }
 
     // Grievance link
     const grievanceLink = widget.querySelector('#dpdpa-grievance-link');
@@ -2258,25 +2862,12 @@
       });
     });
 
-    // Close on overlay click - same behavior as Cancel, reject all activities
-    overlay.addEventListener('click', async (e) => {
-      if (e.target === overlay) {
-        // First check if there are any activities at all
-        if (!activities || activities.length === 0) {
-          console.error('[Consently DPDPA] No activities available');
-          hideWidget(overlay);
-          return;
-        }
-        
-        // Reject all activities
-        activities.forEach(activity => {
-          setActivityConsent(activity.id, 'rejected');
-        });
-        
-        // Save consent as rejected
-        await saveConsent('rejected', overlay);
-      }
-    });
+    // Overlay click disabled - users must take an action (accept/reject) to proceed
+    // overlay.addEventListener('click', (e) => {
+    //   if (e.target === overlay) {
+    //     hideWidget(overlay);
+    //   }
+    // });
   }
 
   // Set consent for individual activity
@@ -2406,15 +2997,20 @@
       pageUrl: window.location.pathname
     } : undefined;
     
+    // Get or generate Consent ID
+    if (!consentID) {
+      consentID = getConsentID();
+    }
+    
     const consentData = {
       widgetId: widgetId,
-      visitorId: getVisitorIdSync(),
+      visitorId: consentID,
       consentStatus: finalStatus,
       acceptedActivities: acceptedActivities,
-      ruleContext: ruleContext, // NEW: Track which rule triggered this consent
+      ruleContext: ruleContext, // Track which rule triggered this consent
       rejectedActivities: rejectedActivities,
       activityConsents: activityConsents,
-      activityPurposeConsents: Object.keys(activityPurposeConsents).length > 0 ? activityPurposeConsents : undefined, // NEW: Track purpose-level consent
+      activityPurposeConsents: Object.keys(activityPurposeConsents).length > 0 ? activityPurposeConsents : undefined, // Track purpose-level consent
       metadata: {
         language: navigator.language || 'en',
         referrer: document.referrer || null,
@@ -2426,6 +3022,9 @@
 
     try {
       const result = await recordConsent(consentData);
+      
+      // Store Consent ID
+      storeConsentID(consentID);
       
       // Store consent locally
       const storageData = {
@@ -2448,6 +3047,9 @@
 
       // Track consent event for analytics
       trackConsentEvent(consentData, config._matchedRule || null);
+
+      // Show success modal with Consent ID
+      showConsentSuccessModal(consentID);
 
       // Show floating preference centre button
       showFloatingPreferenceButton();
@@ -2583,7 +3185,7 @@
   }
 
   function downloadConsentReceipt(consent) {
-    const visitorId = getVisitorIdSync();
+    const visitorId = consentID || getConsentID();
     const receiptData = {
       widgetId,
       visitorId,
@@ -2600,7 +3202,7 @@
   }
 
   function openPrivacyCentre() {
-    const visitorId = getVisitorIdSync();
+    const visitorId = consentID || getConsentID();
     const scriptSrc = currentScript.src;
     let baseUrl;
     
@@ -2631,7 +3233,7 @@
     }
 
     // If cookie widget doesn't exist, create our own button on the right side
-    const visitorId = getVisitorIdSync();
+    const visitorId = consentID || getConsentID();
     const button = document.createElement('div');
     button.id = 'dpdpa-float-btn';
     button.innerHTML = `
@@ -2822,7 +3424,7 @@
   }
 
   function showReceiptOptions(consent) {
-    const visitorId = getVisitorIdSync();
+    const visitorId = consentID || getConsentID();
     const bar = document.createElement('div');
     bar.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:999999;background:#111827;color:#fff;padding:12px 16px;border-radius:12px;display:flex;flex-direction:column;gap:8px;align-items:center;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);font-family:system-ui,sans-serif;font-size:13px;max-width:90%;min-width:300px;`;
     bar.innerHTML = `
@@ -2884,14 +3486,16 @@
       this.show();
     },
     
-    setUserEmail: function(email) {
-      visitorEmail = email || null;
-      // Note: Email is not used for visitor ID generation (device fingerprinting only)
+    getConsentID: function() {
+      return consentID || getConsentID();
     },
     
-    setUserPhone: function(phone) {
-      visitorPhone = phone || null;
-      // Note: Phone is not used for visitor ID generation (device fingerprinting only)
+    verifyConsentID: async function(id) {
+      return await verifyConsentID(id);
+    },
+    
+    showVerificationScreen: function() {
+      showVerificationScreen();
     },
     
     downloadReceipt: function() {
@@ -2917,3 +3521,4 @@
   }
 
 })();
+

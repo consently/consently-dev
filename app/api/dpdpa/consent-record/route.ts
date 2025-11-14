@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createPublicClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import type { ConsentRecordRequest, ConsentDetails, RuleContext, PartialRuleContext } from '@/types/dpdpa-widget.types';
 import { consentRecordRequestSchema } from '@/types/dpdpa-widget.types';
@@ -14,7 +13,7 @@ import { consentRecordRequestSchema } from '@/types/dpdpa-widget.types';
 
 // Types moved to @/types/dpdpa-widget.types.ts
 
-// Note: Email/phone hashing functions removed - visitor ID is based on device fingerprinting only
+// Note: Consent ID system - visitor ID is now a user-visible code (CNST-XXXX-XXXX-XXXX)
 
 // Helper function to detect device type from user agent
 function detectDeviceType(userAgent: string): 'Desktop' | 'Mobile' | 'Tablet' | 'Unknown' {
@@ -220,7 +219,7 @@ export async function POST(request: NextRequest) {
     // Use validated data
     body = validationResult.data;
 
-    // Enhanced logging to diagnose 500 error
+    // Enhanced logging
     console.log('[Consent Record API] Received request:', {
       widgetId: body.widgetId,
       visitorId: body.visitorId,
@@ -545,23 +544,25 @@ export async function POST(request: NextRequest) {
 
     if (existingConsent) {
       // Update existing consent record
+      const updateData: any = {
+        consent_status: finalConsentStatus, // Use adjusted status
+        consented_activities: validatedAcceptedActivities,
+        rejected_activities: validatedRejectedActivities,
+        consent_details: consentDetails, // Store rule context and activity consents
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        device_type: deviceType,
+        browser: browser,
+        os: os,
+        country_code: country?.substring(0, 3) || null, // Truncate to 3 chars for country_code
+        language: language,
+        updated_at: new Date().toISOString(),
+        consent_expires_at: expiresAt.toISOString()
+      };
+
       const { data, error } = await supabase
         .from('dpdpa_consent_records')
-        .update({
-          consent_status: finalConsentStatus, // Use adjusted status
-          consented_activities: validatedAcceptedActivities,
-          rejected_activities: validatedRejectedActivities,
-          consent_details: consentDetails, // Store rule context and activity consents
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          device_type: deviceType,
-          browser: browser,
-          os: os,
-          country_code: country?.substring(0, 3) || null, // Truncate to 3 chars for country_code
-          language: language,
-          updated_at: new Date().toISOString(),
-          consent_expires_at: expiresAt.toISOString()
-        })
+        .update(updateData)
         .eq('id', existingConsent.id)
         .select()
         .single();
@@ -598,7 +599,7 @@ export async function POST(request: NextRequest) {
       const consentId = `${body.widgetId}_${body.visitorId}_${timestamp}_${randomSuffix}`;
       
       // Create new consent record
-      const insertData = {
+      const insertData: any = {
         widget_id: body.widgetId,
         visitor_id: body.visitorId,
         consent_id: consentId,
@@ -616,7 +617,7 @@ export async function POST(request: NextRequest) {
         language: language,
         consent_given_at: new Date().toISOString(),
         consent_expires_at: expiresAt.toISOString(),
-        privacy_notice_version: '2.0' // Updated version for display rules support
+        privacy_notice_version: '3.0' // Updated version for Consent ID system
       };
       
       console.log('[Consent Record API] Attempting to insert consent record:', {
@@ -810,7 +811,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       consentId: result.id,
-      expiresAt: result.consent_expires_at, // Fixed: use correct column name
+      visitorId: body.visitorId, // Return the Consent ID to display to user
+      expiresAt: result.consent_expires_at,
       message: 'Consent recorded successfully'
     }, {
       status: 200,

@@ -216,7 +216,7 @@ export interface DataCategoryPublic {
  */
 export interface ConsentRecordRequest {
   widgetId: string;
-  visitorId: string;
+  visitorId: string; // User-visible Consent ID (Format: CNST-XXXX-XXXX-XXXX)
   consentStatus: 'accepted' | 'rejected' | 'partial';
   acceptedActivities: string[];
   rejectedActivities: string[];
@@ -262,7 +262,7 @@ export interface ConsentDetails {
  */
 export const consentRecordRequestSchema = z.object({
   widgetId: z.string().min(1).max(100),
-  visitorId: z.string().min(1).max(200),
+  visitorId: z.string().min(1).max(200), // User-visible Consent ID
   consentStatus: z.enum(['accepted', 'rejected', 'partial']),
   acceptedActivities: z.array(z.string().uuid()),
   rejectedActivities: z.array(z.string().uuid()),
