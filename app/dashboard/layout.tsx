@@ -127,12 +127,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [supabase, router, setUser, pathname]);
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error('Failed to sign out');
-    } else {
+    try {
+      // Log logout attempt (before sign out)
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        toast.error('Failed to sign out. Please try again.');
+        return;
+      }
+
+      // Clear user store
       clearUser();
+      
+      // Log successful logout
+      if (currentUser) {
+        try {
+          const { logSuccess } = await import('@/lib/audit');
+          await logSuccess(
+            currentUser.id,
+            'user.logout',
+            'auth',
+            currentUser.id,
+            undefined
+          );
+        } catch (auditError) {
+          console.error('Failed to log logout:', auditError);
+          // Don't block logout if audit logging fails
+        }
+      }
+
+      // Force router refresh and redirect
+      router.refresh();
       router.push('/login');
+      
+      toast.success('Signed out successfully');
+    } catch (error) {
+      console.error('Unexpected logout error:', error);
+      toast.error('An error occurred during sign out');
     }
   };
 

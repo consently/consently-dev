@@ -13,7 +13,13 @@ export interface SummaryMetrics {
   grantedConsents: number;
   deniedConsents: number;
   withdrawnConsents: number;
+  partialConsents: number;
   consentRate: number;
+  denialRate: number;
+  revocationRate: number;
+  uniqueVisitors: number;
+  returnVisitors: number;
+  averageConsentDuration?: number;
 }
 
 export interface TrendDataPoint {
@@ -35,6 +41,57 @@ export interface GeographicData {
   consentRate: number;
 }
 
+export interface HourlyData {
+  hour: number;
+  consents: number;
+  granted: number;
+  denied: number;
+}
+
+export interface DayOfWeekData {
+  day: string;
+  dayNumber: number;
+  consents: number;
+  granted: number;
+  denied: number;
+}
+
+export interface BrowserData {
+  name: string;
+  count: number;
+  percentage: number;
+  consentRate: number;
+}
+
+export interface OSData {
+  name: string;
+  count: number;
+  percentage: number;
+  consentRate: number;
+}
+
+export interface LanguageData {
+  language: string;
+  count: number;
+  percentage: number;
+  consentRate: number;
+}
+
+export interface ConversionFunnel {
+  visitors: number;
+  consents: number;
+  granted: number;
+  partial: number;
+  conversionRate: number;
+}
+
+export interface PreviousPeriodComparison {
+  totalConsents: number;
+  consentRate: number;
+  change: number;
+  changePercentage: number;
+}
+
 export interface AnalyticsReport {
   generatedAt: string;
   dateRange: DateRangeInfo;
@@ -42,6 +99,13 @@ export interface AnalyticsReport {
   trendData: TrendDataPoint[];
   deviceData: DeviceData[];
   geographicData: GeographicData[];
+  hourlyData: HourlyData[];
+  dayOfWeekData: DayOfWeekData[];
+  browserData: BrowserData[];
+  osData: OSData[];
+  languageData: LanguageData[];
+  conversionFunnel: ConversionFunnel;
+  previousPeriod?: PreviousPeriodComparison;
 }
 
 export type ExportFormat = 'pdf' | 'csv' | 'json';
