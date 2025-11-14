@@ -13,6 +13,8 @@ export async function GET(
     const supabase = await createClient();
     const { activityId } = await params;
 
+    console.log('[Activity Stats] Fetching stats for activity:', activityId);
+
     // Check authentication
     const {
       data: { user },
@@ -20,6 +22,7 @@ export async function GET(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error('[Activity Stats] Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -35,9 +38,19 @@ export async function GET(
       .eq('user_id', user.id)
       .single();
 
-    if (activityError || !activity) {
-      return NextResponse.json({ error: 'Activity not found or access denied' }, { status: 404 });
+    if (activityError) {
+      console.error('[Activity Stats] Activity fetch error:', activityError);
+      return NextResponse.json({ 
+        error: 'Activity not found or access denied',
+        details: activityError.message 
+      }, { status: 404 });
     }
+
+    if (!activity) {
+      return NextResponse.json({ error: 'Activity not found' }, { status: 404 });
+    }
+
+    console.log('[Activity Stats] Found activity:', activity.activity_name);
 
     // Get query params
     const searchParams = request.nextUrl.searchParams;
@@ -76,32 +89,75 @@ export async function GET(
       .contains('selected_activities', [activityId]);
 
     if (widgetsError) {
-      console.error('Error fetching widgets:', widgetsError);
-      return NextResponse.json({ error: 'Failed to fetch widgets' }, { status: 500 });
+      console.error('[Activity Stats] Error fetching widgets:', widgetsError);
+      return NextResponse.json({ 
+        error: 'Failed to fetch widgets',
+        details: widgetsError.message 
+      }, { status: 500 });
     }
 
     const widgetIds = widgets?.map(w => w.widget_id) || [];
+    console.log('[Activity Stats] Found widgets:', widgetIds.length);
 
-    // Fetch consent records that involve this activity
+    // Fetch consent records for widgets that include this activity
+    // We'll filter for records containing this activity in JavaScript since Supabase
+    // doesn't support OR queries with array contains easily
     let consentsQuery = supabase
       .from('dpdpa_consent_records')
-      .select('*')
-      .or(`accepted_activities.cs.{${activityId}},rejected_activities.cs.{${activityId}}`);
-
-    if (range !== 'all') {
-      consentsQuery = consentsQuery.gte('consent_timestamp', dateFilter);
-    }
+      .select('*');
 
     if (widgetIds.length > 0) {
       consentsQuery = consentsQuery.in('widget_id', widgetIds);
+    } else {
+      // If no widgets found, return empty results
+      return NextResponse.json({
+        activityInfo: {
+          activityId: activity.id,
+          name: activity.activity_name,
+          purpose: activity.purpose,
+          industry: activity.industry,
+          dataAttributes: activity.data_attributes,
+          retentionPeriod: activity.retention_period,
+          isActive: activity.is_active,
+          createdAt: activity.created_at,
+        },
+        overview: {
+          totalResponses: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          acceptanceRate: 0,
+          widgetCount: 0,
+        },
+        breakdown: {
+          countries: [],
+          devices: [],
+        },
+        timeSeries: [],
+        widgets: [],
+      });
     }
 
-    const { data: consents, error: consentsError } = await consentsQuery;
+    if (range !== 'all') {
+      consentsQuery = consentsQuery.gte('consent_given_at', dateFilter);
+    }
+
+    const { data: allConsents, error: consentsError } = await consentsQuery;
 
     if (consentsError) {
-      console.error('Error fetching consent records:', consentsError);
-      return NextResponse.json({ error: 'Failed to fetch consent records' }, { status: 500 });
+      console.error('[Activity Stats] Error fetching consent records:', consentsError);
+      return NextResponse.json({ 
+        error: 'Failed to fetch consent records',
+        details: consentsError.message 
+      }, { status: 500 });
     }
+
+    // Filter consents to only include those where this activity appears
+    const consents = allConsents?.filter(consent => 
+      consent.consented_activities?.includes(activityId) || 
+      consent.rejected_activities?.includes(activityId)
+    ) || [];
+
+    console.log('[Activity Stats] Found consents:', consents.length, 'out of', allConsents?.length || 0);
 
     // Calculate overall stats for this activity
     let acceptedCount = 0;
@@ -109,7 +165,7 @@ export async function GET(
     let totalResponses = 0;
 
     consents?.forEach(consent => {
-      if (consent.accepted_activities?.includes(activityId)) {
+      if (consent.consented_activities?.includes(activityId)) {
         acceptedCount++;
         totalResponses++;
       }
@@ -124,7 +180,7 @@ export async function GET(
     // Geographic breakdown
     const countryStats = consents?.reduce((acc: any, c) => {
       const country = c.country || 'Unknown';
-      const isAccepted = c.accepted_activities?.includes(activityId);
+      const isAccepted = c.consented_activities?.includes(activityId);
       const isRejected = c.rejected_activities?.includes(activityId);
       
       if (!acc[country]) {
@@ -146,7 +202,7 @@ export async function GET(
     // Device breakdown
     const deviceStats = consents?.reduce((acc: any, c) => {
       const device = c.device_type || 'Unknown';
-      const isAccepted = c.accepted_activities?.includes(activityId);
+      const isAccepted = c.consented_activities?.includes(activityId);
       const isRejected = c.rejected_activities?.includes(activityId);
       
       if (!acc[device]) {
@@ -168,12 +224,14 @@ export async function GET(
     // Time series data (daily breakdown)
     const timeSeriesMap = new Map<string, { accepted: number; rejected: number }>();
     consents?.forEach(c => {
-      const date = new Date(c.consent_timestamp).toISOString().split('T')[0];
+      const consentDate = c.consent_given_at || c.consent_timestamp;
+      if (!consentDate) return; // Skip records without a timestamp
+      const date = new Date(consentDate).toISOString().split('T')[0];
       if (!timeSeriesMap.has(date)) {
         timeSeriesMap.set(date, { accepted: 0, rejected: 0 });
       }
       const dayStats = timeSeriesMap.get(date)!;
-      if (c.accepted_activities?.includes(activityId)) dayStats.accepted++;
+      if (c.consented_activities?.includes(activityId)) dayStats.accepted++;
       if (c.rejected_activities?.includes(activityId)) dayStats.rejected++;
     });
 
@@ -207,7 +265,7 @@ export async function GET(
     consents?.forEach(consent => {
       const widgetStat = widgetStatsMap.get(consent.widget_id);
       if (widgetStat) {
-        if (consent.accepted_activities?.includes(activityId)) {
+        if (consent.consented_activities?.includes(activityId)) {
           widgetStat.accepted++;
           widgetStat.total++;
         }
@@ -262,7 +320,10 @@ export async function GET(
       widgets: widgetBreakdown,
     });
   } catch (error) {
-    console.error('Unexpected error in activity stats:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[Activity Stats] Unexpected error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
