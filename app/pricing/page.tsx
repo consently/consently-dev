@@ -5,9 +5,30 @@ import { Footer } from '@/components/ui/footer';
 import { ScrollingBanner } from '@/components/ui/scrolling-banner';
 import { Shield, CheckCircle2, ArrowRight, Zap, Star, Crown, Search, Sparkles, Gift, Rocket, Calendar } from 'lucide-react';
 
-export const metadata = {
-  title: 'Pricing - Consently',
-  description: 'Pre-launch offer: Get 1 month free trial. DPDPA 2023 compliance made simple for Indian businesses.',
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Pricing - Consently | 1 Month Free Trial - No Credit Card Required',
+  description: 'Pre-launch offer: Get 1 month free trial on all plans - no credit card required. DPDPA 2023 compliance made simple for Indian businesses. Start your free trial today.',
+  keywords: [
+    'Consently pricing',
+    'DPDPA compliance pricing',
+    'consent management pricing',
+    'free trial',
+    'no credit card',
+    'DPDPA compliance cost',
+    'cookie consent pricing India',
+    'privacy compliance pricing',
+    'data protection pricing',
+    'DPDPA platform pricing',
+    'pre-launch offer',
+    '1 month free trial',
+  ],
+  openGraph: {
+    title: 'Pricing - Consently | 1 Month Free Trial',
+    description: 'Pre-launch offer: Get 1 month free trial on all plans - no credit card required. DPDPA 2023 compliance made simple.',
+    type: 'website',
+  },
 };
 
 export default function PricingPage() {

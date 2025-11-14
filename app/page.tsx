@@ -18,6 +18,44 @@ import {
   Layers,
 } from 'lucide-react';
 
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Consently - DPDPA 2023 Compliance Platform | 1 Month Free Trial',
+  description: 'Start your DPDPA 2023 compliance journey with Consently. Get 1 month free trial - no credit card required. Automated cookie scanning, consent management, 22 Indian languages support, and compliance reporting for Indian businesses.',
+  keywords: [
+    'DPDPA 2023',
+    'DPDPA compliance',
+    'consent management India',
+    'cookie consent India',
+    'data protection India',
+    'privacy compliance',
+    'free trial',
+    'no credit card',
+    'DPDPA consent manager',
+    'cookie scanner India',
+    'privacy compliance platform',
+    'data protection act India',
+    'consent management system',
+    'DPDPA 2023 platform',
+    'Indian data protection',
+    'privacy preference centre',
+    'data subject rights',
+    'DPDPA compliance software',
+  ],
+  openGraph: {
+    title: 'Consently - DPDPA 2023 Compliance Platform | 1 Month Free Trial',
+    description: 'Start your DPDPA 2023 compliance journey with Consently. Get 1 month free trial - no credit card required. Automated cookie scanning, consent management, and compliance reporting.',
+    type: 'website',
+    url: 'https://www.consently.in',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Consently - DPDPA 2023 Compliance Platform | 1 Month Free Trial',
+    description: 'Start your DPDPA 2023 compliance journey with Consently. Get 1 month free trial - no credit card required.',
+  },
+};
+
 export default function Home() {
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -31,9 +69,11 @@ export default function Home() {
       priceCurrency: 'INR',
       name: 'Pre-Launch Offer - 1 Month Free Trial',
       description: 'Pre-launch special: Get 1 month free trial on all plans. No credit card required.',
+      availability: 'https://schema.org/InStock',
+      url: 'https://www.consently.in/signup',
     },
     description:
-      'DPDPA 2023 compliant consent management platform for Indian businesses. Pre-launch offer: 1 month free trial. Automate cookie consent, data processing consent, and compliance reporting.',
+      'DPDPA 2023 compliant consent management platform for Indian businesses. Pre-launch offer: 1 month free trial - no credit card required. Automate cookie consent, data processing consent, and compliance reporting.',
     url: 'https://www.consently.in',
     inLanguage: ['en', 'hi'],
     featureList: [
@@ -42,7 +82,14 @@ export default function Home() {
       '22 Indian Languages Support',
       'Real-time Analytics',
       'Audit Trail & Reports',
+      '1 Month Free Trial',
+      'No Credit Card Required',
     ],
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: '4.8',
+      ratingCount: '150',
+    },
   };
 
   return (

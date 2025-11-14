@@ -110,7 +110,35 @@ Consently is India's premier DPDPA 2023 compliant consent management platform. W
 
 ---
 
-## Pricing Plans
+## Pricing Plans & Free Trial Offer
+
+### 🎁 Pre-Launch Special: 1 Month Free Trial - No Credit Card Required
+**Limited Time Offer**: Get full access to all features across all plans for 1 month completely free. No credit card required, no commitments, cancel anytime.
+
+**What's Included in Free Trial:**
+- Full access to all Premium and Enterprise features
+- Automated cookie scanning (Quick, Standard, and Deep Crawl)
+- Unlimited consents during trial period
+- DPDPA consent management with all industry templates
+- 22 Indian languages support
+- Privacy preference centre
+- Advanced analytics and reporting
+- Rights request management
+- Priority support during trial
+- Complete audit trails
+- Exportable reports (CSV/JSON/PDF)
+
+**How to Claim:**
+1. Visit https://www.consently.in/signup
+2. Create your account (no credit card required)
+3. Start using all features immediately
+4. Explore everything risk-free for 1 month
+
+**After Trial:**
+- Continue with Free Plan (₹0/month) with basic features
+- Upgrade to Premium (₹999/month) or Enterprise (₹2,499/month) when ready
+- No auto-charge, no hidden fees
+- Cancel anytime
 
 ### Free Plan - ₹0/month
 - Quick Scan (homepage only)
@@ -394,7 +422,7 @@ This platform is designed to help Indian businesses comply with DPDPA 2023. Key 
 - Indian language consent banners
 - Data residency India
 
-**Target Keywords**: DPDPA compliance, cookie consent India, data protection India, privacy compliance, consent management, Indian languages support, data residency India, DPDPA 2023 platform, privacy preference centre, data subject rights, DPDPA grievance management
+**Target Keywords**: DPDPA compliance, cookie consent India, data protection India, privacy compliance, consent management, Indian languages support, data residency India, DPDPA 2023 platform, privacy preference centre, data subject rights, DPDPA grievance management, free trial, no credit card, 1 month free trial, DPDPA compliance free trial, consent management free trial, pre-launch offer
 
 **Content Focus**: 
 - DPDPA 2023 compliance guides
@@ -405,6 +433,9 @@ This platform is designed to help Indian businesses comply with DPDPA 2023. Key 
 - Cookie consent best practices
 - Privacy preference management
 - Data subject rights implementation
+- Free trial offers and pre-launch promotions
+- No credit card required offers
+- Getting started with DPDPA compliance
 
 **Blog Topics Covered**:
 - How to implement DPDPA compliance
@@ -415,6 +446,9 @@ This platform is designed to help Indian businesses comply with DPDPA 2023. Key 
 - Technical integration tutorials
 - Legal updates and interpretations
 - Case studies and success stories
+- Free trial guides and getting started
+- Pre-launch offers and special promotions
+- No credit card required trial offers
 
 ---
 

@@ -193,24 +193,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 sm:w-72 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 safe-left ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-            <Link href="/dashboard/cookies" className="flex items-center space-x-2">
-              <Shield className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">Consently</span>
+          <div className="flex items-center justify-between h-14 sm:h-16 px-4 sm:px-6 border-b border-gray-200 safe-top">
+            <Link href="/dashboard/cookies" className="flex items-center space-x-2" onClick={() => setSidebarOpen(false)}>
+              <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600" />
+              <span className="text-lg sm:text-xl font-bold text-gray-900">Consently</span>
             </Link>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
+            <button 
+              onClick={() => setSidebarOpen(false)} 
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
+              aria-label="Close menu"
+            >
               <X className="h-6 w-6 text-gray-500" />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 overflow-y-auto">
+          <nav className="flex-1 px-3 sm:px-4 py-4 sm:py-6 overflow-y-auto overscroll-contain">
             <ul className="space-y-1">
               {navigation.map((item) => (
                 <li key={item.name}>
@@ -218,7 +222,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div>
                       <button
                         onClick={() => toggleExpanded(item.name)}
-                        className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="flex items-center justify-between w-full px-3 py-2.5 sm:py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
                       >
                         <div className="flex items-center">
                           <item.icon className="h-5 w-5 mr-3" />
@@ -231,15 +235,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         />
                       </button>
                       {expandedItems.includes(item.name) && (
-                        <ul className="mt-1 ml-8 space-y-1">
+                        <ul className="mt-1 ml-6 sm:ml-8 space-y-1">
                           {item.children.map((child) => (
                             <li key={child.href}>
                               <Link
                                 href={child.href}
-                                className={`block px-3 py-2 text-sm rounded-lg transition-colors ${
+                                className={`block px-3 py-2.5 sm:py-2 text-sm rounded-lg transition-colors touch-manipulation ${
                                   isActive(child.href)
                                     ? 'bg-blue-50 text-blue-600 font-medium'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200'
                                 }`}
                                 onClick={() => setSidebarOpen(false)}
                               >
@@ -253,10 +257,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   ) : (
                     <Link
                       href={item.href!}
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      className={`flex items-center px-3 py-2.5 sm:py-2 text-sm font-medium rounded-lg transition-colors touch-manipulation ${
                         isActive(item.href!)
                           ? 'bg-blue-50 text-blue-600'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
                       }`}
                       onClick={() => setSidebarOpen(false)}
                     >
@@ -270,11 +274,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
 
           {/* User menu */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-3 sm:p-4 border-t border-gray-200 safe-bottom">
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center w-full px-3 py-2.5 sm:py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
               >
                 <div className="flex items-center flex-1">
                   <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
@@ -291,10 +295,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {userMenuOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
                   <Link
                     href="/dashboard/settings"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center px-4 py-2.5 sm:py-2 text-sm text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     <Settings className="h-4 w-4 mr-3" />
@@ -302,7 +306,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    className="flex items-center w-full px-4 py-2.5 sm:py-2 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors touch-manipulation"
                   >
                     <LogOut className="h-4 w-4 mr-3" />
                     Logout
@@ -317,21 +321,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden">
+        <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-3 sm:px-4 lg:px-8 safe-top">
+          <button 
+            onClick={() => setSidebarOpen(true)} 
+            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
+            aria-label="Open menu"
+          >
             <Menu className="h-6 w-6 text-gray-500" />
           </button>
 
-          <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center text-sm text-gray-600">
-              <Shield className="h-4 w-4 mr-2 text-green-500" />
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="hidden sm:flex items-center text-xs sm:text-sm text-gray-600">
+              <Shield className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-green-500" />
               <span className="font-medium">DPDPA 2023 Compliant</span>
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-8">{children}</main>
+        <main className="p-3 sm:p-4 lg:p-8 pb-6 sm:pb-8 safe-bottom">{children}</main>
       </div>
 
       <Toaster position="top-right" richColors />
