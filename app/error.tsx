@@ -13,8 +13,24 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error('Application error:', error);
+    // Log the error to error tracking service (Sentry)
+    import('@/lib/error-tracking').then(({ captureError }) => {
+      captureError(error, {
+        level: 'error',
+        context: {
+          digest: error.digest,
+          timestamp: new Date().toISOString(),
+        },
+        tags: {
+          component: 'global-error-boundary',
+        },
+      });
+    });
+    
+    // Also log to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Application error:', error);
+    }
   }, [error]);
 
   return (

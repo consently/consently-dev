@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email';
+import { logSuccess, logFailure } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,11 +35,33 @@ export async function POST(request: NextRequest) {
     );
 
     if (!success) {
+      // Log email sending failure
+      await logFailure(
+        user.id,
+        'email.send',
+        'email',
+        'Email delivery failed',
+        request
+      );
+      
       return NextResponse.json(
         { error: 'Failed to send email' },
         { status: 500 }
       );
     }
+
+    // Log successful email send
+    await logSuccess(
+      user.id,
+      'email.send',
+      'email',
+      recipientEmail,
+      {
+        template: templateName,
+        recipient: recipientEmail
+      },
+      request
+    );
 
     return NextResponse.json({
       success: true,

@@ -79,3 +79,105 @@ export function isScanDepthAllowed(requested: 'shallow' | 'medium' | 'deep', ent
   const order = { shallow: 0, medium: 1, deep: 2 } as const;
   return order[requested] <= order[entitlements.maxScanDepth];
 }
+
+/**
+ * Check if user has remaining consent quota for current month
+ * Returns { allowed: boolean, remaining: number | null, limit: number | null }
+ */
+export async function checkConsentQuota(userId: string, entitlements: Entitlements): Promise<{
+  allowed: boolean;
+  remaining: number | null;
+  limit: number | null;
+  used: number;
+}> {
+  // Unlimited plans always allowed
+  if (entitlements.consentLimit === null) {
+    return { allowed: true, remaining: null, limit: null, used: 0 };
+  }
+
+  const supabase = await createClient();
+  
+  // Get first day of current month
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // Count consents recorded this month across both tables
+  const [{ count: cookieCount }, { count: dpdpaCount }] = await Promise.all([
+    supabase
+      .from('consent_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', startOfMonth.toISOString()),
+    supabase
+      .from('dpdpa_consent_records')
+      .select('dpdpa_widget_configs!inner(user_id)', { count: 'exact', head: true })
+      .eq('dpdpa_widget_configs.user_id', userId)
+      .gte('created_at', startOfMonth.toISOString())
+  ]);
+
+  const totalUsed = (cookieCount || 0) + (dpdpaCount || 0);
+  const remaining = Math.max(0, entitlements.consentLimit - totalUsed);
+  const allowed = totalUsed < entitlements.consentLimit;
+
+  return {
+    allowed,
+    remaining,
+    limit: entitlements.consentLimit,
+    used: totalUsed
+  };
+}
+
+/**
+ * Check if trial has expired and should be deactivated
+ * This should be called on login/authentication
+ */
+export async function checkAndExpireTrial(userId: string): Promise<{ expired: boolean; message?: string }> {
+  const supabase = await createClient();
+  
+  // Get active trial subscription
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .eq('is_trial', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!subscription) {
+    return { expired: false };
+  }
+
+  // Check if trial has expired
+  const now = new Date();
+  const trialEnd = subscription.trial_end ? new Date(subscription.trial_end) : null;
+
+  if (trialEnd && trialEnd < now) {
+    // Trial has expired - deactivate it
+    await supabase
+      .from('subscriptions')
+      .update({
+        status: 'inactive',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', subscription.id);
+
+    // Update user profile to free plan
+    await supabase
+      .from('users')
+      .update({
+        subscription_plan: null,
+        subscription_status: 'inactive',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    return {
+      expired: true,
+      message: 'Your trial period has ended. Please upgrade to continue using premium features.'
+    };
+  }
+
+  return { expired: false };
+}

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, getUserIdentifier } from '@/lib/rate-limit';
+import { logSuccess, logFailure } from '@/lib/audit';
 
 const TRIAL_DAYS = 14;
 
@@ -10,6 +12,29 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Apply rate limiting - 5 attempts per hour per user (prevent abuse)
+    const rateLimitResult = checkRateLimit({
+      max: 5,
+      window: 3600000, // 1 hour
+      identifier: getUserIdentifier(user.id),
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Too many trial requests. Please try again later.',
+          retryAfter: rateLimitResult.retryAfter
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'Retry-After': (rateLimitResult.retryAfter || 60).toString(),
+          }
+        }
+      );
     }
 
     // Check existing active subscription or trial
@@ -59,6 +84,16 @@ export async function POST(request: NextRequest) {
 
     if (subErr) {
       console.error('Failed to start trial:', subErr);
+      
+      // Log trial creation failure
+      await logFailure(
+        user.id,
+        'subscription.create',
+        'subscription',
+        subErr.message,
+        request
+      );
+      
       return NextResponse.json({ error: 'Failed to start trial' }, { status: 500 });
     }
 
@@ -67,6 +102,21 @@ export async function POST(request: NextRequest) {
       .from('users')
       .update({ subscription_plan: 'small', subscription_status: 'active' })
       .eq('id', user.id);
+
+    // Log successful trial activation
+    await logSuccess(
+      user.id,
+      'subscription.create',
+      'subscription',
+      sub.id,
+      {
+        plan: 'small',
+        is_trial: true,
+        trial_days: TRIAL_DAYS,
+        trial_end: trialEnd.toISOString()
+      },
+      request
+    );
 
     return NextResponse.json({
       success: true,

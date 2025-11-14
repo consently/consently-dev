@@ -4,6 +4,7 @@ import { createClient as createPublicClient } from '@supabase/supabase-js';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import type { ConsentRecordRequest, ConsentDetails, RuleContext, PartialRuleContext } from '@/types/dpdpa-widget.types';
 import { consentRecordRequestSchema } from '@/types/dpdpa-widget.types';
+import { logSuccess } from '@/lib/audit';
 
 /**
  * Public API endpoint to record DPDPA consent
@@ -241,7 +242,7 @@ export async function POST(request: NextRequest) {
     // Verify widget exists and is active
     const { data: widgetConfig, error: widgetError } = await supabase
       .from('dpdpa_widget_configs')
-      .select('widget_id, consent_duration')
+      .select('widget_id, consent_duration, user_id')
       .eq('widget_id', body.widgetId)
       .eq('is_active', true)
       .single();
@@ -265,6 +266,49 @@ export async function POST(request: NextRequest) {
           }
         }
       );
+    }
+
+    // ===== CONSENT LIMIT ENFORCEMENT =====
+    // Check if user has exceeded their monthly consent quota
+    const userId = widgetConfig.user_id;
+    if (userId) {
+      const { getEntitlements, checkConsentQuota } = await import('@/lib/subscription');
+      const entitlements = await getEntitlements();
+      const quotaCheck = await checkConsentQuota(userId, entitlements);
+      
+      if (!quotaCheck.allowed) {
+        console.warn('[Consent Record API] Consent limit exceeded:', {
+          userId,
+          used: quotaCheck.used,
+          limit: quotaCheck.limit,
+          plan: entitlements.plan
+        });
+        
+        return NextResponse.json(
+          { 
+            error: 'Monthly consent limit exceeded',
+            code: 'CONSENT_LIMIT_EXCEEDED',
+            details: {
+              used: quotaCheck.used,
+              limit: quotaCheck.limit,
+              plan: entitlements.plan,
+              message: 'Please upgrade your plan to record more consents this month.'
+            }
+          },
+          { 
+            status: 403,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+            }
+          }
+        );
+      }
+      
+      console.log('[Consent Record API] Consent quota check passed:', {
+        used: quotaCheck.used,
+        limit: quotaCheck.limit,
+        remaining: quotaCheck.remaining
+      });
     }
 
     // Extract metadata from request
@@ -806,6 +850,22 @@ export async function POST(request: NextRequest) {
         visitorId: body.visitorId,
       });
     }
+
+    // Log successful consent recording (use widget owner's user_id since this is a public endpoint)
+    await logSuccess(
+      widgetConfig.user_id,
+      'consent.record',
+      'dpdpa_consent',
+      result.id,
+      {
+        widget_id: body.widgetId,
+        consent_status: finalConsentStatus,
+        accepted_count: validatedAcceptedActivities.length,
+        rejected_count: validatedRejectedActivities.length,
+        is_update: !!existingConsent
+      },
+      request
+    );
 
     // Return success response
     return NextResponse.json({

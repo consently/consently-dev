@@ -89,13 +89,13 @@ export async function GET(request: NextRequest) {
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
     const last7DaysConsents = consents?.filter(c => 
-      new Date(c.consent_timestamp) >= sevenDaysAgo
+      new Date(c.consent_given_at || c.consent_timestamp) >= sevenDaysAgo
     ).length || 0;
 
-    const previous7DaysConsents = consents?.filter(c => 
-      new Date(c.consent_timestamp) >= fourteenDaysAgo && 
-      new Date(c.consent_timestamp) < sevenDaysAgo
-    ).length || 0;
+    const previous7DaysConsents = consents?.filter(c => {
+      const consentDate = new Date(c.consent_given_at || c.consent_timestamp);
+      return consentDate >= fourteenDaysAgo && consentDate < sevenDaysAgo;
+    }).length || 0;
 
     const changePercent = previous7DaysConsents > 0 
       ? ((last7DaysConsents - previous7DaysConsents) / previous7DaysConsents) * 100 

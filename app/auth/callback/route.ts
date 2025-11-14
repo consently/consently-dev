@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { logSuccess, logFailure, getIpAddress, getUserAgent } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -34,6 +35,16 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Auth callback error:', error);
+      
+      // Log failed login attempt
+      await logFailure(
+        undefined,
+        'user.login',
+        'auth',
+        error.message,
+        request
+      );
+      
       // Redirect to login with error message
       const url = new URL('/login', request.url);
       url.searchParams.set('error', 'oauth_failed');
@@ -71,6 +82,19 @@ export async function GET(request: NextRequest) {
             .select()
             .single();
 
+          // Log successful registration
+          await logSuccess(
+            sessionData.user.id,
+            'user.register',
+            'user',
+            sessionData.user.id,
+            {
+              email: sessionData.user.email,
+              provider: sessionData.user.app_metadata?.provider || 'email'
+            },
+            request
+          );
+
           // Redirect to onboarding for new users
           return NextResponse.redirect(new URL('/dashboard/setup/onboarding', request.url));
         }
@@ -80,6 +104,19 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(new URL('/dashboard/setup/onboarding', request.url));
         }
       }
+
+      // Log successful login
+      await logSuccess(
+        sessionData.user.id,
+        'user.login',
+        'auth',
+        sessionData.user.id,
+        {
+          email: sessionData.user.email,
+          provider: sessionData.user.app_metadata?.provider || 'email'
+        },
+        request
+      );
 
       // Use provided next URL or default to dashboard
       return NextResponse.redirect(new URL(next || '/dashboard', request.url));

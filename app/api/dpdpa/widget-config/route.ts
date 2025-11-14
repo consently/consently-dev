@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { displayRulesSchema } from '@/types/dpdpa-widget.types';
+import { logSuccess, logFailure } from '@/lib/audit';
 
 // Validation schema
 // UUID validation regex
@@ -189,11 +190,35 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating widget config:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
+      
+      // Log widget creation failure
+      await logFailure(
+        user.id,
+        'widget.create',
+        'dpdpa_widget',
+        error.message,
+        request
+      );
+      
       return NextResponse.json(
         { error: 'Failed to create widget configuration', details: error.message },
         { status: 500 }
       );
     }
+
+    // Log successful widget creation
+    await logSuccess(
+      user.id,
+      'widget.create',
+      'dpdpa_widget',
+      widgetId,
+      {
+        name: configData.name,
+        domain: configData.domain,
+        activities_count: validatedActivities.length
+      },
+      request
+    );
 
     return NextResponse.json({ data, widgetId }, { status: 201 });
   } catch (error) {
@@ -328,11 +353,31 @@ export async function PUT(request: NextRequest) {
       console.error('[Widget Config API] Error updating widget config:', error);
       console.error('[Widget Config API] Error details:', JSON.stringify(error, null, 2));
       console.error('[Widget Config API] Update payload:', JSON.stringify(updatePayload, null, 2));
+      
+      // Log widget update failure
+      await logFailure(
+        user.id,
+        'widget.update',
+        'dpdpa_widget',
+        error.message,
+        request
+      );
+      
       return NextResponse.json(
         { error: 'Failed to update widget configuration', details: error.message },
         { status: 500 }
       );
     }
+
+    // Log successful widget update
+    await logSuccess(
+      user.id,
+      'widget.update',
+      'dpdpa_widget',
+      widgetId,
+      updatePayload,
+      request
+    );
 
     if (!data) {
       return NextResponse.json(

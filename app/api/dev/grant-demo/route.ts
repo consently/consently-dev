@@ -3,9 +3,21 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    // Safety: only allow in non-production unless explicitly overridden
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_GRANT !== 'true') {
-      return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 });
+    // SECURITY: This endpoint is for development/testing ONLY
+    // It allows granting enterprise access without payment
+    
+    // Block in production unless explicitly enabled with secret key
+    if (process.env.NODE_ENV === 'production') {
+      // Require a secret key to enable this endpoint in production
+      const secretKey = request.headers.get('x-demo-secret-key');
+      const expectedKey = process.env.DEMO_GRANT_SECRET_KEY;
+      
+      if (!expectedKey || secretKey !== expectedKey) {
+        console.warn('[SECURITY] Unauthorized attempt to access demo grant endpoint in production');
+        return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 });
+      }
+      
+      console.warn('[SECURITY] Demo grant endpoint accessed in production with valid key');
     }
 
     const supabase = await createClient();

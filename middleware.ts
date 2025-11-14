@@ -32,6 +32,23 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Check and expire trial if applicable (only for authenticated users)
+  if (user) {
+    try {
+      const { checkAndExpireTrial } = await import('@/lib/subscription');
+      const trialCheck = await checkAndExpireTrial(user.id);
+      
+      if (trialCheck.expired) {
+        console.log('[Middleware] Trial expired for user:', user.id);
+        // Note: User is downgraded to free plan automatically
+        // They can continue using the app with free tier features
+      }
+    } catch (error) {
+      console.error('[Middleware] Error checking trial expiration:', error);
+      // Don't block the request if trial check fails
+    }
+  }
+
   // Protected routes
   const protectedPaths = ['/dashboard', '/setup', '/settings'];
   const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));

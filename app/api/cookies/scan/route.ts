@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { CookieScanner } from '@/lib/cookies/cookie-scanner';
+import { checkRateLimit, getUserIdentifier } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Apply rate limiting - 10 scans per hour per user (expensive operation)
+    const rateLimitResult = checkRateLimit({
+      max: 10,
+      window: 3600000, // 1 hour
+      identifier: getUserIdentifier(user.id),
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Rate limit exceeded. Please wait before scanning again.',
+          retryAfter: rateLimitResult.retryAfter
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': (rateLimitResult.retryAfter || 60).toString(),
+          }
+        }
       );
     }
 

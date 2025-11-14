@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Fetch all consent records for user's widgets
     let consentsQuery = supabase
       .from('dpdpa_consent_records')
-      .select('id, accepted_activities, rejected_activities, consent_timestamp, widget_id');
+      .select('id, consented_activities, rejected_activities, consent_given_at, widget_id');
 
     if (widgetIds.length > 0) {
       consentsQuery = consentsQuery.in('widget_id', widgetIds);
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
       // Count how many times this activity was accepted or rejected
       consents?.forEach(consent => {
-        if (consent.accepted_activities?.includes(activity.id)) {
+        if (consent.consented_activities?.includes(activity.id)) {
           acceptedCount++;
         }
         if (consent.rejected_activities?.includes(activity.id)) {
@@ -122,8 +122,8 @@ export async function GET(request: NextRequest) {
       let previous7DaysRejected = 0;
 
       consents?.forEach(consent => {
-        const consentDate = new Date(consent.consent_timestamp);
-        const isAccepted = consent.accepted_activities?.includes(activity.id);
+        const consentDate = new Date(consent.consent_given_at || consent.consent_timestamp);
+        const isAccepted = consent.consented_activities?.includes(activity.id);
         const isRejected = consent.rejected_activities?.includes(activity.id);
 
         if (consentDate >= sevenDaysAgo) {

@@ -13,10 +13,15 @@ import { toast } from 'sonner';
 interface ConsentRecord {
   id: string; // unique session ID
   consent_status: 'accepted' | 'rejected' | 'partial' | 'revoked';
-  consent_timestamp: string;
+  consent_given_at?: string;
+  consent_timestamp?: string; // Fallback for legacy records
   ip_address?: string | null;
   device_type?: string | null;
   user_agent?: string | null;
+  country?: string | null;
+  country_code?: string | null;
+  consented_activities?: string[];
+  rejected_activities?: string[];
 }
 
 const statusIcons = {
@@ -89,13 +94,14 @@ const fetchRecords = async () => {
     };
 
     const csv = [
-      ['ID', 'Status', 'Timestamp', 'IP Address', 'Device'],
+      ['ID', 'Status', 'Timestamp', 'IP Address', 'Device', 'Country'],
       ...records.map((r) => [
         escapeCSV(r.id),
         escapeCSV(r.consent_status),
-        escapeCSV(r.consent_timestamp),
+        escapeCSV(r.consent_given_at || r.consent_timestamp || 'N/A'),
         escapeCSV(r.ip_address),
         escapeCSV(r.device_type),
+        escapeCSV(r.country || r.country_code || 'N/A'),
       ]),
     ]
       .map((row) => row.join(','))
@@ -225,17 +231,18 @@ const fetchRecords = async () => {
             <table className="w-full">
               <thead className="border-b bg-gray-50/50">
                 <tr>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Session ID</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Consent ID</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Status</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Timestamp</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">IP Address</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Activities</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Location</th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-gray-700">Device</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center">
+                    <td colSpan={6} className="p-8 text-center">
                       <div className="flex justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
@@ -243,35 +250,82 @@ const fetchRecords = async () => {
                   </tr>
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500">
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
                       No records found
                     </td>
                   </tr>
                 ) : (
-records.map((record) => (
-                    <tr key={record.id} className="border-b transition-colors hover:bg-gray-50/50">
-                      <td className="p-4 align-middle font-mono text-sm">{record.id}</td>
-                      <td className="p-4 align-middle">
-                        <div className="flex items-center gap-2">
-                          {statusIcons[record.consent_status]}
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              statusColors[record.consent_status]
-                            }`}
-                          >
-                            {record.consent_status}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4 align-middle text-gray-600">
-                        {format(new Date(record.consent_timestamp), 'MMM d, yyyy HH:mm')}
-                      </td>
-                      <td className="p-4 align-middle text-gray-600 font-mono text-sm">
-                        {record.ip_address || 'N/A'}
-                      </td>
-                      <td className="p-4 align-middle text-gray-600">{record.device_type || 'N/A'}</td>
-                    </tr>
-                  ))
+records.map((record) => {
+                    const timestamp = record.consent_given_at || record.consent_timestamp;
+                    const hasTimestamp = timestamp && !isNaN(new Date(timestamp).getTime());
+                    const acceptedCount = record.consented_activities?.length || 0;
+                    const rejectedCount = record.rejected_activities?.length || 0;
+                    
+                    return (
+                      <tr key={record.id} className="border-b transition-colors hover:bg-gray-50/50">
+                        <td className="p-4 align-middle">
+                          <div className="font-mono text-xs text-gray-600">
+                            {record.id.substring(0, 16)}...
+                          </div>
+                        </td>
+                        <td className="p-4 align-middle">
+                          <div className="flex items-center gap-2">
+                            {statusIcons[record.consent_status]}
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                statusColors[record.consent_status]
+                              }`}
+                            >
+                              {record.consent_status.toUpperCase()}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 align-middle text-gray-600 text-sm">
+                          {hasTimestamp ? (
+                            <div>
+                              <div className="font-medium">{format(new Date(timestamp), 'MMM d, yyyy')}</div>
+                              <div className="text-xs text-gray-500">{format(new Date(timestamp), 'HH:mm:ss')}</div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </td>
+                        <td className="p-4 align-middle text-sm">
+                          <div className="flex items-center gap-2">
+                            {acceptedCount > 0 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-700 text-xs font-medium">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                {acceptedCount}
+                              </span>
+                            )}
+                            {rejectedCount > 0 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-red-100 text-red-700 text-xs font-medium">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                {rejectedCount}
+                              </span>
+                            )}
+                            {acceptedCount === 0 && rejectedCount === 0 && (
+                              <span className="text-gray-400 text-xs">No activities</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 align-middle text-sm">
+                          <div className="flex flex-col gap-1">
+                            {(record.country || record.country_code) && (
+                              <span className="text-gray-700">{record.country || record.country_code}</span>
+                            )}
+                            {record.ip_address && (
+                              <span className="font-mono text-xs text-gray-500">{record.ip_address}</span>
+                            )}
+                            {!record.country && !record.country_code && !record.ip_address && (
+                              <span className="text-gray-400">N/A</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 align-middle text-gray-600 text-sm">{record.device_type || 'Unknown'}</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

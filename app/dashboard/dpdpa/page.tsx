@@ -119,10 +119,10 @@ export default function DPDPADashboardPage() {
         const consents = consentsData.data || [];
         setRecentConsents(consents.slice(0, 5).map((c: any) => ({
           id: c.id,
-          timestamp: c.consent_timestamp || c.created_at,
+          timestamp: c.consent_given_at || c.consent_timestamp || c.created_at,
           status: c.consent_status || c.status,
           deviceType: c.device_type || 'Desktop',
-          country: c.country || 'Unknown',
+          country: c.country || c.country_code || 'Unknown',
           ipAddress: c.ip_address || 'N/A',
         })));
       }
@@ -233,12 +233,6 @@ export default function DPDPADashboardPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Link href="/dashboard/dpdpa/analytics">
-            <Button>
-              <BarChart3 className="h-4 w-4 mr-2" />
-              View Analytics
-            </Button>
-          </Link>
         </div>
       </div>
 
@@ -347,53 +341,58 @@ export default function DPDPADashboardPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activityCards.map((activity) => (
-                <div
-                  key={activity.id}
-                  className={`border-2 rounded-lg p-4 transition-all hover:shadow-md ${
-                    activity.status === 'high'
-                      ? 'border-green-200 bg-green-50/30'
-                      : activity.status === 'medium'
-                      ? 'border-yellow-200 bg-yellow-50/30'
-                      : 'border-red-200 bg-red-50/30'
-                  }`}
+                <Link 
+                  key={activity.id} 
+                  href={`/dashboard/dpdpa/activity-stats/${activity.id}`}
+                  className="block"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 mb-1">{activity.name}</h4>
-                      <p className="text-xs text-gray-600 line-clamp-2">{activity.purpose}</p>
+                  <div
+                    className={`border-2 rounded-lg p-4 transition-all hover:shadow-lg cursor-pointer ${
+                      activity.status === 'high'
+                        ? 'border-green-200 bg-green-50/30 hover:bg-green-50/50'
+                        : activity.status === 'medium'
+                        ? 'border-yellow-200 bg-yellow-50/30 hover:bg-yellow-50/50'
+                        : 'border-red-200 bg-red-50/30 hover:bg-red-50/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">{activity.name}</h4>
+                        <p className="text-xs text-gray-600 line-clamp-2">{activity.purpose}</p>
+                      </div>
+                      {getTrendIcon(activity.trend)}
                     </div>
-                    {getTrendIcon(activity.trend)}
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Acceptance Rate</span>
+                        <Badge className={`${getStatusColor(activity.status)} border`}>
+                          {activity.acceptanceRate.toFixed(1)}%
+                        </Badge>
+                      </div>
+
+                      <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`absolute top-0 left-0 h-full rounded-full ${
+                            activity.status === 'high'
+                              ? 'bg-green-500'
+                              : activity.status === 'medium'
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                          }`}
+                          style={{ width: `${activity.acceptanceRate}%` }}
+                        />
+                      </div>
+
+                      <div className="text-xs text-gray-500 flex items-center justify-between">
+                        <span>{activity.totalResponses} responses</span>
+                        {activity.status === 'low' && (
+                          <span className="text-red-600 font-medium">Needs attention</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Acceptance Rate</span>
-                      <Badge className={`${getStatusColor(activity.status)} border`}>
-                        {activity.acceptanceRate.toFixed(1)}%
-                      </Badge>
-                    </div>
-
-                    <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`absolute top-0 left-0 h-full rounded-full ${
-                          activity.status === 'high'
-                            ? 'bg-green-500'
-                            : activity.status === 'medium'
-                            ? 'bg-yellow-500'
-                            : 'bg-red-500'
-                        }`}
-                        style={{ width: `${activity.acceptanceRate}%` }}
-                      />
-                    </div>
-
-                    <div className="text-xs text-gray-500 flex items-center justify-between">
-                      <span>{activity.totalResponses} responses</span>
-                      {activity.status === 'low' && (
-                        <span className="text-red-600 font-medium">Needs attention</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -568,10 +567,10 @@ export default function DPDPADashboardPage() {
                     Get Embed Code
                   </Button>
                 </Link>
-                <Link href="/dashboard/dpdpa/analytics">
+                <Link href="/dashboard/dpdpa/activities">
                   <Button variant="outline" className="w-full bg-white">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Report
+                    <FileText className="h-4 w-4 mr-2" />
+                    Manage Activities
                   </Button>
                 </Link>
               </div>

@@ -115,6 +115,46 @@ export async function POST(request: NextRequest) {
       domain: widgetConfig.domain
     });
 
+    // ===== CONSENT LIMIT ENFORCEMENT =====
+    // Check if user has exceeded their monthly consent quota
+    const userId = widgetConfig.user_id;
+    if (userId) {
+      const { getEntitlements, checkConsentQuota } = await import('@/lib/subscription');
+      const entitlements = await getEntitlements();
+      const quotaCheck = await checkConsentQuota(userId, entitlements);
+      
+      if (!quotaCheck.allowed) {
+        console.warn('[API] Consent limit exceeded:', {
+          userId,
+          used: quotaCheck.used,
+          limit: quotaCheck.limit,
+          plan: entitlements.plan
+        });
+        
+        const errorResponse = NextResponse.json(
+          { 
+            success: false, 
+            error: 'Monthly consent limit exceeded',
+            details: {
+              used: quotaCheck.used,
+              limit: quotaCheck.limit,
+              plan: entitlements.plan,
+              message: 'Please upgrade your plan to record more consents this month.'
+            }
+          },
+          { status: 403 }
+        );
+        errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+        return errorResponse;
+      }
+      
+      console.log('[API] Consent quota check passed:', {
+        used: quotaCheck.used,
+        limit: quotaCheck.limit,
+        remaining: quotaCheck.remaining
+      });
+    }
+
     // Get IP address and user agent from headers
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
                      request.headers.get('x-real-ip') || 
