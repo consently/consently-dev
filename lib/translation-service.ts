@@ -2,14 +2,19 @@
  * Multi-Provider Translation Service
  * Provides translation capabilities using Google Cloud Translation API and Bhashini
  * 
- * Strategy:
- * - Google Translate: High-quality for 12 major Indian languages (hi, bn, ta, te, mr, gu, kn, ml, pa, or, ur, as)
- * - Bhashini: Fallback for remaining Schedule 8 languages (ne, sa, ks, sd, mai, doi, etc.)
+ * Priority Strategy:
+ * 1. Google Translate (PRIMARY): ALWAYS used for its 12 supported languages - high quality, fast response
+ *    - Supported: hi, bn, ta, te, mr, gu, kn, ml, pa, or, ur, as
+ * 2. Bhashini (SECONDARY): ONLY used for languages NOT supported by Google - Schedule 8 languages
+ *    - Supported: ne, sa, ks, sd, mai, doi, kok, mni, brx, sat
+ * 
+ * This ensures best quality translations using Google's API while maintaining support for
+ * all 22+ Indian Schedule 8 languages through Bhashini.
  * 
  * Environment variables:
- * - GOOGLE_TRANSLATE_API_KEY: Google Cloud Translation API key (preferred)
- * - BHASHINI_API_KEY: Bhashini API key (fallback)
- * - BHASHINI_USER_ID: Bhashini User ID (fallback)
+ * - GOOGLE_TRANSLATE_API_KEY: Google Cloud Translation API key (REQUIRED for primary languages)
+ * - BHASHINI_API_KEY: Bhashini API key (REQUIRED for additional Schedule 8 languages)
+ * - BHASHINI_USER_ID: Bhashini User ID (REQUIRED for additional Schedule 8 languages)
  */
 
 import { translateWithGoogle, translateBatchGoogle, isIndianLanguageSupported as isGoogleSupported } from './google-translate';
@@ -66,23 +71,43 @@ function saveToCache(text: string, translation: string, targetLang: string, sour
 
 /**
  * Select the best translation provider for a language
+ * 
+ * Priority:
+ * 1. Google Translate for its 12 supported languages (high quality)
+ * 2. Bhashini for remaining Schedule 8 languages (government service)
+ * 
+ * Google Translate supported (12): hi, bn, ta, te, mr, gu, kn, ml, pa, or, ur, as
+ * Bhashini supported (additional): ne, sa, ks, sd, mai, doi, kok, mni, brx, sat
  */
 function getProviderForLanguage(targetLanguage: string): TranslationProvider {
-  // Google Translate has better quality for these 12 languages
-  if (isGoogleSupported(targetLanguage) && isGoogleConfigured()) {
-    return 'google';
+  // ALWAYS use Google Translate for its 12 supported languages (if configured)
+  // These have better quality and faster response times
+  if (isGoogleSupported(targetLanguage)) {
+    if (isGoogleConfigured()) {
+      return 'google';
+    } else {
+      console.warn(`[Translation Service] Google Translate is preferred for ${targetLanguage} but not configured`);
+    }
   }
   
-  // Bhashini supports more Indian languages (including Schedule 8 languages)
-  if (isBhashiniSupported(targetLanguage) && isBhashiniConfigured()) {
-    return 'bhashini';
+  // Use Bhashini for languages NOT supported by Google (Schedule 8 languages)
+  // These include: Nepali (ne), Sanskrit (sa), Kashmiri (ks), Sindhi (sd), 
+  // Maithili (mai), Dogri (doi), Konkani (kok), Manipuri (mni), Bodo (brx), Santhali (sat)
+  if (isBhashiniSupported(targetLanguage)) {
+    if (isBhashiniConfigured()) {
+      return 'bhashini';
+    } else {
+      console.warn(`[Translation Service] Bhashini is needed for ${targetLanguage} but not configured`);
+    }
   }
   
-  // Default to Google if available
+  // Last resort: try Google if available for any language
   if (isGoogleConfigured()) {
+    console.warn(`[Translation Service] Language ${targetLanguage} not in preferred list, trying Google anyway`);
     return 'google';
   }
   
+  // Final fallback
   return 'bhashini';
 }
 
@@ -133,6 +158,7 @@ export async function translate(
   try {
     // Select the best provider for this language
     const provider = getProviderForLanguage(targetLanguage);
+    console.log(`[Translation Service] Using ${provider.toUpperCase()} for ${targetLanguage}`);
     
     let translatedText: string;
     

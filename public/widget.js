@@ -1,15 +1,8 @@
 /**
- * Consently Cookie Consent Widget v3.2 - FIXED VERSION
+ * Consently Cookie Consent Widget v3.6 - BANNER LANGUAGE SELECTOR FIX
  * Production-ready embeddable widget (no dependencies)
  * DPDPA 2023 & GDPR Compliant
- * 
- * FIXES IN THIS VERSION:
- * - Language switching now works reliably without freezing
- * - Preferences persist correctly after refresh
- * - Consently logo/shield icon instead of cookie emoji
- * - Better error handling and loading states
- * - Debounced language changes to prevent rapid switching issues
- * 
+ 
  * Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_WIDGET_ID"></script>
  */
 
@@ -25,13 +18,14 @@
     return;
   }
 
-  console.log('[Consently] Initializing widget v3.2 with ID:', widgetId);
+  console.log('[Consently] Initializing widget v3.6 with ID:', widgetId);
 
   // State management
   let isTranslating = false;
   let languageChangeInProgress = false;
   let configPollingInterval = null;
   let lastConfigHash = null;
+  let globalLangClickHandler = null; // Global reference to cleanup language menu listener
   
   // Default configuration
   const defaultConfig = {
@@ -111,7 +105,7 @@
   </svg>`;
 
   // Translation helper with timeout and error handling (single text - kept for backward compatibility)
-  async function translateText(text, targetLang, timeout = 5000) {
+  async function translateText(text, targetLang, timeout = 15000) {
     if (targetLang === 'en' || !targetLang || !text) return text;
     
     const cacheKey = `${targetLang}:${text}`;
@@ -138,21 +132,22 @@
         const translated = data.translatedText || text;
         translationCache[cacheKey] = translated;
         return translated;
+      } else {
+        console.warn('[Consently] Translation API error:', response.status);
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        console.warn('[Consently] Translation timeout for:', text);
-      } else {
+      if (error.name !== 'AbortError') {
         console.error('[Consently] Translation error:', error);
       }
     }
     
+    // Fallback to original text
     return text;
   }
 
   // Batch translation helper - MUCH faster than sequential calls
-  async function translateBatch(texts, targetLang, timeout = 10000) {
+  async function translateBatch(texts, targetLang, timeout = 20000) {
     if (targetLang === 'en' || !targetLang || !texts || texts.length === 0) {
       return texts || [];
     }
@@ -198,29 +193,44 @@
 
       if (response.ok) {
         const data = await response.json();
-        const translations = data.translations || textsToTranslate;
-        
-        // Map translations back to original indices and cache them
-        translations.forEach((translated, i) => {
-          const originalText = textsToTranslate[i];
-          const cacheKey = `${targetLang}:${originalText}`;
-          translationCache[cacheKey] = translated;
-          cachedResults[textIndices[i]] = translated;
-        });
+        if (data.success && data.translations && Array.isArray(data.translations)) {
+          // Use the translations array from the API response (matching DPDPA widget approach)
+          textIndices.forEach((originalIdx, i) => {
+            const translated = data.translations[i] || textsToTranslate[i] || texts[originalIdx];
+            cachedResults[originalIdx] = translated;
+            // Cache it
+            const cacheKey = `${targetLang}:${textsToTranslate[i]}`;
+            translationCache[cacheKey] = translated;
+          });
 
-        return cachedResults;
+          return cachedResults;
+        } else {
+          // Fallback: try to use translations if available, otherwise use original texts
+          console.warn('[Consently] Unexpected API response format');
+          textIndices.forEach((originalIdx, i) => {
+            cachedResults[originalIdx] = textsToTranslate[i] || texts[originalIdx];
+          });
+        }
+      } else {
+        console.warn('[Consently] Translation API error:', response.status);
+        // Fallback to original texts
+        textIndices.forEach((originalIdx, i) => {
+          cachedResults[originalIdx] = textsToTranslate[i] || texts[originalIdx];
+        });
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        console.warn('[Consently] Batch translation timeout');
-      } else {
-        console.error('[Consently] Batch translation error:', error);
+      if (error.name !== 'AbortError') {
+        console.error('[Consently] Translation error:', error);
       }
+      // Fallback to original texts for uncached items (matching DPDPA widget approach)
+      textIndices.forEach((originalIdx, i) => {
+        cachedResults[originalIdx] = textsToTranslate[i] || texts[originalIdx];
+      });
     }
     
-    // Fallback: return original texts for failed translations
-    return texts.map((text, index) => cachedResults[index] !== undefined ? cachedResults[index] : text);
+    // Return results with cached translations and fallback originals
+    return cachedResults;
   }
 
   function languageLabel(code) {
@@ -748,9 +758,13 @@
       config.message || 'We use cookies to enhance your browsing experience.',
       config.acceptButton?.text || 'Accept All',
       config.rejectButton?.text || 'Reject All',
-      config.settingsButton?.text || 'Cookie Settings'
+      config.settingsButton?.text || 'Cookie Settings',
+      // Translate link texts
+      config.privacyPolicyText || 'Privacy Policy',
+      config.cookiePolicyText || 'Cookie Policy',
+      config.termsText || 'Terms'
     ];
-    const [title, message, acceptText, rejectText, settingsText] = await translateBatch(textsToTranslate, selectedLanguage);
+    const [title, message, acceptText, rejectText, settingsText, privacyPolicyText, cookiePolicyText, termsText] = await translateBatch(textsToTranslate, selectedLanguage);
     isTranslating = false;
 
     const banner = document.createElement('div');
@@ -922,20 +936,20 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 32px;
-          height: 32px;
-          padding: 0;
-          border: 1px solid rgba(0,0,0,0.1);
-          border-radius: 50%;
+          padding: 8px 12px;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
           background: white;
           cursor: pointer;
-          font-size: 16px;
+          font-size: 14px;
+          font-weight: 500;
           transition: all 0.2s;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
         .consently-lang-btn-banner:hover {
           background: #f9fafb;
-          transform: scale(1.05);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .consently-lang-btn-banner:disabled {
           opacity: 0.5;
@@ -949,36 +963,76 @@
           margin-top: 8px;
           background: white;
           border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          border-radius: 10px;
+          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
           z-index: 10000;
-          min-width: 180px;
-          max-height: 240px;
+          min-width: 220px;
+          max-width: 320px;
+          max-height: 400px;
           overflow-y: auto;
+          overflow-x: hidden;
+          padding: 8px;
           pointer-events: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar {
+          width: 6px;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 3px;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .consently-lang-menu-banner::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        .consently-lang-menu-banner .lang-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 6px;
         }
         .consently-lang-menu-banner button {
           display: flex;
-          gap: 8px;
+          flex-direction: column;
           align-items: center;
-          width: 100%;
-          text-align: left;
-          padding: 10px 14px;
+          justify-content: center;
+          padding: 10px 6px;
           border: none;
-          background: white;
+          background: #f9fafb;
+          border-radius: 6px;
           cursor: pointer;
-          font-size: 13px;
-          transition: background 0.15s;
+          font-size: 11px;
+          font-weight: 500;
+          color: #6b7280;
+          transition: all 0.15s;
           pointer-events: auto;
           user-select: none;
+          position: relative;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .consently-lang-menu-banner button:hover {
           background: #f0f9ff;
         }
         .consently-lang-menu-banner button.active {
-          background: #f0f9ff;
+          background: #dbeafe;
           font-weight: 600;
-          color: #0369a1;
+          color: ${primaryColor};
+        }
+        .consently-lang-menu-banner button.active::before {
+          content: '';
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          width: 6px;
+          height: 6px;
+          background: ${primaryColor};
+          border-radius: 50%;
         }
         @media (max-width: 768px) {
           .consently-container {
@@ -1036,22 +1090,30 @@
         
         if (validLangs.length <= 1) return '';
         
+        const langBtnStyle = `display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; color: ${textColor}; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);`;
+        
         return `
       <div class="consently-lang-selector">
-        <button id="consently-lang-btn-banner" class="consently-lang-btn-banner" title="${languageLabel(selectedLanguage)}">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        <button id="consently-lang-btn-banner" class="consently-lang-btn-banner" title="${languageLabel(selectedLanguage)}" style="${langBtnStyle}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <span style="font-size: 13px;">${languageLabel(selectedLanguage)}</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5;">
+            <path d="M7 10l5 5 5-5z"/>
           </svg>
         </button>
         <div id="consently-lang-menu-banner" class="consently-lang-menu-banner">
-          ${validLangs.map(code => `
-            <button data-lang="${code}" class="${code === selectedLanguage ? 'active' : ''}">
-              <span style="font-size: 16px;">${languageFlag(code)}</span>
-              <span>${languageLabel(code)}</span>
-            </button>
-          `).join('')}
+          <div class="lang-grid">
+            ${validLangs.map(code => `
+              <button data-lang="${code}" class="${code === selectedLanguage ? 'active' : ''}" style="color: ${code === selectedLanguage ? primaryColor : '#6b7280'};">
+                ${code === selectedLanguage ? `<span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: ${primaryColor}; border-radius: 50%;"></span>` : ''}
+                <span style="font-size: 11px; font-weight: ${code === selectedLanguage ? '600' : '500'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${languageLabel(code)}</span>
+              </button>
+            `).join('')}
+          </div>
         </div>
       </div>`;
       })()}
@@ -1098,13 +1160,13 @@
           ${(() => {
             const links = [];
             if (config.privacyPolicyUrl) {
-              links.push(`<a href="${config.privacyPolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${config.privacyPolicyText || 'Privacy Policy'}</a>`);
+              links.push(`<a href="${config.privacyPolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${privacyPolicyText}</a>`);
             }
             if (config.cookiePolicyUrl) {
-              links.push(`<a href="${config.cookiePolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${config.cookiePolicyText || 'Cookie Policy'}</a>`);
+              links.push(`<a href="${config.cookiePolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${cookiePolicyText}</a>`);
             }
             if (config.termsUrl) {
-              links.push(`<a href="${config.termsUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${config.termsText || 'Terms'}</a>`);
+              links.push(`<a href="${config.termsUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${termsText}</a>`);
             }
             return links.length > 0 ? `<p class="consently-links" style="margin-top: 8px; font-size: 12px; opacity: 0.8;">${links.join(' • ')}</p>` : '';
           })()}
@@ -1181,55 +1243,644 @@
         langMenuBanner.style.display = langMenuBanner.style.display === 'none' || !langMenuBanner.style.display ? 'block' : 'none';
       });
       
-      document.addEventListener('click', function(e) {
+      // Remove old handler if it exists (cleanup from previous updates)
+      if (globalLangClickHandler) {
+        document.removeEventListener('click', globalLangClickHandler);
+      }
+      
+      // Store reference to handler for cleanup
+      globalLangClickHandler = function(e) {
         if (!langBtnBanner.contains(e.target) && !langMenuBanner.contains(e.target)) {
           langMenuBanner.style.display = 'none';
         }
-      });
+      };
+      document.addEventListener('click', globalLangClickHandler);
       
-      const handleLanguageChange = debounce(async function(newLang) {
+      // Helper function to update banner content in place (like DPPA widget)
+      const updateBannerContent = async function(newLang) {
+        const existingBanner = document.getElementById('consently-banner');
+        if (!existingBanner) return;
+        
+        console.log('[Consently] Updating banner content for language:', newLang);
+        
+        // Remove old click handler before updating (prevents memory leaks and conflicts)
+        if (globalLangClickHandler) {
+          document.removeEventListener('click', globalLangClickHandler);
+          globalLangClickHandler = null;
+        }
+        
+        // Get theme values first (needed for loading overlay)
+        const theme = config.theme || {};
+        const primaryColor = theme.primaryColor || '#3b82f6';
+        
+        // Show loading overlay
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'consently-lang-loading';
+        loadingOverlay.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0.95);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          border-radius: inherit;
+        `;
+        loadingOverlay.innerHTML = `
+          <div style="text-align: center;">
+            <div style="width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top-color: ${primaryColor}; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 8px;"></div>
+            <div style="font-size: 14px; color: #6b7280; font-weight: 500;">Translating...</div>
+          </div>
+          <style>
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          </style>
+        `;
+        existingBanner.style.position = 'relative';
+        existingBanner.appendChild(loadingOverlay);
+        
+        // Wait for loading animation to be visible
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Translate content using batch translation (fast!)
+        isTranslating = true;
+        const textsToTranslate = [
+          config.title || 'We value your privacy',
+          config.message || 'We use cookies to enhance your browsing experience.',
+          config.acceptButton?.text || 'Accept All',
+          config.rejectButton?.text || 'Reject All',
+          config.settingsButton?.text || 'Cookie Settings',
+          config.privacyPolicyText || 'Privacy Policy',
+          config.cookiePolicyText || 'Cookie Policy',
+          config.termsText || 'Terms'
+        ];
+        
+        const [title, message, acceptText, rejectText, settingsText, privacyPolicyText, cookiePolicyText, termsText] = await translateBatch(textsToTranslate, newLang);
+        isTranslating = false;
+        const backgroundColor = theme.backgroundColor || '#ffffff';
+        const textColor = theme.textColor || '#1f2937';
+        const acceptButton = config.acceptButton || {};
+        const rejectButton = config.rejectButton || {};
+        const settingsButton = config.settingsButton || {};
+        
+        // Build updated banner HTML (same structure as showConsentBanner)
+        const supportedLangs = config.supportedLanguages || ['en'];
+        const validLangs = supportedLangs.filter(code => languageLabel(code));
+        const langBtnStyle = `display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; color: ${textColor}; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);`;
+        
+        const langSelectorHTML = validLangs.length > 1 ? `
+          <div class="consently-lang-selector">
+            <button id="consently-lang-btn-banner" class="consently-lang-btn-banner" title="${languageLabel(newLang)}" style="${langBtnStyle}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              <span style="font-size: 13px;">${languageLabel(newLang)}</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5;">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            <div id="consently-lang-menu-banner" class="consently-lang-menu-banner">
+              <div class="lang-grid">
+                ${validLangs.map(code => `
+                  <button data-lang="${code}" class="${code === newLang ? 'active' : ''}" style="color: ${code === newLang ? primaryColor : '#6b7280'};">
+                    ${code === newLang ? `<span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: ${primaryColor}; border-radius: 50%;"></span>` : ''}
+                    <span style="font-size: 11px; font-weight: ${code === newLang ? '600' : '500'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${languageLabel(code)}</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        ` : '';
+        
+        const categoryNames = {
+          necessary: 'Necessary',
+          preferences: 'Preferences',
+          analytics: 'Analytics',
+          marketing: 'Marketing',
+          social: 'Social'
+        };
+        
+        const categoriesHTML = config.categories && config.categories.length > 0 ? `
+          <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+            ${config.categories.filter(cat => cat && typeof cat === 'string').map(cat => {
+              const name = categoryNames[cat] || cat.charAt(0).toUpperCase() + cat.slice(1);
+              return `<span style="
+                display: inline-flex;
+                align-items: center;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 500;
+                border: 1px solid ${primaryColor};
+                color: ${primaryColor};
+                background: transparent;
+                border-radius: 12px;
+                text-transform: capitalize;
+              ">${name}</span>`;
+            }).join('')}
+          </div>
+        ` : '';
+        
+        const links = [];
+        if (config.privacyPolicyUrl) {
+          links.push(`<a href="${config.privacyPolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${privacyPolicyText}</a>`);
+        }
+        if (config.cookiePolicyUrl) {
+          links.push(`<a href="${config.cookiePolicyUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${cookiePolicyText}</a>`);
+        }
+        if (config.termsUrl) {
+          links.push(`<a href="${config.termsUrl}" target="_blank" rel="noopener noreferrer" style="color: ${theme.primaryColor || '#3b82f6'}; text-decoration: underline;">${termsText}</a>`);
+        }
+        const linksHTML = links.length > 0 ? `<p class="consently-links" style="margin-top: 8px; font-size: 12px; opacity: 0.8;">${links.join(' • ')}</p>` : '';
+        
+        // Update banner content in place
+        existingBanner.innerHTML = `
+          <style>
+            @keyframes slideUp {
+              from { transform: translateY(100%); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+            @keyframes slideDown {
+              from { transform: translateY(-100%); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+              to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            }
+            .consently-btn {
+              padding: 10px 20px;
+              border-radius: 6px;
+              font-weight: 500;
+              cursor: pointer;
+              border: none;
+              font-size: 14px;
+              transition: all 0.2s;
+              margin: 0 8px 8px 0;
+            }
+            .consently-btn:hover {
+              opacity: 0.9;
+              transform: translateY(-1px);
+            }
+            .consently-btn-primary {
+              background-color: ${acceptButton.backgroundColor || primaryColor};
+              color: ${acceptButton.textColor || '#ffffff'};
+              border: 2px solid ${acceptButton.borderColor || acceptButton.backgroundColor || primaryColor};
+            }
+            .consently-btn-secondary {
+              background-color: ${rejectButton.backgroundColor || 'transparent'};
+              color: ${rejectButton.textColor || primaryColor};
+              border: 2px solid ${rejectButton.borderColor || primaryColor};
+            }
+            .consently-btn-text {
+              background-color: ${settingsButton.backgroundColor || '#f3f4f6'};
+              color: ${settingsButton.textColor || textColor};
+              border: 2px solid transparent;
+            }
+            .consently-container {
+              max-width: 1200px;
+              margin: 0 auto;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 24px;
+              flex-wrap: wrap;
+            }
+            .consently-content {
+              flex: 1;
+              min-width: 300px;
+            }
+            .consently-actions {
+              display: flex;
+              flex-wrap: wrap;
+              align-items: center;
+              gap: 8px;
+            }
+            .consently-title {
+              font-size: 18px;
+              font-weight: 600;
+              margin: 0 0 8px 0;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .consently-message {
+              margin: 0;
+              opacity: 0.9;
+            }
+            .consently-lang-selector {
+              position: absolute;
+              top: 12px;
+              right: 12px;
+              z-index: 10;
+            }
+            .consently-lang-btn-banner {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 8px 12px;
+              border: 1px solid #e5e7eb;
+              border-radius: 8px;
+              background: white;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: 500;
+              transition: all 0.2s;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            }
+            .consently-lang-btn-banner:hover {
+              background: #f9fafb;
+              transform: translateY(-1px);
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .consently-lang-btn-banner:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+            }
+            .consently-lang-menu-banner {
+              display: none;
+              position: absolute;
+              top: 100%;
+              right: 0;
+              margin-top: 8px;
+              background: white;
+              border: 1px solid #e5e7eb;
+              border-radius: 10px;
+              box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+              z-index: 10000;
+              min-width: 220px;
+              max-width: 320px;
+              max-height: 400px;
+              overflow-y: auto;
+              overflow-x: hidden;
+              padding: 8px;
+              pointer-events: auto;
+              scrollbar-width: thin;
+              scrollbar-color: #cbd5e1 #f1f5f9;
+            }
+            .consently-lang-menu-banner::-webkit-scrollbar {
+              width: 6px;
+            }
+            .consently-lang-menu-banner::-webkit-scrollbar-track {
+              background: #f1f5f9;
+              border-radius: 3px;
+            }
+            .consently-lang-menu-banner::-webkit-scrollbar-thumb {
+              background: #cbd5e1;
+              border-radius: 3px;
+            }
+            .consently-lang-menu-banner::-webkit-scrollbar-thumb:hover {
+              background: #94a3b8;
+            }
+            .consently-lang-menu-banner .lang-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 6px;
+            }
+            .consently-lang-menu-banner button {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              padding: 10px 6px;
+              border: none;
+              background: #f9fafb;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 11px;
+              font-weight: 500;
+              color: #6b7280;
+              transition: all 0.15s;
+              pointer-events: auto;
+              user-select: none;
+              position: relative;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .consently-lang-menu-banner button:hover {
+              background: #f0f9ff;
+            }
+            .consently-lang-menu-banner button.active {
+              background: #dbeafe;
+              font-weight: 600;
+              color: ${primaryColor};
+            }
+            .consently-lang-menu-banner button.active::before {
+              content: '';
+              position: absolute;
+              top: 4px;
+              right: 4px;
+              width: 6px;
+              height: 6px;
+              background: ${primaryColor};
+              border-radius: 50%;
+            }
+            @media (max-width: 768px) {
+              .consently-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+              }
+              .consently-content {
+                min-width: 100%;
+              }
+              .consently-actions {
+                width: 100%;
+                flex-direction: column;
+              }
+              .consently-btn {
+                width: 100%;
+                margin: 0 0 8px 0;
+              }
+              .consently-title {
+                font-size: 16px;
+              }
+              .consently-message {
+                font-size: 13px;
+              }
+              .consently-lang-selector {
+                top: 8px;
+                right: 8px;
+              }
+              #consently-banner {
+                padding: 16px !important;
+                padding-top: 48px !important;
+              }
+            }
+            @media (max-width: 480px) {
+              #consently-banner {
+                padding: 12px !important;
+                padding-top: 44px !important;
+                font-size: 13px !important;
+              }
+              .consently-title {
+                font-size: 15px !important;
+              }
+              .consently-message {
+                font-size: 12px !important;
+              }
+              .consently-btn {
+                padding: 8px 16px !important;
+                font-size: 13px !important;
+              }
+            }
+          </style>
+          ${langSelectorHTML}
+          <div class="consently-container">
+            <div class="consently-content">
+              ${theme.logoUrl ? `<img src="${theme.logoUrl}" alt="Logo" style="height: 32px; width: auto; object-fit: contain; margin-bottom: 12px; display: block;" onerror="this.style.display='none'">` : ''}
+              <h3 class="consently-title">
+                ${!theme.logoUrl ? CONSENTLY_LOGO_SVG : ''}
+                <span>${title}</span>
+              </h3>
+              <p class="consently-message">${message}</p>
+              ${categoriesHTML}
+              ${linksHTML}
+            </div>
+            <div class="consently-actions">
+              <button id="consently-accept" class="consently-btn consently-btn-primary">
+                ${acceptText}
+              </button>
+              ${config.showRejectButton ? `
+                <button id="consently-reject" class="consently-btn consently-btn-secondary">
+                  ${rejectText}
+                </button>
+              ` : ''}
+              ${config.showSettingsButton ? `
+                <button id="consently-settings" class="consently-btn consently-btn-text">
+                  ${settingsText}
+                </button>
+              ` : ''}
+            </div>
+          </div>
+          ${config.showBrandingLink ? `
+            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1); text-align: center;">
+              <a 
+                href="https://www.consently.in" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style="font-size: 12px; color: ${theme.textColor || '#6b7280'}; opacity: 0.7; text-decoration: none; transition: opacity 0.15s;"
+                onmouseover="this.style.opacity='1'"
+                onmouseout="this.style.opacity='0.7'"
+              >
+                Powered by <span style="font-weight: 600;">Consently</span>
+              </a>
+            </div>
+          ` : ''}
+        `;
+        
+        // Remove loading overlay
+        const overlay = document.getElementById('consently-lang-loading');
+        if (overlay) overlay.remove();
+        
+        // CRITICAL: Ensure banner stays visible - ALWAYS force it to stay visible after language change
+        // Store current banner style attributes to ensure they're not lost
+        const originalPosition = existingBanner.style.position;
+        const originalZIndex = existingBanner.style.zIndex;
+        
+        existingBanner.style.position = originalPosition || 'fixed';
+        existingBanner.style.zIndex = originalZIndex || (config.zIndex || 9999).toString();
+        existingBanner.style.display = 'block';
+        existingBanner.style.visibility = 'visible';
+        existingBanner.style.opacity = '1';
+        existingBanner.style.pointerEvents = 'auto';
+        isBannerVisible = true;
+        
+        console.log('[Consently] Banner updated and visible');
+        
+        // Ensure backdrop stays visible if it exists (for modal/center layouts)
+        const backdrop = document.getElementById('consently-backdrop');
+        const position = config.position || 'bottom';
+        const layout = config.layout || 'bar';
+        const needsBackdrop = (position === 'center' || position === 'center-modal' || layout === 'modal');
+        if (backdrop && needsBackdrop) {
+          backdrop.style.display = 'block';
+          backdrop.style.visibility = 'visible';
+          backdrop.style.opacity = '1';
+        }
+        
+        // Re-attach event listeners
+        const acceptBtn = document.getElementById('consently-accept');
+        if (acceptBtn) {
+          acceptBtn.addEventListener('click', function() {
+            handleConsent('accepted', ['necessary', 'analytics', 'marketing', 'preferences']);
+          });
+        }
+
+        const rejectBtn = document.getElementById('consently-reject');
+        if (rejectBtn) {
+          rejectBtn.addEventListener('click', function() {
+            handleConsent('rejected', ['necessary']);
+          });
+        }
+
+        const settingsBtn = document.getElementById('consently-settings');
+        if (settingsBtn) {
+          settingsBtn.addEventListener('click', function(e) {
+            if (languageChangeInProgress) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }
+            showSettingsModal();
+          });
+        }
+        
+        // Re-attach language selector listeners
+        const newLangBtnBanner = document.getElementById('consently-lang-btn-banner');
+        const newLangMenuBanner = document.getElementById('consently-lang-menu-banner');
+        
+        if (newLangBtnBanner && newLangMenuBanner) {
+          newLangBtnBanner.addEventListener('click', function(e) {
+            e.stopPropagation();
+            newLangMenuBanner.style.display = newLangMenuBanner.style.display === 'none' || !newLangMenuBanner.style.display ? 'block' : 'none';
+          });
+          
+          // Remove any existing handler before adding new one (cleanup)
+          if (globalLangClickHandler) {
+            document.removeEventListener('click', globalLangClickHandler);
+          }
+          
+          // Store reference to new handler for cleanup
+          globalLangClickHandler = function(e) {
+            if (!newLangBtnBanner.contains(e.target) && !newLangMenuBanner.contains(e.target)) {
+              newLangMenuBanner.style.display = 'none';
+            }
+          };
+          document.addEventListener('click', globalLangClickHandler);
+          
+          newLangMenuBanner.querySelectorAll('button[data-lang]').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              
+              newLangMenuBanner.style.display = 'none';
+              
+              const lang = this.getAttribute('data-lang');
+              const currentLang = selectedLanguage; // Store current language BEFORE updating
+              
+              if (lang && lang !== currentLang) {
+                // Save to localStorage immediately for persistence
+                try {
+                  localStorage.setItem('consently_language', lang);
+                } catch (e) {
+                  console.warn('[Consently] Failed to save language preference');
+                }
+                
+                // Trigger the language change handler (it will update selectedLanguage)
+                handleLanguageChange(lang);
+              }
+              
+              return false;
+            }, true);
+          });
+        }
+      };
+      
+      // Language change handler - executes immediately for real-time translation
+      const handleLanguageChange = async function(newLang) {
         if (languageChangeInProgress) {
           console.log('[Consently] Language change already in progress');
           return;
         }
         
-        // Ensure language is set before proceeding
+        // Check if language actually changed
         if (!newLang || newLang === selectedLanguage) {
+          console.log('[Consently] Language unchanged, skipping');
           return;
         }
         
+        const oldLang = selectedLanguage;
+        console.log('[Consently] Changing language from', oldLang, 'to', newLang);
         languageChangeInProgress = true;
-        if (langBtnBanner) langBtnBanner.disabled = true;
+        
+        // Disable language button (find it dynamically in case banner was updated)
+        const currentLangBtn = document.getElementById('consently-lang-btn-banner');
+        if (currentLangBtn) currentLangBtn.disabled = true;
+        
+        // Store initial banner state to restore it
+        const initialBanner = document.getElementById('consently-banner');
+        const initialPosition = initialBanner ? initialBanner.style.position : '';
+        const initialZIndex = initialBanner ? initialBanner.style.zIndex : '';
         
         try {
-          console.log('[Consently] Changing language from', selectedLanguage, 'to', newLang);
-          
-          // Ensure language is set
+          // Update selectedLanguage NOW (before async operations)
           selectedLanguage = newLang;
+          
+          // Ensure it's saved to localStorage (should already be saved, but double-check)
           try {
             localStorage.setItem('consently_language', newLang);
+            console.log('[Consently] Language preference saved:', newLang);
           } catch (e) {
             console.warn('[Consently] Failed to save language preference');
           }
           
           // Close language menu if still open
-          if (langMenuBanner) langMenuBanner.style.display = 'none';
+          const currentLangMenu = document.getElementById('consently-lang-menu-banner');
+          if (currentLangMenu) currentLangMenu.style.display = 'none';
           
-          // Remove both banner and backdrop explicitly
-          const existingBanner = document.getElementById('consently-banner');
-          const existingBackdrop = document.getElementById('consently-backdrop');
-          if (existingBanner) existingBanner.remove();
-          if (existingBackdrop) existingBackdrop.remove();
+          // Update banner content in place (banner stays open!)
+          await updateBannerContent(newLang);
           
-          // Show banner with new language
-          await showConsentBanner();
+          console.log('[Consently] Banner content updated, ensuring visibility...');
+          
+          // CRITICAL: Ensure banner is still visible after update - FORCE visible state
+          const updatedBanner = document.getElementById('consently-banner');
+          if (updatedBanner) {
+            // Restore position and z-index that might have been lost
+            updatedBanner.style.position = initialPosition || 'fixed';
+            updatedBanner.style.zIndex = initialZIndex || (config.zIndex || 9999).toString();
+            
+            // Force visibility
+            updatedBanner.style.display = 'block';
+            updatedBanner.style.visibility = 'visible';
+            updatedBanner.style.opacity = '1';
+            updatedBanner.style.pointerEvents = 'auto';
+            isBannerVisible = true;
+            
+            console.log('[Consently] ✓ Banner kept visible after language change');
+          } else {
+            console.error('[Consently] ⚠️ Banner element not found after update!');
+          }
+          
+          // Ensure backdrop stays visible too if needed
+          const backdrop = document.getElementById('consently-backdrop');
+          const position = config.position || 'bottom';
+          const layout = config.layout || 'bar';
+          const needsBackdrop = (position === 'center' || position === 'center-modal' || layout === 'modal');
+          if (backdrop && needsBackdrop) {
+            backdrop.style.display = 'block';
+            backdrop.style.visibility = 'visible';
+            backdrop.style.opacity = '1';
+            console.log('[Consently] ✓ Backdrop kept visible');
+          }
         } catch (error) {
           console.error('[Consently] Language change error:', error);
+          // Remove loading overlay on error
+          const overlay = document.getElementById('consently-lang-loading');
+          if (overlay) overlay.remove();
+          
+          // Ensure banner is visible even on error
+          const errorBanner = document.getElementById('consently-banner');
+          if (errorBanner) {
+            errorBanner.style.display = 'block';
+            errorBanner.style.visibility = 'visible';
+            errorBanner.style.opacity = '1';
+          }
         } finally {
           languageChangeInProgress = false;
-          if (langBtnBanner) langBtnBanner.disabled = false;
+          const currentLangBtn = document.getElementById('consently-lang-btn-banner');
+          if (currentLangBtn) currentLangBtn.disabled = false;
+          console.log('[Consently] Language change completed');
         }
-      }, 300);
+      };
       
       langMenuBanner.querySelectorAll('button[data-lang]').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
@@ -1241,16 +1892,17 @@
           langMenuBanner.style.display = 'none';
           
           const newLang = this.getAttribute('data-lang');
-          if (newLang && newLang !== selectedLanguage) {
-            // Update language immediately before any async operations
-            selectedLanguage = newLang;
+          const currentLang = selectedLanguage; // Store current language BEFORE updating
+          
+          if (newLang && newLang !== currentLang) {
+            // Save to localStorage immediately for persistence
             try {
               localStorage.setItem('consently_language', newLang);
             } catch (e) {
               console.warn('[Consently] Failed to save language preference');
             }
             
-            // Then trigger the language change handler
+            // Trigger the language change handler (it will update selectedLanguage)
             handleLanguageChange(newLang);
           }
           
@@ -1427,16 +2079,54 @@
       const banner = document.getElementById('consently-banner');
       if (banner) banner.style.display = 'none';
 
-      // Translate modal text using batch translation (much faster!)
+      // Load saved preferences from cookie (not temp prefs) - BEFORE translation
+      const existingConsent = CookieManager.get('consently_consent');
+      const existingCategories = existingConsent ? existingConsent.categories || ['necessary'] : ['necessary'];
+      const consentId = existingConsent ? (existingConsent.consentId || 'N/A') : 'N/A';
+      const consentDate = existingConsent && existingConsent.timestamp ? new Date(existingConsent.timestamp).toLocaleString() : 'N/A';
+      console.log('[Consently] Loading preferences:', existingCategories);
+
+      // Translate ALL texts in ONE SINGLE batch call (much faster!)
+      // Combines modal texts + category texts into one API call
       isTranslating = true;
-      const modalTexts = [
+      const allTexts = [
+        // Modal texts (5 items)
         'Preferences',
         'Manage your cookie preferences. Some cookies are necessary for the website to function.',
         'Save Preferences',
         'Cancel',
-        'Required'
+        'Required',
+        // Category texts (8 items)
+        'Strictly necessary cookies',
+        'Essential for website functionality',
+        'Performance',
+        'Help us understand visitor behavior',
+        'Targeting',
+        'Used for targeted advertising',
+        'Social Media',
+        'Cookies from social media platforms for sharing content'
       ];
-      const [modalTitle, modalDescription, saveButtonText, cancelButtonText, requiredLabel] = await translateBatch(modalTexts, selectedLanguage);
+      
+      let translations;
+      try {
+        translations = await translateBatch(allTexts, selectedLanguage);
+      } catch (translationError) {
+        console.error('[Consently] Translation failed:', translationError);
+        // Fallback to original English texts if translation fails
+        translations = allTexts;
+      }
+      
+      // Extract modal texts (first 5)
+      const [modalTitle, modalDescription, saveButtonText, cancelButtonText, requiredLabel] = translations.slice(0, 5);
+      
+      // Extract category texts (remaining 8)
+      const [
+        necessaryName, necessaryDesc,
+        analyticsName, analyticsDesc,
+        marketingName, marketingDesc,
+        socialName, socialDesc
+      ] = translations.slice(5);
+      
       isTranslating = false;
 
     const theme = config.theme || {};
@@ -1458,31 +2148,6 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     `;
-
-    // Load saved preferences from cookie (not temp prefs)
-    const existingConsent = CookieManager.get('consently_consent');
-    const existingCategories = existingConsent ? existingConsent.categories || ['necessary'] : ['necessary'];
-    const consentId = existingConsent ? (existingConsent.consentId || 'N/A') : 'N/A';
-    const consentDate = existingConsent && existingConsent.timestamp ? new Date(existingConsent.timestamp).toLocaleString() : 'N/A';
-    console.log('[Consently] Loading preferences:', existingCategories);
-    
-    // Translate all category texts in one batch call (much faster!)
-    const categoryTexts = [
-      'Strictly necessary cookies',
-      'Essential for website functionality',
-      'Performance',
-      'Help us understand visitor behavior',
-      'Targeting',
-      'Used for targeted advertising',
-      'Social Media',
-      'Cookies from social media platforms for sharing content'
-    ];
-    const [
-      necessaryName, necessaryDesc,
-      analyticsName, analyticsDesc,
-      marketingName, marketingDesc,
-      socialName, socialDesc
-    ] = await translateBatch(categoryTexts, selectedLanguage);
     
     const categories = [
       { id: 'necessary', name: necessaryName, description: necessaryDesc, required: true },
@@ -1648,7 +2313,17 @@
       </div>
     `;
 
+      // Append modal to body
       document.body.appendChild(modal);
+      
+      // Ensure modal is visible and properly rendered
+      // Force a reflow to ensure animations work
+      modal.offsetHeight;
+      
+      // Add a small delay to ensure modal is fully shown before interaction
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      console.log('[Consently] Modal displayed successfully');
 
     // Language selector with debouncing for modal
     const langBtn = document.getElementById('consently-lang-btn');
@@ -1666,6 +2341,89 @@
         }
       });
       
+      // Helper function to update modal content in place (keeps modal open!)
+      const updateModalContent = async function(translations, newLang) {
+        const modalContent = modal.querySelector('.consently-modal-content');
+        if (!modalContent) return;
+        
+        // Extract translations
+        const [modalTitle, modalDescription, saveButtonText, cancelButtonText, requiredLabel] = translations.slice(0, 5);
+        const [
+          necessaryName, necessaryDesc,
+          analyticsName, analyticsDesc,
+          marketingName, marketingDesc,
+          socialName, socialDesc
+        ] = translations.slice(5);
+        
+        // Update modal title
+        const titleElement = modalContent.querySelector('h2 span');
+        if (titleElement) titleElement.textContent = modalTitle;
+        
+        // Update modal description
+        const descElement = modalContent.querySelector('p[style*="margin: 0 0 24px"]');
+        if (descElement) descElement.textContent = modalDescription;
+        
+        // Update language label
+        const langLabel = document.getElementById('consently-lang-label');
+        if (langLabel) langLabel.textContent = languageLabel(newLang);
+        
+        // Update button texts
+        const saveBtn = document.getElementById('consently-save-settings');
+        if (saveBtn) saveBtn.textContent = saveButtonText;
+        
+        const cancelBtn = document.getElementById('consently-close-modal');
+        if (cancelBtn) cancelBtn.textContent = cancelButtonText;
+        
+        // Update category names and descriptions
+        const categoryMap = {
+          'necessary': { name: necessaryName, desc: necessaryDesc },
+          'analytics': { name: analyticsName, desc: analyticsDesc },
+          'marketing': { name: marketingName, desc: marketingDesc },
+          'social': { name: socialName, desc: socialDesc }
+        };
+        
+        Object.keys(categoryMap).forEach(catId => {
+          const checkbox = document.getElementById(`cat-${catId}`);
+          if (checkbox) {
+            const label = checkbox.closest('label');
+            if (label) {
+              const nameSpan = label.querySelector('span');
+              const descDiv = label.querySelector('div[style*="font-size: 13px"]');
+              
+              if (nameSpan) {
+                const requiredPart = catId === 'necessary' ? ` <span style="color: #3b82f6; font-size: 12px;">(${requiredLabel})</span>` : '';
+                nameSpan.innerHTML = categoryMap[catId].name + requiredPart;
+              }
+              if (descDiv) {
+                descDiv.textContent = categoryMap[catId].desc;
+              }
+            }
+          }
+        });
+        
+        // Update language menu active state
+        const langMenu = document.getElementById('consently-lang-menu');
+        if (langMenu) {
+          langMenu.querySelectorAll('button[data-lang]').forEach(btn => {
+            const btnLang = btn.getAttribute('data-lang');
+            if (btnLang === newLang) {
+              btn.style.background = '#f0f9ff';
+              btn.style.fontWeight = '600';
+              btn.style.color = '#0369a1';
+              if (!btn.querySelector('svg:last-child')) {
+                btn.innerHTML += '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-left: auto;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+              }
+            } else {
+              btn.style.background = '#fff';
+              btn.style.fontWeight = '500';
+              btn.style.color = '#374151';
+              const checkIcon = btn.querySelector('svg:last-child');
+              if (checkIcon) checkIcon.remove();
+            }
+          });
+        }
+      };
+      
       const handleModalLanguageChange = debounce(async function(newLang) {
         if (languageChangeInProgress) return;
         
@@ -1677,12 +2435,81 @@
           localStorage.setItem('consently_language', newLang);
           langMenu.style.display = 'none';
           
-          modal.remove();
-          await showSettingsModal();
+          // Show loading overlay on modal (KEEP MODAL OPEN!)
+          const modalContent = modal.querySelector('.consently-modal-content');
+          if (modalContent) {
+            // Remove any existing loading overlay
+            const existingOverlay = document.getElementById('consently-modal-lang-loading');
+            if (existingOverlay) existingOverlay.remove();
+            
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'consently-modal-lang-loading';
+            loadingOverlay.style.cssText = `
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: rgba(255, 255, 255, 0.95);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              z-index: 20;
+              border-radius: inherit;
+            `;
+            loadingOverlay.innerHTML = `
+              <div style="text-align: center;">
+                <div style="width: 50px; height: 50px; border: 4px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px;"></div>
+                <div style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 4px;">Translating...</div>
+                <div style="font-size: 13px; color: #6b7280;">Please wait a moment</div>
+              </div>
+              <style>
+                @keyframes spin {
+                  to { transform: rotate(360deg); }
+                }
+              </style>
+            `;
+            modalContent.style.position = 'relative';
+            modalContent.appendChild(loadingOverlay);
+            
+            // Wait for loading animation to be visible
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+          // Translate all texts in ONE batch call
+          const allTexts = [
+            'Preferences',
+            'Manage your cookie preferences. Some cookies are necessary for the website to function.',
+            'Save Preferences',
+            'Cancel',
+            'Required',
+            'Strictly necessary cookies',
+            'Essential for website functionality',
+            'Performance',
+            'Help us understand visitor behavior',
+            'Targeting',
+            'Used for targeted advertising',
+            'Social Media',
+            'Cookies from social media platforms for sharing content'
+          ];
+          
+          const translations = await translateBatch(allTexts, newLang);
+          
+          // Update modal content IN PLACE (don't remove modal!)
+          await updateModalContent(translations, newLang);
+          
+          // Remove loading overlay
+          const loadingOverlay = document.getElementById('consently-modal-lang-loading');
+          if (loadingOverlay) loadingOverlay.remove();
+          
         } catch (error) {
           console.error('[Consently] Modal language change error:', error);
+          // Remove loading overlay on error
+          const loadingOverlay = document.getElementById('consently-modal-lang-loading');
+          if (loadingOverlay) loadingOverlay.remove();
         } finally {
           languageChangeInProgress = false;
+          if (langBtn) langBtn.disabled = false;
         }
       }, 300);
       
