@@ -31,8 +31,7 @@ COMMENT ON COLUMN dpdpa_widget_configs.display_rules IS
   "is_active": true
 }';
 
--- Example: Add a rule for careers page (commented out - uncomment and customize as needed)
-/*
+-- Apply display rules for careers and contact pages
 UPDATE dpdpa_widget_configs
 SET display_rules = jsonb_build_array(
   jsonb_build_object(
@@ -69,6 +68,5 @@ SET display_rules = jsonb_build_array(
   )
 )
 WHERE widget_id = 'dpdpa_mhnhpimc_atq70ak';
-*/
 
 

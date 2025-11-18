@@ -18,12 +18,42 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast.success('Message sent successfully! We\'ll get back to you soon.');
-    setIsSubmitting(false);
-    (e.target as HTMLFormElement).reset();
+    try {
+      const formData = new FormData(e.currentTarget);
+      const data = {
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+        company: formData.get('company') as string || undefined,
+        message: formData.get('message') as string,
+      };
+
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send message');
+      }
+
+      toast.success(result.message || 'Message sent successfully! We\'ll get back to you soon.', {
+        description: 'Our team will respond within 24 hours',
+        duration: 5000,
+      });
+      
+      (e.target as HTMLFormElement).reset();
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to send message', {
+        description: 'Please try again or email us directly at hello@consently.in',
+        duration: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -77,18 +107,22 @@ export default function ContactPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <Input
                     type="text"
+                    name="name"
                     label="Name"
                     placeholder="Your name"
                     required
+                    minLength={2}
                   />
                   <Input
                     type="email"
+                    name="email"
                     label="Email"
                     placeholder="your@email.com"
                     required
                   />
                   <Input
                     type="text"
+                    name="company"
                     label="Company (Optional)"
                     placeholder="Your company name"
                   />
@@ -97,9 +131,11 @@ export default function ContactPage() {
                       Message
                     </label>
                     <Textarea
+                      name="message"
                       placeholder="Tell us how we can help..."
                       rows={5}
                       required
+                      minLength={10}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
