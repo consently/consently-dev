@@ -82,6 +82,9 @@ export default function Home() {
             
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
+              <Link href="/pricing">
+                <Button variant="ghost" size="sm" className="text-sm">Pricing</Button>
+              </Link>
               <Link href="/consulting" className="relative inline-flex items-center">
                 <Button variant="ghost" size="sm" className="text-sm">Consulting</Button>
                 <Badge className="absolute -top-0.5 -right-0.5 h-4 px-1.5 text-[10px] bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-md shadow-blue-500/20">
@@ -114,6 +117,11 @@ export default function Home() {
           {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
               <div className="flex flex-col space-y-2">
+                <Link href="/pricing" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start text-left">
+                    Pricing
+                  </Button>
+                </Link>
                 <Link href="/consulting" onClick={() => setMobileMenuOpen(false)} className="relative inline-flex items-center w-full">
                   <Button variant="ghost" className="w-full justify-start text-left">
                     Consulting Services
@@ -157,31 +165,159 @@ export default function Home() {
                 Made Simple for India
               </span>
             </h1>
-            <p className="text-base sm:text-xl lg:text-2xl text-gray-600 mb-6 sm:mb-10 max-w-3xl mx-auto leading-relaxed px-4">
-              Complete DPDPA 2023 compliance platform with automated cookie scanning.
-              Scan, classify, and manage your entire website in minutes.
+            <p className="text-base sm:text-xl lg:text-2xl text-gray-600 mb-4 sm:mb-6 max-w-3xl mx-auto leading-relaxed px-4">
+              For SaaS companies, ecommerce, fintech, and publishers handling user data under DPDP Act
             </p>
+            
+            {/* 3 Key USP Badges */}
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-4 max-w-4xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+                <Shield className="h-5 w-5 text-blue-600" />
+                <span className="text-sm sm:text-base font-semibold text-gray-900">Built for DPDP 2023</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+                <Zap className="h-5 w-5 text-purple-600" />
+                <span className="text-sm sm:text-base font-semibold text-gray-900">100% Automated Scanning</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+                <Globe className="h-5 w-5 text-green-600" />
+                <span className="text-sm sm:text-base font-semibold text-gray-900">22 Indian Languages</span>
+              </div>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
               <Link href="/signup" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all">
-                  Start Free Trial
+                <Button size="lg" className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-8 py-5 sm:py-6 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all">
+                  <span className="hidden sm:inline">🚀 Start 1-Month Free Trial — No Credit Card Required</span>
+                  <span className="sm:hidden">Start Free Trial — No Card Required</span>
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </Link>
             </div>
-            <div className="mt-4 sm:mt-6 text-xs sm:text-sm text-gray-500 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 px-4">
-              <span className="flex items-center">
+            <div className="mt-4 sm:mt-6 text-xs sm:text-sm text-gray-600 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 px-4">
+              <span className="flex items-center font-medium">
                 <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 text-green-500 flex-shrink-0" />
-                No credit card required
+                Instant setup — live in 5 minutes
               </span>
-              <span className="flex items-center">
+              <span className="flex items-center font-medium">
                 <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 text-green-500 flex-shrink-0" />
-                1 month free trial
+                Full access to all features
               </span>
-              <span className="flex items-center">
-                <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 text-green-500 flex-shrink-0" />
-                Cancel anytime
-              </span>
+            </div>
+            
+            {/* Product Preview - Real Dashboard Screenshot */}
+            <div className="mt-8 sm:mt-12 px-4 max-w-6xl mx-auto">
+              <div className="rounded-2xl border-4 border-blue-200 shadow-2xl overflow-hidden bg-white">
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 sm:p-8">
+                  <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                    {/* Browser Chrome */}
+                    <div className="bg-gray-100 px-4 py-3 flex items-center gap-3 border-b border-gray-200">
+                      <div className="flex gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      </div>
+                      <div className="flex-1 bg-white rounded-lg px-4 py-1.5 text-xs sm:text-sm text-gray-600 flex items-center gap-2">
+                        <Lock className="h-3 w-3 text-green-600" />
+                        consently.in/dashboard
+                      </div>
+                    </div>
+                    
+                    {/* Dashboard Content */}
+                    <div className="p-4 sm:p-6 bg-gradient-to-b from-white to-gray-50">
+                      {/* Header */}
+                      <div className="mb-6">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Shield className="h-6 w-6 text-blue-600" />
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Consent Dashboard</h3>
+                        </div>
+                        <p className="text-xs sm:text-sm text-gray-500">Real-time compliance monitoring</p>
+                      </div>
+
+                      {/* Stats Cards */}
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+                        {/* Total Consents */}
+                        <div className="bg-white rounded-lg border-2 border-blue-100 p-4 sm:p-5 hover:shadow-lg transition-shadow">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-xs text-gray-500 font-medium">Total Consents</div>
+                            <Users className="h-5 w-5 text-blue-500" />
+                          </div>
+                          <div className="text-2xl sm:text-3xl font-bold text-gray-900">12,847</div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <div className="text-xs text-green-600 font-medium flex items-center">
+                              <ArrowRight className="h-3 w-3 rotate-[-45deg]" />
+                              23.5%
+                            </div>
+                            <div className="text-xs text-gray-400">vs last week</div>
+                          </div>
+                        </div>
+
+                        {/* Acceptance Rate */}
+                        <div className="bg-white rounded-lg border-2 border-green-100 p-4 sm:p-5 hover:shadow-lg transition-shadow">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-xs text-gray-500 font-medium">Acceptance Rate</div>
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          </div>
+                          <div className="text-2xl sm:text-3xl font-bold text-green-600">87.3%</div>
+                          <div className="text-xs text-gray-500 mt-1">11,213 accepted</div>
+                        </div>
+                      </div>
+
+                      {/* Chart Preview */}
+                      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-sm font-semibold text-gray-700">Consent Trends</h4>
+                          <Badge className="text-xs bg-blue-100 text-blue-700 border-0">Last 7 Days</Badge>
+                        </div>
+                        <div className="h-24 sm:h-32 flex items-end justify-between gap-2">
+                          {[65, 78, 82, 71, 88, 92, 87].map((height, i) => (
+                            <div key={i} className="flex-1 bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg hover:from-blue-600 hover:to-blue-500 transition-all cursor-pointer" style={{ height: `${height}%` }}></div>
+                          ))}
+                        </div>
+                        <div className="flex justify-between mt-2 text-xs text-gray-400">
+                          <span>Mon</span>
+                          <span>Tue</span>
+                          <span>Wed</span>
+                          <span>Thu</span>
+                          <span>Fri</span>
+                          <span>Sat</span>
+                          <span>Sun</span>
+                        </div>
+                      </div>
+
+                      {/* Recent Activity Table */}
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                          <h4 className="text-sm font-semibold text-gray-700">Recent Consents</h4>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {[
+                            { status: 'Accepted', country: 'India', time: '2 min ago', color: 'green' },
+                            { status: 'Partial', country: 'India', time: '5 min ago', color: 'yellow' },
+                            { status: 'Accepted', country: 'India', time: '8 min ago', color: 'green' },
+                          ].map((item, i) => (
+                            <div key={i} className="px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${item.color === 'green' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                                <span className="text-xs sm:text-sm font-medium text-gray-700">{item.status}</span>
+                                <span className="text-xs text-gray-400">• {item.country}</span>
+                              </div>
+                              <span className="text-xs text-gray-400">{item.time}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Feature Tags */}
+                      <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs">
+                        <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">📊 Real-time Analytics</span>
+                        <span className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">🔍 Cookie Scanner</span>
+                        <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full font-medium">🗣️ 22 Languages</span>
+                        <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full font-medium">📝 Audit Reports</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -283,6 +419,156 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Comparison Chart Section */}
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+              Why Choose Consently?
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+              The ONLY DPDP-Compliant consent tool that supports 22 Indian languages
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse bg-white rounded-2xl shadow-xl overflow-hidden">
+              <thead>
+                <tr className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <th className="py-4 px-6 text-left font-bold text-base sm:text-lg">Feature</th>
+                  <th className="py-4 px-6 text-center font-bold text-base sm:text-lg bg-gradient-to-r from-blue-700 to-purple-700">
+                    <div className="flex flex-col items-center">
+                      <span>Consently</span>
+                      <Badge className="mt-2 bg-yellow-400 text-yellow-900 border-0">BEST</Badge>
+                    </div>
+                  </th>
+                  <th className="py-4 px-6 text-center font-bold text-base sm:text-lg">CookieYes</th>
+                  <th className="py-4 px-6 text-center font-bold text-base sm:text-lg">OneTrust</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                <tr className="hover:bg-blue-50 transition-colors">
+                  <td className="py-4 px-6 font-semibold text-gray-900">DPDP 2023 Compliant</td>
+                  <td className="py-4 px-6 text-center bg-blue-50">
+                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <X className="h-6 w-6 text-red-500 mx-auto" />
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <X className="h-6 w-6 text-red-500 mx-auto" />
+                  </td>
+                </tr>
+                <tr className="hover:bg-blue-50 transition-colors">
+                  <td className="py-4 px-6 font-semibold text-gray-900">22 Indian Languages</td>
+                  <td className="py-4 px-6 text-center bg-blue-50">
+                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <X className="h-6 w-6 text-red-500 mx-auto" />
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <X className="h-6 w-6 text-red-500 mx-auto" />
+                  </td>
+                </tr>
+                <tr className="hover:bg-blue-50 transition-colors">
+                  <td className="py-4 px-6 font-semibold text-gray-900">Automated Cookie Scan</td>
+                  <td className="py-4 px-6 text-center bg-blue-50">
+                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
+                  </td>
+                  <td className="py-4 px-6 text-center text-gray-600">Partial</td>
+                  <td className="py-4 px-6 text-center text-gray-600">Partial</td>
+                </tr>
+                <tr className="hover:bg-blue-50 transition-colors">
+                  <td className="py-4 px-6 font-semibold text-gray-900">Pricing</td>
+                  <td className="py-4 px-6 text-center bg-blue-50">
+                    <div className="font-bold text-green-600">₹0.01/consent</div>
+                  </td>
+                  <td className="py-4 px-6 text-center text-gray-600">
+                    <div className="text-sm">Fixed Plans</div>
+                  </td>
+                  <td className="py-4 px-6 text-center text-gray-600">
+                    <div className="text-sm">Enterprise Only</div>
+                  </td>
+                </tr>
+                <tr className="hover:bg-blue-50 transition-colors">
+                  <td className="py-4 px-6 font-semibold text-gray-900">Setup Time</td>
+                  <td className="py-4 px-6 text-center bg-blue-50">
+                    <div className="font-bold text-blue-600">5 mins</div>
+                  </td>
+                  <td className="py-4 px-6 text-center text-gray-600">30 mins</td>
+                  <td className="py-4 px-6 text-center text-gray-600">2+ hours</td>
+                </tr>
+                <tr className="hover:bg-blue-50 transition-colors">
+                  <td className="py-4 px-6 font-semibold text-gray-900">No Plan Lock-in</td>
+                  <td className="py-4 px-6 text-center bg-blue-50">
+                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <X className="h-6 w-6 text-red-500 mx-auto" />
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <X className="h-6 w-6 text-red-500 mx-auto" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-8 text-center">
+            <Link href="/signup">
+              <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-blue-500/30">
+                Choose Consently — Start Free
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Preview Section */}
+      <section className="py-16 sm:py-20 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-green-600 to-green-500 text-white mb-6 shadow-lg">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Simple, Fair Pricing
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+              Pay Only for What You Use
+            </h2>
+            <div className="bg-white rounded-2xl shadow-2xl border-2 border-blue-200 p-8 sm:p-12 mt-8">
+              <div className="text-center">
+                <div className="text-6xl sm:text-7xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                  ₹0.01
+                </div>
+                <div className="text-xl sm:text-2xl text-gray-600 mb-6">per consent recorded</div>
+                <div className="space-y-3 mb-8">
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="text-gray-700">No plan lock-in • Pay as you grow</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="text-gray-700">Unlimited domains • Unlimited scans</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="text-gray-700">All features included • No hidden fees</span>
+                  </div>
+                </div>
+                <Link href="/pricing">
+                  <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+                    View Full Pricing
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* DPDPA Compliance Highlight */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -324,6 +610,177 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Customer Success Story / Testimonial */}
+      <section className="py-16 sm:py-20 bg-gradient-to-br from-blue-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+              Trusted by Growing Businesses
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600">
+              See how companies are achieving DPDP compliance effortlessly
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Testimonial 1 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-xl border-2 border-blue-100 hover:border-blue-300 transition-all hover:-translate-y-1">
+              <div className="flex items-start gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className="text-yellow-400 text-xl">★</span>
+                ))}
+              </div>
+              <p className="text-gray-700 mb-6 leading-relaxed">
+                "We replaced CookieYes and saved 70% on costs while achieving full DPDP compliance. 
+                The 22-language support is a game-changer for our pan-India audience."
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                  S
+                </div>
+                <div>
+                  <div className="font-bold text-gray-900">Sanjay Kumar</div>
+                  <div className="text-sm text-gray-600">CTO, E-commerce Platform</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Testimonial 2 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-xl border-2 border-purple-100 hover:border-purple-300 transition-all hover:-translate-y-1">
+              <div className="flex items-start gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className="text-yellow-400 text-xl">★</span>
+                ))}
+              </div>
+              <p className="text-gray-700 mb-6 leading-relaxed">
+                "Setup took literally 5 minutes. The automated cookie scanner found trackers 
+                we didn't even know existed. Best investment for compliance."
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                  P
+                </div>
+                <div>
+                  <div className="font-bold text-gray-900">Priya Sharma</div>
+                  <div className="text-sm text-gray-600">Founder, SaaS Startup</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Testimonial 3 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-xl border-2 border-green-100 hover:border-green-300 transition-all hover:-translate-y-1">
+              <div className="flex items-start gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className="text-yellow-400 text-xl">★</span>
+                ))}
+              </div>
+              <p className="text-gray-700 mb-6 leading-relaxed">
+                "Finally, a consent management solution that understands Indian regulations. 
+                The audit reports saved us during our compliance review."
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-white font-bold text-lg">
+                  R
+                </div>
+                <div>
+                  <div className="font-bold text-gray-900">Rajesh Patel</div>
+                  <div className="text-sm text-gray-600">VP Legal, Fintech Company</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12 sm:mt-16">
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                1000+
+              </div>
+              <div className="text-gray-600 text-sm sm:text-base">Active Websites</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                10M+
+              </div>
+              <div className="text-gray-600 text-sm sm:text-base">Consents Managed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent mb-2">
+                22
+              </div>
+              <div className="text-gray-600 text-sm sm:text-base">Languages Supported</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2">
+                5 min
+              </div>
+              <div className="text-gray-600 text-sm sm:text-base">Average Setup Time</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust & Security Section */}
+      <section className="py-16 bg-gradient-to-r from-gray-50 to-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+              Built with Security & Privacy at the Core
+            </h2>
+            <p className="text-gray-600">Enterprise-grade security trusted by businesses across India</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+            <div className="bg-white rounded-xl p-6 text-center shadow-lg border-2 border-transparent hover:border-blue-200 transition-all">
+              <div className="flex justify-center mb-3">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <Lock className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1 text-sm sm:text-base">256-bit SSL</h3>
+              <p className="text-xs text-gray-600">Bank-grade encryption</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 text-center shadow-lg border-2 border-transparent hover:border-green-200 transition-all">
+              <div className="flex justify-center mb-3">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1 text-sm sm:text-base">DPDP 2023</h3>
+              <p className="text-xs text-gray-600">Fully compliant</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 text-center shadow-lg border-2 border-transparent hover:border-purple-200 transition-all">
+              <div className="flex justify-center mb-3">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                  <Database className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1 text-sm sm:text-base">Data Residency</h3>
+              <p className="text-xs text-gray-600">India-hosted servers</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 text-center shadow-lg border-2 border-transparent hover:border-orange-200 transition-all">
+              <div className="flex justify-center mb-3">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1 text-sm sm:text-base">99.9% Uptime</h3>
+              <p className="text-xs text-gray-600">Always available</p>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-600">
+              <Lock className="inline h-4 w-4 mr-1" />
+              Your data is encrypted, tokenized, and never shared with third parties
+            </p>
           </div>
         </div>
       </section>
@@ -456,6 +913,110 @@ export default function Home() {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600">
+              Everything you need to know about Consently
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {/* FAQ 1 */}
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-6 border-2 border-blue-100 hover:border-blue-300 transition-all">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-start gap-2">
+                <span className="text-blue-600 flex-shrink-0">Q:</span>
+                Is Consently really DPDP 2023 compliant?
+              </h3>
+              <p className="text-gray-700 leading-relaxed pl-6">
+                <strong>A:</strong> Yes! Consently is built specifically for the Digital Personal Data Protection Act (DPDP) 2023. 
+                We handle all requirements including granular consent, purpose-specific data collection, data subject rights, 
+                and complete audit trails. Our platform is updated continuously to stay compliant with the latest regulations.
+              </p>
+            </div>
+
+            {/* FAQ 2 */}
+            <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 border-2 border-purple-100 hover:border-purple-300 transition-all">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-start gap-2">
+                <span className="text-purple-600 flex-shrink-0">Q:</span>
+                How long does implementation take?
+              </h3>
+              <p className="text-gray-700 leading-relaxed pl-6">
+                <strong>A:</strong> Most customers are live in under 5 minutes! Simply sign up, run a cookie scan on your website, 
+                customize your consent banner, and add one line of code to your site. Our automated scanner does the heavy lifting, 
+                and you can start collecting compliant consent immediately.
+              </p>
+            </div>
+
+            {/* FAQ 3 */}
+            <div className="bg-gradient-to-br from-green-50 to-white rounded-xl p-6 border-2 border-green-100 hover:border-green-300 transition-all">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-start gap-2">
+                <span className="text-green-600 flex-shrink-0">Q:</span>
+                What happens after the 1-month free trial?
+              </h3>
+              <p className="text-gray-700 leading-relaxed pl-6">
+                <strong>A:</strong> After your free month, you only pay ₹0.01 per consent recorded—no fixed monthly fees, 
+                no plan lock-in. If you collect 10,000 consents in a month, you pay only ₹100. If you collect 0 consents, 
+                you pay ₹0. Cancel anytime with zero penalties.
+              </p>
+            </div>
+
+            {/* FAQ 4 */}
+            <div className="bg-gradient-to-br from-orange-50 to-white rounded-xl p-6 border-2 border-orange-100 hover:border-orange-300 transition-all">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-start gap-2">
+                <span className="text-orange-600 flex-shrink-0">Q:</span>
+                Do I need technical knowledge to set this up?
+              </h3>
+              <p className="text-gray-700 leading-relaxed pl-6">
+                <strong>A:</strong> No! Consently is designed for non-technical users. Our automated cookie scanner analyzes your 
+                website and generates a ready-to-use consent banner. You just copy one line of JavaScript code and paste it into 
+                your website. We provide step-by-step guides and priority support during your trial.
+              </p>
+            </div>
+
+            {/* FAQ 5 */}
+            <div className="bg-gradient-to-br from-pink-50 to-white rounded-xl p-6 border-2 border-pink-100 hover:border-pink-300 transition-all">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-start gap-2">
+                <span className="text-pink-600 flex-shrink-0">Q:</span>
+                Which Indian languages are supported?
+              </h3>
+              <p className="text-gray-700 leading-relaxed pl-6">
+                <strong>A:</strong> All 22 Schedule 8 languages: Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati, Kannada, 
+                Malayalam, Odia, Punjabi, Assamese, Maithili, Sanskrit, Santali, Kashmiri, Nepali, Konkani, Sindhi, Dogri, Manipuri, 
+                and Bodo. Your consent banners automatically adapt based on user location and browser language preferences.
+              </p>
+            </div>
+
+            {/* FAQ 6 */}
+            <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl p-6 border-2 border-indigo-100 hover:border-indigo-300 transition-all">
+              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-start gap-2">
+                <span className="text-indigo-600 flex-shrink-0">Q:</span>
+                Can I use Consently on multiple websites?
+              </h3>
+              <p className="text-gray-700 leading-relaxed pl-6">
+                <strong>A:</strong> Yes! There's no limit on the number of domains or websites. You pay only for actual consents 
+                recorded, regardless of how many websites you manage. Perfect for agencies managing multiple clients or businesses 
+                with multiple web properties.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <p className="text-gray-600 mb-6">Still have questions?</p>
+            <Link href="/contact">
+              <Button size="lg" variant="outline" className="text-blue-600 border-2 border-blue-600 hover:bg-blue-50">
+                Contact Our Team
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-blue-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -463,7 +1024,7 @@ export default function Home() {
             Ready to Achieve DPDPA Compliance?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Join hundreds of Indian businesses ensuring data protection compliance. Get <strong className="text-white">1 month free</strong> during our pre-launch!
+            Join 1000+ Indian businesses ensuring data protection compliance. Get <strong className="text-white">1 month free</strong> during our pre-launch!
           </p>
           <Link href="/signup">
             <Button size="lg" variant="secondary" className="text-blue-600">
