@@ -110,7 +110,7 @@
 
   // Batch translate multiple texts at once
   async function batchTranslate(texts, targetLang) {
-    if (targetLang === 'en') return texts;
+    if (targetLang === 'en' || !texts || texts.length === 0) return texts || [];
     
     // Check cache first
     const uncachedTexts = [];
@@ -118,6 +118,10 @@
     const result = [...texts];
     
     texts.forEach((text, idx) => {
+      if (!text) {
+        result[idx] = text;
+        return;
+      }
       const cacheKey = `${targetLang}:${text}`;
       if (translationCache[cacheKey]) {
         result[idx] = translationCache[cacheKey];
@@ -132,14 +136,14 @@
       return result;
     }
     
-    // Batch translate uncached texts
+    // Batch translate uncached texts using the proper API format
     try {
       const apiUrl = getApiUrl();
       const response = await fetch(`${apiUrl}/api/translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: uncachedTexts.join('\n||SEPARATOR||\n'),
+          texts: uncachedTexts, // Use 'texts' array, not 'text' string
           target: targetLang,
           source: 'en'
         })
@@ -147,21 +151,34 @@
 
       if (response.ok) {
         const data = await response.json();
-        const translatedBatch = data.translatedText.split('\n||SEPARATOR||\n');
-        
+        if (data.success && data.translations && Array.isArray(data.translations)) {
+          // Use the translations array from the API response
+          uncachedIndices.forEach((idx, i) => {
+            const translated = data.translations[i] || uncachedTexts[i] || texts[idx];
+            result[idx] = translated;
+            // Cache it
+            const cacheKey = `${targetLang}:${texts[idx]}`;
+            translationCache[cacheKey] = translated;
+          });
+        } else {
+          // Fallback: try to use translatedText if available
+          console.warn('[Consently DPDPA] Unexpected API response format, using fallback');
+          uncachedIndices.forEach((idx, i) => {
+            result[idx] = uncachedTexts[i] || texts[idx];
+          });
+        }
+      } else {
+        console.warn('[Consently DPDPA] Translation API error:', response.status);
+        // Fallback to original texts
         uncachedIndices.forEach((idx, i) => {
-          const translated = translatedBatch[i] || texts[idx];
-          result[idx] = translated;
-          // Cache it
-          const cacheKey = `${targetLang}:${texts[idx]}`;
-          translationCache[cacheKey] = translated;
+          result[idx] = uncachedTexts[i] || texts[idx];
         });
       }
     } catch (error) {
-      console.error('[Consently] Batch translation error:', error);
+      console.error('[Consently DPDPA] Batch translation error:', error);
       // Fallback to original texts for uncached items
       uncachedIndices.forEach((idx, i) => {
-        result[idx] = uncachedTexts[i];
+        result[idx] = uncachedTexts[i] || texts[idx];
       });
     }
     
@@ -1488,96 +1505,110 @@
     modal.style.cssText = `
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 999999;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 16px;
     `;
     
     modal.innerHTML = `
-      <div style="background:white;border-radius:20px;padding:48px;max-width:520px;width:90%;box-shadow:0 25px 70px rgba(0,0,0,0.2);animation:slideUp 0.3s ease-out;">
-        <!-- Icon and Title -->
-        <div style="text-align:center;margin-bottom:32px;">
-          <div style="width:72px;height:72px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:20px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 8px 24px rgba(79,118,246,0.25);">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div style="background:white;border-radius:16px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:slideUp 0.3s ease-out;max-height:90vh;overflow-y:auto;">
+        <!-- Icon and Title - Compact -->
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="width:56px;height:56px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 12px rgba(79,118,246,0.2);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="white"/>
             </svg>
           </div>
-          <h2 style="margin:0 0 12px 0;font-size:32px;font-weight:700;color:#1a1a1a;letter-spacing:-0.5px;">Welcome Back!</h2>
-          <p style="color:#64748b;font-size:16px;margin:0;line-height:1.5;">Sync your consent preferences across devices</p>
+          <h2 style="margin:0 0 6px 0;font-size:24px;font-weight:700;color:#1a1a1a;letter-spacing:-0.3px;">Welcome Back!</h2>
+          <p style="color:#64748b;font-size:14px;margin:0;line-height:1.4;">Enter your Consent ID to sync preferences</p>
         </div>
         
-        <!-- Consent ID Input Section -->
-        <div style="background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);border-radius:16px;padding:28px;margin-bottom:24px;border:1px solid #e2e8f0;">
-          <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:14px;color:#1e293b;font-size:15px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Consent ID Input Section - Compact -->
+        <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e2e8f0;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:10px;color:#1e293b;font-size:13px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 17v-2m0-4V7m9 5a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#4F76F6" stroke-width="2" stroke-linecap="round"/>
             </svg>
-            Enter your Consent ID
+            Consent ID
           </label>
-          <div style="position:relative;margin-bottom:14px;">
+          <div style="position:relative;margin-bottom:12px;">
             <input 
               type="text" 
               id="consent-id-input"
               placeholder="CNST-XXXX-XXXX-XXXX"
               maxlength="19"
-              style="width:100%;padding:16px 16px 16px 44px;border:2px solid #cbd5e1;border-radius:12px;font-size:17px;font-family:ui-monospace,monospace;text-transform:uppercase;box-sizing:border-box;transition:all 0.2s;background:white;"
+              style="width:100%;padding:12px 12px 12px 38px;border:2px solid #cbd5e1;border-radius:10px;font-size:15px;font-family:ui-monospace,monospace;text-transform:uppercase;box-sizing:border-box;transition:all 0.2s;background:white;"
               onfocus="this.style.borderColor='#4F76F6';this.style.boxShadow='0 0 0 3px rgba(79,118,246,0.1)'"
               onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
             />
-            <svg style="position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <button 
             id="verify-consent-btn"
-            style="width:100%;padding:16px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border:none;color:white;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(79,118,246,0.3);"
-            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 16px rgba(79,118,246,0.4)'"
-            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 12px rgba(79,118,246,0.3)'"
+            style="width:100%;padding:12px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border:none;color:white;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(79,118,246,0.25);"
+            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(79,118,246,0.35)'"
+            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(79,118,246,0.25)'"
           >
-            <span style="display:flex;align-items:center;justify-content:center;gap:8px;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <span style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              Verify & Load Preferences
+              Verify & Load
             </span>
           </button>
-          <div id="verify-error" style="color:#dc2626;margin-top:12px;font-size:14px;display:none;padding:12px;background:#fee;border-radius:8px;border-left:3px solid #dc2626;"></div>
+          <div id="verify-error" style="color:#dc2626;margin-top:10px;font-size:13px;display:none;padding:10px;background:#fee;border-radius:8px;border-left:3px solid #dc2626;"></div>
         </div>
         
-        <!-- Divider -->
-        <div style="display:flex;align-items:center;gap:16px;margin:28px 0;">
-          <div style="flex:1;height:1px;background:linear-gradient(to right, transparent, #e2e8f0, transparent);"></div>
-          <span style="color:#94a3b8;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">OR</span>
-          <div style="flex:1;height:1px;background:linear-gradient(to right, #e2e8f0, transparent);"></div>
+        <!-- Divider - Compact -->
+        <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
+          <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+          <span style="color:#94a3b8;font-size:12px;font-weight:500;">OR</span>
+          <div style="flex:1;height:1px;background:#e2e8f0;"></div>
         </div>
         
-        <!-- Start Fresh Button -->
+        <!-- Start Fresh Button - Compact -->
         <button 
           id="start-fresh-btn"
-          style="width:100%;padding:16px;background:white;border:2px solid #e2e8f0;color:#1e293b;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;transition:all 0.2s;"
+          style="width:100%;padding:12px;background:white;border:2px solid #e2e8f0;color:#1e293b;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;"
           onmouseover="this.style.borderColor='#4F76F6';this.style.background='#f8fafc'"
           onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'"
         >
-          <span style="display:flex;align-items:center;justify-content:center;gap:10px;">
-            <span style="font-size:20px;">✨</span>
-            <span>Start Fresh - Get New Consent ID</span>
+          <span style="display:flex;align-items:center;justify-content:center;gap:6px;">
+            <span style="font-size:16px;">✨</span>
+            <span>Start Fresh</span>
           </span>
         </button>
         
-        <!-- Help Text -->
-        <div style="text-align:center;margin-top:24px;padding:16px;background:#f8fafc;border-radius:12px;">
-          <p style="font-size:13px;color:#64748b;margin:0;line-height:1.6;">
-            <strong style="color:#1e293b;">New here?</strong> Click "Start Fresh" to create your unique Consent ID and begin managing your privacy preferences.
+        <!-- Help Text - Compact -->
+        <div style="text-align:center;margin-top:16px;padding:12px;background:#f8fafc;border-radius:10px;">
+          <p style="font-size:12px;color:#64748b;margin:0;line-height:1.5;">
+            <strong style="color:#1e293b;">New?</strong> Click "Start Fresh" to create a new Consent ID.
           </p>
         </div>
       </div>
       <style>
         @keyframes slideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(10px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @media (max-width: 480px) {
+          #dpdpa-verification-modal > div {
+            padding: 20px !important;
+            border-radius: 12px !important;
+          }
+          #dpdpa-verification-modal > div h2 {
+            font-size: 20px !important;
+          }
+          #dpdpa-verification-modal > div p {
+            font-size: 13px !important;
+          }
         }
       </style>
     `;
@@ -1638,7 +1669,7 @@
         return;
       }
       
-      verifyBtn.textContent = 'Verifying...';
+      verifyBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" fill="none"/><path d="M12 6v6l4 2" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>Verifying...</span>';
       verifyBtn.disabled = true;
       
       const result = await verifyConsentID(inputID);
@@ -1660,37 +1691,61 @@
       } else {
         errorDiv.textContent = result.error || 'Consent ID not found. Please check and try again.';
         errorDiv.style.display = 'block';
-        verifyBtn.textContent = '✓ Verify & Load Preferences';
+        verifyBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Verify & Load</span>';
         verifyBtn.disabled = false;
       }
     });
     
     startFreshBtn.addEventListener('click', () => {
       modal.remove();
-      // Generate new Consent ID and show consent widget
+      // Generate new Consent ID
       consentID = getConsentID();
-      showConsentWidget();
+      
+      // IMPORTANT: Reset activities to original config before applying rules
+      // This ensures we start with unfiltered activities
+      if (config && config.activities && Array.isArray(config.activities)) {
+        // Deep clone activities to avoid reference issues
+        activities = JSON.parse(JSON.stringify(config.activities));
+        console.log('[Consently DPDPA] Reset activities to original config:', activities.length);
+      }
+      
+      // IMPORTANT: Re-evaluate display rules and apply matched rule before showing widget
+      // This ensures that only the configured purposes/activities are shown
+      const matchedRule = evaluateDisplayRules();
+      
+      if (matchedRule && matchedRule.trigger_type === 'onPageLoad') {
+        // Apply rule to filter activities and purposes
+        applyRule(matchedRule);
+        // Track rule match for analytics
+        trackRuleMatch(matchedRule);
+        // Show widget with filtered content
+        setTimeout(() => {
+          showConsentWidget();
+        }, matchedRule.trigger_delay || 0);
+      } else {
+        // No rule matched or non-onPageLoad trigger, show widget normally
+        showConsentWidget();
+      }
     });
   }
 
-  // Show Consent Success Modal with ID Display (Compact Version)
+  // Show Consent Success Modal with ID Display (Compact Version - No Backdrop)
   function showConsentSuccessModal(consentID) {
     const modal = document.createElement('div');
     modal.id = 'dpdpa-success-modal';
     modal.style.cssText = `
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       z-index: 999999;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      pointer-events: none;
     `;
     
     modal.innerHTML = `
-      <div style="background:white;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.2);text-align:center;animation:slideUp 0.3s ease-out;">
+      <div style="background:white;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.3);text-align:center;animation:slideUp 0.3s ease-out;pointer-events: auto;">
         <!-- Success Icon -->
         <div style="width:56px;height:56px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 8px 24px rgba(16,185,129,0.3);">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -3138,8 +3193,8 @@ Digital Personal Data Protection Act, 2023
       // Track consent event for analytics
       trackConsentEvent(consentData, config._matchedRule || null);
 
-      // Show success modal with Consent ID
-      showConsentSuccessModal(consentID);
+      // Removed showConsentSuccessModal - banner already shows success message
+      // showConsentSuccessModal(consentID);
 
       // Show floating preference centre button
       showFloatingPreferenceButton();

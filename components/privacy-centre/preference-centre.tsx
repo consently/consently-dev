@@ -61,20 +61,28 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   const [domain, setDomain] = useState('');
   const [preferences, setPreferences] = useState<Record<string, 'accepted' | 'rejected'>>({});
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchPreferences();
   }, [visitorId, widgetId]);
 
-  const fetchPreferences = async () => {
+  const fetchPreferences = async (showRefreshing = false) => {
     try {
-      setLoading(true);
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
       const response = await fetch(
         `/api/privacy-centre/preferences?visitorId=${visitorId}&widgetId=${widgetId}`
       );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch preferences');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch preferences');
       }
 
       const data = await response.json();
@@ -88,11 +96,16 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         prefs[activity.id] = activity.consentStatus === 'withdrawn' ? 'rejected' : activity.consentStatus;
       });
       setPreferences(prefs);
+      
+      if (showRefreshing) {
+        toast.success('Preferences refreshed');
+      }
     } catch (error) {
       console.error('Error fetching preferences:', error);
-      toast.error('Failed to load preferences');
+      toast.error(error instanceof Error ? error.message : 'Failed to load preferences');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -112,6 +125,11 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         consentStatus,
       }));
 
+      if (preferencesArray.length === 0) {
+        toast.error('No preferences to save');
+        return;
+      }
+
       const response = await fetch('/api/privacy-centre/preferences', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -122,15 +140,18 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
           metadata: {
             userAgent: navigator.userAgent,
             language: navigator.language,
+            deviceType: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
           },
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save preferences');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save preferences');
       }
 
-      // Just show toast - the consent modal handles the main success UI
+      const result = await response.json();
+      
       toast.success('Preferences saved successfully', {
         description: 'Your privacy choices have been applied immediately',
         duration: 3000,
@@ -139,7 +160,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       await fetchPreferences(); // Refresh to get updated timestamps
     } catch (error) {
       console.error('Error saving preferences:', error);
-      toast.error('Failed to save preferences');
+      toast.error(error instanceof Error ? error.message : 'Failed to save preferences');
     } finally {
       setSaving(false);
     }
@@ -163,28 +184,36 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
 
   const handleDownloadHistory = async (format: 'csv' | 'pdf') => {
     try {
+      setDownloading(true);
       const response = await fetch(
         `/api/privacy-centre/preferences/history?visitorId=${visitorId}&widgetId=${widgetId}&format=${format}`
       );
 
       if (!response.ok) {
-        throw new Error('Failed to download history');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to download history');
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `consent-history-${Date.now()}.${format}`;
+      a.download = `consent-history-${visitorId}-${Date.now()}.${format}`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
 
       toast.success(`History downloaded as ${format.toUpperCase()}`);
     } catch (error) {
       console.error('Error downloading history:', error);
-      toast.error('Failed to download history');
+      toast.error(error instanceof Error ? error.message : 'Failed to download history');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -262,9 +291,27 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(visitorId);
-                    toast.success('Visitor ID copied!');
+                  onClick={async () => {
+                    try {
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(visitorId);
+                        toast.success('Visitor ID copied!');
+                      } else {
+                        // Fallback for older browsers
+                        const textarea = document.createElement('textarea');
+                        textarea.value = visitorId;
+                        textarea.style.position = 'fixed';
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                        toast.success('Visitor ID copied!');
+                      }
+                    } catch (error) {
+                      console.error('Failed to copy visitor ID:', error);
+                      toast.error('Failed to copy. Please select and copy manually.');
+                    }
                   }}
                   className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
                 >
@@ -300,7 +347,8 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
             <Button 
               onClick={handleAcceptAll} 
               size="sm" 
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all text-xs md:text-sm"
+              disabled={loading || activities.length === 0}
+              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="h-4 w-4 mr-2" />
               Accept All
@@ -309,23 +357,42 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
               onClick={handleRejectAll} 
               size="sm" 
               variant="outline"
-              className="border-2 border-gray-300 hover:bg-gray-100 text-gray-700 text-xs md:text-sm"
+              disabled={loading || activities.length === 0}
+              className="border-2 border-gray-300 hover:bg-gray-100 text-gray-700 text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="h-4 w-4 mr-2" />
               Reject All
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={fetchPreferences} variant="outline" size="sm" className="border-gray-300 text-xs md:text-sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Refresh</span>
+            <Button 
+              onClick={() => fetchPreferences(true)} 
+              variant="outline" 
+              size="sm" 
+              disabled={refreshing || loading}
+              className="border-gray-300 text-xs md:text-sm"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
             </Button>
-            <Button onClick={() => handleDownloadHistory('csv')} variant="outline" size="sm" className="border-gray-300 text-xs md:text-sm hidden sm:inline-flex">
-              <History className="h-4 w-4 mr-2" />
-              Export History
+            <Button 
+              onClick={() => handleDownloadHistory('csv')} 
+              variant="outline" 
+              size="sm" 
+              disabled={downloading || loading}
+              className="border-gray-300 text-xs md:text-sm hidden sm:inline-flex"
+            >
+              <History className={`h-4 w-4 mr-2 ${downloading ? 'animate-pulse' : ''}`} />
+              {downloading ? 'Downloading...' : 'Export History'}
             </Button>
-            <Button onClick={() => handleDownloadHistory('csv')} variant="outline" size="sm" className="border-gray-300 text-xs sm:hidden">
-              <Download className="h-4 w-4" />
+            <Button 
+              onClick={() => handleDownloadHistory('csv')} 
+              variant="outline" 
+              size="sm" 
+              disabled={downloading || loading}
+              className="border-gray-300 text-xs sm:hidden"
+            >
+              <Download className={`h-4 w-4 ${downloading ? 'animate-pulse' : ''}`} />
             </Button>
           </div>
         </div>
@@ -364,10 +431,11 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                         <div className="flex-shrink-0 mt-1">
                           <Switch
                             checked={isAccepted}
+                            disabled={saving}
                             onCheckedChange={(checked) =>
                               handlePreferenceChange(activity.id, checked ? 'accepted' : 'rejected')
                             }
-                            className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-emerald-600"
+                            className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-emerald-600 disabled:opacity-50"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -427,8 +495,10 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleActivityExpanded(activity.id)}
-                      className="flex-shrink-0 hover:bg-white/80 rounded-xl"
+                      disabled={loading}
+                      className="flex-shrink-0 hover:bg-white/80 rounded-xl disabled:opacity-50"
                       title={isExpanded ? 'Hide details' : 'Show details'}
+                      aria-label={isExpanded ? 'Hide details' : 'Show details'}
                     >
                       {isExpanded ? (
                         <ChevronUp className="h-5 w-5" />
@@ -558,9 +628,9 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
               </div>
               <Button 
                 onClick={handleSavePreferences} 
-                disabled={saving}
+                disabled={saving || loading || activities.length === 0}
                 size="lg"
-                className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all text-sm md:text-base h-12 md:h-14 px-8"
+                className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all text-sm md:text-base h-12 md:h-14 px-8 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <>

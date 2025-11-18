@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Clean Translation Logging - Cookie Widget</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1f2937;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 30px;
+    }
+    .instructions {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 15px;
+      margin-bottom: 30px;
+      border-radius: 4px;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      color: #1e40af;
+    }
+    .instructions ol {
+      margin: 10px 0 0 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 8px 0;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    button:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .comparison-item {
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #e5e7eb;
+    }
+    .comparison-item.old {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .comparison-item.new {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .comparison-item h4 {
+      margin-top: 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .comparison-item.old h4 {
+      color: #dc2626;
+    }
+    .comparison-item.new h4 {
+      color: #16a34a;
+    }
+    .comparison-item pre {
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 0;
+      color: #4b5563;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-card">
+    <h1>✨ Clean Translation Logging Test</h1>
+    <p class="subtitle">Testing the simplified translation approach (like DPDPA widget)</p>
+    
+    <div class="instructions">
+      <h3>📋 Test Instructions:</h3>
+      <ol>
+        <li><strong>Open Browser Console</strong> (F12 or Cmd+Option+I)</li>
+        <li><strong>Click the button below</strong> to show the cookie banner</li>
+        <li><strong>Change the language</strong> from the dropdown (try Hindi, Bengali, etc.)</li>
+        <li><strong>Observe the console</strong> - No more verbose translation logs!</li>
+      </ol>
+    </div>
+
+    <div class="comparison">
+      <div class="comparison-item old">
+        <h4>❌ Old Verbose Logs (Removed)</h4>
+        <pre>[Consently] Translating 8 texts to ur...
+[Consently] Translation API responded in 335ms
+[Consently] ✓ Batch translation complete (8 texts)
+[Consently] Changing language from ur to en
+[Consently] ✓ Banner translated in 0ms
+[Consently] ✓ Language changed successfully to en</pre>
+      </div>
+      
+      <div class="comparison-item new">
+        <h4>✅ New Clean Logs (Current)</h4>
+        <pre>Silent translation (no progress logs)
+Only errors are logged if they occur:
+[Consently] Translation API error: 500
+[Consently] Translation error: ...</pre>
+      </div>
+    </div>
+
+    <button onclick="showBanner()">🍪 Show Cookie Banner</button>
+  </div>
+
+  <script>
+    function showBanner() {
+      // Clear any existing consent to force banner to show
+      try {
+        localStorage.removeItem('consently_consent');
+        localStorage.removeItem('consently_language');
+        console.log('✅ Cleared existing consent. Reloading page...');
+        setTimeout(() => window.location.reload(), 500);
+      } catch (e) {
+        console.error('Failed to clear consent:', e);
+      }
+    }
+  </script>
+
+  <!-- Consently Widget with clean translation logging -->
+  <script 
+    src="/widget.js"
+    data-widget-id="demo-widget"
+    data-title="We value your privacy"
+    data-message="We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic."
+    data-accept-button-text="Accept All"
+    data-reject-button-text="Reject All"
+    data-settings-button-text="Cookie Settings"
+    data-position="bottom"
+    data-bg-color="#ffffff"
+    data-text-color="#1f2937"
+    data-supported-languages="en,hi,bn,ta,te,mr,gu,kn,ml,pa,ur"
+  ></script>
+</body>
+</html>
+

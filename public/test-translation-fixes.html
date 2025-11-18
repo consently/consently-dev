@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Translation Test - Consently v3.3</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #1f2937;
+      margin-bottom: 10px;
+    }
+    .version {
+      display: inline-block;
+      background: #3b82f6;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .test-section {
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .test-section h3 {
+      margin-top: 0;
+      color: #1f2937;
+    }
+    .test-item {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .test-item .icon {
+      font-size: 24px;
+      min-width: 30px;
+      text-align: center;
+    }
+    .test-item .text {
+      flex: 1;
+    }
+    .test-item .label {
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+    .test-item .desc {
+      font-size: 13px;
+      color: #6b7280;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status.pass { background: #d1fae5; color: #065f46; }
+    .status.pending { background: #fef3c7; color: #92400e; }
+    .status.fail { background: #fee2e2; color: #991b1b; }
+    
+    .info-box {
+      background: #eff6ff;
+      border: 2px solid #3b82f6;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .info-box h4 {
+      margin: 0 0 8px 0;
+      color: #1e40af;
+    }
+    .info-box ul {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+    }
+    .info-box li {
+      margin-bottom: 4px;
+      color: #1e40af;
+    }
+    
+    .console-box {
+      background: #1f2937;
+      color: #10b981;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 16px;
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    .console-box .log { color: #10b981; }
+    .console-box .warn { color: #f59e0b; }
+    .console-box .error { color: #ef4444; }
+    
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍪 Cookie Translation Test</h1>
+    <div class="version">v3.3 - Translation Fix</div>
+    
+    <div class="info-box">
+      <h4>✨ What's Fixed in v3.3</h4>
+      <ul>
+        <li>Banner now reloads instantly when changing language (no page refresh needed)</li>
+        <li>Cookie preferences modal stays open during language change</li>
+        <li>Loading spinner shows translation progress</li>
+        <li>Increased timeout for slower languages (Bhashini: 20 seconds)</li>
+        <li>Better error handling and console logging</li>
+      </ul>
+    </div>
+
+    <div class="test-section">
+      <h3>🧪 Test Checklist</h3>
+      
+      <div class="test-item">
+        <div class="icon">1️⃣</div>
+        <div class="text">
+          <div class="label">Open Cookie Banner</div>
+          <div class="desc">Click the cookie shield icon (bottom-left) or wait for banner to appear</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="test-item">
+        <div class="icon">2️⃣</div>
+        <div class="text">
+          <div class="label">Change Language in Banner</div>
+          <div class="desc">Click globe icon (top-right), select Hindi (हिंदी) - Banner should show "Translating..." and reload</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="test-item">
+        <div class="icon">3️⃣</div>
+        <div class="text">
+          <div class="label">Verify NO Page Refresh Required</div>
+          <div class="desc">Banner should translate and reload without refreshing the page</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="test-item">
+        <div class="icon">4️⃣</div>
+        <div class="text">
+          <div class="label">Open Cookie Preferences</div>
+          <div class="desc">Click "Cookie Settings" button in banner</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="test-item">
+        <div class="icon">5️⃣</div>
+        <div class="text">
+          <div class="label">Change Language in Modal</div>
+          <div class="desc">Click language button (top-right), select Tamil (தமிழ்) - Modal should stay open with loading overlay</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="test-item">
+        <div class="icon">6️⃣</div>
+        <div class="text">
+          <div class="label">Test Multiple Language Changes</div>
+          <div class="desc">Switch between 3-4 different languages quickly - Should be smooth with loading indicators</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="test-item">
+        <div class="icon">7️⃣</div>
+        <div class="text">
+          <div class="label">Test Bhashini Languages (Slow)</div>
+          <div class="desc">Try Nepali (नेपाली) or Sanskrit (संस्कृतम्) - Should work but may take 2-5 seconds</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+
+      <div class="test-item">
+        <div class="icon">8️⃣</div>
+        <div class="text">
+          <div class="label">Check Console Logs</div>
+          <div class="desc">Open browser DevTools → Console - Should see detailed translation logs</div>
+        </div>
+        <span class="status pending">Pending</span>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h3>📊 Expected Console Output</h3>
+      <div class="console-box" id="console">
+        <div class="log">[Consently] Initializing widget v3.3 with ID: your_widget_id</div>
+        <div class="log">[Consently] Changing language from en to hi</div>
+        <div class="log">[Consently] Translating 5 texts to hi...</div>
+        <div class="log">[Consently] Translation API responded in 1234ms</div>
+        <div class="log">[Consently] ✓ Batch translation complete (5 texts)</div>
+        <div class="log">---</div>
+        <div class="log">[Consently] Changing language from hi to ta</div>
+        <div class="log">[Consently] All texts found in cache</div>
+        <div class="log">✓ Second language change is instant (from cache)</div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h3>🌍 Supported Languages</h3>
+      <p style="margin-bottom: 10px;"><strong>Fast (Google Translate):</strong></p>
+      <p style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">
+        Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia, Urdu, Assamese
+      </p>
+      
+      <p style="margin-bottom: 10px;"><strong>Slower (Bhashini):</strong></p>
+      <p style="font-size: 13px; color: #6b7280;">
+        Nepali, Sanskrit, Kashmiri, Sindhi, Maithili, Dogri, Konkani, Manipuri, Bodo, Santhali
+      </p>
+    </div>
+
+    <div class="test-section">
+      <h3>🐛 Known Issues (Fixed in v3.3)</h3>
+      <div class="test-item">
+        <div class="icon">✅</div>
+        <div class="text">
+          <div class="label">Banner disappearing on language change</div>
+          <div class="desc"><strong>Fixed:</strong> Now shows loading overlay and reloads smoothly</div>
+        </div>
+      </div>
+      <div class="test-item">
+        <div class="icon">✅</div>
+        <div class="text">
+          <div class="label">Modal closing on language change</div>
+          <div class="desc"><strong>Fixed:</strong> Modal stays open with loading indicator</div>
+        </div>
+      </div>
+      <div class="test-item">
+        <div class="icon">✅</div>
+        <div class="text">
+          <div class="label">Requires page refresh to see translation</div>
+          <div class="desc"><strong>Fixed:</strong> Real-time translation with no refresh needed</div>
+        </div>
+      </div>
+      <div class="test-item">
+        <div class="icon">✅</div>
+        <div class="text">
+          <div class="label">Some languages timing out</div>
+          <div class="desc"><strong>Fixed:</strong> Increased timeout to 20 seconds for batch translations</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px; padding: 20px; background: #f0f9ff; border-radius: 8px; border: 2px solid #0ea5e9;">
+      <h4 style="margin: 0 0 12px 0; color: #0c4a6e;">🎯 Success Criteria</h4>
+      <ul style="margin: 0; padding-left: 20px; color: #0c4a6e;">
+        <li>Banner translates without page refresh ✓</li>
+        <li>Modal stays open during language change ✓</li>
+        <li>Loading spinner visible during translation ✓</li>
+        <li>Second language change is instant (cached) ✓</li>
+        <li>All 22 languages translate successfully ✓</li>
+        <li>Console logs show detailed translation info ✓</li>
+      </ul>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center;">
+      <p style="color: #6b7280; font-size: 13px;">
+        Open browser DevTools (F12) → Console tab to see detailed logs
+      </p>
+      <button onclick="location.reload()">🔄 Reload Page</button>
+    </div>
+  </div>
+
+  <!-- Load Consently Widget -->
+  <script src="/widget.js" data-consently-id="test-widget-id"></script>
+  
+  <script>
+    // Monitor console for translation events
+    const originalLog = console.log;
+    const consoleBox = document.getElementById('console');
+    
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      if (args[0] && args[0].includes('[Consently]')) {
+        const logDiv = document.createElement('div');
+        logDiv.className = 'log';
+        logDiv.textContent = args.join(' ');
+        consoleBox.appendChild(logDiv);
+        consoleBox.scrollTop = consoleBox.scrollHeight;
+      }
+    };
+    
+    // Add event listener for consent updates
+    window.addEventListener('consentlyUpdate', (e) => {
+      console.log('[Test Page] Consent updated:', e.detail);
+    });
+  </script>
+</body>
+</html>
+
