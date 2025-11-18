@@ -84,7 +84,7 @@ export default function Home() {
             <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
               <Link href="/consulting" className="relative inline-flex items-center">
                 <Button variant="ghost" size="sm" className="text-sm">Consulting</Button>
-                <Badge className="absolute -top-0.5 -right-0.5 h-4 px-1.5 text-[10px] bg-gradient-to-r from-red-500 to-red-600 border-0 shadow-md">
+                <Badge className="absolute -top-0.5 -right-0.5 h-4 px-1.5 text-[10px] bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-md shadow-blue-500/20">
                   NEW
                 </Badge>
               </Link>
@@ -118,7 +118,7 @@ export default function Home() {
                   <Button variant="ghost" className="w-full justify-start text-left">
                     Consulting Services
                   </Button>
-                  <Badge className="ml-auto h-4 px-1.5 text-[10px] bg-gradient-to-r from-red-500 to-red-600 border-0 shadow-md">
+                  <Badge className="ml-auto h-4 px-1.5 text-[10px] bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-md shadow-blue-500/20">
                     NEW
                   </Badge>
                 </Link>
@@ -332,7 +332,7 @@ export default function Home() {
       <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-red-500 to-red-600 text-white mb-6 shadow-lg shadow-red-500/20">
+            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white mb-6 shadow-lg shadow-blue-500/20">
               <Briefcase className="h-4 w-4 mr-2" />
               <span className="font-semibold">NEW</span>
             </div>
@@ -370,7 +370,7 @@ export default function Home() {
 
           <div className="text-center">
             <Link href="/consulting">
-              <Button size="lg" className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-500/30">
+              <Button size="lg" className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/30">
                 Explore Consulting Services
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>

@@ -325,7 +325,7 @@ export default function ConsultingPage() {
             <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white mb-6 shadow-lg shadow-blue-500/20 relative">
               <Briefcase className="h-4 w-4 mr-2" />
               Professional Consulting Services
-              <Badge className="ml-2 h-4 px-1.5 text-[10px] bg-gradient-to-r from-red-500 to-red-600 border-0">
+              <Badge className="ml-2 h-4 px-1.5 text-[10px] bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-md shadow-blue-500/20">
                 NEW
               </Badge>
             </div>
