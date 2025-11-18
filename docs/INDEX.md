@@ -1,6 +1,6 @@
 # 📚 Consently Documentation Index
 
-> **Last Updated:** 11/14/2025
+> **Last Updated:** 11/18/2025
 > 
 > This index is automatically generated. Run `npm run organize-docs` to regenerate.
 
@@ -75,21 +75,29 @@
 *Implementation summaries, production reports, and status updates*
 
 - **[Bhashini Translation Lag & Overlay Fix - Solutions](./summaries/BHASHINI_OPTIMIZATION_SOLUTION.md)**
+- **[Clean Translation Logging Summary](./summaries/CLEAN_TRANSLATION_SUMMARY.md)**
 - **[Cookie Management API Documentation](./summaries/COOKIE_APIS_DOCUMENTATION.md)**
 - **[Cookie Module APIs - Implementation Summary](./summaries/COOKIE_APIS_IMPLEMENTED.md)**
 - **[Cookie Banner Live Preview vs Live Site Sync Report](./summaries/COOKIE_BANNER_LIVE_PREVIEW_SYNC.md)**
 - **[Cookie Scanner - Page Scanning Limits](./summaries/COOKIE_SCANNER_PAGE_LIMITS.md)**
 - **[Production-Grade Cookie Scanner](./summaries/COOKIE_SCANNER_PRODUCTION.md)**
 - **[Cookie Scanner Production Refactor](./summaries/COOKIE_SCANNER_REFACTOR.md)**
+- **[Cookie Translation Fixes Summary](./summaries/COOKIE_TRANSLATION_FIXES_SUMMARY.md)**
 - **[DPDPA Module - Comprehensive Analysis & Recommendations](./summaries/DPDPA_FINDINGS_AND_RECOMMENDATIONS.md)**
 - **[DPDPA Module Cross-Check Report](./summaries/DPDPA_MODULE_CROSS_CHECK_REPORT.md)**
 - **[DPDPA Module Production Readiness Audit Report](./summaries/DPDPA_PRODUCTION_AUDIT.md)**
 - **[DPDPA Widget Live Site Review](./summaries/DPDPA_WIDGET_LIVE_SITE_REVIEW.md)**
 - **[🇮🇳 Indian Languages Support](./summaries/INDIAN_LANGUAGES_SUPPORT.md)**
 - **[Live Widget Sync - Troubleshooting Checklist](./summaries/LIVE_WIDGET_SYNC_CHECKLIST.md)**
+- **[Mobile Optimization Summary](./summaries/MOBILE_OPTIMIZATION_SUMMARY.md)**
+- **[Mobile Testing Checklist](./summaries/MOBILE_TESTING_CHECKLIST.md)**
+- **[Modal Translation Speed Fix](./summaries/MODAL_TRANSLATION_SPEED_FIX.md)**
+- **[Pre-Launch Fixes Summary](./summaries/PRE_LAUNCH_FIXES_SUMMARY.md)**
 - **[🔍 Privacy Centre Implementation - Current State Review](./summaries/PRIVACY_CENTRE_REVIEW.md)**
 - **[Production Deployment Checklist - Consently](./summaries/PRODUCTION_DEPLOYMENT_CHECKLIST.md)**
 - **[Production Quality Improvements - Version 2.0](./summaries/PRODUCTION_QUALITY_IMPROVEMENTS_V2.md)**
+- **[Translation Fixes - Start Here](./summaries/START_HERE_TRANSLATION_FIXES.md)**
+- **[Translation Fixes Summary](./summaries/TRANSLATION_FIXES_SUMMARY.md)**
 - **[DPDPA Widget UI/UX Improvements Summary](./summaries/UI_UX_IMPROVEMENTS_SUMMARY.md)**
 - **[DPDPA Widget - Table View Update Summary](./summaries/WIDGET_TABLE_VIEW_SUMMARY.md)**
 

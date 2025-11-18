@@ -193,7 +193,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 sm:w-72 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 safe-left ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 safe-left ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -214,7 +214,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 sm:px-4 py-4 sm:py-6 overflow-y-auto overscroll-contain">
+          <nav className="flex-1 px-3 sm:px-4 py-4 sm:py-6 overflow-y-auto overscroll-contain scroll-smooth">
             <ul className="space-y-1">
               {navigation.map((item) => (
                 <li key={item.name}>
@@ -222,32 +222,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div>
                       <button
                         onClick={() => toggleExpanded(item.name)}
-                        className="flex items-center justify-between w-full px-3 py-2.5 sm:py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
+                        className="flex items-center justify-between w-full px-3 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 touch-manipulation"
                       >
                         <div className="flex items-center">
-                          <item.icon className="h-5 w-5 mr-3" />
-                          {item.name}
+                          <item.icon className="h-5 w-5 mr-3 flex-shrink-0" />
+                          <span className="truncate">{item.name}</span>
                         </div>
                         <ChevronDown
-                          className={`h-4 w-4 transition-transform ${
+                          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${
                             expandedItems.includes(item.name) ? 'rotate-180' : ''
                           }`}
                         />
                       </button>
                       {expandedItems.includes(item.name) && (
-                        <ul className="mt-1 ml-6 sm:ml-8 space-y-1">
+                        <ul className="mt-1 ml-6 sm:ml-8 space-y-1 animate-in slide-in-from-top-2 duration-200">
                           {item.children.map((child) => (
                             <li key={child.href}>
                               <Link
                                 href={child.href}
-                                className={`block px-3 py-2.5 sm:py-2 text-sm rounded-lg transition-colors touch-manipulation ${
+                                className={`block px-3 py-3 text-sm rounded-lg transition-all duration-200 touch-manipulation ${
                                   isActive(child.href)
                                     ? 'bg-blue-50 text-blue-600 font-medium'
                                     : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200'
                                 }`}
                                 onClick={() => setSidebarOpen(false)}
                               >
-                                {child.name}
+                                <span className="truncate block">{child.name}</span>
                               </Link>
                             </li>
                           ))}
@@ -257,15 +257,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   ) : (
                     <Link
                       href={item.href!}
-                      className={`flex items-center px-3 py-2.5 sm:py-2 text-sm font-medium rounded-lg transition-colors touch-manipulation ${
+                      className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${
                         isActive(item.href!)
                           ? 'bg-blue-50 text-blue-600'
                           : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
                       }`}
                       onClick={() => setSidebarOpen(false)}
                     >
-                      <item.icon className="h-5 w-5 mr-3" />
-                      {item.name}
+                      <item.icon className="h-5 w-5 mr-3 flex-shrink-0" />
+                      <span className="truncate">{item.name}</span>
                     </Link>
                   )}
                 </li>
@@ -278,38 +278,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center w-full px-3 py-2.5 sm:py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
+                className="flex items-center w-full px-3 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 touch-manipulation"
               >
-                <div className="flex items-center flex-1">
-                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                <div className="flex items-center flex-1 min-w-0">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 flex-shrink-0">
                     <User className="h-4 w-4 text-blue-600" />
                   </div>
-                  <div className="text-left">
-                    <p className="font-medium truncate">{user?.fullName || 'User'}</p>
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="font-medium truncate text-sm">{user?.fullName || 'User'}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                   </div>
                 </div>
                 <ChevronDown
-                  className={`h-4 w-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+                  className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`}
                 />
               </button>
 
               {userMenuOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10 animate-in slide-in-from-bottom-2 duration-200">
                   <Link
                     href="/dashboard/settings"
-                    className="flex items-center px-4 py-2.5 sm:py-2 text-sm text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
+                    className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-colors duration-150 touch-manipulation"
                     onClick={() => setUserMenuOpen(false)}
                   >
-                    <Settings className="h-4 w-4 mr-3" />
-                    Settings
+                    <Settings className="h-4 w-4 mr-3 flex-shrink-0" />
+                    <span>Settings</span>
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center w-full px-4 py-2.5 sm:py-2 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors touch-manipulation"
+                    className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors duration-150 touch-manipulation"
                   >
-                    <LogOut className="h-4 w-4 mr-3" />
-                    Logout
+                    <LogOut className="h-4 w-4 mr-3 flex-shrink-0" />
+                    <span>Logout</span>
                   </button>
                 </div>
               )}
@@ -319,27 +319,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 min-h-screen flex flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-3 sm:px-4 lg:px-8 safe-top">
+        <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-3 sm:px-4 lg:px-8 safe-top backdrop-blur-sm bg-white/95">
           <button 
             onClick={() => setSidebarOpen(true)} 
-            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
+            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 touch-manipulation"
             aria-label="Open menu"
           >
             <Menu className="h-6 w-6 text-gray-500" />
           </button>
 
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="hidden sm:flex items-center text-xs sm:text-sm text-gray-600">
-              <Shield className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-green-500" />
-              <span className="font-medium">DPDPA 2023 Compliant</span>
+          <div className="flex items-center space-x-2 sm:space-x-4 ml-auto lg:ml-0">
+            <div className="flex items-center text-xs sm:text-sm text-gray-600 bg-green-50 px-2 sm:px-3 py-1.5 rounded-full">
+              <Shield className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-green-500 flex-shrink-0" />
+              <span className="font-medium whitespace-nowrap">DPDPA 2023 Compliant</span>
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="p-3 sm:p-4 lg:p-8 pb-6 sm:pb-8 safe-bottom">{children}</main>
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 pb-6 sm:pb-8 safe-bottom">{children}</main>
       </div>
 
       <Toaster position="top-right" richColors />

@@ -34,7 +34,6 @@ interface CookieStats {
   revokedCount: number;
   acceptanceRate: number;
   uniqueVisitors: number;
-  totalWidgets: number;
   last7Days: {
     consents: number;
     change: number;
@@ -69,10 +68,7 @@ export default function CookieConsentOverviewPage() {
       setLoading(true);
 
       // Fetch consent records from existing API
-      const [recordsRes, widgetsRes] = await Promise.all([
-        fetch('/api/consent/records?limit=100'),
-        fetch('/api/cookies/widget-config'),
-      ]);
+      const recordsRes = await fetch('/api/consent/records?limit=100');
 
       let totalConsents = 0;
       let acceptedCount = 0;
@@ -80,7 +76,6 @@ export default function CookieConsentOverviewPage() {
       let partialCount = 0;
       let revokedCount = 0;
       let uniqueVisitors = 0;
-      let totalWidgets = 0;
       let recentConsentsList: RecentConsent[] = [];
 
       if (recordsRes.ok) {
@@ -103,11 +98,6 @@ export default function CookieConsentOverviewPage() {
         }));
       }
 
-      if (widgetsRes.ok) {
-        const widgetsData = await widgetsRes.json();
-        totalWidgets = (widgetsData.data || []).length;
-      }
-
       const acceptanceRate = totalConsents > 0 ? (acceptedCount / totalConsents) * 100 : 0;
 
       setStats({
@@ -118,7 +108,6 @@ export default function CookieConsentOverviewPage() {
         revokedCount,
         acceptanceRate,
         uniqueVisitors,
-        totalWidgets,
         last7Days: { consents: 0, change: 0 },
       });
 
@@ -172,31 +161,32 @@ export default function CookieConsentOverviewPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Cookie Consent Overview</h1>
-          <p className="text-gray-600 mt-2">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">Cookie Consent Overview</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
             Comprehensive overview of your cookie consent management
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={fetchDashboardData}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+        <div className="flex gap-2 sm:gap-3 flex-shrink-0">
+          <Button variant="outline" onClick={fetchDashboardData} size="sm" className="flex-1 sm:flex-none">
+            <RefreshCw className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <Link href="/dashboard/reports">
-            <Button>
-              <BarChart3 className="h-4 w-4 mr-2" />
-              View Reports
+          <Link href="/dashboard/reports" className="flex-1 sm:flex-none">
+            <Button size="sm" className="w-full">
+              <BarChart3 className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">View Reports</span>
+              <span className="sm:hidden">Reports</span>
             </Button>
           </Link>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -248,54 +238,41 @@ export default function CookieConsentOverviewPage() {
             </p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">Active Widgets</CardTitle>
-              <Cookie className="h-4 w-4 text-blue-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600">
-              {stats?.totalWidgets || 0}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {stats?.uniqueVisitors || 0} unique visitors
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Quick Actions */}
       <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <Cookie className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 mb-2">Quick Actions</h3>
-              <div className="grid gap-3 md:grid-cols-4">
-                <Link href="/dashboard/cookies/scan">
-                  <Button variant="outline" className="w-full bg-white">
-                    <FileSearch className="h-4 w-4 mr-2" />
-                    Scan Cookies
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <Cookie className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 flex-shrink-0 mt-1" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-blue-900 mb-2 sm:mb-3 text-sm sm:text-base">Quick Actions</h3>
+              <div className="grid gap-2 sm:gap-3 grid-cols-2 lg:grid-cols-4">
+                <Link href="/dashboard/cookies/scan" className="min-w-0">
+                  <Button variant="outline" size="sm" className="w-full bg-white text-xs sm:text-sm">
+                    <FileSearch className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2 flex-shrink-0" />
+                    <span className="hidden sm:inline truncate">Scan Cookies</span>
+                    <span className="sm:hidden truncate">Scan</span>
                   </Button>
                 </Link>
-                <Link href="/dashboard/cookies/widget">
-                  <Button variant="outline" className="w-full bg-white">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Widget Settings
+                <Link href="/dashboard/cookies/widget" className="min-w-0">
+                  <Button variant="outline" size="sm" className="w-full bg-white text-xs sm:text-sm">
+                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2 flex-shrink-0" />
+                    <span className="hidden sm:inline truncate">Widget Settings</span>
+                    <span className="sm:hidden truncate">Widget</span>
                   </Button>
                 </Link>
-                <Link href="/dashboard/cookies/records">
-                  <Button variant="outline" className="w-full bg-white">
-                    <FileSearch className="h-4 w-4 mr-2" />
-                    View Records
+                <Link href="/dashboard/cookies/records" className="min-w-0">
+                  <Button variant="outline" size="sm" className="w-full bg-white text-xs sm:text-sm">
+                    <FileSearch className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2 flex-shrink-0" />
+                    <span className="hidden sm:inline truncate">View Records</span>
+                    <span className="sm:hidden truncate">Records</span>
                   </Button>
                 </Link>
-                <Button variant="outline" className="w-full bg-white">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Report
+                <Button variant="outline" size="sm" className="w-full bg-white text-xs sm:text-sm">
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2 flex-shrink-0" />
+                  <span className="hidden sm:inline truncate">Export Report</span>
+                  <span className="sm:hidden truncate">Export</span>
                 </Button>
               </div>
             </div>
@@ -304,7 +281,7 @@ export default function CookieConsentOverviewPage() {
       </Card>
 
       {/* Consent Breakdown and Recent Activity */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Consent Breakdown */}
         <Card>
           <CardHeader>
