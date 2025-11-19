@@ -59,7 +59,8 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   const [activities, setActivities] = useState<Activity[]>([]);
   const [widgetName, setWidgetName] = useState('');
   const [domain, setDomain] = useState('');
-  const [preferences, setPreferences] = useState<Record<string, 'accepted' | 'rejected'>>({});
+  const [preferences, setPreferences] = useState<Record<string, 'accepted' | 'rejected' | 'withdrawn'>>({});
+  const [originalStatus, setOriginalStatus] = useState<Record<string, 'accepted' | 'rejected' | 'withdrawn'>>({});
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,12 +91,23 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       setWidgetName(data.data.widgetName || '');
       setDomain(data.data.domain || '');
 
-      // Initialize preferences state
-      const prefs: Record<string, 'accepted' | 'rejected'> = {};
+      // Initialize preferences state - keep original status for proper revocation handling
+      const prefs: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
+      const origStatus: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
       data.data.activities?.forEach((activity: Activity) => {
+        // Store original status from database
+        origStatus[activity.id] = activity.consentStatus;
+        // For UI, treat 'withdrawn' as 'rejected' (toggle OFF state)
         prefs[activity.id] = activity.consentStatus === 'withdrawn' ? 'rejected' : activity.consentStatus;
       });
       setPreferences(prefs);
+      setOriginalStatus(origStatus);
+      
+      // Log for debugging
+      console.log('[Preference Centre] Loaded preferences:', {
+        originalStatuses: origStatus,
+        currentPreferences: prefs
+      });
       
       if (showRefreshing) {
         toast.success('Preferences refreshed');
@@ -109,11 +121,28 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
     }
   };
 
-  const handlePreferenceChange = (activityId: string, newStatus: 'accepted' | 'rejected') => {
-    setPreferences((prev) => ({
-      ...prev,
-      [activityId]: newStatus,
-    }));
+  const handlePreferenceChange = (activityId: string, isAccepted: boolean) => {
+    setPreferences((prev) => {
+      // Determine the correct status based on:
+      // 1. If toggling ON -> 'accepted'
+      // 2. If toggling OFF and was previously 'accepted' -> 'withdrawn' (revocation)
+      // 3. If toggling OFF and was never accepted -> 'rejected'
+      let newStatus: 'accepted' | 'rejected' | 'withdrawn';
+      
+      if (isAccepted) {
+        newStatus = 'accepted';
+      } else {
+        // Toggling OFF - check if it was previously accepted
+        const wasAccepted = originalStatus[activityId] === 'accepted' || prev[activityId] === 'accepted';
+        newStatus = wasAccepted ? 'withdrawn' : 'rejected';
+        console.log(`[Preference Centre] Activity ${activityId}: wasAccepted=${wasAccepted}, newStatus=${newStatus}`);
+      }
+      
+      return {
+        ...prev,
+        [activityId]: newStatus,
+      };
+    });
   };
 
   const handleSavePreferences = async () => {
@@ -129,6 +158,9 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         toast.error('No preferences to save');
         return;
       }
+
+      // Log preferences being saved for debugging
+      console.log('[Preference Centre] Saving preferences:', preferencesArray);
 
       const response = await fetch('/api/privacy-centre/preferences', {
         method: 'PATCH',
@@ -167,7 +199,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   };
 
   const handleAcceptAll = () => {
-    const allAccepted: Record<string, 'accepted' | 'rejected'> = {};
+    const allAccepted: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
     activities.forEach((activity) => {
       allAccepted[activity.id] = 'accepted';
     });
@@ -175,9 +207,11 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   };
 
   const handleRejectAll = () => {
-    const allRejected: Record<string, 'accepted' | 'rejected'> = {};
+    const allRejected: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
     activities.forEach((activity) => {
-      allRejected[activity.id] = 'rejected';
+      // If previously accepted, mark as withdrawn; otherwise rejected
+      const wasAccepted = originalStatus[activity.id] === 'accepted' || preferences[activity.id] === 'accepted';
+      allRejected[activity.id] = wasAccepted ? 'withdrawn' : 'rejected';
     });
     setPreferences(allRejected);
   };
@@ -433,7 +467,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                             checked={isAccepted}
                             disabled={saving}
                             onCheckedChange={(checked) =>
-                              handlePreferenceChange(activity.id, checked ? 'accepted' : 'rejected')
+                              handlePreferenceChange(activity.id, checked)
                             }
                             className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-emerald-600 disabled:opacity-50"
                           />

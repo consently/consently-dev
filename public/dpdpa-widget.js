@@ -991,16 +991,18 @@
     // Store the matched rule for consent tracking
     config._matchedRule = rule;
     
-    // WARNING: If a rule matches a specific URL pattern but doesn't specify activities,
-    // it will show ALL activities from the widget configuration
+    // SECURITY: If a rule matches a specific URL pattern, it MUST specify activities
+    // Otherwise, we won't show the widget to prevent accidentally showing all activities
     const currentPath = window.location.pathname || '/';
     if (rule.url_pattern && rule.url_pattern !== '*' && rule.url_pattern !== '/*') {
       if (!rule.activities || !Array.isArray(rule.activities) || rule.activities.length === 0) {
-        console.warn('[Consently DPDPA] ⚠️ Display rule matched for:', currentPath);
-        console.warn('[Consently DPDPA] ⚠️ Rule:', rule.rule_name, 'matches URL pattern:', rule.url_pattern);
-        console.warn('[Consently DPDPA] ⚠️ BUT rule does not specify which activities to show!');
-        console.warn('[Consently DPDPA] ⚠️ Showing ALL activities from widget configuration:', activities.length);
-        console.warn('[Consently DPDPA] ⚠️ To fix: Add "activities" array to the display rule with only the activities you want to show');
+        console.error('[Consently DPDPA] ❌ Display rule matched for:', currentPath);
+        console.error('[Consently DPDPA] ❌ Rule:', rule.rule_name, 'matches URL pattern:', rule.url_pattern);
+        console.error('[Consently DPDPA] ❌ BUT rule does not specify which activities to show!');
+        console.error('[Consently DPDPA] ❌ Widget will NOT be shown to prevent showing all activities');
+        console.error('[Consently DPDPA] ❌ To fix: Add "activities" array to the display rule with only the activities you want to show');
+        // Don't show widget if rule doesn't specify activities - this prevents accidental exposure
+        return; // Exit early, don't show widget
       }
     }
     
@@ -1113,14 +1115,32 @@
           // Filter purposes within this activity
           if (activity.purposes && Array.isArray(activity.purposes)) {
             const originalPurposeCount = activity.purposes.length;
-            activity.purposes = activity.purposes.filter(purpose => 
-              allowedPurposeIds.includes(purpose.purposeId || purpose.id) // Use purposeId (actual purpose UUID) with fallback
-            );
+            
+            // DEBUG: Log all purposes before filtering
+            console.log('[Consently DPDPA] DEBUG - Purposes before filter:');
+            activity.purposes.forEach(p => {
+              console.log(`  - Purpose: ${p.purposeName}, purposeId: ${p.purposeId}, id: ${p.id}`);
+              console.log(`    Allowed? ${allowedPurposeIds.includes(p.purposeId)} (purposeId) or ${allowedPurposeIds.includes(p.id)} (id)`);
+            });
+            
+            // CRITICAL FIX: Use purposeId (the actual purpose UUID), NOT id (activity_purposes join table ID)
+            activity.purposes = activity.purposes.filter(purpose => {
+              // purposeId is the actual purpose UUID from purposes table
+              // id is the activity_purposes join table ID (wrong field to use)
+              const matches = allowedPurposeIds.includes(purpose.purposeId);
+              if (!matches) {
+                console.log('[Consently DPDPA] DEBUG - Filtering out purpose:', purpose.purposeName, 'purposeId:', purpose.purposeId);
+              }
+              return matches;
+            });
+            
             console.log('[Consently DPDPA] Filtered purposes for activity:', activity.id, 'from', originalPurposeCount, 'to', activity.purposes.length);
             
             // Warn if filtering results in no purposes
             if (activity.purposes.length === 0) {
               console.warn('[Consently DPDPA] Warning: Activity', activity.id, 'has no purposes after filtering!');
+              console.warn('[Consently DPDPA] Allowed purpose IDs:', allowedPurposeIds);
+              console.warn('[Consently DPDPA] Check that purpose IDs in activity_purposes match actual purpose UUIDs');
             }
           }
         } else {
@@ -1190,8 +1210,8 @@
         throw new Error('Missing required consent fields');
       }
       
-      // Validate consent status
-      if (!['accepted', 'rejected', 'partial'].includes(consentData.consentStatus)) {
+      // Validate consent status (including revoked for withdrawal)
+      if (!['accepted', 'rejected', 'partial', 'revoked'].includes(consentData.consentStatus)) {
         throw new Error('Invalid consent status');
       }
       

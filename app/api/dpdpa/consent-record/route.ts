@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import type { ConsentRecordRequest, ConsentDetails, RuleContext, PartialRuleContext } from '@/types/dpdpa-widget.types';
 import { consentRecordRequestSchema } from '@/types/dpdpa-widget.types';
 import { logSuccess } from '@/lib/audit';
+import crypto from 'crypto';
 
 /**
  * Public API endpoint to record DPDPA consent
@@ -65,6 +66,11 @@ function extractOSInfo(userAgent: string): string {
   if (ua.includes('iphone') || ua.includes('ipad')) return 'iOS';
   
   return 'Unknown';
+}
+
+// Helper function to hash email for privacy (SHA-256)
+function hashEmail(email: string): string {
+  return crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
 }
 
 export async function GET(request: NextRequest) {
@@ -130,10 +136,42 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch records' }, { status: 500 });
     }
 
+    // Fetch activity names for all records
+    const allActivityIds = new Set<string>();
+    (data || []).forEach((record: any) => {
+      (record.consented_activities || []).forEach((id: string) => allActivityIds.add(id));
+      (record.rejected_activities || []).forEach((id: string) => allActivityIds.add(id));
+    });
+
+    let activityMap = new Map<string, string>();
+    if (allActivityIds.size > 0) {
+      const { data: activities, error: actError } = await supabase
+        .from('processing_activities')
+        .select('id, activity_name')
+        .in('id', Array.from(allActivityIds));
+
+      if (!actError && activities) {
+        activities.forEach((act: any) => {
+          activityMap.set(act.id, act.activity_name);
+        });
+      }
+    }
+
+    // Enrich records with activity names
+    const enrichedData = (data || []).map((record: any) => ({
+      ...record,
+      acceptedActivityNames: (record.consented_activities || []).map((id: string) => 
+        activityMap.get(id) || 'Unknown Activity'
+      ),
+      rejectedActivityNames: (record.rejected_activities || []).map((id: string) => 
+        activityMap.get(id) || 'Unknown Activity'
+      ),
+    }));
+
     const totalPages = Math.ceil((count || 0) / limit);
 
     return NextResponse.json({
-      data: data || [],
+      data: enrichedData,
       pagination: {
         page,
         limit,
@@ -380,7 +418,8 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + consentDuration);
 
-    // Note: visitor_email_hash field doesn't exist in schema, storing in consent_details instead
+    // Hash visitor email if provided (for cross-device consent management)
+    const visitorEmailHash = body.visitorEmail ? hashEmail(body.visitorEmail) : null;
 
     // Check if consent record already exists for this visitor AND this specific page URL
     // This allows tracking consent per page, which is needed for the Pages tab
@@ -523,6 +562,7 @@ export async function POST(request: NextRequest) {
         consented_activities: validatedAcceptedActivities,
         rejected_activities: validatedRejectedActivities,
         consent_details: consentDetails, // Store rule context and activity consents
+        visitor_email_hash: visitorEmailHash, // Optional: for cross-device consent management
         ip_address: ipAddress,
         user_agent: userAgent,
         device_type: deviceType,
@@ -531,7 +571,12 @@ export async function POST(request: NextRequest) {
         country_code: country?.substring(0, 3) || null, // Truncate to 3 chars for country_code
         language: language,
         updated_at: new Date().toISOString(),
-        consent_expires_at: expiresAt.toISOString()
+        consent_expires_at: expiresAt.toISOString(),
+        // Set revocation fields if status is revoked
+        revoked_at: finalConsentStatus === 'revoked' ? new Date().toISOString() : null,
+        revocation_reason: finalConsentStatus === 'revoked' 
+          ? (body.revocationReason || 'User revoked consent via widget') 
+          : null,
       };
 
       const { data, error } = await supabase
@@ -581,6 +626,7 @@ export async function POST(request: NextRequest) {
         consented_activities: validatedAcceptedActivities,
         rejected_activities: validatedRejectedActivities,
         consent_details: consentDetails, // Store rule context and activity consents
+        visitor_email_hash: visitorEmailHash, // Optional: for cross-device consent management
         ip_address: ipAddress,
         user_agent: userAgent,
         device_type: deviceType,
@@ -591,7 +637,12 @@ export async function POST(request: NextRequest) {
         language: language,
         consent_given_at: new Date().toISOString(),
         consent_expires_at: expiresAt.toISOString(),
-        privacy_notice_version: '3.0' // Updated version for Consent ID system
+        privacy_notice_version: '3.0', // Updated version for Consent ID system
+        // Set revocation fields if status is revoked
+        revoked_at: finalConsentStatus === 'revoked' ? new Date().toISOString() : null,
+        revocation_reason: finalConsentStatus === 'revoked' 
+          ? (body.revocationReason || 'User revoked consent via widget') 
+          : null,
       };
       
       console.log('[Consent Record API] Attempting to insert consent record:', {
@@ -704,6 +755,7 @@ export async function POST(request: NextRequest) {
           widget_id: string;
           activity_id: string;
           consent_status: 'accepted' | 'rejected';
+          visitor_email_hash: string | null;
           ip_address: string | null;
           user_agent: string | null;
           device_type: 'Desktop' | 'Mobile' | 'Tablet' | 'Unknown' | null;
@@ -719,6 +771,7 @@ export async function POST(request: NextRequest) {
             widget_id: body.widgetId,
             activity_id: activityId,
             consent_status: 'accepted',
+            visitor_email_hash: visitorEmailHash,
             ip_address: ipAddress || null,
             user_agent: userAgent || null,
             device_type: deviceType || null,
@@ -735,6 +788,7 @@ export async function POST(request: NextRequest) {
             widget_id: body.widgetId,
             activity_id: activityId,
             consent_status: 'rejected',
+            visitor_email_hash: visitorEmailHash,
             ip_address: ipAddress || null,
             user_agent: userAgent || null,
             device_type: deviceType || null,

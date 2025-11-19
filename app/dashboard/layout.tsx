@@ -21,6 +21,7 @@ import {
 import { Toaster, toast } from 'sonner';
 
 import { useUserStore } from '@/lib/stores/useUserStore';
+import { TrialBanner } from '@/components/ui/trial-banner';
 
 const navigation = [
   {
@@ -272,6 +273,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               ))}
             </ul>
           </nav>
+
+          {/* Trial Banner */}
+          <div className="px-3 sm:px-4 pb-3">
+            <TrialBanner />
+          </div>
 
           {/* User menu */}
           <div className="p-3 sm:p-4 border-t border-gray-200 safe-bottom">

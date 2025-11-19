@@ -88,6 +88,83 @@ export interface Database {
           updated_at?: string;
         };
       };
+      consent_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          consent_id: string;
+          visitor_token: string;
+          widget_id: string | null;
+          consent_type: 'cookie' | 'dpdpa' | 'gdpr';
+          status: 'accepted' | 'rejected' | 'partial' | 'revoked' | 'updated';
+          categories: string[];
+          cookies_accepted: string[] | null;
+          cookies_rejected: string[] | null;
+          device_info: Json | null;
+          geo_location: Json | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          referrer: string | null;
+          page_url: string | null;
+          language: string;
+          browser_fingerprint: string | null;
+          consent_method: 'banner' | 'settings_modal' | 'api' | 'implicit';
+          widget_version: string | null;
+          tcf_string: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          consent_id: string;
+          visitor_token: string;
+          widget_id?: string | null;
+          consent_type: 'cookie' | 'dpdpa' | 'gdpr';
+          status: 'accepted' | 'rejected' | 'partial' | 'revoked' | 'updated';
+          categories?: string[];
+          cookies_accepted?: string[] | null;
+          cookies_rejected?: string[] | null;
+          device_info?: Json | null;
+          geo_location?: Json | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          referrer?: string | null;
+          page_url?: string | null;
+          language?: string;
+          browser_fingerprint?: string | null;
+          consent_method?: 'banner' | 'settings_modal' | 'api' | 'implicit';
+          widget_version?: string | null;
+          tcf_string?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          consent_id?: string;
+          visitor_token?: string;
+          widget_id?: string | null;
+          consent_type?: 'cookie' | 'dpdpa' | 'gdpr';
+          status?: 'accepted' | 'rejected' | 'partial' | 'revoked' | 'updated';
+          categories?: string[];
+          cookies_accepted?: string[] | null;
+          cookies_rejected?: string[] | null;
+          device_info?: Json | null;
+          geo_location?: Json | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          referrer?: string | null;
+          page_url?: string | null;
+          language?: string;
+          browser_fingerprint?: string | null;
+          consent_method?: 'banner' | 'settings_modal' | 'api' | 'implicit';
+          widget_version?: string | null;
+          tcf_string?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       cookie_scans: {
         Row: {
           id: string;
@@ -398,7 +475,6 @@ export interface Database {
         Row: {
           id: string;
           visitor_id: string;
-          visitor_email: string | null;
           visitor_email_hash: string | null;
           widget_id: string;
           activity_id: string;
@@ -416,7 +492,6 @@ export interface Database {
         Insert: {
           id?: string;
           visitor_id: string;
-          visitor_email?: string | null;
           visitor_email_hash?: string | null;
           widget_id: string;
           activity_id: string;
@@ -434,7 +509,6 @@ export interface Database {
         Update: {
           id?: string;
           visitor_id?: string;
-          visitor_email?: string | null;
           visitor_email_hash?: string | null;
           widget_id?: string;
           activity_id?: string;
@@ -777,6 +851,7 @@ export interface Database {
           consented_activities: string[];
           rejected_activities: string[];
           consent_details: Json;
+          visitor_email_hash: string | null;
           user_agent: string | null;
           ip_address: string | null;
           device_type: string | null;
@@ -802,6 +877,7 @@ export interface Database {
           consented_activities?: string[];
           rejected_activities?: string[];
           consent_details?: Json;
+          visitor_email_hash?: string | null;
           user_agent?: string | null;
           ip_address?: string | null;
           device_type?: string | null;
@@ -827,6 +903,7 @@ export interface Database {
           consented_activities?: string[];
           rejected_activities?: string[];
           consent_details?: Json;
+          visitor_email_hash?: string | null;
           user_agent?: string | null;
           ip_address?: string | null;
           device_type?: string | null;

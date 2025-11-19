@@ -2355,11 +2355,20 @@ export default function DPDPAWidgetPage() {
                 <div className="space-y-3">
                   {[...(config.displayRules || [])]
                     .sort((a, b) => b.priority - a.priority)
-                    .map((rule, index) => (
+                    .map((rule, index) => {
+                      // Validation checks
+                      const hasNoActivities = !rule.activities || rule.activities.length === 0;
+                      const hasNoPurposeFiltering = !rule.activity_purposes || Object.keys(rule.activity_purposes).length === 0;
+                      const hasMultipleActivities = rule.activities && rule.activities.length > 1;
+                      const hasIssues = hasNoActivities || (hasMultipleActivities && hasNoPurposeFiltering);
+                      
+                      return (
                       <div
                         key={rule.id}
                         className={`border-2 rounded-xl p-4 transition-all ${
-                          rule.is_active
+                          hasIssues && rule.is_active
+                            ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-white shadow-sm'
+                            : rule.is_active
                             ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-white shadow-sm'
                             : 'border-gray-200 bg-gray-50 opacity-60'
                         }`}
@@ -2369,10 +2378,15 @@ export default function DPDPAWidgetPage() {
                             <div className="flex items-center gap-3 mb-2">
                               <Badge
                                 variant={rule.is_active ? 'default' : 'secondary'}
-                                className={rule.is_active ? 'bg-blue-600' : 'bg-gray-400'}
+                                className={hasIssues && rule.is_active ? 'bg-yellow-600' : rule.is_active ? 'bg-blue-600' : 'bg-gray-400'}
                               >
                                 {rule.is_active ? 'Active' : 'Inactive'}
                               </Badge>
+                              {hasIssues && rule.is_active && (
+                                <Badge variant="destructive" className="text-xs">
+                                  ⚠️ Needs Fix
+                                </Badge>
+                              )}
                               <h4 className="font-semibold text-gray-900">{rule.rule_name}</h4>
                               <Badge variant="outline" className="text-xs">
                                 Priority: {rule.priority}
@@ -2400,12 +2414,17 @@ export default function DPDPAWidgetPage() {
                                 <span className="font-medium">Activities:</span>{' '}
                                 {rule.activities && rule.activities.length > 0
                                   ? `${rule.activities.length} selected`
-                                  : 'All activities'}
+                                  : <span className="text-yellow-600">⚠️ None (shows all)</span>}
                               </div>
-                              {rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0 && (
+                              {rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0 ? (
                                 <div>
                                   <span className="font-medium">Purposes:</span>{' '}
-                                  <span className="text-blue-600">Filtered ({Object.keys(rule.activity_purposes).length} activities)</span>
+                                  <span className="text-green-600">✓ Filtered ({Object.keys(rule.activity_purposes).length} activities)</span>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className="font-medium">Purposes:</span>{' '}
+                                  <span className="text-yellow-600">⚠️ None (shows all)</span>
                                 </div>
                               )}
                             </div>
@@ -2414,6 +2433,27 @@ export default function DPDPAWidgetPage() {
                                 <p className="text-xs text-blue-900">
                                   <span className="font-medium">Custom Notice:</span>{' '}
                                   {rule.notice_content.title || rule.notice_content.message || 'Custom HTML content'}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Warning Messages */}
+                            {hasIssues && rule.is_active && (
+                              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
+                                <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ Configuration Issues:</p>
+                                <ul className="list-disc list-inside text-sm text-yellow-800 space-y-1">
+                                  {hasNoActivities && (
+                                    <li>No activities specified - will show ALL activities</li>
+                                  )}
+                                  {!hasNoActivities && hasNoPurposeFiltering && (
+                                    <li>No purpose filtering - will show ALL purposes from selected activities</li>
+                                  )}
+                                  {hasMultipleActivities && hasNoPurposeFiltering && (
+                                    <li>Multiple activities without filtering = multiple purposes may show</li>
+                                  )}
+                                </ul>
+                                <p className="mt-2 text-sm text-yellow-900 font-medium">
+                                  💡 Fix: Specify activities array and activity_purposes mapping
                                 </p>
                               </div>
                             )}
@@ -2464,7 +2504,8 @@ export default function DPDPAWidgetPage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
                 </div>
               )}
               

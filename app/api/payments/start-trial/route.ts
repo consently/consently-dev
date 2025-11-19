@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, getUserIdentifier } from '@/lib/rate-limit';
 import { logSuccess, logFailure } from '@/lib/audit';
 
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 30;
 
 export async function POST(request: NextRequest) {
   try {

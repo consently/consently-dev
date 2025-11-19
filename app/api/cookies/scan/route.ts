@@ -91,9 +91,17 @@ export async function POST(request: NextRequest) {
 
     // Perform real cookie scan using CookieScanner service
     // Pass tier based on scanDepth to allow multi-page scanning
+    // During trial, grant enterprise tier access
+    const { getEntitlements } = await import('@/lib/subscription');
+    const entitlements = await getEntitlements();
+    
     let tier: 'free' | 'premium' | 'enterprise' = 'free';
-    if (scanDepth === 'medium') tier = 'premium';
-    if (scanDepth === 'deep') tier = 'enterprise';
+    if (entitlements.isTrial) {
+      tier = 'enterprise'; // Full access during trial
+    } else {
+      if (scanDepth === 'medium') tier = 'premium';
+      if (scanDepth === 'deep') tier = 'enterprise';
+    }
     
     const { scanId, cookies, summary } = await CookieScanner.scanWebsite({
       url,

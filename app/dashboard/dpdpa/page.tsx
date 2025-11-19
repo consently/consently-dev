@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { ActivityLevelAnalytics } from '@/components/dpdpa/ActivityLevelAnalytics';
+import { PurposeLevelAnalytics } from '@/components/dpdpa/PurposeLevelAnalytics';
 
 interface DashboardStats {
   totalConsents: number;
@@ -398,6 +400,12 @@ export default function DPDPADashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Activity-Level Analytics */}
+      <ActivityLevelAnalytics showTopOnly={false} maxItems={10} />
+
+      {/* Purpose-Level Analytics */}
+      <PurposeLevelAnalytics showTopOnly={false} maxItems={10} />
 
       {/* Consent vs Revocation Stats */}
       <div className="grid gap-6 lg:grid-cols-2">

@@ -15,6 +15,7 @@ interface PreferenceUpdateRequest {
     activityId: string;
     consentStatus: 'accepted' | 'rejected' | 'withdrawn';
   }>;
+  visitorEmail?: string; // Optional: for cross-device consent management
   metadata?: {
     ipAddress?: string;
     userAgent?: string;
@@ -175,7 +176,7 @@ export async function PATCH(request: NextRequest) {
     const supabase = await createClient();
     const body: PreferenceUpdateRequest = await request.json();
 
-    const { visitorId, widgetId, preferences, metadata } = body;
+    const { visitorId, widgetId, preferences, visitorEmail, metadata } = body;
 
     if (!visitorId || !widgetId || !preferences || preferences.length === 0) {
       return NextResponse.json(
@@ -183,6 +184,9 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Hash visitor email if provided (for cross-device consent management)
+    const visitorEmailHash = visitorEmail ? hashEmail(visitorEmail) : null;
 
     // Fetch widget configuration for consent duration
     const { data: widgetConfig } = await supabase
@@ -201,6 +205,7 @@ export async function PATCH(request: NextRequest) {
       widget_id: widgetId,
       activity_id: pref.activityId,
       consent_status: pref.consentStatus,
+      visitor_email_hash: visitorEmailHash,
       ip_address: metadata?.ipAddress || null,
       user_agent: metadata?.userAgent || null,
       device_type: (metadata?.deviceType as any) || 'Unknown',
@@ -233,20 +238,32 @@ export async function PATCH(request: NextRequest) {
         .filter((p) => p.consentStatus === 'accepted')
         .map((p) => p.activityId);
       const rejectedActivities = preferences
-        .filter((p) => p.consentStatus === 'rejected' || p.consentStatus === 'withdrawn')
+        .filter((p) => p.consentStatus === 'rejected')
+        .map((p) => p.activityId);
+      const withdrawnActivities = preferences
+        .filter((p) => p.consentStatus === 'withdrawn')
         .map((p) => p.activityId);
 
       // Only create consent record if there are activities
-      if (acceptedActivities.length > 0 || rejectedActivities.length > 0) {
+      if (acceptedActivities.length > 0 || rejectedActivities.length > 0 || withdrawnActivities.length > 0) {
         // Determine consent status
-        let consentStatus: 'accepted' | 'rejected' | 'partial';
-        if (acceptedActivities.length > 0 && rejectedActivities.length === 0) {
+        // If ALL activities are withdrawn, status is 'revoked'
+        const totalActivities = preferences.length;
+        const allWithdrawn = withdrawnActivities.length === totalActivities && acceptedActivities.length === 0 && rejectedActivities.length === 0;
+        
+        let consentStatus: 'accepted' | 'rejected' | 'partial' | 'revoked';
+        if (allWithdrawn) {
+          consentStatus = 'revoked';
+        } else if (acceptedActivities.length > 0 && rejectedActivities.length === 0 && withdrawnActivities.length === 0) {
           consentStatus = 'accepted';
-        } else if (rejectedActivities.length > 0 && acceptedActivities.length === 0) {
+        } else if ((rejectedActivities.length > 0 || withdrawnActivities.length > 0) && acceptedActivities.length === 0) {
           consentStatus = 'rejected';
         } else {
           consentStatus = 'partial';
         }
+        
+        // Include withdrawn activities in rejected_activities array for database constraint
+        const allRejectedActivities = [...rejectedActivities, ...withdrawnActivities];
 
         // Generate unique consent_id
         const timestamp = Date.now();
@@ -274,8 +291,11 @@ export async function PATCH(request: NextRequest) {
             consent_id: consentId,
             consent_status: consentStatus,
             consented_activities: acceptedActivities,
-            rejected_activities: rejectedActivities,
+            rejected_activities: allRejectedActivities, // Includes both rejected and withdrawn
             consent_details: consentDetails,
+            visitor_email_hash: visitorEmailHash,
+            revoked_at: allWithdrawn ? new Date().toISOString() : null, // Set revoked_at timestamp if all withdrawn
+            revocation_reason: allWithdrawn ? 'User withdrew all consent via preference centre' : null,
             ip_address: metadata?.ipAddress || null,
             user_agent: metadata?.userAgent || null,
             device_type: (metadata?.deviceType as any) || 'Unknown',
@@ -333,10 +353,24 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Fetch widget configuration for consent duration
+    const { data: widgetConfig } = await supabase
+      .from('dpdpa_widget_configs')
+      .select('consent_duration')
+      .eq('widget_id', widgetId)
+      .single();
+
+    const consentDuration = widgetConfig?.consent_duration || 365; // days
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + consentDuration);
+
     // Update all preferences to 'withdrawn'
     const { error: withdrawError } = await supabase
       .from('visitor_consent_preferences')
-      .update({ consent_status: 'withdrawn' })
+      .update({ 
+        consent_status: 'withdrawn',
+        last_updated: new Date().toISOString(),
+      })
       .eq('visitor_id', visitorId)
       .eq('widget_id', widgetId);
 
@@ -346,6 +380,47 @@ export async function DELETE(request: NextRequest) {
         { error: 'Failed to withdraw consents' },
         { status: 500 }
       );
+    }
+
+    // Create a consent record to track this full revocation
+    try {
+      // Generate unique consent_id
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const consentId = `${widgetId}_${visitorId}_${timestamp}_${randomSuffix}`;
+
+      // Create consent record with revoked status
+      const { error: consentRecordError } = await supabase
+        .from('dpdpa_consent_records')
+        .insert({
+          widget_id: widgetId,
+          visitor_id: visitorId,
+          consent_id: consentId,
+          consent_status: 'revoked',
+          consented_activities: [],
+          rejected_activities: [],
+          consent_details: {
+            activityConsents: {},
+            metadata: {
+              source: 'preference_centre_delete'
+            }
+          },
+          revoked_at: new Date().toISOString(),
+          revocation_reason: 'User withdrew all consent via preference centre (DELETE)',
+          consent_given_at: new Date().toISOString(),
+          consent_expires_at: expiresAt.toISOString(),
+          privacy_notice_version: '3.0'
+        });
+
+      if (consentRecordError) {
+        console.error('[Preference Centre DELETE] Error creating revoked consent record:', consentRecordError);
+        // Don't fail the request - preferences were already updated
+      } else {
+        console.log('[Preference Centre DELETE] Successfully created revoked consent record');
+      }
+    } catch (syncError) {
+      console.error('[Preference Centre DELETE] Error creating consent record:', syncError);
+      // Don't fail the request - preferences were already updated
     }
 
     return NextResponse.json({

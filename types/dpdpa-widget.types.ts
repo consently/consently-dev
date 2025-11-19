@@ -217,7 +217,7 @@ export interface DataCategoryPublic {
 export interface ConsentRecordRequest {
   widgetId: string;
   visitorId: string; // User-visible Consent ID (Format: CNST-XXXX-XXXX-XXXX)
-  consentStatus: 'accepted' | 'rejected' | 'partial';
+  consentStatus: 'accepted' | 'rejected' | 'partial' | 'revoked';
   acceptedActivities: string[];
   rejectedActivities: string[];
   activityConsents: Record<string, { status: string; timestamp: string }>;
@@ -225,6 +225,8 @@ export interface ConsentRecordRequest {
   ruleContext?: RuleContext;
   metadata?: ConsentMetadata;
   consentDuration?: number;
+  revocationReason?: string; // Optional reason for revocation
+  visitorEmail?: string; // Optional: for cross-device consent management (will be hashed)
 }
 
 /**
@@ -263,7 +265,7 @@ export interface ConsentDetails {
 export const consentRecordRequestSchema = z.object({
   widgetId: z.string().min(1).max(100),
   visitorId: z.string().min(1).max(200), // User-visible Consent ID
-  consentStatus: z.enum(['accepted', 'rejected', 'partial']),
+  consentStatus: z.enum(['accepted', 'rejected', 'partial', 'revoked']),
   acceptedActivities: z.array(z.string().uuid()),
   rejectedActivities: z.array(z.string().uuid()),
   activityConsents: z.record(z.string(), z.object({
@@ -291,6 +293,8 @@ export const consentRecordRequestSchema = z.object({
     pageTitle: z.string().optional(),
   }).optional(),
   consentDuration: z.number().int().min(1).max(3650).optional(),
+  revocationReason: z.string().max(500).optional(), // Optional reason for revocation
+  visitorEmail: z.string().email().max(255).optional(), // Optional: for cross-device consent management (will be hashed)
 });
 
 /**

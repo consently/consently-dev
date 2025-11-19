@@ -68,8 +68,15 @@ export async function getEntitlements(): Promise<Entitlements> {
     const limits = PLAN_LIMITS[subPlan];
 
     plan = subPlan;
-    consentLimit = limits.consents;
-    maxScanDepth = limits.maxScanDepth;
+    
+    // During active trial, grant enterprise-level access (no limitations)
+    if (activeTrial) {
+      consentLimit = null; // Unlimited consents during trial
+      maxScanDepth = 'deep'; // Full scan depth during trial
+    } else {
+      consentLimit = limits.consents;
+      maxScanDepth = limits.maxScanDepth;
+    }
   }
 
   return { plan, isTrial, trialEndsAt, isDemo, consentLimit, maxScanDepth };
