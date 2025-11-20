@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { PrivacyCentre } from '@/components/privacy-centre/privacy-centre';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 function PrivacyCentreContent() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const widgetId = params.widgetId as string;
   
   const [visitorId, setVisitorId] = useState<string | null>(null);
@@ -18,33 +17,81 @@ function PrivacyCentreContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    initializeVisitor();
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    // Add timeout to prevent infinite loading
+    timeoutId = setTimeout(() => {
+      if (isMounted && loading) {
+        console.error('Privacy Centre initialization timeout');
+        setError('Loading timeout. Please refresh the page.');
+        setLoading(false);
+      }
+    }, 15000); // 15 second timeout (increased from 10s)
+
+    initializeVisitor().then(() => {
+      if (isMounted && timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }).catch((err) => {
+      console.error('Error in initializeVisitor:', err);
+      if (isMounted) {
+        setError(err?.message || 'Failed to initialize Privacy Centre. Please refresh the page.');
+        setLoading(false);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [widgetId]);
 
-  const initializeVisitor = () => {
+  const initializeVisitor = async (): Promise<void> => {
     try {
       setLoading(true);
+      setError(null);
 
-      // Check URL parameter first (for direct links)
-      const urlVisitorId = searchParams?.get('visitorId');
+      // Check URL parameter first (for direct links) - use window.location to avoid Suspense issues
+      let urlVisitorId: string | null = null;
+      if (typeof window !== 'undefined') {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          urlVisitorId = urlParams.get('visitorId');
+        } catch (e) {
+          console.warn('Failed to parse URL params:', e);
+        }
+      }
       
       if (urlVisitorId) {
         // Store in localStorage for future visits (both formats for compatibility)
-        localStorage.setItem(`consently_visitor_${widgetId}`, urlVisitorId);
-        // Also sync to widget's consent ID format if it's a valid consent ID
-        try {
-          const consentData = localStorage.getItem('consently_consent_id');
-          if (!consentData || JSON.parse(consentData)?.value !== urlVisitorId) {
-            // Store in widget format for synchronization
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 365 * 10);
-            localStorage.setItem('consently_consent_id', JSON.stringify({
-              value: urlVisitorId,
-              expiresAt: expiresAt.toISOString()
-            }));
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`consently_visitor_${widgetId}`, urlVisitorId);
+            // Also sync to widget's consent ID format if it's a valid consent ID
+            try {
+              const consentData = localStorage.getItem('consently_consent_id');
+              if (!consentData || JSON.parse(consentData)?.value !== urlVisitorId) {
+                // Store in widget format for synchronization
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 365 * 10);
+                localStorage.setItem('consently_consent_id', JSON.stringify({
+                  value: urlVisitorId,
+                  expiresAt: expiresAt.toISOString()
+                }));
+              }
+            } catch (e) {
+              // Ignore errors in sync attempt
+              console.warn('Failed to sync consent ID:', e);
+            }
+          } catch (e) {
+            console.error('Failed to store visitor ID in localStorage:', e);
           }
-        } catch (e) {
-          // Ignore errors in sync attempt
         }
         setVisitorId(urlVisitorId);
         setLoading(false);
@@ -52,10 +99,17 @@ function PrivacyCentreContent() {
       }
 
       // Check localStorage for existing visitor ID (Privacy Centre format)
-      let storedVisitorId = localStorage.getItem(`consently_visitor_${widgetId}`);
+      let storedVisitorId: string | null = null;
+      if (typeof window !== 'undefined') {
+        try {
+          storedVisitorId = localStorage.getItem(`consently_visitor_${widgetId}`);
+        } catch (e) {
+          console.warn('Failed to read from localStorage:', e);
+        }
+      }
       
       // Fallback: Check widget's consent ID format for synchronization
-      if (!storedVisitorId) {
+      if (!storedVisitorId && typeof window !== 'undefined') {
         try {
           const consentData = localStorage.getItem('consently_consent_id');
           if (consentData) {
@@ -69,6 +123,7 @@ function PrivacyCentreContent() {
           }
         } catch (e) {
           // Ignore errors, continue to generate new ID
+          console.warn('Failed to read consent ID from localStorage:', e);
         }
       }
       
@@ -80,24 +135,32 @@ function PrivacyCentreContent() {
 
       // Generate new visitor ID
       const newVisitorId = uuidv4();
-      localStorage.setItem(`consently_visitor_${widgetId}`, newVisitorId);
-      // Also store in widget format for synchronization
-      try {
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 365 * 10);
-        localStorage.setItem('consently_consent_id', JSON.stringify({
-          value: newVisitorId,
-          expiresAt: expiresAt.toISOString()
-        }));
-      } catch (e) {
-        // Ignore errors, continue
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`consently_visitor_${widgetId}`, newVisitorId);
+          // Also store in widget format for synchronization
+          try {
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 365 * 10);
+            localStorage.setItem('consently_consent_id', JSON.stringify({
+              value: newVisitorId,
+              expiresAt: expiresAt.toISOString()
+            }));
+          } catch (e) {
+            // Ignore errors, continue
+            console.warn('Failed to store consent ID:', e);
+          }
+        } catch (e) {
+          console.error('Failed to store new visitor ID:', e);
+        }
       }
       setVisitorId(newVisitorId);
       setLoading(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error initializing visitor:', err);
-      setError('Failed to initialize Privacy Centre. Please enable cookies and try again.');
+      setError(err?.message || 'Failed to initialize Privacy Centre. Please enable cookies and try again.');
       setLoading(false);
+      throw err; // Re-throw so the useEffect can catch it
     }
   };
 

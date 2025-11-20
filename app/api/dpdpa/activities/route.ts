@@ -88,6 +88,23 @@ async function fetchActivityWithDetails(supabase: any, activityId: string, userI
     console.error('Error fetching data recipients for', activityId, ':', recipientsError);
   }
 
+  // Fetch consent counts
+  const [acceptedResult, rejectedResult] = await Promise.all([
+    supabase
+      .from('visitor_consent_preferences')
+      .select('*', { count: 'exact', head: true })
+      .eq('activity_id', activityId)
+      .eq('consent_status', 'accepted'),
+    supabase
+      .from('visitor_consent_preferences')
+      .select('*', { count: 'exact', head: true })
+      .eq('activity_id', activityId)
+      .eq('consent_status', 'rejected')
+  ]);
+
+  const acceptedCount = acceptedResult.count || 0;
+  const rejectedCount = rejectedResult.count || 0;
+
   return {
     data: {
       id: activity.id,
@@ -100,6 +117,9 @@ async function fetchActivityWithDetails(supabase: any, activityId: string, userI
       isActive: activity.is_active,
       createdAt: activity.created_at,
       updatedAt: activity.updated_at,
+      // Stats
+      acceptedCount,
+      rejectedCount,
       // Legacy fields for backward compatibility
       purpose: activity.purpose,
       retentionPeriod: activity.retention_period,

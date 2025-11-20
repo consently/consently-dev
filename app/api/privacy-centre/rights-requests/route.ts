@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 
 /**
  * Privacy Centre DPDP Rights Requests API
  * Handles data subject rights requests per DPDP Act 2023
  * Types: access, correction, erasure, grievance, nomination
+ * 
+ * NOTE: 
+ * - GET/POST use service role client (public operations)
+ * - PATCH uses regular client (requires admin authentication for status updates)
  */
 
 interface RightsRequestSubmission {
@@ -38,7 +42,7 @@ function generateVerificationCode(): string {
 // GET - Fetch visitor's rights requests
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
     const searchParams = request.nextUrl.searchParams;
     
     const visitorId = searchParams.get('visitorId');
@@ -109,7 +113,7 @@ export async function GET(request: NextRequest) {
 // POST - Submit a new rights request
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
     const body: RightsRequestSubmission = await request.json();
 
     const {

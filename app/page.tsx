@@ -156,7 +156,7 @@ export default function Home() {
           <div className="text-center">
             <div className="inline-flex items-center rounded-full px-3 sm:px-4 py-1.5 text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white mb-4 sm:mb-6 shadow-lg shadow-blue-500/20">
               <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-              DPDPA 2023 Compliant
+              DPDPA Rules 2025 Compliant
             </div>
             <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 mb-4 sm:mb-6 tracking-tight leading-tight px-4">
               Consent Management
@@ -166,22 +166,26 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-base sm:text-xl lg:text-2xl text-gray-600 mb-4 sm:mb-6 max-w-3xl mx-auto leading-relaxed px-4">
-              For SaaS companies, ecommerce, fintech, and publishers handling user data under DPDP Act
+              Stay compliant, avoid penalties, and build user trust — without writing a single line of code.
             </p>
             
-            {/* 3 Key USP Badges */}
-            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-4 max-w-4xl mx-auto">
+            {/* 4 Key USP Badges */}
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-4 max-w-5xl mx-auto">
               <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl shadow-md hover:shadow-lg transition-all">
-                <Shield className="h-5 w-5 text-blue-600" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">Built for DPDP 2023</span>
-              </div>
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl shadow-md hover:shadow-lg transition-all">
-                <Zap className="h-5 w-5 text-purple-600" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">100% Automated Scanning</span>
+                <Shield className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                <span className="text-sm sm:text-base font-semibold text-gray-900">Cookie consent + DPDPA consent + Data Principal Requests Manager</span>
               </div>
               <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl shadow-md hover:shadow-lg transition-all">
-                <Globe className="h-5 w-5 text-green-600" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">22 Indian Languages</span>
+                <Globe className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <span className="text-sm sm:text-base font-semibold text-gray-900">22 Indian languages - Built for Bharat</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+                <Zap className="h-5 w-5 text-purple-600 flex-shrink-0" />
+                <span className="text-sm sm:text-base font-semibold text-gray-900">1 day setup</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+                <Briefcase className="h-5 w-5 text-orange-600 flex-shrink-0" />
+                <span className="text-sm sm:text-base font-semibold text-gray-900">Consulting support</span>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">

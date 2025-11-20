@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import ConsentlyCookieWidget from "@/components/cookie/ConsentlyCookieWidget";
 
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         {children}
         <ConsentlyCookieWidget />
+        <SpeedInsights />
       </body>
     </html>
   );

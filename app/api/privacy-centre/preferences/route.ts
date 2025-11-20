@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 
 /**
  * Privacy Centre Preferences API
  * Allows visitors to view and manage their consent preferences
  * Public endpoint - no authentication required (uses visitor_id)
+ * 
+ * NOTE: Uses service role client to bypass RLS - this is a public endpoint
+ * that allows anonymous visitors to view and manage their preferences.
  */
 
 interface PreferenceUpdateRequest {
@@ -32,9 +35,9 @@ function hashEmail(email: string): string {
 // GET - Fetch visitor's current consent preferences
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
     const searchParams = request.nextUrl.searchParams;
-    
+
     const visitorId = searchParams.get('visitorId');
     const widgetId = searchParams.get('widgetId');
 
@@ -130,7 +133,7 @@ export async function GET(request: NextRequest) {
     // Build response with activities and their consent status
     const activitiesWithConsent = (activities || []).map((activity: any) => {
       const preference = preferencesMap.get(activity.id);
-      
+
       return {
         id: activity.id,
         name: activity.activity_name,
@@ -173,7 +176,7 @@ export async function GET(request: NextRequest) {
 // PATCH - Update visitor's consent preferences
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
     const body: PreferenceUpdateRequest = await request.json();
 
     const { visitorId, widgetId, preferences, visitorEmail, metadata } = body;
@@ -199,36 +202,148 @@ export async function PATCH(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + consentDuration);
 
-    // Update or insert preferences
-    const updates = preferences.map((pref) => ({
-      visitor_id: visitorId,
-      widget_id: widgetId,
-      activity_id: pref.activityId,
-      consent_status: pref.consentStatus,
-      visitor_email_hash: visitorEmailHash,
-      ip_address: metadata?.ipAddress || null,
-      user_agent: metadata?.userAgent || null,
-      device_type: (metadata?.deviceType as any) || 'Unknown',
-      language: metadata?.language || 'en',
-      expires_at: expiresAt.toISOString(),
-      consent_version: '1.0',
-    }));
+    // Verify all activity IDs exist before attempting update
+    const activityIds = preferences.map(p => p.activityId);
+    const { data: existingActivities, error: activityCheckError } = await supabase
+      .from('processing_activities')
+      .select('id')
+      .in('id', activityIds);
 
-    // Upsert preferences (insert or update)
-    const { error: upsertError } = await supabase
-      .from('visitor_consent_preferences')
-      .upsert(updates, {
-        onConflict: 'visitor_id,widget_id,activity_id',
-        ignoreDuplicates: false,
-      });
-
-    if (upsertError) {
-      console.error('Error upserting preferences:', upsertError);
+    if (activityCheckError) {
+      console.error('[Preference Centre] Error checking activities:', activityCheckError);
       return NextResponse.json(
-        { error: 'Failed to update preferences' },
+        { error: 'Failed to validate activities' },
         { status: 500 }
       );
     }
+
+    const validActivityIds = new Set((existingActivities || []).map((a: any) => a.id));
+    const invalidActivities = activityIds.filter(id => !validActivityIds.has(id));
+
+    if (invalidActivities.length > 0) {
+      console.error('[Preference Centre] Invalid activity IDs:', invalidActivities);
+      return NextResponse.json(
+        {
+          error: 'Invalid activity IDs provided',
+          details: `Activities not found: ${invalidActivities.join(', ')}`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Helper function to normalize device_type to match database constraint
+    // Database constraint: CHECK (device_type IN ('Desktop', 'Mobile', 'Tablet', 'Unknown'))
+    const normalizeDeviceType = (deviceType?: string): 'Desktop' | 'Mobile' | 'Tablet' | 'Unknown' => {
+      if (!deviceType || typeof deviceType !== 'string') return 'Unknown';
+      const normalized = deviceType.toLowerCase().trim();
+      if (normalized.includes('mobile') || normalized.includes('phone')) return 'Mobile';
+      if (normalized.includes('tablet')) return 'Tablet';
+      if (normalized.includes('desktop') || normalized.includes('pc') || normalized.includes('laptop')) return 'Desktop';
+      return 'Unknown';
+    };
+
+    // Update or insert preferences - do one at a time to better handle errors
+    const results = [];
+    const errors = [];
+    const now = new Date().toISOString();
+
+    for (const pref of preferences) {
+      const normalizedDeviceType = normalizeDeviceType(metadata?.deviceType);
+
+      const upsertData = {
+        visitor_id: visitorId,
+        widget_id: widgetId,
+        activity_id: pref.activityId,
+        consent_status: pref.consentStatus,
+        visitor_email_hash: visitorEmailHash,
+        ip_address: metadata?.ipAddress || null,
+        user_agent: metadata?.userAgent || null,
+        device_type: normalizedDeviceType,
+        language: metadata?.language || 'en',
+        expires_at: expiresAt.toISOString(),
+        consent_version: '1.0',
+        last_updated: now,
+        // consent_given_at is omitted so it uses default (now) on insert, and is unchanged on update
+      };
+
+      // Validate device_type before upsert
+      if (!['Desktop', 'Mobile', 'Tablet', 'Unknown'].includes(normalizedDeviceType)) {
+        const error = {
+          code: 'INVALID_DEVICE_TYPE',
+          message: `Invalid device_type: ${normalizedDeviceType}. Must be one of: Desktop, Mobile, Tablet, Unknown`,
+          details: `Received: ${normalizedDeviceType}, Original: ${metadata?.deviceType}`,
+          hint: 'Device type must match database constraint'
+        };
+        console.error('[Preference Centre] Invalid device_type before upsert:', error);
+        errors.push({ activityId: pref.activityId, error });
+      } else {
+        const { error: upsertError } = await supabase
+          .from('visitor_consent_preferences')
+          .upsert(upsertData, {
+            onConflict: 'visitor_id, widget_id, activity_id',
+            ignoreDuplicates: false
+          });
+
+        if (upsertError) {
+          console.error('[Preference Centre] Upsert error for activity', pref.activityId, ':', JSON.stringify(upsertError, null, 2));
+          console.error('[Preference Centre] Upsert error details:', {
+            activityId: pref.activityId,
+            errorCode: upsertError.code,
+            errorMessage: upsertError.message,
+            errorDetails: upsertError.details,
+            errorHint: upsertError.hint,
+            visitor_id: visitorId,
+            widget_id: widgetId,
+            consent_status: pref.consentStatus,
+            device_type: normalizedDeviceType,
+            upsertData: {
+              ...upsertData,
+              visitor_id: upsertData.visitor_id?.substring(0, 8) + '...',
+            },
+          });
+          errors.push({ activityId: pref.activityId, error: upsertError });
+        } else {
+          console.log('[Preference Centre] Successfully upserted preference for activity', pref.activityId);
+          results.push({ activityId: pref.activityId, action: 'upserted' });
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      console.error('[Preference Centre] Errors updating preferences:', JSON.stringify(errors, null, 2));
+      console.error('[Preference Centre] Request details:', {
+        visitorId,
+        widgetId,
+        preferencesCount: preferences.length,
+        deviceType: metadata?.deviceType,
+        normalizedDeviceType: normalizeDeviceType(metadata?.deviceType)
+      });
+      // Do NOT fail the whole request for partial failures
+      // Use 207 Multi-Status to indicate partial success while returning details
+      return NextResponse.json(
+        {
+          error: 'Failed to update some preferences',
+          details: errors.map(e => ({
+            activityId: e.activityId,
+            message: e.error.message,
+            code: e.error.code,
+            details: e.error.details,
+            hint: e.error.hint
+          })),
+          partialSuccess: results.length > 0,
+          successCount: results.length,
+          errorCount: errors.length
+        },
+        { status: 207 }
+      );
+    }
+
+    console.log('[Preference Centre] Successfully updated preferences:', {
+      count: results.length,
+      visitorId,
+      widgetId,
+      results
+    });
 
     // MANUAL SYNC: Create consent record for preference updates
     // This ensures dpdpa_consent_records stays in sync with visitor_consent_preferences
@@ -250,7 +365,7 @@ export async function PATCH(request: NextRequest) {
         // If ALL activities are withdrawn, status is 'revoked'
         const totalActivities = preferences.length;
         const allWithdrawn = withdrawnActivities.length === totalActivities && acceptedActivities.length === 0 && rejectedActivities.length === 0;
-        
+
         let consentStatus: 'accepted' | 'rejected' | 'partial' | 'revoked';
         if (allWithdrawn) {
           consentStatus = 'revoked';
@@ -261,7 +376,7 @@ export async function PATCH(request: NextRequest) {
         } else {
           consentStatus = 'partial';
         }
-        
+
         // Include withdrawn activities in rejected_activities array for database constraint
         const allRejectedActivities = [...rejectedActivities, ...withdrawnActivities];
 
@@ -283,6 +398,7 @@ export async function PATCH(request: NextRequest) {
         };
 
         // Create consent record
+        const normalizedDeviceTypeForConsent = normalizeDeviceType(metadata?.deviceType);
         const { error: consentRecordError } = await supabase
           .from('dpdpa_consent_records')
           .insert({
@@ -298,7 +414,7 @@ export async function PATCH(request: NextRequest) {
             revocation_reason: allWithdrawn ? 'User withdrew all consent via preference centre' : null,
             ip_address: metadata?.ipAddress || null,
             user_agent: metadata?.userAgent || null,
-            device_type: (metadata?.deviceType as any) || 'Unknown',
+            device_type: normalizedDeviceTypeForConsent,
             language: metadata?.language || 'en',
             consent_given_at: new Date().toISOString(),
             consent_expires_at: expiresAt.toISOString(),
@@ -306,15 +422,32 @@ export async function PATCH(request: NextRequest) {
           });
 
         if (consentRecordError) {
-          console.error('[Preference Centre] Error creating consent record:', consentRecordError);
+          console.error('[Preference Centre] Error creating consent record:', JSON.stringify(consentRecordError, null, 2));
+          console.error('[Preference Centre] Consent record data:', {
+            widget_id: widgetId,
+            visitor_id: visitorId,
+            consent_status: consentStatus,
+            device_type: normalizedDeviceTypeForConsent,
+            consented_activities_count: acceptedActivities.length,
+            rejected_activities_count: allRejectedActivities.length,
+            error_code: consentRecordError.code,
+            error_message: consentRecordError.message,
+            error_details: consentRecordError.details,
+            error_hint: consentRecordError.hint,
+          });
           // Don't fail the request - preferences were already updated
           // Log the error but continue
         } else {
           console.log('[Preference Centre] Successfully synced preferences to consent record');
         }
       }
-    } catch (syncError) {
+    } catch (syncError: any) {
       console.error('[Preference Centre] Error syncing to consent records:', syncError);
+      console.error('[Preference Centre] Sync error details:', {
+        message: syncError?.message,
+        stack: syncError?.stack,
+        name: syncError?.name,
+      });
       // Don't fail the request - preferences were already updated
     }
 
@@ -324,14 +457,23 @@ export async function PATCH(request: NextRequest) {
       success: true,
       message: 'Preferences updated successfully',
       data: {
-        updatedCount: preferences.length,
+        updatedCount: results.length,
         expiresAt: expiresAt.toISOString(),
+        results: results,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in PATCH /api/privacy-centre/preferences:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+    });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
       { status: 500 }
     );
   }
@@ -340,9 +482,9 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Withdraw all consents for a visitor
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
     const searchParams = request.nextUrl.searchParams;
-    
+
     const visitorId = searchParams.get('visitorId');
     const widgetId = searchParams.get('widgetId');
 
@@ -367,7 +509,7 @@ export async function DELETE(request: NextRequest) {
     // Update all preferences to 'withdrawn'
     const { error: withdrawError } = await supabase
       .from('visitor_consent_preferences')
-      .update({ 
+      .update({
         consent_status: 'withdrawn',
         last_updated: new Date().toISOString(),
       })

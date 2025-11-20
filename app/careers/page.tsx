@@ -27,40 +27,29 @@ export default function CareersPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    if (!formData.name || !formData.email || !formData.phone || !formData.position) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+    try {
+      const response = await fetch('/api/careers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
 
-    // Create mailto link with form data
-    const subject = encodeURIComponent(`Career Application: ${formData.position} - ${formData.name}`);
-    const body = encodeURIComponent(`
-Application Details:
--------------------
-Name: ${formData.name}
-Email: ${formData.email}
-Phone: ${formData.phone}
-Position: ${formData.position}
-${formData.coverLetter ? `\nCover Letter:\n${formData.coverLetter}` : ''}
+      const result = await response.json();
 
-Please attach your resume to this email.
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit application');
+      }
 
----
-This application was submitted through the Consently careers page.
-    `.trim());
-
-    const mailtoLink = `mailto:hello@consently.in?subject=${subject}&body=${body}`;
-    
-    // Open Gmail/email client
-    window.location.href = mailtoLink;
-    
-    toast.success('Opening your email client. Please attach your resume and send!');
-    
-    // Reset form after a delay
-    setTimeout(() => {
+      toast.success(result.message || 'Application submitted successfully! We\'ll review it and get back to you soon.', {
+        description: 'Our team will review your application within 3-5 business days',
+        duration: 5000,
+      });
+      
+      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -69,7 +58,15 @@ This application was submitted through the Consently careers page.
         coverLetter: '',
       });
       (e.target as HTMLFormElement).reset();
-    }, 2000);
+    } catch (error) {
+      console.error('Error submitting careers application:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to submit application', {
+        description: 'Please try again or email us directly at hello@consently.in',
+        duration: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -175,7 +172,7 @@ This application was submitted through the Consently careers page.
             <CardHeader>
               <CardTitle>Submit Your Application</CardTitle>
               <CardDescription>
-                Fill out the form below and click submit to open your email client. Please attach your resume to the email before sending.
+                Fill out the form below and we'll review your application. We'll get back to you within 3-5 business days.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -234,20 +231,19 @@ This application was submitted through the Consently careers page.
                 </div>
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-gray-700">
-                    <strong>Note:</strong> After clicking submit, your email client (Gmail, Outlook, etc.) will open with a pre-filled email. 
-                    <strong className="text-blue-600"> Please attach your resume</strong> to the email before sending it to hello@consently.in
+                    <strong>Note:</strong> If you have a resume, please mention it in your cover letter or email us separately at hello@consently.in with your application details.
                   </p>
                 </div>
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <span className="animate-spin mr-2">⏳</span>
-                      Opening Email...
+                      Submitting...
                     </>
                   ) : (
                     <>
                       <Send className="mr-2 h-4 w-4" />
-                      Open Email Client & Attach Resume
+                      Submit Application
                     </>
                   )}
                 </Button>

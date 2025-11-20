@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -7,12 +7,15 @@ import autoTable from 'jspdf-autotable';
  * Privacy Centre Consent History API
  * Allows visitors to view their consent change history
  * Supports export to CSV and PDF
+ * 
+ * NOTE: Uses service role client to bypass RLS - this is a public endpoint
+ * that allows anonymous visitors to view and export their consent history.
  */
 
 // GET - Fetch visitor's consent history
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServiceClient();
     const searchParams = request.nextUrl.searchParams;
     
     const visitorId = searchParams.get('visitorId');

@@ -81,13 +81,15 @@ export default function CookieConsentOverviewPage() {
       if (recordsRes.ok) {
         const recordsData = await recordsRes.json();
         const records = recordsData.data || [];
+        const stats = recordsData.stats || {};
 
-        totalConsents = records.length;
-        acceptedCount = records.filter((r: any) => r.status === 'accepted').length;
-        rejectedCount = records.filter((r: any) => r.status === 'rejected').length;
-        partialCount = records.filter((r: any) => r.status === 'partial').length;
-        revokedCount = records.filter((r: any) => r.status === 'revoked').length;
-        uniqueVisitors = new Set(records.map((r: any) => r.tokenized_email)).size;
+        // Use aggregated stats from API for accurate counts
+        totalConsents = recordsData.pagination?.total || 0;
+        acceptedCount = stats.acceptedCount || 0;
+        rejectedCount = stats.rejectedCount || 0;
+        partialCount = stats.partialCount || 0;
+        revokedCount = stats.revokedCount || 0;
+        uniqueVisitors = stats.uniqueVisitors || 0;
 
         recentConsentsList = records.slice(0, 5).map((r: any) => ({
           id: r.id,

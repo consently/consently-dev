@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logFailure } from '@/lib/audit';
 
+// Force dynamic rendering and disable caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -65,12 +69,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch records' }, { status: 500 });
     }
 
+    // Fetch aggregated statistics (separate from pagination)
+    const { data: allRecords } = await supabase
+      .from('consent_records')
+      .select('status, consent_id')
+      .eq('user_id', user.id);
+
+    const stats = {
+      acceptedCount: allRecords?.filter(r => r.status === 'accepted').length || 0,
+      rejectedCount: allRecords?.filter(r => r.status === 'rejected').length || 0,
+      partialCount: allRecords?.filter(r => r.status === 'partial').length || 0,
+      revokedCount: allRecords?.filter(r => r.status === 'revoked').length || 0,
+      uniqueVisitors: new Set(allRecords?.map(r => r.consent_id) || []).size,
+    };
+
     // Calculate pagination metadata
     const totalPages = Math.ceil((count || 0) / limit);
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       data: data || [],
       pagination: {
         page,
@@ -80,7 +98,15 @@ export async function GET(request: NextRequest) {
         hasNextPage,
         hasPreviousPage,
       },
+      stats,
     });
+
+    // Disable caching to ensure real-time updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+
+    return response;
   } catch (error) {
     console.error('Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

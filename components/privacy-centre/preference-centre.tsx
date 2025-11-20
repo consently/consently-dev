@@ -25,6 +25,7 @@ import {
   Lock,
   History,
 } from 'lucide-react';
+import { EmailLinkCard } from './email-link-card';
 
 interface Activity {
   id: string;
@@ -138,10 +139,19 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         console.log(`[Preference Centre] Activity ${activityId}: wasAccepted=${wasAccepted}, newStatus=${newStatus}`);
       }
       
-      return {
+      const updated = {
         ...prev,
         [activityId]: newStatus,
       };
+      
+      console.log(`[Preference Centre] Updated preferences for ${activityId}:`, {
+        old: prev[activityId],
+        new: newStatus,
+        isAccepted,
+        allPrefs: updated
+      });
+      
+      return updated;
     });
   };
 
@@ -177,16 +187,79 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to save preferences');
+      const result = await response.json();
+      
+      console.log('[Preference Centre] Save response:', result);
+      
+      // Handle 207 Multi-Status (partial success) and other error cases
+      if (response.status === 207) {
+        // Partial success - some preferences saved, some failed
+        if (result.successCount > 0) {
+          const errorMessages = result.details?.map((d: any) => 
+            `${d.activityId}: ${d.message || d.hint || 'Unknown error'}`
+          ).join('; ') || 'Unknown error';
+          toast.warning('Some preferences could not be saved', {
+            description: `Saved ${result.successCount}, failed ${result.errorCount}. ${errorMessages}`,
+            duration: 7000,
+          });
+          // Still refresh to show what was saved
+          await fetchPreferences();
+          return;
+        } else {
+          // All failed - show detailed error messages
+          console.error('[Preference Centre] All preferences failed to save:', result.details);
+          console.error('[Preference Centre] Full error response:', result);
+          console.error('[Preference Centre] Full error details (stringified):', JSON.stringify(result.details, null, 2));
+          
+          const errorMessages = result.details?.map((d: any) => {
+            const parts = [];
+            if (d.activityId) parts.push(`Activity: ${d.activityId.substring(0, 8)}...`);
+            if (d.message) parts.push(`Error: ${d.message}`);
+            if (d.hint) parts.push(`Hint: ${d.hint}`);
+            if (d.code) parts.push(`Code: ${d.code}`);
+            if (d.details) parts.push(`Details: ${typeof d.details === 'string' ? d.details : JSON.stringify(d.details)}`);
+            return parts.length > 0 ? parts.join(' | ') : 'Unknown error';
+          }).join('\n') || 'Unknown error';
+          
+          console.error('[Preference Centre] Formatted error messages:', errorMessages);
+          
+          toast.error('Failed to save preferences', {
+            description: errorMessages.length > 200 ? errorMessages.substring(0, 200) + '...' : errorMessages,
+            duration: 10000,
+          });
+          
+          // Also log to console for debugging
+          console.error('[Preference Centre] Error summary:', {
+            errorCount: result.errorCount,
+            successCount: result.successCount,
+            details: result.details,
+            fullResponse: result
+          });
+          
+          return;
+        }
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        const errorMessage = result.error || 'Failed to save preferences';
+        const errorDetails = result.details || result.message || '';
+        console.error('[Preference Centre] Save error:', result);
+        throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
+      }
       
       toast.success('Preferences saved successfully', {
         description: 'Your privacy choices have been applied immediately',
         duration: 3000,
+      });
+      
+      // Update originalStatus to reflect the new saved state
+      setOriginalStatus((prev) => {
+        const updated = { ...prev };
+        Object.entries(preferences).forEach(([activityId, status]) => {
+          updated[activityId] = status;
+        });
+        console.log('[Preference Centre] Updated originalStatus after save:', updated);
+        return updated;
       });
       
       await fetchPreferences(); // Refresh to get updated timestamps
@@ -198,22 +271,92 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
     }
   };
 
-  const handleAcceptAll = () => {
+  // Helper: save a provided map of preferences directly (avoid state race)
+  const savePreferencesDirect = async (prefMap: Record<string, 'accepted' | 'rejected' | 'withdrawn'>, action?: 'accept_all' | 'reject_all') => {
+    try {
+      setSaving(true);
+      const preferencesArray = Object.entries(prefMap).map(([activityId, consentStatus]) => ({
+        activityId,
+        consentStatus,
+      }));
+      if (preferencesArray.length === 0) {
+        toast.error('No preferences to save');
+        return;
+      }
+      
+      // Use bulk API for accept_all/reject_all actions (more efficient)
+      const useBulkAPI = action === 'accept_all' || action === 'reject_all';
+      
+      console.log('[Preference Centre] Saving (direct) preferences:', preferencesArray, useBulkAPI ? `(bulk: ${action})` : '');
+      
+      const endpoint = useBulkAPI ? '/api/privacy-centre/preferences/bulk' : '/api/privacy-centre/preferences';
+      const method = useBulkAPI ? 'POST' : 'PATCH';
+      const body = useBulkAPI ? {
+        visitorId,
+        widgetId,
+        action,
+        metadata: {
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          deviceType: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+        },
+      } : {
+        visitorId,
+        widgetId,
+        preferences: preferencesArray,
+        metadata: {
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          deviceType: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+        },
+      };
+      
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok && response.status !== 207) {
+        throw new Error(result.error || 'Failed to save preferences');
+      }
+      if (response.status === 207) {
+        toast.warning('Some preferences could not be saved', {
+          description: `Saved ${result.successCount ?? 0}, failed ${result.errorCount ?? 0}.`,
+        });
+      } else {
+        toast.success('Preferences saved successfully', {
+          description: 'Your privacy choices have been applied immediately',
+          duration: 3000,
+        });
+      }
+      // Update UI state and refresh
+      setPreferences(prefMap);
+      await fetchPreferences(true);
+    } catch (error) {
+      console.error('Error saving (direct) preferences:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save preferences');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAcceptAll = async () => {
     const allAccepted: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
     activities.forEach((activity) => {
       allAccepted[activity.id] = 'accepted';
     });
-    setPreferences(allAccepted);
+    await savePreferencesDirect(allAccepted, 'accept_all');
   };
 
-  const handleRejectAll = () => {
+  const handleRejectAll = async () => {
     const allRejected: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
     activities.forEach((activity) => {
       // If previously accepted, mark as withdrawn; otherwise rejected
       const wasAccepted = originalStatus[activity.id] === 'accepted' || preferences[activity.id] === 'accepted';
       allRejected[activity.id] = wasAccepted ? 'withdrawn' : 'rejected';
     });
-    setPreferences(allRejected);
+    await savePreferencesDirect(allRejected, 'reject_all');
   };
 
   const handleDownloadHistory = async (format: 'csv' | 'pdf') => {
@@ -374,6 +517,13 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         </CardContent>
       </Card>
 
+      {/* Email Linking Card */}
+      <EmailLinkCard 
+        visitorId={visitorId} 
+        widgetId={widgetId}
+        onVerified={() => fetchPreferences(true)}
+      />
+
       {/* Modern Action Bar */}
       <div className="bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl p-4 md:p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
@@ -447,7 +597,18 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         <div className="grid gap-5 md:gap-6">
           {activities.map((activity) => {
             const isExpanded = expandedActivities.has(activity.id);
-            const isAccepted = preferences[activity.id] === 'accepted';
+            // Check if preference is 'accepted' - 'withdrawn' and 'rejected' both mean toggle is OFF
+            const currentPreference = preferences[activity.id];
+            const isAccepted = currentPreference === 'accepted';
+            
+            // Debug log to help troubleshoot
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Preference Centre] Activity ${activity.id} render:`, {
+                currentPreference,
+                isAccepted,
+                originalStatus: originalStatus[activity.id]
+              });
+            }
 
             return (
               <Card
@@ -464,11 +625,17 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                       <div className="flex items-start gap-3 md:gap-4">
                         <div className="flex-shrink-0 mt-1">
                           <Switch
+                            key={`switch-${activity.id}-${currentPreference}`}
                             checked={isAccepted}
                             disabled={saving}
-                            onCheckedChange={(checked) =>
-                              handlePreferenceChange(activity.id, checked)
-                            }
+                            onCheckedChange={(checked) => {
+                              console.log(`[Preference Centre] Switch toggled for ${activity.id}:`, {
+                                checked,
+                                currentPreference,
+                                willBecome: checked ? 'accepted' : (originalStatus[activity.id] === 'accepted' ? 'withdrawn' : 'rejected')
+                              });
+                              handlePreferenceChange(activity.id, checked);
+                            }}
                             className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-emerald-600 disabled:opacity-50"
                           />
                         </div>

@@ -421,6 +421,50 @@ export interface Database {
           updated_at?: string;
         };
       };
+      email_verification_otps: {
+        Row: {
+          id: string;
+          email: string;
+          email_hash: string;
+          otp_code: string;
+          visitor_id: string;
+          widget_id: string;
+          expires_at: string;
+          verified: boolean;
+          verified_at: string | null;
+          attempts: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          email_hash: string;
+          otp_code: string;
+          visitor_id: string;
+          widget_id: string;
+          expires_at: string;
+          verified?: boolean;
+          verified_at?: string | null;
+          attempts?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          email_hash?: string;
+          otp_code?: string;
+          visitor_id?: string;
+          widget_id?: string;
+          expires_at?: string;
+          verified?: boolean;
+          verified_at?: string | null;
+          attempts?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       widget_configs: {
         Row: {
           id: string;

@@ -70,6 +70,8 @@ interface ProcessingActivity {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  acceptedCount?: number;
+  rejectedCount?: number;
 }
 
 export default function ProcessingActivitiesPage() {
@@ -633,20 +635,31 @@ export default function ProcessingActivitiesPage() {
                     </div>
 
                     {/* Data Sources & Recipients */}
-                    <div className="grid grid-cols-2 gap-4 pt-3 border-t">
+                    <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100 mb-3">
                       <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1">Data Sources</p>
-                        <p className="text-sm text-gray-700">
-                          {activity.dataSources?.length || 0} {activity.dataSources?.length === 1 ? 'source' : 'sources'}
-                        </p>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Consents</p>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            <span className="font-medium">{activity.acceptedCount?.toLocaleString() || 0}</span>
+                            <span className="text-gray-500">Accepted</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="h-2 w-2 rounded-full bg-red-500" />
+                            <span className="font-medium">{activity.rejectedCount?.toLocaleString() || 0}</span>
+                            <span className="text-gray-500">Declined</span>
+                          </div>
+                        </div>
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1">Data Recipients</p>
-                        <p className="text-sm text-gray-700">
-                          {activity.dataRecipients?.length || 0} {activity.dataRecipients?.length === 1 ? 'recipient' : 'recipients'}
-                        </p>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Data Flow</p>
+                         <div className="space-y-1 text-sm text-gray-700">
+                          <p>{activity.dataSources?.length || 0} Sources</p>
+                          <p>{activity.dataRecipients?.length || 0} Recipients</p>
+                        </div>
                       </div>
                     </div>
+
                   </div>
                   
                   {/* Action Buttons */}

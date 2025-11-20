@@ -49,6 +49,7 @@ const navigation = [
     icon: BarChart3,
     children: [
       { name: 'Analytics Dashboard', href: '/dashboard/reports' },
+      { name: 'Email Verification', href: '/dashboard/analytics/email-verification' },
       { name: 'Audit Logs', href: '/dashboard/audit' },
     ],
   },
@@ -339,7 +340,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center space-x-2 sm:space-x-4 ml-auto lg:ml-0">
             <div className="flex items-center text-xs sm:text-sm text-gray-600 bg-green-50 px-2 sm:px-3 py-1.5 rounded-full">
               <Shield className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-green-500 flex-shrink-0" />
-              <span className="font-medium whitespace-nowrap">DPDPA 2023 Compliant</span>
+              <span className="font-medium whitespace-nowrap">DPDPA Rules 2025 Compliant</span>
             </div>
           </div>
         </header>
