@@ -220,6 +220,7 @@
   let consentID = null; // User-visible Consent ID (Format: CNST-XXXX-XXXX-XXXX)
   let globalClickHandler = null; // Global reference to cleanup language menu listener
   let primaryColor = '#4c8bf5'; // Default primary color, updated when config loads
+  let visitorEmail = null; // Visitor email for cross-device consent management
 
   // LocalStorage manager for consent persistence
   const ConsentStorage = {
@@ -2626,29 +2627,13 @@ Digital Personal Data Protection Act, 2023
           showConsentWidget();
         }, config.showAfterDelay || 1000);
       }
+    } else {
+      // Matched rule exists but trigger is not onPageLoad (onClick, onFormSubmit, onScroll already handled above)
+      // Show verification screen for new users (email verification will be offered after consent)
+      showVerificationScreen();
     }
     } else {
-      // New user - offer email verification first (optional), then show verification screen
-      // Check if user previously declined email verification
-      const emailVerificationDeclined = ConsentStorage.get('consently_email_verification_declined');
-      
-      if (!emailVerificationDeclined && config.enableEmailVerification !== false) {
-        // Show email verification modal first
-        const emailResult = await showEmailVerificationModal();
-        
-        if (emailResult.verified) {
-          // Email verified successfully
-          console.log('[Consently DPDPA] Email verified, continuing to consent widget');
-          visitorEmail = emailResult.email;
-        } else if (emailResult.skipped) {
-          // User skipped email verification
-          console.log('[Consently DPDPA] Email verification skipped');
-          // Remember they declined for this session
-          ConsentStorage.set('consently_email_verification_declined', true, 1); // Store for 1 day
-        }
-      }
-      
-      // Then show verification screen
+      // No stored Consent ID - show verification screen for new users
       showVerificationScreen();
     }
   }
@@ -3643,6 +3628,28 @@ Digital Personal Data Protection Act, 2023
       // Removed showConsentSuccessModal - banner already shows success message
       // showConsentSuccessModal(consentID);
 
+      // Show email verification modal AFTER consent is given (only if user accepted at least one activity)
+      if (acceptedActivities.length > 0) {
+        const emailVerificationDeclined = ConsentStorage.get('consently_email_verification_declined');
+        if (!emailVerificationDeclined && config.enableEmailVerification !== false) {
+          // Show email verification modal after a short delay to let success message show first
+          setTimeout(async () => {
+            try {
+              const emailResult = await showEmailVerificationModal();
+              if (emailResult.verified) {
+                console.log('[Consently DPDPA] Email verified after consent');
+                visitorEmail = emailResult.email;
+              } else if (emailResult.skipped) {
+                console.log('[Consently DPDPA] Email verification skipped after consent');
+                ConsentStorage.set('consently_email_verification_declined', true, 1); // Store for 1 day
+              }
+            } catch (error) {
+              console.error('[Consently DPDPA] Error showing email verification modal:', error);
+            }
+          }, 1500); // Show after 1.5 seconds to let success message display first
+        }
+      }
+
       // Show floating preference centre button
       showFloatingPreferenceButton();
 
@@ -3760,8 +3767,8 @@ Digital Personal Data Protection Act, 2023
           </div>
           ` : ''}
           
-          <!-- Email Linking Prompt (Optional) -->
-          <div id="email-link-prompt" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #bfdbfe; border-radius: 16px; padding: 20px; margin-top: 20px; text-align: left; animation: slideIn 0.4s ease-out 0.5s both;">
+          <!-- Email Linking Prompt (Optional) - Hidden initially, shown only after consent -->
+          <div id="email-link-prompt" style="display: none; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #bfdbfe; border-radius: 16px; padding: 20px; margin-top: 20px; text-align: left; animation: slideIn 0.4s ease-out 0.5s both;">
             <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;">
               <div style="flex-shrink: 0; width: 40px; height: 40px; background: linear-gradient(135deg, #9333EA 0%, #7C3AED 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(147,51,234,0.25);">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
