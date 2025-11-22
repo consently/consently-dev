@@ -115,8 +115,10 @@ export async function GET(request: NextRequest) {
       purposeName: string;
       legalBasis: string;
       totalRecords: number; // Total times this purpose was presented
-      consentedCount: number; // Times user consented to this purpose
-      consentRate: number; // Percentage
+      acceptedCount: number; // Times user accepted this purpose
+      rejectedCount: number; // Times user rejected this purpose
+      consentRate: number; // Acceptance percentage
+      rejectionRate: number; // Rejection percentage
       industry: string;
     }>();
 
@@ -134,79 +136,123 @@ export async function GET(request: NextRequest) {
             purposeName: purpose.purpose_name,
             legalBasis: ap.legal_basis,
             totalRecords: 0,
-            consentedCount: 0,
+            acceptedCount: 0,
+            rejectedCount: 0,
             consentRate: 0,
+            rejectionRate: 0,
             industry: activity.industry,
           });
         }
       });
     });
 
-    // Process consent records to extract purpose-level data
+    // Process consent records to extract purpose-level data using NEW fields
     (consentRecords || []).forEach((record: any) => {
       const consentDetails = record.consent_details || {};
+      
+      // NEW: Use acceptedPurposeConsents and rejectedPurposeConsents
+      const acceptedPurposeConsents = consentDetails.acceptedPurposeConsents || {};
+      const rejectedPurposeConsents = consentDetails.rejectedPurposeConsents || {};
+      
+      // DEPRECATED: Fallback to old activityPurposeConsents for backward compatibility
       const activityPurposeConsents = consentDetails.activityPurposeConsents || {};
       const consentedActivities = record.consented_activities || [];
       const rejectedActivities = record.rejected_activities || [];
 
-      // For each activity that was consented to, check which purposes were included
-      Object.entries(activityPurposeConsents).forEach(([activityIdKey, purposeIds]: [string, any]) => {
+      // Process accepted purposes (NEW method - preferred)
+      Object.entries(acceptedPurposeConsents).forEach(([activityIdKey, purposeIds]: [string, any]) => {
         if (Array.isArray(purposeIds)) {
           purposeIds.forEach((purposeId: string) => {
             // Find matching purpose in our map
             for (const [key, stats] of purposeStatsMap.entries()) {
               if (stats.activityId === activityIdKey && stats.purposeId === purposeId) {
                 stats.totalRecords++;
-                // Check if the activity was consented
-                if (consentedActivities.includes(activityIdKey)) {
-                  stats.consentedCount++;
+                stats.acceptedCount++;
+              }
+            }
+          });
+        }
+      });
+
+      // Process rejected purposes (NEW method - preferred)
+      Object.entries(rejectedPurposeConsents).forEach(([activityIdKey, purposeIds]: [string, any]) => {
+        if (Array.isArray(purposeIds)) {
+          purposeIds.forEach((purposeId: string) => {
+            // Find matching purpose in our map
+            for (const [key, stats] of purposeStatsMap.entries()) {
+              if (stats.activityId === activityIdKey && stats.purposeId === purposeId) {
+                stats.totalRecords++;
+                stats.rejectedCount++;
+              }
+            }
+          });
+        }
+      });
+
+      // DEPRECATED: Fallback to old activityPurposeConsents method for backward compatibility
+      // Only process if new fields are not present
+      if (Object.keys(acceptedPurposeConsents).length === 0 && Object.keys(rejectedPurposeConsents).length === 0) {
+        Object.entries(activityPurposeConsents).forEach(([activityIdKey, purposeIds]: [string, any]) => {
+          if (Array.isArray(purposeIds)) {
+            purposeIds.forEach((purposeId: string) => {
+              // Find matching purpose in our map
+              for (const [key, stats] of purposeStatsMap.entries()) {
+                if (stats.activityId === activityIdKey && stats.purposeId === purposeId) {
+                  stats.totalRecords++;
+                  // Check if the activity was consented
+                  if (consentedActivities.includes(activityIdKey)) {
+                    stats.acceptedCount++;
+                  } else if (rejectedActivities.includes(activityIdKey)) {
+                    stats.rejectedCount++;
+                  }
                 }
               }
-            }
-          });
-        }
-      });
+            });
+          }
+        });
 
-      // Also count activities that were presented but purposes weren't explicitly tracked
-      // (for activities without purpose-level tracking)
-      consentedActivities.forEach((activityIdKey: string) => {
-        // Check if this activity has purposes in our map
-        const hasPurposes = Array.from(purposeStatsMap.values()).some(
-          stats => stats.activityId === activityIdKey
-        );
-        
-        if (hasPurposes) {
-          // Increment total records for all purposes of this activity
+        // Also count activities that were presented but purposes weren't explicitly tracked
+        // (for activities without purpose-level tracking)
+        consentedActivities.forEach((activityIdKey: string) => {
+          // Check if this activity has purposes in our map
+          const hasPurposes = Array.from(purposeStatsMap.values()).some(
+            stats => stats.activityId === activityIdKey
+          );
+          
+          if (hasPurposes) {
+            // Increment total records for all purposes of this activity
+            purposeStatsMap.forEach((stats) => {
+              if (stats.activityId === activityIdKey) {
+                // Only increment if not already counted via activityPurposeConsents
+                if (!activityPurposeConsents[activityIdKey]) {
+                  stats.totalRecords++;
+                  stats.acceptedCount++; // Assume all purposes accepted if activity consented
+                }
+              }
+            });
+          }
+        });
+
+        // Count rejected activities
+        rejectedActivities.forEach((activityIdKey: string) => {
           purposeStatsMap.forEach((stats) => {
             if (stats.activityId === activityIdKey) {
-              // Only increment if not already counted via activityPurposeConsents
+              // Only increment if not already counted
               if (!activityPurposeConsents[activityIdKey]) {
                 stats.totalRecords++;
-                stats.consentedCount++; // Assume all purposes consented if activity consented
+                stats.rejectedCount++; // Count as rejected
               }
             }
           });
-        }
-      });
-
-      // Count rejected activities
-      rejectedActivities.forEach((activityIdKey: string) => {
-        purposeStatsMap.forEach((stats) => {
-          if (stats.activityId === activityIdKey) {
-            // Only increment if not already counted
-            if (!activityPurposeConsents[activityIdKey]) {
-              stats.totalRecords++;
-              // Don't increment consentedCount for rejected
-            }
-          }
         });
-      });
+      }
     });
 
-    // Calculate consent rates
+    // Calculate consent and rejection rates
     purposeStatsMap.forEach((stats) => {
       if (stats.totalRecords > 0) {
-        stats.consentRate = (stats.consentedCount / stats.totalRecords) * 100;
+        stats.consentRate = (stats.acceptedCount / stats.totalRecords) * 100;
+        stats.rejectionRate = (stats.rejectedCount / stats.totalRecords) * 100;
       }
     });
 
@@ -225,8 +271,13 @@ export async function GET(request: NextRequest) {
     // Calculate summary stats
     const totalPurposes = purposeStats.length;
     const totalRecords = purposeStats.reduce((sum, stats) => sum + stats.totalRecords, 0);
+    const totalAccepted = purposeStats.reduce((sum, stats) => sum + stats.acceptedCount, 0);
+    const totalRejected = purposeStats.reduce((sum, stats) => sum + stats.rejectedCount, 0);
     const avgConsentRate = totalPurposes > 0 
       ? purposeStats.reduce((sum, stats) => sum + stats.consentRate, 0) / totalPurposes 
+      : 0;
+    const avgRejectionRate = totalPurposes > 0 
+      ? purposeStats.reduce((sum, stats) => sum + stats.rejectionRate, 0) / totalPurposes 
       : 0;
 
     // Group by activity for better insights
@@ -240,40 +291,74 @@ export async function GET(request: NextRequest) {
 
     const activityBreakdown = Array.from(purposesByActivity.entries()).map(([activityId, purposes]) => {
       const activityName = purposes[0]?.activityName || 'Unknown';
-      const avgRate = purposes.reduce((sum, p) => sum + p.consentRate, 0) / purposes.length;
+      const avgAcceptRate = purposes.reduce((sum, p) => sum + p.consentRate, 0) / purposes.length;
+      const avgRejectRate = purposes.reduce((sum, p) => sum + p.rejectionRate, 0) / purposes.length;
       return {
         activityId,
         activityName,
         purposeCount: purposes.length,
-        avgConsentRate: parseFloat(avgRate.toFixed(2)),
+        avgConsentRate: parseFloat(avgAcceptRate.toFixed(2)),
+        avgRejectionRate: parseFloat(avgRejectRate.toFixed(2)),
         purposes: purposes.map(p => ({
           purposeId: p.purposeId,
           purposeName: p.purposeName,
           consentRate: parseFloat(p.consentRate.toFixed(2)),
+          rejectionRate: parseFloat(p.rejectionRate.toFixed(2)),
+          acceptedCount: p.acceptedCount,
+          rejectedCount: p.rejectedCount,
           totalRecords: p.totalRecords,
         })),
       };
     });
 
-    // Top and bottom purposes
+    // Top and bottom purposes (by acceptance rate)
     const topPurposes = purposeStats
       .filter(p => p.totalRecords > 0)
       .sort((a, b) => b.consentRate - a.consentRate)
-      .slice(0, 5);
+      .slice(0, 5)
+      .map(p => ({
+        ...p,
+        consentRate: parseFloat(p.consentRate.toFixed(2)),
+        rejectionRate: parseFloat(p.rejectionRate.toFixed(2)),
+      }));
 
     const bottomPurposes = purposeStats
       .filter(p => p.totalRecords > 0)
       .sort((a, b) => a.consentRate - b.consentRate)
-      .slice(0, 5);
+      .slice(0, 5)
+      .map(p => ({
+        ...p,
+        consentRate: parseFloat(p.consentRate.toFixed(2)),
+        rejectionRate: parseFloat(p.rejectionRate.toFixed(2)),
+      }));
+
+    // Most rejected purposes
+    const mostRejectedPurposes = purposeStats
+      .filter(p => p.totalRecords > 0 && p.rejectedCount > 0)
+      .sort((a, b) => b.rejectionRate - a.rejectionRate)
+      .slice(0, 5)
+      .map(p => ({
+        ...p,
+        consentRate: parseFloat(p.consentRate.toFixed(2)),
+        rejectionRate: parseFloat(p.rejectionRate.toFixed(2)),
+      }));
 
     return NextResponse.json({
-      data: purposeStats,
+      data: purposeStats.map(p => ({
+        ...p,
+        consentRate: parseFloat(p.consentRate.toFixed(2)),
+        rejectionRate: parseFloat(p.rejectionRate.toFixed(2)),
+      })),
       summary: {
         totalPurposes,
         totalRecords,
+        totalAccepted,
+        totalRejected,
         avgConsentRate: parseFloat(avgConsentRate.toFixed(2)),
+        avgRejectionRate: parseFloat(avgRejectionRate.toFixed(2)),
         topPurposes,
         bottomPurposes,
+        mostRejectedPurposes,
       },
       activityBreakdown,
       filters: {

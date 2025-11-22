@@ -14,8 +14,10 @@ interface PurposeStats {
   purposeName: string;
   legalBasis: string;
   totalRecords: number;
-  consentedCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
   consentRate: number;
+  rejectionRate: number;
   industry: string;
 }
 
@@ -24,10 +26,14 @@ interface ActivityBreakdown {
   activityName: string;
   purposeCount: number;
   avgConsentRate: number;
+  avgRejectionRate: number;
   purposes: {
     purposeId: string;
     purposeName: string;
     consentRate: number;
+    rejectionRate: number;
+    acceptedCount: number;
+    rejectedCount: number;
     totalRecords: number;
   }[];
 }
@@ -56,9 +62,13 @@ export function PurposeLevelAnalytics({
   const [summary, setSummary] = useState<{
     totalPurposes: number;
     totalRecords: number;
+    totalAccepted: number;
+    totalRejected: number;
     avgConsentRate: number;
+    avgRejectionRate: number;
     topPurposes: PurposeStats[];
     bottomPurposes: PurposeStats[];
+    mostRejectedPurposes: PurposeStats[];
   } | null>(null);
 
   useEffect(() => {
@@ -170,7 +180,7 @@ export function PurposeLevelAnalytics({
       <CardContent>
         {/* Summary Stats */}
         {summary && (
-          <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">{summary.totalPurposes}</div>
               <div className="text-sm text-gray-600">Total Purposes</div>
@@ -180,8 +190,16 @@ export function PurposeLevelAnalytics({
               <div className="text-sm text-gray-600">Total Records</div>
             </div>
             <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{summary.totalAccepted.toLocaleString()}</div>
+              <div className="text-sm text-gray-600">Accepted</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600">{summary.totalRejected.toLocaleString()}</div>
+              <div className="text-sm text-gray-600">Rejected</div>
+            </div>
+            <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{summary.avgConsentRate.toFixed(1)}%</div>
-              <div className="text-sm text-gray-600">Avg Consent Rate</div>
+              <div className="text-sm text-gray-600">Avg Acceptance Rate</div>
             </div>
           </div>
         )}
@@ -215,10 +233,20 @@ export function PurposeLevelAnalytics({
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold text-blue-600">
-                        {activity.avgConsentRate.toFixed(1)}%
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-green-600">
+                            {activity.avgConsentRate.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-gray-500">Accept Rate</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-red-600">
+                            {activity.avgRejectionRate.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-gray-500">Reject Rate</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500">Avg Consent Rate</div>
                     </div>
                   </div>
                 </div>
@@ -235,21 +263,38 @@ export function PurposeLevelAnalytics({
                           <div className="flex-1">
                             <h5 className="font-medium text-gray-900">{purpose.purposeName}</h5>
                             <p className="text-xs text-gray-500 mt-1">
-                              {purpose.totalRecords} records
+                              {purpose.totalRecords} records • {purpose.acceptedCount} accepted • {purpose.rejectedCount} rejected
                             </p>
                           </div>
                           <div className="text-right ml-4">
-                            <div className="text-lg font-bold text-blue-600">
-                              {purpose.consentRate.toFixed(1)}%
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <div className="text-sm font-semibold text-green-600">
+                                  {purpose.consentRate.toFixed(1)}%
+                                </div>
+                                <div className="text-xs text-gray-500">Accept</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-semibold text-red-600">
+                                  {purpose.rejectionRate.toFixed(1)}%
+                                </div>
+                                <div className="text-xs text-gray-500">Reject</div>
+                              </div>
                             </div>
                           </div>
                         </div>
                         
-                        {/* Progress Bar */}
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        {/* Dual Progress Bar */}
+                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden flex">
                           <div
-                            className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                            className="bg-green-500 transition-all duration-300"
                             style={{ width: `${purpose.consentRate}%` }}
+                            title={`Accepted: ${purpose.consentRate.toFixed(1)}%`}
+                          />
+                          <div
+                            className="bg-red-500 transition-all duration-300"
+                            style={{ width: `${purpose.rejectionRate}%` }}
+                            title={`Rejected: ${purpose.rejectionRate.toFixed(1)}%`}
                           />
                         </div>
                       </div>
@@ -263,7 +308,7 @@ export function PurposeLevelAnalytics({
 
         {/* Top & Bottom Purposes Summary */}
         {summary && !showTopOnly && summary.topPurposes.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="h-5 w-5 text-green-600" />
@@ -281,6 +326,34 @@ export function PurposeLevelAnalytics({
                       </span>
                     </div>
                     <p className="text-xs text-green-600">{purpose.activityName}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {purpose.acceptedCount} accepted, {purpose.rejectedCount} rejected
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingDown className="h-5 w-5 text-orange-600" />
+                <h4 className="font-semibold text-orange-900">Lowest Acceptance</h4>
+              </div>
+              <div className="space-y-2">
+                {summary.bottomPurposes.slice(0, 3).map((purpose, index) => (
+                  <div key={purpose.purposeId} className="text-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-orange-800 font-medium">
+                        {index + 1}. {purpose.purposeName}
+                      </span>
+                      <span className="font-semibold text-orange-700">
+                        {purpose.consentRate.toFixed(1)}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-orange-600">{purpose.activityName}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {purpose.acceptedCount} accepted, {purpose.rejectedCount} rejected
+                    </p>
                   </div>
                 ))}
               </div>
@@ -289,22 +362,29 @@ export function PurposeLevelAnalytics({
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingDown className="h-5 w-5 text-red-600" />
-                <h4 className="font-semibold text-red-900">Needs Improvement</h4>
+                <h4 className="font-semibold text-red-900">Most Rejected</h4>
               </div>
               <div className="space-y-2">
-                {summary.bottomPurposes.slice(0, 3).map((purpose, index) => (
-                  <div key={purpose.purposeId} className="text-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-red-800 font-medium">
-                        {index + 1}. {purpose.purposeName}
-                      </span>
-                      <span className="font-semibold text-red-700">
-                        {purpose.consentRate.toFixed(1)}%
-                      </span>
+                {summary.mostRejectedPurposes && summary.mostRejectedPurposes.length > 0 ? (
+                  summary.mostRejectedPurposes.slice(0, 3).map((purpose, index) => (
+                    <div key={purpose.purposeId} className="text-sm">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-red-800 font-medium">
+                          {index + 1}. {purpose.purposeName}
+                        </span>
+                        <span className="font-semibold text-red-700">
+                          {purpose.rejectionRate.toFixed(1)}%
+                        </span>
+                      </div>
+                      <p className="text-xs text-red-600">{purpose.activityName}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {purpose.acceptedCount} accepted, {purpose.rejectedCount} rejected
+                      </p>
                     </div>
-                    <p className="text-xs text-red-600">{purpose.activityName}</p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-500">No rejected purposes yet</p>
+                )}
               </div>
             </div>
           </div>
