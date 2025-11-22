@@ -15,8 +15,18 @@ function ConsentlyWidget({ widgetId = 'dpdpa_mheon92d_o34gdpk' }: ConsentlyWidge
       return;
     }
 
+    // Use local widget script in development, production script otherwise
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || 
+       window.location.hostname === '127.0.0.1' ||
+       window.location.hostname.startsWith('192.168.'));
+    
+    const scriptSrc = isLocalhost 
+      ? '/dpdpa-widget.js'  // Use local widget script
+      : 'https://www.consently.in/dpdpa-widget.js';  // Use production script
+
     const script = document.createElement('script');
-    script.src = 'https://www.consently.in/dpdpa-widget.js';
+    script.src = scriptSrc;
     script.setAttribute('data-dpdpa-widget-id', widgetId);
     script.async = true;
     document.body.appendChild(script);

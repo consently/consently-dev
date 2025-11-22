@@ -276,7 +276,7 @@ export async function GET(
         'Last-Modified': new Date().toUTCString(),
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
-        'Access-Control-Allow-Headers': 'Content-Type, If-None-Match',
+        'Access-Control-Allow-Headers': 'Content-Type, Cache-Control, If-None-Match',
       }
     });
 
@@ -315,7 +315,7 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Cache-Control, If-None-Match',
     }
   });
 }

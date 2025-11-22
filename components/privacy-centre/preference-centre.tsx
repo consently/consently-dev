@@ -77,7 +77,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       } else {
         setLoading(true);
       }
-      
+
       const response = await fetch(
         `/api/privacy-centre/preferences?visitorId=${visitorId}&widgetId=${widgetId}`
       );
@@ -103,13 +103,13 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       });
       setPreferences(prefs);
       setOriginalStatus(origStatus);
-      
+
       // Log for debugging
       console.log('[Preference Centre] Loaded preferences:', {
         originalStatuses: origStatus,
         currentPreferences: prefs
       });
-      
+
       if (showRefreshing) {
         toast.success('Preferences refreshed');
       }
@@ -129,7 +129,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       // 2. If toggling OFF and was previously 'accepted' -> 'withdrawn' (revocation)
       // 3. If toggling OFF and was never accepted -> 'rejected'
       let newStatus: 'accepted' | 'rejected' | 'withdrawn';
-      
+
       if (isAccepted) {
         newStatus = 'accepted';
       } else {
@@ -138,19 +138,19 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         newStatus = wasAccepted ? 'withdrawn' : 'rejected';
         console.log(`[Preference Centre] Activity ${activityId}: wasAccepted=${wasAccepted}, newStatus=${newStatus}`);
       }
-      
+
       const updated = {
         ...prev,
         [activityId]: newStatus,
       };
-      
+
       console.log(`[Preference Centre] Updated preferences for ${activityId}:`, {
         old: prev[activityId],
         new: newStatus,
         isAccepted,
         allPrefs: updated
       });
-      
+
       return updated;
     });
   };
@@ -188,14 +188,14 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       });
 
       const result = await response.json();
-      
+
       console.log('[Preference Centre] Save response:', result);
-      
+
       // Handle 207 Multi-Status (partial success) and other error cases
       if (response.status === 207) {
         // Partial success - some preferences saved, some failed
         if (result.successCount > 0) {
-          const errorMessages = result.details?.map((d: any) => 
+          const errorMessages = result.details?.map((d: any) =>
             `${d.activityId}: ${d.message || d.hint || 'Unknown error'}`
           ).join('; ') || 'Unknown error';
           toast.warning('Some preferences could not be saved', {
@@ -210,7 +210,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
           console.error('[Preference Centre] All preferences failed to save:', result.details);
           console.error('[Preference Centre] Full error response:', result);
           console.error('[Preference Centre] Full error details (stringified):', JSON.stringify(result.details, null, 2));
-          
+
           const errorMessages = result.details?.map((d: any) => {
             const parts = [];
             if (d.activityId) parts.push(`Activity: ${d.activityId.substring(0, 8)}...`);
@@ -220,14 +220,14 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
             if (d.details) parts.push(`Details: ${typeof d.details === 'string' ? d.details : JSON.stringify(d.details)}`);
             return parts.length > 0 ? parts.join(' | ') : 'Unknown error';
           }).join('\n') || 'Unknown error';
-          
+
           console.error('[Preference Centre] Formatted error messages:', errorMessages);
-          
+
           toast.error('Failed to save preferences', {
             description: errorMessages.length > 200 ? errorMessages.substring(0, 200) + '...' : errorMessages,
             duration: 10000,
           });
-          
+
           // Also log to console for debugging
           console.error('[Preference Centre] Error summary:', {
             errorCount: result.errorCount,
@@ -235,7 +235,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
             details: result.details,
             fullResponse: result
           });
-          
+
           return;
         }
       }
@@ -246,12 +246,12 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         console.error('[Preference Centre] Save error:', result);
         throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
       }
-      
+
       toast.success('Preferences saved successfully', {
         description: 'Your privacy choices have been applied immediately',
         duration: 3000,
       });
-      
+
       // Update originalStatus to reflect the new saved state
       setOriginalStatus((prev) => {
         const updated = { ...prev };
@@ -261,7 +261,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         console.log('[Preference Centre] Updated originalStatus after save:', updated);
         return updated;
       });
-      
+
       await fetchPreferences(); // Refresh to get updated timestamps
     } catch (error) {
       console.error('Error saving preferences:', error);
@@ -283,12 +283,12 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         toast.error('No preferences to save');
         return;
       }
-      
+
       // Use bulk API for accept_all/reject_all actions (more efficient)
       const useBulkAPI = action === 'accept_all' || action === 'reject_all';
-      
+
       console.log('[Preference Centre] Saving (direct) preferences:', preferencesArray, useBulkAPI ? `(bulk: ${action})` : '');
-      
+
       const endpoint = useBulkAPI ? '/api/privacy-centre/preferences/bulk' : '/api/privacy-centre/preferences';
       const method = useBulkAPI ? 'POST' : 'PATCH';
       const body = useBulkAPI ? {
@@ -310,7 +310,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
           deviceType: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
         },
       };
-      
+
       const response = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -378,7 +378,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       a.download = `consent-history-${visitorId}-${Date.now()}.${format}`;
       document.body.appendChild(a);
       a.click();
-      
+
       // Cleanup
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
@@ -437,7 +437,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                 Manage Your Consent Preferences
               </h2>
               <p className="text-gray-600 text-sm md:text-base leading-relaxed">
-                Take control of your data with <span className="font-semibold text-blue-700">{widgetName || domain}</span>. 
+                Take control of your data with <span className="font-semibold text-blue-700">{widgetName || domain}</span>.
                 Update your preferences anytime to match your privacy needs.
               </p>
             </div>
@@ -502,7 +502,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                   <ChevronDown className="h-3 w-3 group-open:rotate-180 transition-transform" />
                 </summary>
                 <div className="mt-2 p-3 bg-white/60 rounded-lg border border-blue-200">
-                  <a 
+                  <a
                     href={`${typeof window !== 'undefined' ? window.location.origin : ''}/privacy-centre/${widgetId}?visitorId=${visitorId}`}
                     className="text-blue-600 hover:text-blue-700 hover:underline break-all"
                     target="_blank"
@@ -517,29 +517,33 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
         </CardContent>
       </Card>
 
-      {/* Email Linking Card */}
-      <EmailLinkCard 
-        visitorId={visitorId} 
-        widgetId={widgetId}
-        onVerified={() => fetchPreferences(true)}
-      />
+      {/* Email Linking Card - Only show after consent has been given */}
+      {activities.some(activity => 
+        activity.consentStatus === 'accepted' || activity.consentGivenAt !== null
+      ) && (
+        <EmailLinkCard
+          visitorId={visitorId}
+          widgetId={widgetId}
+          onVerified={() => fetchPreferences(true)}
+        />
+      )}
 
       {/* Modern Action Bar */}
       <div className="bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl p-4 md:p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div className="flex flex-wrap gap-2">
-            <Button 
-              onClick={handleAcceptAll} 
-              size="sm" 
+            <Button
+              onClick={handleAcceptAll}
+              size="sm"
               disabled={loading || activities.length === 0}
               className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="h-4 w-4 mr-2" />
               Accept All
             </Button>
-            <Button 
-              onClick={handleRejectAll} 
-              size="sm" 
+            <Button
+              onClick={handleRejectAll}
+              size="sm"
               variant="outline"
               disabled={loading || activities.length === 0}
               className="border-2 border-gray-300 hover:bg-gray-100 text-gray-700 text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -549,30 +553,30 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button 
-              onClick={() => fetchPreferences(true)} 
-              variant="outline" 
-              size="sm" 
+            <Button
+              onClick={() => fetchPreferences(true)}
+              variant="outline"
+              size="sm"
               disabled={refreshing || loading}
               className="border-gray-300 text-xs md:text-sm"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
             </Button>
-            <Button 
-              onClick={() => handleDownloadHistory('csv')} 
-              variant="outline" 
-              size="sm" 
+            <Button
+              onClick={() => handleDownloadHistory('csv')}
+              variant="outline"
+              size="sm"
               disabled={downloading || loading}
               className="border-gray-300 text-xs md:text-sm hidden sm:inline-flex"
             >
               <History className={`h-4 w-4 mr-2 ${downloading ? 'animate-pulse' : ''}`} />
               {downloading ? 'Downloading...' : 'Export History'}
             </Button>
-            <Button 
-              onClick={() => handleDownloadHistory('csv')} 
-              variant="outline" 
-              size="sm" 
+            <Button
+              onClick={() => handleDownloadHistory('csv')}
+              variant="outline"
+              size="sm"
               disabled={downloading || loading}
               className="border-gray-300 text-xs sm:hidden"
             >
@@ -600,7 +604,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
             // Check if preference is 'accepted' - 'withdrawn' and 'rejected' both mean toggle is OFF
             const currentPreference = preferences[activity.id];
             const isAccepted = currentPreference === 'accepted';
-            
+
             // Debug log to help troubleshoot
             if (process.env.NODE_ENV === 'development') {
               console.log(`[Preference Centre] Activity ${activity.id} render:`, {
@@ -613,11 +617,10 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
             return (
               <Card
                 key={activity.id}
-                className={`border-0 shadow-lg transition-all duration-300 overflow-hidden hover:shadow-xl ${
-                  isAccepted
+                className={`border-0 shadow-lg transition-all duration-300 overflow-hidden hover:shadow-xl ${isAccepted
                     ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 ring-2 ring-green-200'
                     : 'bg-gradient-to-br from-white to-gray-50 hover:from-blue-50/30'
-                }`}
+                  }`}
               >
                 <CardHeader className="pb-4 md:pb-5">
                   <div className="flex items-start justify-between gap-3 md:gap-4">
@@ -651,7 +654,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                               </Badge>
                             )}
                           </div>
-                          <CardDescription className="space-y-2">
+                          <div className="space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="outline" className="text-xs bg-white/80 backdrop-blur-sm border-gray-300 flex-shrink-0">
                                 {activity.industry}
@@ -659,18 +662,18 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                               {activity.consentGivenAt && (
                                 <span className="text-xs text-gray-600 flex items-center gap-1 flex-shrink-0">
                                   <Clock className="h-3 w-3" />
-                                  {new Date(activity.lastUpdated || activity.consentGivenAt).toLocaleDateString('en-US', { 
-                                    year: 'numeric', 
-                                    month: 'short', 
-                                    day: 'numeric' 
+                                  {new Date(activity.lastUpdated || activity.consentGivenAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
                                   })}
                                 </span>
                               )}
                             </div>
-                          </CardDescription>
+                          </div>
                         </div>
                       </div>
-                      
+
                       {/* Purpose Summary */}
                       {(activity.purposes || []).length > 0 && (
                         <div className="ml-12 md:ml-14 mt-4">
@@ -680,9 +683,9 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                           </p>
                           <div className="flex flex-wrap gap-2">
                             {(activity.purposes || []).map((purpose) => (
-                              <Badge 
-                                key={purpose.id} 
-                                variant="secondary" 
+                              <Badge
+                                key={purpose.id}
+                                variant="secondary"
                                 className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200 break-words hover:from-blue-200 hover:to-indigo-200 transition-colors"
                               >
                                 {purpose.purposeName}
@@ -795,10 +798,10 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                           <div>
                             <p className="text-xs font-medium text-amber-900">Consent Expiration</p>
                             <p className="text-sm font-bold text-gray-900">
-                              {new Date(activity.expiresAt).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
+                              {new Date(activity.expiresAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
                               })}
                             </p>
                           </div>
@@ -827,8 +830,8 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
                   <p className="text-xs md:text-sm text-gray-600 mt-0.5">Your choices will be applied immediately</p>
                 </div>
               </div>
-              <Button 
-                onClick={handleSavePreferences} 
+              <Button
+                onClick={handleSavePreferences}
                 disabled={saving || loading || activities.length === 0}
                 size="lg"
                 className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all text-sm md:text-base h-12 md:h-14 px-8 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -12,7 +12,7 @@ let resendClient: Resend | null = null;
 function getResendClient(): Resend | null {
   // Check at runtime (not module load time) to ensure env vars are available
   const resendApiKey = process.env.RESEND_API_KEY;
-  
+
   if (!resendApiKey) {
     console.error('❌ RESEND_API_KEY not configured. Email sending will fail.');
     console.error('   Please check:');
@@ -61,17 +61,17 @@ interface EmailOptions {
 export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
     const resend = getResendClient();
-    
+
     if (!resend) {
       const apiKey = process.env.RESEND_API_KEY;
-      const errorMsg = apiKey 
+      const errorMsg = apiKey
         ? 'Resend client initialization failed. Check RESEND_API_KEY format.'
         : 'RESEND_API_KEY environment variable is not set.';
-      
+
       console.error('❌ Email send failed:', errorMsg);
-      return { 
-        success: false, 
-        error: 'Email service not configured. Please check RESEND_API_KEY environment variable.' 
+      return {
+        success: false,
+        error: 'Email service not configured. Please check RESEND_API_KEY environment variable.'
       };
     }
 
@@ -94,17 +94,17 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     if (error) {
       console.error('❌ Resend API error:', error);
       console.error('   Error details:', JSON.stringify(error, null, 2));
-      return { 
-        success: false, 
-        error: error.message || 'Failed to send email via Resend API' 
+      return {
+        success: false,
+        error: error.message || 'Failed to send email via Resend API'
       };
     }
 
     if (!data?.id) {
       console.error('❌ Resend API returned no email ID');
-      return { 
-        success: false, 
-        error: 'Email send completed but no email ID returned' 
+      return {
+        success: false,
+        error: 'Email send completed but no email ID returned'
       };
     }
 
@@ -115,10 +115,10 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     console.error('   Error type:', error?.constructor?.name);
     console.error('   Error message:', error?.message);
     console.error('   Error stack:', error?.stack);
-    
-    return { 
-      success: false, 
-      error: error?.message || 'Unknown error occurred while sending email' 
+
+    return {
+      success: false,
+      error: error?.message || 'Unknown error occurred while sending email'
     };
   }
 }
@@ -132,7 +132,7 @@ export async function sendOTPEmail(
   expiresInMinutes: number = 10
 ): Promise<{ success: boolean; error?: string }> {
   const subject = 'Verify Your Email - Consently Privacy Centre';
-  
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -148,7 +148,7 @@ export async function sendOTPEmail(
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
           <!-- Header with gradient -->
           <tr>
-            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+            <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center;">
               <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
                 🔐 Verify Your Email
               </h1>
@@ -167,7 +167,7 @@ export async function sendOTPEmail(
               </p>
               
               <!-- OTP Box -->
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
+              <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
                 <p style="margin: 0 0 10px 0; font-size: 14px; color: #ffffff; text-transform: uppercase; letter-spacing: 1px;">
                   Your OTP Code
                 </p>
@@ -185,8 +185,8 @@ export async function sendOTPEmail(
               </p>
               
               <!-- Security Notice -->
-              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin-top: 30px;">
-                <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #92400e;">
+              <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; margin-top: 30px;">
+                <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #1e40af;">
                   <strong>🔒 Security Tip:</strong> Never share this code with anyone. Consently will never ask for your OTP.
                 </p>
               </div>
@@ -257,7 +257,7 @@ export async function sendPreferencesLinkedEmail(
   deviceCount: number
 ): Promise<{ success: boolean; error?: string }> {
   const subject = 'Your Preferences Are Now Linked - Consently';
-  
+
   const html = `
 <!DOCTYPE html>
 <html>
