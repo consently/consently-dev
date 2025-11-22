@@ -25,6 +25,8 @@ interface ConsentRecord {
   rejected_activities?: string[];
   acceptedActivityNames?: string[]; // Added for display
   rejectedActivityNames?: string[]; // Added for display
+  visitor_email?: string | null;
+  visitor_email_hash?: string | null;
 }
 
 const statusIcons = {
@@ -56,7 +58,7 @@ export default function ConsentRecordsPage() {
     fetchRecords();
   }, [searchQuery, statusFilter, typeFilter, dateRange]);
 
-const fetchRecords = async () => {
+  const fetchRecords = async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
@@ -176,8 +178,8 @@ const fetchRecords = async () => {
               {records.filter((r) => r.consent_status === 'accepted').length}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {totalRecords > 0 
-                ? `${Math.round((records.filter((r) => r.consent_status === 'accepted').length / totalRecords) * 100)}%` 
+              {totalRecords > 0
+                ? `${Math.round((records.filter((r) => r.consent_status === 'accepted').length / totalRecords) * 100)}%`
                 : '0%'}
             </p>
           </CardContent>
@@ -195,8 +197,8 @@ const fetchRecords = async () => {
               {records.filter((r) => r.consent_status === 'rejected').length}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {totalRecords > 0 
-                ? `${Math.round((records.filter((r) => r.consent_status === 'rejected').length / totalRecords) * 100)}%` 
+              {totalRecords > 0
+                ? `${Math.round((records.filter((r) => r.consent_status === 'rejected').length / totalRecords) * 100)}%`
                 : '0%'}
             </p>
           </CardContent>
@@ -214,8 +216,8 @@ const fetchRecords = async () => {
               {records.filter((r) => r.consent_status === 'partial').length}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {totalRecords > 0 
-                ? `${Math.round((records.filter((r) => r.consent_status === 'partial').length / totalRecords) * 100)}%` 
+              {totalRecords > 0
+                ? `${Math.round((records.filter((r) => r.consent_status === 'partial').length / totalRecords) * 100)}%`
                 : '0%'}
             </p>
           </CardContent>
@@ -227,8 +229,8 @@ const fetchRecords = async () => {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg md:text-xl">Filter Records</CardTitle>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => {
                 setSearchQuery('');
@@ -256,7 +258,7 @@ const fetchRecords = async () => {
                 className="w-full"
               />
             </div>
-            
+
             {/* Filters Grid - Responsive */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               <Select
@@ -316,7 +318,7 @@ const fetchRecords = async () => {
             <table className="w-full border-collapse">
               <thead className="border-b-2 border-gray-200 bg-gray-50">
                 <tr>
-                  <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">Consent ID</th>
+                  <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">User / ID</th>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">Status</th>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">Timestamp</th>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm min-w-[300px]">Activities</th>
@@ -340,29 +342,33 @@ const fetchRecords = async () => {
                     </td>
                   </tr>
                 ) : (
-records.map((record) => {
+                  records.map((record) => {
                     const timestamp = record.consent_given_at || record.consent_timestamp;
                     const hasTimestamp = timestamp && !isNaN(new Date(timestamp).getTime());
                     const acceptedCount = record.consented_activities?.length || 0;
                     const rejectedCount = record.rejected_activities?.length || 0;
                     const isExpanded = expandedRows.has(record.id);
                     const hasActivities = acceptedCount > 0 || rejectedCount > 0;
-                    
+
                     return (
                       <React.Fragment key={record.id}>
                         <tr className="border-b border-gray-100 transition-colors hover:bg-blue-50/30">
                           <td className="p-3 align-middle">
-                            <div className="font-mono text-xs text-gray-600 max-w-[140px] truncate" title={record.id}>
-                              {record.id.substring(0, 18)}...
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-gray-900">
+                                {record.visitor_email || (record.visitor_email_hash ? 'Verified User' : 'Anonymous')}
+                              </span>
+                              <div className="font-mono text-xs text-gray-500 max-w-[140px] truncate" title={record.id}>
+                                {record.id.substring(0, 18)}...
+                              </div>
                             </div>
                           </td>
                           <td className="p-3 align-middle">
                             <div className="flex items-center gap-1.5">
                               {statusIcons[record.consent_status]}
                               <span
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                                  statusColors[record.consent_status]
-                                }`}
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${statusColors[record.consent_status]
+                                  }`}
                               >
                                 {record.consent_status.charAt(0).toUpperCase() + record.consent_status.slice(1)}
                               </span>
@@ -389,8 +395,8 @@ records.map((record) => {
                                   </div>
                                   <div className="flex flex-wrap gap-1.5">
                                     {(record.acceptedActivityNames || []).slice(0, 2).map((name, idx) => (
-                                      <Badge 
-                                        key={idx} 
+                                      <Badge
+                                        key={idx}
                                         className="bg-green-100 text-green-800 border-green-200 text-xs px-2 py-0.5 font-medium"
                                       >
                                         {name.length > 30 ? `${name.substring(0, 30)}...` : name}
@@ -404,7 +410,7 @@ records.map((record) => {
                                   </div>
                                 </div>
                               )}
-                              
+
                               {/* Rejected Activities */}
                               {rejectedCount > 0 && (
                                 <div>
@@ -414,8 +420,8 @@ records.map((record) => {
                                   </div>
                                   <div className="flex flex-wrap gap-1.5">
                                     {(record.rejectedActivityNames || []).slice(0, 2).map((name, idx) => (
-                                      <Badge 
-                                        key={idx} 
+                                      <Badge
+                                        key={idx}
                                         className="bg-red-100 text-red-800 border-red-200 text-xs px-2 py-0.5 font-medium"
                                       >
                                         {name.length > 30 ? `${name.substring(0, 30)}...` : name}
@@ -429,12 +435,12 @@ records.map((record) => {
                                   </div>
                                 </div>
                               )}
-                              
+
                               {/* No Activities */}
                               {acceptedCount === 0 && rejectedCount === 0 && (
                                 <span className="text-gray-400 text-xs">No activities</span>
                               )}
-                              
+
                               {/* Expand Button for Full List */}
                               {hasActivities && (acceptedCount > 2 || rejectedCount > 2) && (
                                 <Button
@@ -495,8 +501,8 @@ records.map((record) => {
                                     </h4>
                                     <div className="flex flex-wrap gap-2">
                                       {(record.acceptedActivityNames || []).map((name, idx) => (
-                                        <Badge 
-                                          key={idx} 
+                                        <Badge
+                                          key={idx}
                                           className="bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors text-xs py-1"
                                         >
                                           {name}
@@ -513,8 +519,8 @@ records.map((record) => {
                                     </h4>
                                     <div className="flex flex-wrap gap-2">
                                       {(record.rejectedActivityNames || []).map((name, idx) => (
-                                        <Badge 
-                                          key={idx} 
+                                        <Badge
+                                          key={idx}
                                           className="bg-red-100 text-red-800 border-red-200 hover:bg-red-200 transition-colors text-xs py-1"
                                         >
                                           {name}
@@ -583,14 +589,16 @@ records.map((record) => {
                       <div className="flex items-center gap-2 mb-2">
                         {statusIcons[record.consent_status]}
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            statusColors[record.consent_status]
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[record.consent_status]
+                            }`}
                         >
                           {record.consent_status.toUpperCase()}
                         </span>
                       </div>
-                      <div className="font-mono text-xs text-gray-500 truncate">
+                      <div className="text-sm font-medium text-gray-900">
+                        {record.visitor_email || (record.visitor_email_hash ? 'Verified User' : 'Anonymous Visitor')}
+                      </div>
+                      <div className="font-mono text-xs text-gray-500 truncate mt-1">
                         ID: {record.id.substring(0, 20)}...
                       </div>
                     </div>

@@ -80,7 +80,7 @@ export async function GET(
     // Transform data for UI
     const records = data.map(record => ({
       principalId: record.visitor_id,
-      name: 'Anonymous Visitor', // We don't store names in this table, maybe could lookup if we had a user table linked by email hash
+      name: record.visitor_email || (record.visitor_email_hash ? 'Verified User (Hidden)' : 'Anonymous Visitor'),
       consentDate: record.consent_given_at || record.last_updated,
       noticeVersion: record.consent_version,
       channel: record.device_type || 'Unknown',

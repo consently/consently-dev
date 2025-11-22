@@ -60,6 +60,8 @@ interface RecentConsent {
   deviceType: string;
   country: string;
   ipAddress?: string;
+  email?: string;
+  isVerified?: boolean;
 }
 
 export default function DPDPADashboardPage() {
@@ -70,12 +72,12 @@ export default function DPDPADashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     // Auto-refresh every 30 seconds
     const intervalId = setInterval(() => {
       fetchDashboardData();
     }, 30000);
-    
+
     // Cleanup interval on unmount
     return () => clearInterval(intervalId);
   }, []);
@@ -101,7 +103,7 @@ export default function DPDPADashboardPage() {
       if (activityStatsRes.ok) {
         const activityStatsData = await activityStatsRes.json();
         const activityStats = activityStatsData.data || [];
-        
+
         // Use the first 6 activities for the dashboard cards
         const cards: ActivityCard[] = activityStats.slice(0, 6).map((activity: any) => ({
           id: activity.id,
@@ -126,6 +128,8 @@ export default function DPDPADashboardPage() {
           deviceType: c.device_type || 'Desktop',
           country: c.country || c.country_code || 'Unknown',
           ipAddress: c.ip_address || 'N/A',
+          email: c.visitor_email,
+          isVerified: !!c.visitor_email_hash,
         })));
       }
 
@@ -343,19 +347,18 @@ export default function DPDPADashboardPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activityCards.map((activity) => (
-                <Link 
-                  key={activity.id} 
+                <Link
+                  key={activity.id}
                   href={`/dashboard/dpdpa/activity-stats/${activity.id}`}
                   className="block"
                 >
                   <div
-                    className={`border-2 rounded-lg p-4 transition-all hover:shadow-lg cursor-pointer ${
-                      activity.status === 'high'
-                        ? 'border-green-200 bg-green-50/30 hover:bg-green-50/50'
-                        : activity.status === 'medium'
+                    className={`border-2 rounded-lg p-4 transition-all hover:shadow-lg cursor-pointer ${activity.status === 'high'
+                      ? 'border-green-200 bg-green-50/30 hover:bg-green-50/50'
+                      : activity.status === 'medium'
                         ? 'border-yellow-200 bg-yellow-50/30 hover:bg-yellow-50/50'
                         : 'border-red-200 bg-red-50/30 hover:bg-red-50/50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
@@ -375,13 +378,12 @@ export default function DPDPADashboardPage() {
 
                       <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className={`absolute top-0 left-0 h-full rounded-full ${
-                            activity.status === 'high'
-                              ? 'bg-green-500'
-                              : activity.status === 'medium'
+                          className={`absolute top-0 left-0 h-full rounded-full ${activity.status === 'high'
+                            ? 'bg-green-500'
+                            : activity.status === 'medium'
                               ? 'bg-yellow-500'
                               : 'bg-red-500'
-                          }`}
+                            }`}
                           style={{ width: `${activity.acceptanceRate}%` }}
                         />
                       </div>
@@ -427,7 +429,7 @@ export default function DPDPADashboardPage() {
                 <div className="text-right">
                   <p className="text-2xl font-bold text-green-900">{stats?.acceptedCount || 0}</p>
                   <p className="text-xs text-green-700">
-                    {stats?.totalConsents 
+                    {stats?.totalConsents
                       ? ((stats.acceptedCount / stats.totalConsents) * 100).toFixed(1)
                       : 0}%
                   </p>
@@ -528,16 +530,23 @@ export default function DPDPADashboardPage() {
                             {getStatusIcon(consent.status)}
                             <span className="ml-1">{consent.status}</span>
                           </Badge>
+                          <span className="text-sm font-medium text-gray-900">
+                            {consent.email || (consent.isVerified ? 'Verified User' : 'Anonymous')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
                           {consent.country && (
-                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <span className="flex items-center gap-1">
                               <Globe className="h-3 w-3" />
                               {consent.country}
                             </span>
                           )}
+                          {consent.ipAddress && (
+                            <span className="font-mono border-l pl-2 ml-1 border-gray-300">
+                              {consent.ipAddress}
+                            </span>
+                          )}
                         </div>
-                        {consent.ipAddress && (
-                          <p className="text-xs text-gray-500 font-mono">{consent.ipAddress}</p>
-                        )}
                       </div>
                     </div>
                     <div className="text-right">

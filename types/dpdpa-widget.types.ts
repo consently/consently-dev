@@ -131,25 +131,25 @@ export interface DPDPAWidgetConfig {
   widgetId: string;
   name: string;
   domain: string;
-  
+
   // Appearance
   position: 'top' | 'bottom' | 'center' | 'bottom-left' | 'bottom-right' | 'modal';
   layout: 'modal' | 'slide-in' | 'banner';
   theme: WidgetTheme;
-  
+
   // Content
   title: string;
   message: string;
   acceptButtonText: string;
   rejectButtonText: string;
   customizeButtonText: string;
-  
+
   // Processing activities
   activities: ProcessingActivityPublic[];
-  
+
   // Privacy notice
   privacyNoticeHTML: string;
-  
+
   // Behavior
   autoShow: boolean;
   showAfterDelay: number;
@@ -157,17 +157,17 @@ export interface DPDPAWidgetConfig {
   respectDNT: boolean;
   requireExplicitConsent: boolean;
   showDataSubjectsRights: boolean;
-  
+
   // Advanced
   language: string;
   supportedLanguages: string[];
   customTranslations?: Record<string, Record<string, string>>;
   showBranding: boolean;
   customCSS?: string;
-  
+
   // Display rules (NEW in v2.0)
   display_rules: DisplayRule[];
-  
+
   // Metadata
   version: string;
 }
@@ -222,7 +222,7 @@ export interface ConsentRecordRequest {
   rejectedActivities: string[];
   activityConsents: Record<string, { status: string; timestamp: string }>;
   activityPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes consented to per activity
-  ruleContext?: RuleContext;
+  ruleContext?: PartialRuleContext;
   metadata?: ConsentMetadata;
   consentDuration?: number;
   revocationReason?: string; // Optional reason for revocation

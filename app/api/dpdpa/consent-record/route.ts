@@ -20,51 +20,51 @@ import crypto from 'crypto';
 // Helper function to detect device type from user agent
 function detectDeviceType(userAgent: string): 'Desktop' | 'Mobile' | 'Tablet' | 'Unknown' {
   if (!userAgent) return 'Unknown';
-  
+
   const ua = userAgent.toLowerCase();
-  
+
   if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
     return 'Tablet';
   }
-  
+
   if (/mobile|iphone|ipod|blackberry|windows phone|android.*mobile/i.test(ua)) {
     return 'Mobile';
   }
-  
+
   if (/windows|macintosh|linux/i.test(ua)) {
     return 'Desktop';
   }
-  
+
   return 'Unknown';
 }
 
 // Helper function to extract browser info
 function extractBrowserInfo(userAgent: string): string {
   if (!userAgent) return 'Unknown';
-  
+
   const ua = userAgent.toLowerCase();
-  
+
   if (ua.includes('edg/')) return 'Edge';
   if (ua.includes('chrome/')) return 'Chrome';
   if (ua.includes('firefox/')) return 'Firefox';
   if (ua.includes('safari/') && !ua.includes('chrome')) return 'Safari';
   if (ua.includes('opera') || ua.includes('opr/')) return 'Opera';
-  
+
   return 'Unknown';
 }
 
 // Helper function to extract OS info
 function extractOSInfo(userAgent: string): string {
   if (!userAgent) return 'Unknown';
-  
+
   const ua = userAgent.toLowerCase();
-  
+
   if (ua.includes('windows')) return 'Windows';
   if (ua.includes('mac os')) return 'macOS';
   if (ua.includes('linux')) return 'Linux';
   if (ua.includes('android')) return 'Android';
   if (ua.includes('iphone') || ua.includes('ipad')) return 'iOS';
-  
+
   return 'Unknown';
 }
 
@@ -160,10 +160,10 @@ export async function GET(request: NextRequest) {
     // Enrich records with activity names
     const enrichedData = (data || []).map((record: any) => ({
       ...record,
-      acceptedActivityNames: (record.consented_activities || []).map((id: string) => 
+      acceptedActivityNames: (record.consented_activities || []).map((id: string) =>
         activityMap.get(id) || 'Unknown Activity'
       ),
-      rejectedActivityNames: (record.rejected_activities || []).map((id: string) => 
+      rejectedActivityNames: (record.rejected_activities || []).map((id: string) =>
         activityMap.get(id) || 'Unknown Activity'
       ),
     }));
@@ -198,11 +198,11 @@ export async function POST(request: NextRequest) {
 
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { 
+        {
           error: 'Rate limit exceeded. Please try again later.',
-          retryAfter: rateLimitResult.retryAfter 
+          retryAfter: rateLimitResult.retryAfter
         },
-        { 
+        {
           status: 429,
           headers: {
             'X-RateLimit-Limit': rateLimitResult.limit.toString(),
@@ -220,11 +220,11 @@ export async function POST(request: NextRequest) {
       body = await request.json();
     } catch (error) {
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid JSON in request body',
           code: 'INVALID_JSON'
         },
-        { 
+        {
           status: 400,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
     const validationResult = consentRecordRequestSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
+        {
           error: 'Validation failed',
           code: 'VALIDATION_ERROR',
           details: validationResult.error.issues.map(issue => ({
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
             code: issue.code,
           }))
         },
-        { 
+        {
           status: 400,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -284,11 +284,11 @@ export async function POST(request: NextRequest) {
 
     if (!activityValidation.valid) {
       return NextResponse.json(
-        { 
+        {
           error: activityValidation.error || 'Invalid consent data',
           code: 'INVALID_CONSENT_ACTIVITIES'
         },
-        { 
+        {
           status: 400,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -341,11 +341,11 @@ export async function POST(request: NextRequest) {
         details: widgetError?.details,
       });
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid widget ID or widget is not active',
           code: 'INVALID_WIDGET'
         },
-        { 
+        {
           status: 404,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -361,7 +361,7 @@ export async function POST(request: NextRequest) {
       const { getEntitlements, checkConsentQuota } = await import('@/lib/subscription');
       const entitlements = await getEntitlements();
       const quotaCheck = await checkConsentQuota(userId, entitlements);
-      
+
       if (!quotaCheck.allowed) {
         console.warn('[Consent Record API] Consent limit exceeded:', {
           userId,
@@ -369,9 +369,9 @@ export async function POST(request: NextRequest) {
           limit: quotaCheck.limit,
           plan: entitlements.plan
         });
-        
+
         return NextResponse.json(
-          { 
+          {
             error: 'Monthly consent limit exceeded',
             code: 'CONSENT_LIMIT_EXCEEDED',
             details: {
@@ -381,7 +381,7 @@ export async function POST(request: NextRequest) {
               message: 'Please upgrade your plan to record more consents this month.'
             }
           },
-          { 
+          {
             status: 403,
             headers: {
               'Access-Control-Allow-Origin': '*',
@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
           }
         );
       }
-      
+
       console.log('[Consent Record API] Consent quota check passed:', {
         used: quotaCheck.used,
         limit: quotaCheck.limit,
@@ -399,10 +399,10 @@ export async function POST(request: NextRequest) {
 
     // Extract metadata from request
     const userAgent = request.headers.get('user-agent') || body.metadata?.userAgent || '';
-    const ipAddress = request.headers.get('x-forwarded-for') || 
-                     request.headers.get('x-real-ip') || 
-                     body.metadata?.ipAddress || 
-                     'unknown';
+    const ipAddress = request.headers.get('x-forwarded-for') ||
+      request.headers.get('x-real-ip') ||
+      body.metadata?.ipAddress ||
+      'unknown';
 
     const deviceType = body.metadata?.deviceType || detectDeviceType(userAgent);
     const browser = body.metadata?.browser || extractBrowserInfo(userAgent);
@@ -420,17 +420,19 @@ export async function POST(request: NextRequest) {
 
     // Hash visitor email if provided (for cross-device consent management)
     const visitorEmailHash = body.visitorEmail ? hashEmail(body.visitorEmail) : null;
+    // Store actual email if provided (for admin dashboard identification)
+    const visitorEmail = body.visitorEmail || null;
 
     // Check if consent record already exists for this visitor AND this specific page URL
     // This allows tracking consent per page, which is needed for the Pages tab
     let existingConsent = null;
-    
+
     if (currentUrl) {
       // Import URL normalization utility for consistent URL handling
       const { normalizeUrl } = await import('@/lib/url-utils');
-      
+
       const normalizedCurrentUrl = normalizeUrl(currentUrl);
-      
+
       // Get all consent records for this visitor and widget
       const { data: allConsents, error: existingConsentError } = await supabase
         .from('dpdpa_consent_records')
@@ -448,7 +450,7 @@ export async function POST(request: NextRequest) {
         });
         // Continue with creating new record if check fails
       }
-      
+
       // Find a record that matches the current URL
       if (allConsents && allConsents.length > 0) {
         for (const record of allConsents) {
@@ -462,7 +464,7 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-        
+
         if (!existingConsent) {
           console.log('[Consent Record API] No existing consent for this URL, will create new record');
         }
@@ -473,10 +475,10 @@ export async function POST(request: NextRequest) {
 
     // Build consent_details JSONB with rule context, activity consents, and extra metadata
     // Validate and sanitize rule context (only include if all required fields are present)
-    const ruleContext: RuleContext | null = body.ruleContext && 
-      body.ruleContext.ruleId && 
-      body.ruleContext.ruleName && 
-      body.ruleContext.urlPattern && 
+    const ruleContext: RuleContext | null = body.ruleContext &&
+      body.ruleContext.ruleId &&
+      body.ruleContext.ruleName &&
+      body.ruleContext.urlPattern &&
       body.ruleContext.pageUrl ? {
       ruleId: body.ruleContext.ruleId,
       ruleName: body.ruleContext.ruleName,
@@ -487,21 +489,21 @@ export async function POST(request: NextRequest) {
 
     // Validate activity IDs are UUIDs (security: prevent injection)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const validatedAcceptedActivities = (body.acceptedActivities || []).filter(id => 
+    const validatedAcceptedActivities = (body.acceptedActivities || []).filter(id =>
       typeof id === 'string' && uuidRegex.test(id)
     );
-    const validatedRejectedActivities = (body.rejectedActivities || []).filter(id => 
+    const validatedRejectedActivities = (body.rejectedActivities || []).filter(id =>
       typeof id === 'string' && uuidRegex.test(id)
     );
 
     // Limit number of activities (prevent abuse)
     if (validatedAcceptedActivities.length > 100 || validatedRejectedActivities.length > 100) {
       return NextResponse.json(
-        { 
+        {
           error: 'Too many activities in consent record',
           code: 'TOO_MANY_ACTIVITIES'
         },
-        { 
+        {
           status: 400,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -519,7 +521,7 @@ export async function POST(request: NextRequest) {
         if (typeof activityId === 'string' && uuidRegex.test(activityId)) {
           // Validate purpose IDs are UUIDs
           if (Array.isArray(purposeIds)) {
-            const validatedPurposeIds = purposeIds.filter(id => 
+            const validatedPurposeIds = purposeIds.filter(id =>
               typeof id === 'string' && uuidRegex.test(id)
             );
             if (validatedPurposeIds.length > 0) {
@@ -574,8 +576,8 @@ export async function POST(request: NextRequest) {
         consent_expires_at: expiresAt.toISOString(),
         // Set revocation fields if status is revoked
         revoked_at: finalConsentStatus === 'revoked' ? new Date().toISOString() : null,
-        revocation_reason: finalConsentStatus === 'revoked' 
-          ? (body.revocationReason || 'User revoked consent via widget') 
+        revocation_reason: finalConsentStatus === 'revoked'
+          ? (body.revocationReason || 'User revoked consent via widget')
           : null,
       };
 
@@ -597,11 +599,11 @@ export async function POST(request: NextRequest) {
           timestamp: new Date().toISOString(),
         });
         return NextResponse.json(
-          { 
+          {
             error: 'Failed to update consent record',
             code: 'UPDATE_FAILED'
           },
-          { 
+          {
             status: 500,
             headers: {
               'Access-Control-Allow-Origin': '*',
@@ -616,7 +618,7 @@ export async function POST(request: NextRequest) {
       const timestamp = Date.now();
       const randomSuffix = Math.random().toString(36).substring(2, 8);
       const consentId = `${body.widgetId}_${body.visitorId}_${timestamp}_${randomSuffix}`;
-      
+
       // Create new consent record
       const insertData: any = {
         widget_id: body.widgetId,
@@ -640,11 +642,11 @@ export async function POST(request: NextRequest) {
         privacy_notice_version: '3.0', // Updated version for Consent ID system
         // Set revocation fields if status is revoked
         revoked_at: finalConsentStatus === 'revoked' ? new Date().toISOString() : null,
-        revocation_reason: finalConsentStatus === 'revoked' 
-          ? (body.revocationReason || 'User revoked consent via widget') 
+        revocation_reason: finalConsentStatus === 'revoked'
+          ? (body.revocationReason || 'User revoked consent via widget')
           : null,
       };
-      
+
       console.log('[Consent Record API] Attempting to insert consent record:', {
         widgetId: body.widgetId,
         visitorId: body.visitorId,
@@ -655,7 +657,7 @@ export async function POST(request: NextRequest) {
         hasRuleContext: !!ruleContext,
         hasPurposeConsents: !!validatedActivityPurposeConsents
       });
-      
+
       const { data, error } = await supabase
         .from('dpdpa_consent_records')
         .insert(insertData)
@@ -665,9 +667,9 @@ export async function POST(request: NextRequest) {
       if (error) {
         // Check if this is a constraint violation
         const isConstraintViolation = error.code === '23514' || // Check constraint violation
-                                     error.message?.includes('valid_consent_activities') ||
-                                     error.hint?.includes('valid_consent_activities');
-        
+          error.message?.includes('valid_consent_activities') ||
+          error.hint?.includes('valid_consent_activities');
+
         console.error('[Consent Record API] Error creating consent record:', {
           error: error.message,
           code: error.code,
@@ -683,11 +685,11 @@ export async function POST(request: NextRequest) {
           insertData: JSON.stringify(insertData, null, 2),
           timestamp: new Date().toISOString(),
         });
-        
+
         // Return more specific error for constraint violations
         if (isConstraintViolation) {
           return NextResponse.json(
-            { 
+            {
               error: 'Invalid consent data: status does not match activity arrays',
               code: 'CONSTRAINT_VIOLATION',
               details: {
@@ -697,7 +699,7 @@ export async function POST(request: NextRequest) {
                 message: 'The consent status must match the provided activities according to database constraints.'
               }
             },
-            { 
+            {
               status: 400,
               headers: {
                 'Access-Control-Allow-Origin': '*',
@@ -705,14 +707,14 @@ export async function POST(request: NextRequest) {
             }
           );
         }
-        
+
         return NextResponse.json(
-          { 
+          {
             error: 'Failed to create consent record',
             code: 'CREATE_FAILED',
             details: error.message
           },
-          { 
+          {
             status: 500,
             headers: {
               'Access-Control-Allow-Origin': '*',
@@ -731,7 +733,7 @@ export async function POST(request: NextRequest) {
       if (finalConsentStatus === 'revoked') {
         const { error: revokeError } = await supabase
           .from('visitor_consent_preferences')
-          .update({ 
+          .update({
             consent_status: 'withdrawn',
             last_updated: new Date().toISOString(),
           })
@@ -756,6 +758,7 @@ export async function POST(request: NextRequest) {
           activity_id: string;
           consent_status: 'accepted' | 'rejected';
           visitor_email_hash: string | null;
+          visitor_email: string | null;
           ip_address: string | null;
           user_agent: string | null;
           device_type: 'Desktop' | 'Mobile' | 'Tablet' | 'Unknown' | null;
@@ -772,6 +775,7 @@ export async function POST(request: NextRequest) {
             activity_id: activityId,
             consent_status: 'accepted',
             visitor_email_hash: visitorEmailHash,
+            visitor_email: visitorEmail,
             ip_address: ipAddress || null,
             user_agent: userAgent || null,
             device_type: deviceType || null,
@@ -789,6 +793,7 @@ export async function POST(request: NextRequest) {
             activity_id: activityId,
             consent_status: 'rejected',
             visitor_email_hash: visitorEmailHash,
+            visitor_email: visitorEmail,
             ip_address: ipAddress || null,
             user_agent: userAgent || null,
             device_type: deviceType || null,
@@ -871,19 +876,19 @@ export async function POST(request: NextRequest) {
     // Enhanced error logging for production
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     console.error('[Consent Record API] Unexpected error:', {
       error: errorMessage,
       stack: errorStack,
       timestamp: new Date().toISOString(),
     });
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         code: 'INTERNAL_ERROR'
       },
-      { 
+      {
         status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',

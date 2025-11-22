@@ -277,10 +277,78 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      
+
       console.log('[Verify OTP] ✅ Successfully linked preferences. Updated rows:', updatedData?.length || 0);
     } else {
       console.log('[Verify OTP] No existing preferences found to link');
+    }
+
+    // SYNC LOGIC: Check if this email has preferences from other devices and sync them to this device
+    try {
+      console.log('[Verify OTP] Checking for existing preferences from other devices...');
+
+      // Fetch all preferences for this email hash on this widget, excluding current visitor
+      const { data: otherDevicePrefs, error: syncFetchError } = await supabase
+        .from('visitor_consent_preferences')
+        .select('*')
+        .eq('visitor_email_hash', emailHash)
+        .eq('widget_id', widgetId)
+        .neq('visitor_id', visitorId) // Don't fetch what we just updated
+        .order('last_updated', { ascending: false });
+
+      if (syncFetchError) {
+        console.warn('[Verify OTP] Failed to fetch other device preferences (non-critical):', syncFetchError);
+      } else if (otherDevicePrefs && otherDevicePrefs.length > 0) {
+        console.log(`[Verify OTP] Found ${otherDevicePrefs.length} preference records from other devices`);
+
+        // Group by activity_id and get the most recent one for each
+        const latestPrefsByActivity = new Map();
+
+        for (const pref of otherDevicePrefs) {
+          if (!latestPrefsByActivity.has(pref.activity_id)) {
+            latestPrefsByActivity.set(pref.activity_id, pref);
+          }
+        }
+
+        console.log(`[Verify OTP] Identified ${latestPrefsByActivity.size} unique activities to sync`);
+
+        // Upsert these preferences for the current visitor_id
+        const prefsToSync = Array.from(latestPrefsByActivity.values()).map(pref => ({
+          visitor_id: visitorId,
+          widget_id: widgetId,
+          activity_id: pref.activity_id,
+          consent_status: pref.consent_status,
+          visitor_email_hash: emailHash, // Ensure hash is set
+          ip_address: pref.ip_address, // Optional: keep original IP or use current? Keeping original for audit trail of decision
+          user_agent: pref.user_agent,
+          device_type: pref.device_type,
+          language: pref.language,
+          expires_at: pref.expires_at,
+          consent_version: pref.consent_version,
+          last_updated: new Date().toISOString(), // Mark as updated now
+          consent_given_at: pref.consent_given_at
+        }));
+
+        if (prefsToSync.length > 0) {
+          const { error: syncError } = await supabase
+            .from('visitor_consent_preferences')
+            .upsert(prefsToSync, {
+              onConflict: 'visitor_id, widget_id, activity_id',
+              ignoreDuplicates: false
+            });
+
+          if (syncError) {
+            console.error('[Verify OTP] ❌ Error syncing preferences:', syncError);
+          } else {
+            console.log('[Verify OTP] ✅ Successfully synced preferences from other devices');
+          }
+        }
+      } else {
+        console.log('[Verify OTP] No preferences found from other devices to sync');
+      }
+    } catch (syncLogicError) {
+      console.error('[Verify OTP] Unexpected error in sync logic:', syncLogicError);
+      // Don't fail the request, this is an enhancement
     }
 
     // Count devices (unique visitor IDs) with this email hash
