@@ -221,7 +221,11 @@ export interface ConsentRecordRequest {
   acceptedActivities: string[];
   rejectedActivities: string[];
   activityConsents: Record<string, { status: string; timestamp: string }>;
+  // DEPRECATED: activityPurposeConsents - use acceptedPurposeConsents instead
   activityPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes consented to per activity
+  // NEW: Separate tracking for accepted and rejected purposes
+  acceptedPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes user accepted
+  rejectedPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes user rejected
   ruleContext?: PartialRuleContext;
   metadata?: ConsentMetadata;
   consentDuration?: number;
@@ -250,7 +254,11 @@ export interface ConsentMetadata {
  */
 export interface ConsentDetails {
   activityConsents: Record<string, { status: string; timestamp: string }>;
+  // DEPRECATED: activityPurposeConsents - use acceptedPurposeConsents instead
   activityPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes consented to per activity
+  // NEW: Separate tracking for accepted and rejected purposes
+  acceptedPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes user accepted
+  rejectedPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes user rejected
   ruleContext: RuleContext | null;
   metadata: ConsentMetadata;
 }
@@ -272,7 +280,9 @@ export const consentRecordRequestSchema = z.object({
     status: z.string(),
     timestamp: z.string(),
   })), // z.record(keySchema, valueSchema) - keys can be any string (including UUIDs)
-  activityPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // { activity_id: [purpose_id_1, purpose_id_2] } - keys can be any string
+  activityPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // DEPRECATED: use acceptedPurposeConsents
+  acceptedPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // NEW: accepted purposes per activity
+  rejectedPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // NEW: rejected purposes per activity
   ruleContext: z.object({
     ruleId: z.string().optional(),
     ruleName: z.string().optional(),
@@ -294,7 +304,7 @@ export const consentRecordRequestSchema = z.object({
   }).optional(),
   consentDuration: z.number().int().min(1).max(3650).optional(),
   revocationReason: z.string().max(500).optional(), // Optional reason for revocation
-  visitorEmail: z.string().email().max(255).optional(), // Optional: for cross-device consent management (will be hashed)
+  visitorEmail: z.string().email().max(255).nullish(), // Optional: for cross-device consent management (will be hashed) - accepts null or undefined
 });
 
 /**

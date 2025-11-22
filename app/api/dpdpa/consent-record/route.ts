@@ -512,7 +512,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate activityPurposeConsents if provided
+    // Validate activityPurposeConsents (DEPRECATED - kept for backward compatibility)
     let validatedActivityPurposeConsents: Record<string, string[]> | undefined = undefined;
     if (body.activityPurposeConsents && typeof body.activityPurposeConsents === 'object') {
       validatedActivityPurposeConsents = {};
@@ -536,12 +536,56 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate acceptedPurposeConsents (NEW)
+    let validatedAcceptedPurposeConsents: Record<string, string[]> | undefined = undefined;
+    if (body.acceptedPurposeConsents && typeof body.acceptedPurposeConsents === 'object') {
+      validatedAcceptedPurposeConsents = {};
+      for (const [activityId, purposeIds] of Object.entries(body.acceptedPurposeConsents)) {
+        if (typeof activityId === 'string' && uuidRegex.test(activityId)) {
+          if (Array.isArray(purposeIds)) {
+            const validatedPurposeIds = purposeIds.filter(id =>
+              typeof id === 'string' && uuidRegex.test(id)
+            );
+            if (validatedPurposeIds.length > 0) {
+              validatedAcceptedPurposeConsents[activityId] = validatedPurposeIds;
+            }
+          }
+        }
+      }
+      if (Object.keys(validatedAcceptedPurposeConsents).length === 0) {
+        validatedAcceptedPurposeConsents = undefined;
+      }
+    }
+
+    // Validate rejectedPurposeConsents (NEW)
+    let validatedRejectedPurposeConsents: Record<string, string[]> | undefined = undefined;
+    if (body.rejectedPurposeConsents && typeof body.rejectedPurposeConsents === 'object') {
+      validatedRejectedPurposeConsents = {};
+      for (const [activityId, purposeIds] of Object.entries(body.rejectedPurposeConsents)) {
+        if (typeof activityId === 'string' && uuidRegex.test(activityId)) {
+          if (Array.isArray(purposeIds)) {
+            const validatedPurposeIds = purposeIds.filter(id =>
+              typeof id === 'string' && uuidRegex.test(id)
+            );
+            if (validatedPurposeIds.length > 0) {
+              validatedRejectedPurposeConsents[activityId] = validatedPurposeIds;
+            }
+          }
+        }
+      }
+      if (Object.keys(validatedRejectedPurposeConsents).length === 0) {
+        validatedRejectedPurposeConsents = undefined;
+      }
+    }
+
     // Status validation already done above using validation utilities
     const finalConsentStatus = body.consentStatus;
 
     const consentDetails: ConsentDetails = {
       activityConsents: body.activityConsents || {},
-      activityPurposeConsents: validatedActivityPurposeConsents, // Store purpose-level consent
+      activityPurposeConsents: validatedActivityPurposeConsents, // DEPRECATED: kept for backward compatibility
+      acceptedPurposeConsents: validatedAcceptedPurposeConsents, // NEW: accepted purposes
+      rejectedPurposeConsents: validatedRejectedPurposeConsents, // NEW: rejected purposes
       ruleContext: ruleContext,
       metadata: {
         referrer: referrer || undefined,

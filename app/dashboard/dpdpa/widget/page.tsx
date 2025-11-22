@@ -12,10 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Accordion } from '@/components/ui/accordion';
 import { Modal } from '@/components/ui/modal';
-import { 
-  Settings, 
-  Code, 
-  Copy, 
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Settings,
+  Code,
+  Copy,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -171,14 +172,14 @@ export default function DPDPAWidgetPage() {
   });
   const [copySuccess, setCopySuccess] = useState(false);
   const [selectedLanguagesForTranslation, setSelectedLanguagesForTranslation] = useState<string[]>([]);
-  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [activitySearch, setActivitySearch] = useState('');
   const [activityFilter, setActivityFilter] = useState<string>('all');
   const [activitySort, setActivitySort] = useState<'name' | 'industry'>('name');
   const [showAddActivityModal, setShowAddActivityModal] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<'html' | 'wordpress' | 'shopify' | 'wix' | 'react'>('html');
-  const [widgetStats, setWidgetStats] = useState<{totalConsents: number; weeklyConsents: number; conversionRate: number} | null>(null);
-  const [notifications, setNotifications] = useState<Array<{id: string; type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string}>>([]);
+  const [widgetStats, setWidgetStats] = useState<{ totalConsents: number; weeklyConsents: number; conversionRate: number } | null>(null);
+  const [notifications, setNotifications] = useState<Array<{ id: string; type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string }>>([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showPrivacyNoticeModal, setShowPrivacyNoticeModal] = useState(false);
@@ -249,7 +250,7 @@ export default function DPDPAWidgetPage() {
   // Initialize notifications
   const initializeNotifications = () => {
     const alerts = [];
-    
+
     // Check for expiring consents (example notification)
     alerts.push({
       id: 'dpdpa-compliance',
@@ -274,7 +275,7 @@ export default function DPDPAWidgetPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch processing activities
       const activitiesRes = await fetch('/api/dpdpa/activities');
       if (activitiesRes.ok) {
@@ -289,7 +290,7 @@ export default function DPDPAWidgetPage() {
         if (configData.data && configData.data.length > 0) {
           // Use the first config (in production, you might want to support multiple configs)
           const existingConfig = configData.data[0];
-          
+
           // Fetch widget stats if widgetId exists
           if (existingConfig.widget_id) {
             try {
@@ -305,7 +306,7 @@ export default function DPDPAWidgetPage() {
             } catch (error) {
               console.error('Error fetching stats:', error);
             }
-            
+
             // Fetch preference centre stats
             try {
               const prefStatsRes = await fetch(`/api/dpdpa/preference-centre-stats/${existingConfig.widget_id}`);
@@ -317,10 +318,10 @@ export default function DPDPAWidgetPage() {
               console.error('Error fetching preference centre stats:', error);
             }
           }
-          
+
           // Check compliance status
           checkComplianceStatus(existingConfig);
-          
+
           setConfig({
             widgetId: existingConfig.widget_id,
             name: existingConfig.name,
@@ -360,30 +361,30 @@ export default function DPDPAWidgetPage() {
   };
 
   const validateConfig = () => {
-    const errors: {[key: string]: string} = {};
-    
+    const errors: { [key: string]: string } = {};
+
     if (!config.domain || config.domain.trim() === '') {
       errors.domain = 'Domain is required';
     } else if (config.domain.includes('http') || config.domain.includes('www')) {
       errors.domain = 'Remove http://, https://, and www from domain';
     }
-    
+
     if (!config.name || config.name.trim() === '') {
       errors.name = 'Widget name is required';
     }
-    
+
     if (config.selectedActivities.length === 0) {
       errors.activities = 'Select at least one processing activity';
     }
-    
+
     if (!config.title || config.title.trim() === '') {
       errors.title = 'Title is required';
     }
-    
+
     if (!config.message || config.message.trim() === '') {
       errors.message = 'Message is required';
     }
-    
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -392,7 +393,7 @@ export default function DPDPAWidgetPage() {
     // Filter out invalid activity IDs before saving
     const activityIds = new Set(activities.map(a => a.id));
     const validSelectedActivities = config.selectedActivities.filter(id => activityIds.has(id));
-    
+
     // Clean up display rules: remove invalid activity IDs from all rules
     const validActivityIds = new Set(validSelectedActivities);
     const cleanedDisplayRules = (config.displayRules || []).map(rule => {
@@ -405,7 +406,7 @@ export default function DPDPAWidgetPage() {
           cleanedActivities = undefined;
         }
       }
-      
+
       // Clean up activity_purposes object
       let cleanedActivityPurposes: Record<string, string[]> | undefined = undefined;
       if (rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0) {
@@ -417,14 +418,14 @@ export default function DPDPAWidgetPage() {
         }
         cleanedActivityPurposes = Object.keys(cleaned).length > 0 ? cleaned : undefined;
       }
-      
+
       return {
         ...rule,
         activities: cleanedActivities,
         activity_purposes: cleanedActivityPurposes,
       };
     });
-    
+
     // Update config with only valid activities for validation
     const configToSave = {
       ...config,
@@ -433,32 +434,32 @@ export default function DPDPAWidgetPage() {
     };
 
     // Validate with cleaned config
-    const errors: {[key: string]: string} = {};
-    
+    const errors: { [key: string]: string } = {};
+
     if (validSelectedActivities.length === 0) {
       errors.activities = 'Select at least one processing activity';
     }
-    
+
     if (!configToSave.domain || configToSave.domain.trim() === '') {
       errors.domain = 'Domain is required';
     } else if (configToSave.domain.includes('http') || configToSave.domain.includes('www')) {
       errors.domain = 'Remove http://, https://, and www from domain';
     }
-    
+
     if (!configToSave.name || configToSave.name.trim() === '') {
       errors.name = 'Widget name is required';
     }
-    
+
     if (!configToSave.title || configToSave.title.trim() === '') {
       errors.title = 'Title is required';
     }
-    
+
     if (!configToSave.message || configToSave.message.trim() === '') {
       errors.message = 'Message is required';
     }
-    
+
     setValidationErrors(errors);
-    
+
     if (Object.keys(errors).length > 0) {
       if (!silent) {
         toast.error('Please fix the validation errors before saving');
@@ -470,16 +471,16 @@ export default function DPDPAWidgetPage() {
 
     try {
       const method = configToSave.widgetId ? 'PUT' : 'POST';
-      const body = configToSave.widgetId 
-        ? { 
-            widgetId: configToSave.widgetId, 
-            ...configToSave,
-            displayRules: configToSave.displayRules || []
-          }
+      const body = configToSave.widgetId
+        ? {
+          widgetId: configToSave.widgetId,
+          ...configToSave,
+          displayRules: configToSave.displayRules || []
+        }
         : {
-            ...configToSave,
-            displayRules: configToSave.displayRules || []
-          };
+          ...configToSave,
+          displayRules: configToSave.displayRules || []
+        };
 
       const response = await fetch('/api/dpdpa/widget-config', {
         method,
@@ -506,11 +507,11 @@ export default function DPDPAWidgetPage() {
           description: config.widgetId ? 'Your widget configuration has been updated.' : 'Your widget is now ready to deploy.',
         });
       }
-      
+
       // Update last saved time and clear unsaved changes flag
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      
+
       // Clear validation errors on successful save
       setValidationErrors({});
     } catch (error) {
@@ -581,7 +582,7 @@ export default function DPDPAWidgetPage() {
   const handleSaveRule = (rule: DisplayRule) => {
     // Get valid activity IDs from widget's selected activities
     const validActivityIds = new Set(config.selectedActivities);
-    
+
     // Validate and filter rule activities
     let validatedActivities: string[] | undefined = undefined;
     if (rule.activities && rule.activities.length > 0) {
@@ -593,13 +594,13 @@ export default function DPDPAWidgetPage() {
         }
         return isValid;
       });
-      
+
       if (invalidActivityIds.length > 0) {
         toast.warning('Some activity IDs in this rule are not in your widget\'s selected activities', {
           description: `Removed ${invalidActivityIds.length} invalid activity ID(s). Please select the correct activities.`,
         });
       }
-      
+
       // If all activities were invalid AND user explicitly selected activities (not empty), show error
       if (validatedActivities.length === 0 && rule.activities && rule.activities.length > 0) {
         // User selected activities but none were valid
@@ -608,13 +609,13 @@ export default function DPDPAWidgetPage() {
         });
         return; // Don't save rule
       }
-      
+
       // If user didn't select any activities (empty array), set to undefined (show all activities)
       if (validatedActivities && validatedActivities.length === 0) {
         validatedActivities = undefined;
       }
     }
-    
+
     // Clean up activity_purposes: remove entries for invalid activities
     let validatedActivityPurposes: Record<string, string[]> | undefined = undefined;
     if (rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0) {
@@ -628,13 +629,13 @@ export default function DPDPAWidgetPage() {
       // Return undefined if cleaned object is empty
       validatedActivityPurposes = Object.keys(cleaned).length > 0 ? cleaned : undefined;
     }
-    
+
     // Clean up rule: remove empty notice_content fields and ensure proper structure
     const cleanedRule: DisplayRule = {
       ...rule,
       notice_content: rule.notice_content && (
-        rule.notice_content.title || 
-        rule.notice_content.message || 
+        rule.notice_content.title ||
+        rule.notice_content.message ||
         rule.notice_content.html
       ) ? {
         ...(rule.notice_content.title ? { title: rule.notice_content.title } : {}),
@@ -646,11 +647,11 @@ export default function DPDPAWidgetPage() {
       element_selector: rule.element_selector || undefined,
       trigger_delay: rule.trigger_delay || undefined,
     };
-    
+
     setConfig(prev => {
       const existingRules = prev.displayRules || [];
       const existingIndex = existingRules.findIndex(r => r.id === cleanedRule.id);
-      
+
       if (existingIndex >= 0) {
         // Update existing rule
         const updatedRules = [...existingRules];
@@ -671,26 +672,26 @@ export default function DPDPAWidgetPage() {
     setConfig(prev => {
       const rules = [...(prev.displayRules || [])];
       const index = rules.findIndex(r => r.id === ruleId);
-      
+
       if (index === -1) return prev;
       if (direction === 'up' && index === 0) return prev;
       if (direction === 'down' && index === rules.length - 1) return prev;
-      
+
       const newIndex = direction === 'up' ? index - 1 : index + 1;
       const newPriority = rules[newIndex].priority;
       rules[newIndex].priority = rules[index].priority;
       rules[index].priority = newPriority;
-      
+
       // Sort by priority (higher first)
       rules.sort((a, b) => b.priority - a.priority);
-      
+
       return { ...prev, displayRules: rules };
     });
   };
 
   const testRuleMatch = (rule: DisplayRule, testUrl: string): boolean => {
     if (!testUrl || !rule.url_pattern) return false;
-    
+
     switch (rule.url_match_type) {
       case 'exact':
         return testUrl === rule.url_pattern;
@@ -727,7 +728,7 @@ export default function DPDPAWidgetPage() {
       }
 
       toast.success('✅ Widget deleted successfully');
-      
+
       // Reset config to initial state
       setConfig({
         name: 'My DPDPA Widget',
@@ -782,19 +783,19 @@ export default function DPDPAWidgetPage() {
     switch (platform) {
       case 'html':
         return `<!-- Consently DPDPA Widget -->\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
-      
+
       case 'wordpress':
         return `<?php\n/**\n * Add Consently DPDPA Widget to WordPress\n * Add this to your theme's footer.php or use a plugin like \"Insert Headers and Footers\"\n */\n?>\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
-      
+
       case 'shopify':
         return `<!-- Add to: Online Store > Themes > Actions > Edit Code > theme.liquid -->\n<!-- Place before </body> tag -->\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>\n\n<!-- Production Option: Upload to Shopify CDN -->\n<!-- 1. Download widget: curl -o dpdpa-widget.js ${baseUrl}/dpdpa-widget.js -->\n<!-- 2. Upload at: Settings > Files -->\n<!-- 3. Replace src with Shopify CDN URL -->`;
-      
+
       case 'wix':
         return `<!-- Wix Installation:\n1. Go to Settings > Custom Code\n2. Click \"+ Add Custom Code\"\n3. Paste the code below\n4. Set to load on \"All Pages\" in the <body> section\n-->\n<script defer src="${baseUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
-      
+
       case 'react':
         return `// React/Next.js Installation\n'use client';\n\nimport { useEffect } from 'react';\n\nfunction ConsentlyWidget() {\n  useEffect(() => {\n    // Check if script is already loaded\n    const existingScript = document.querySelector('script[data-dpdpa-widget-id="${widgetId}"]');\n    if (existingScript) {\n      console.log('[Consently] Widget script already loaded');\n      return;\n    }\n\n    const script = document.createElement('script');\n    script.src = '${baseUrl}/dpdpa-widget.js';\n    script.setAttribute('data-dpdpa-widget-id', '${widgetId}');\n    script.async = true;\n    document.body.appendChild(script);\n\n    return () => {\n      // Safely remove script if it exists\n      if (script.parentNode) {\n        script.parentNode.removeChild(script);\n      }\n    };\n  }, []);\n\n  return null;\n}\n\nexport default ConsentlyWidget;`;
-      
+
       default:
         return getEmbedCode();
     }
@@ -825,13 +826,13 @@ export default function DPDPAWidgetPage() {
   const filteredAndSortedActivities = activities
     .filter(activity => {
       // Search filter
-      const matchesSearch = activitySearch === '' || 
+      const matchesSearch = activitySearch === '' ||
         activity.activityName.toLowerCase().includes(activitySearch.toLowerCase()) ||
         activity.purposes.some(p => p.purposeName.toLowerCase().includes(activitySearch.toLowerCase()));
-      
+
       // Industry filter
       const matchesFilter = activityFilter === 'all' || activity.industry === activityFilter;
-      
+
       return matchesSearch && matchesFilter;
     })
     .sort((a, b) => {
@@ -867,24 +868,24 @@ export default function DPDPAWidgetPage() {
   // Privacy notice HTML generator (matches backend logic)
   const generatePrivacyNoticeHTML = (activities: ProcessingActivity[], domain: string): string => {
     const companyName = domain || '[Your Company Name]';
-    
+
     const activitySections = activities.map((activity, index) => {
       const purposes = activity.purposes || [];
-      const purposesList = purposes.length > 0 
+      const purposesList = purposes.length > 0
         ? purposes.map(p => `<li>${escapeHtml(p.purposeName || 'Unknown Purpose')} (${escapeHtml((p.legalBasis || 'consent').replace('-', ' '))})</li>`).join('')
         : '<li>No purposes defined</li>';
-      
-      const allDataCategories = purposes.flatMap(p => 
+
+      const allDataCategories = purposes.flatMap(p =>
         (p.dataCategories || []).map(cat => cat.categoryName)
       );
-      const dataCategoriesText = allDataCategories.length > 0 
+      const dataCategoriesText = allDataCategories.length > 0
         ? allDataCategories.map(c => escapeHtml(c)).join(', ')
         : 'N/A';
-      
-      const retentionPeriods = purposes.flatMap(p => 
+
+      const retentionPeriods = purposes.flatMap(p =>
         (p.dataCategories || []).map(cat => `${cat.categoryName}: ${cat.retentionPeriod || 'N/A'}`)
       );
-      const retentionText = retentionPeriods.length > 0 
+      const retentionText = retentionPeriods.length > 0
         ? retentionPeriods.map(r => escapeHtml(r)).join(', ')
         : 'N/A';
 
@@ -985,16 +986,16 @@ export default function DPDPAWidgetPage() {
     };
     return text.replace(/[&<>"']/g, (m) => map[m]);
   };
-  
+
   // Translate preview content to selected language
   const translatePreviewContent = async (targetLang: string) => {
     if (targetLang === 'en') {
       setTranslatedPreviewContent(null);
       return;
     }
-    
+
     setTranslatingPreview(true);
-    
+
     try {
       const textsToTranslate = [
         config.title,
@@ -1005,7 +1006,7 @@ export default function DPDPAWidgetPage() {
         'Download Privacy Notice',
         'Proceed to Consent'
       ];
-      
+
       const response = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1015,7 +1016,7 @@ export default function DPDPAWidgetPage() {
           source: 'en'
         })
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.translations) {
@@ -1041,7 +1042,7 @@ export default function DPDPAWidgetPage() {
       setTranslatingPreview(false);
     }
   };
-  
+
   // Handle preview language change
   const handlePreviewLanguageChange = async (lang: string) => {
     setPreviewLanguage(lang);
@@ -1052,22 +1053,22 @@ export default function DPDPAWidgetPage() {
   const checkComplianceStatus = (configData: any) => {
     let requirementsMet = 0;
     const totalRequirements = 3;
-    
+
     // Check 1: Privacy notice version exists
     if (configData.privacy_notice_version) {
       requirementsMet++;
     }
-    
+
     // Check 2: Privacy notice last updated exists
     if (configData.privacy_notice_last_updated) {
       requirementsMet++;
     }
-    
+
     // Check 3: Selected activities exist
     if (configData.selected_activities && configData.selected_activities.length > 0) {
       requirementsMet++;
     }
-    
+
     setComplianceStatus({
       requirementsMet,
       totalRequirements,
@@ -1084,7 +1085,7 @@ export default function DPDPAWidgetPage() {
 
     const selectedActivitiesData = activities.filter(a => config.selectedActivities.includes(a.id));
     const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com');
-    
+
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1094,39 +1095,39 @@ export default function DPDPAWidgetPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast.success('Privacy notice downloaded successfully!');
   };
-  
+
   const updatePrivacyNoticeVersion = async () => {
     const currentVersion = config.privacyNoticeVersion || 'v1.0';
     const versionMatch = currentVersion.match(/v(\d+)\.(\d+)/);
     let newVersion = 'v1.1';
-    
+
     if (versionMatch) {
       const major = parseInt(versionMatch[1]);
       const minor = parseInt(versionMatch[2]);
       newVersion = `v${major}.${minor + 1}`;
     }
-    
+
     const confirmed = window.confirm(
       `Update privacy notice version to ${newVersion}?\n\nThis will require existing users to re-consent.`
     );
-    
+
     if (!confirmed) return;
-    
+
     setConfig({
       ...config,
       privacyNoticeVersion: newVersion,
       privacyNoticeLastUpdated: new Date().toISOString(),
       requiresReconsent: true
     });
-    
+
     toast.success('Privacy notice version updated', {
       description: 'Existing users will be prompted to re-consent'
     });
   };
-  
+
   const copyPreferenceCentreUrl = () => {
     const url = `${window.location.origin}/privacy-centre/${config.widgetId || '{widgetId}'}?visitorId={visitorId}`;
     navigator.clipboard.writeText(url);
@@ -1184,7 +1185,7 @@ export default function DPDPAWidgetPage() {
               {config.widgetId && (
                 <>
                   <Link href={`/dashboard/dpdpa/widget-stats/${config.widgetId}`}>
-                    <Button 
+                    <Button
                       variant="outline"
                       className="shadow-sm hover:shadow-md transition-shadow"
                     >
@@ -1192,15 +1193,15 @@ export default function DPDPAWidgetPage() {
                       View Stats
                     </Button>
                   </Link>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setShowPreview(!showPreview)}
                     className="shadow-sm hover:shadow-md transition-shadow"
                   >
                     <Eye className="mr-2 h-4 w-4" />
                     {showPreview ? 'Hide' : 'Preview'}
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={() => setShowDeleteConfirm(true)}
                     className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 shadow-sm hover:shadow-md transition-shadow"
@@ -1210,7 +1211,7 @@ export default function DPDPAWidgetPage() {
                   </Button>
                 </>
               )}
-              <Button 
+              <Button
                 onClick={() => handleSave(false)}
                 disabled={saving}
                 size="lg"
@@ -1311,176 +1312,213 @@ export default function DPDPAWidgetPage() {
             setShowRuleModal(false);
             setEditingRule(null);
           }}
-          title={editingRule.id.startsWith('rule_') && !config.displayRules?.find(r => r.id === editingRule.id) 
-            ? '✨ Create Display Rule' 
+          title={editingRule.id.startsWith('rule_') && !config.displayRules?.find(r => r.id === editingRule.id)
+            ? '✨ Create Display Rule'
             : '✏️ Edit Display Rule'}
           size="xl"
         >
-          <div className="space-y-5">
-              {/* Quick Info Banner */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-r-lg p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      Display rules let you show different consent notices on different pages. Configure URL patterns, triggers, and filter activities/purposes.
-                    </p>
-                  </div>
+          <div className="flex flex-col h-[calc(80vh-100px)]">
+            {/* Quick Info Banner */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-r-lg p-4 shadow-sm mb-4 flex-shrink-0">
+              <div className="flex items-start gap-3">
+                <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    Display rules let you show different consent notices on different pages. Configure URL patterns, triggers, and filter activities/purposes.
+                  </p>
                 </div>
               </div>
+            </div>
 
-              {/* Basic Information - Always Visible */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Settings className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <h4 className="font-semibold text-gray-900">Basic Information</h4>
-                  <span className="ml-auto text-xs text-red-500 font-medium">* Required</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Rule Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      value={editingRule.rule_name}
-                      onChange={(e) => setEditingRule({ ...editingRule, rule_name: e.target.value })}
-                      placeholder="e.g., Careers Page Notice"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Priority <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      value={editingRule.priority}
-                      onChange={(e) => setEditingRule({ ...editingRule, priority: parseInt(e.target.value) || 100 })}
-                      min="0"
-                      max="1000"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Higher priority rules are evaluated first (0-1000)</p>
-                  </div>
-                </div>
+            <Tabs defaultValue="basic" className="flex-1 flex flex-col min-h-0">
+              <TabsList className="grid w-full grid-cols-4 mb-4 flex-shrink-0">
+                <TabsTrigger value="basic" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Basic</span>
+                </TabsTrigger>
+                <TabsTrigger value="trigger" className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  <span className="hidden sm:inline">Trigger</span>
+                </TabsTrigger>
+                <TabsTrigger value="filtering" className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filtering</span>
+                </TabsTrigger>
+                <TabsTrigger value="content" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Content</span>
+                </TabsTrigger>
+              </TabsList>
 
-                <div className="col-span-2">
-                  <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
-                    <Checkbox
-                      checked={editingRule.is_active}
-                      onChange={(e) => setEditingRule({ ...editingRule, is_active: e.target.checked })}
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium text-gray-900">Rule Active</span>
-                      <p className="text-xs text-gray-500 mt-0.5">Only active rules are evaluated and shown to visitors</p>
+              <div className="flex-1 overflow-y-auto pr-2 pb-4">
+                {/* Tab 1: Basic Information */}
+                <TabsContent value="basic" className="mt-0 space-y-4">
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Settings className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Basic Information</h4>
+                      <span className="ml-auto text-xs text-red-500 font-medium">* Required</span>
                     </div>
-                  </label>
-                </div>
-              </div>
 
-              {/* URL Matching - Accordion */}
-              <Accordion
-                title="URL Matching"
-                defaultOpen={true}
-                icon={
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Route className="h-4 w-4 text-purple-600" />
-                  </div>
-                }
-              >
-                <div className="space-y-4">
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      URL Pattern <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      value={editingRule.url_pattern}
-                      onChange={(e) => setEditingRule({ ...editingRule, url_pattern: e.target.value })}
-                      placeholder="e.g., /careers or /contact"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">The URL pattern to match against</p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Match Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={editingRule.url_match_type}
-                      onChange={(e) => setEditingRule({ ...editingRule, url_match_type: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="contains">Contains</option>
-                      <option value="exact">Exact Match</option>
-                      <option value="startsWith">Starts With</option>
-                      <option value="regex">Regular Expression</option>
-                    </select>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Rule Name <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          value={editingRule.rule_name}
+                          onChange={(e) => setEditingRule({ ...editingRule, rule_name: e.target.value })}
+                          placeholder="e.g., Careers Page Notice"
+                        />
+                      </div>
 
-                {/* Test URL */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Test URL Match
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={ruleTestUrl}
-                      onChange={(e) => setRuleTestUrl(e.target.value)}
-                      placeholder="e.g., /careers or /contact/form"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        const matches = testRuleMatch(editingRule, ruleTestUrl);
-                        if (matches) {
-                          toast.success('✅ URL matches this rule!');
-                        } else {
-                          toast.info('❌ URL does not match this rule');
-                        }
-                      }}
-                    >
-                      <TestTube className="h-4 w-4 mr-2" />
-                      Test
-                    </Button>
-                  </div>
-                </div>
-                </div>
-              </Accordion>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Priority <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          type="number"
+                          value={editingRule.priority}
+                          onChange={(e) => setEditingRule({ ...editingRule, priority: parseInt(e.target.value) || 100 })}
+                          min="0"
+                          max="1000"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Higher priority rules are evaluated first (0-1000)</p>
+                      </div>
+                    </div>
 
-              {/* Trigger Configuration - Accordion */}
-              <Accordion
-                title="Trigger Configuration"
-                defaultOpen={false}
-                icon={
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Zap className="h-4 w-4 text-green-600" />
+                    <div className="mt-4">
+                      <label className="w-full flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={editingRule.is_active}
+                          onChange={(e) => setEditingRule({ ...editingRule, is_active: e.target.checked })}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 mt-0.5 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-900">Rule Active</span>
+                          <p className="text-xs text-gray-500 mt-0.5">Only active rules are evaluated and shown to visitors</p>
+                        </div>
+                      </label>
+                    </div>
                   </div>
-                }
-              >
-                <div className="space-y-4">
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Trigger Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={editingRule.trigger_type}
-                      onChange={(e) => setEditingRule({ ...editingRule, trigger_type: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="onFormSubmit">On Form Submit (Recommended)</option>
-                      <option value="onPageLoad">On Page Load</option>
-                      <option value="onClick">On Click</option>
-                      <option value="onScroll">On Scroll</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
+                </TabsContent>
+
+                {/* Tab 2: Trigger Configuration */}
+                <TabsContent value="trigger" className="mt-0 space-y-4">
+                  {/* URL Matching Section */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <Route className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <h4 className="font-semibold text-gray-900">URL Matching</h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          URL Pattern <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          value={editingRule.url_pattern}
+                          onChange={(e) => setEditingRule({ ...editingRule, url_pattern: e.target.value })}
+                          placeholder="e.g., /careers or /contact"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">The URL pattern to match against</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Match Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={editingRule.url_match_type}
+                          onChange={(e) => setEditingRule({ ...editingRule, url_match_type: e.target.value as any })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="contains">Contains</option>
+                          <option value="exact">Exact Match</option>
+                          <option value="startsWith">Starts With</option>
+                          <option value="regex">Regular Expression</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Test URL */}
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Test URL Match
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={ruleTestUrl}
+                          onChange={(e) => setRuleTestUrl(e.target.value)}
+                          placeholder="e.g., /careers or /contact/form"
+                          className="bg-white"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const matches = testRuleMatch(editingRule, ruleTestUrl);
+                            if (matches) {
+                              toast.success('✅ URL matches this rule!');
+                            } else {
+                              toast.info('❌ URL does not match this rule');
+                            }
+                          }}
+                        >
+                          <TestTube className="h-4 w-4 mr-2" />
+                          Test
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trigger Settings Section */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <Zap className="h-4 w-4 text-green-600" />
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Trigger Settings</h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Trigger Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={editingRule.trigger_type}
+                          onChange={(e) => setEditingRule({ ...editingRule, trigger_type: e.target.value as any })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="onFormSubmit">On Form Submit (Recommended)</option>
+                          <option value="onPageLoad">On Page Load</option>
+                          <option value="onClick">On Click</option>
+                          <option value="onScroll">On Scroll</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Trigger Delay (ms)
+                        </label>
+                        <Input
+                          type="number"
+                          value={editingRule.trigger_delay || 1000}
+                          onChange={(e) => setEditingRule({ ...editingRule, trigger_delay: parseInt(e.target.value) || 0 })}
+                          min="0"
+                          max="60000"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-100 mb-4">
                       {editingRule.trigger_type === 'onFormSubmit' && (
                         'Widget shows before any form submission. Auto-detects all forms if no selector provided.'
                       )}
@@ -1493,163 +1531,142 @@ export default function DPDPAWidgetPage() {
                       {editingRule.trigger_type === 'onScroll' && (
                         'Widget shows when user scrolls to a certain threshold.'
                       )}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Trigger Delay (ms)
-                    </label>
-                    <Input
-                      type="number"
-                      value={editingRule.trigger_delay || 1000}
-                      onChange={(e) => setEditingRule({ ...editingRule, trigger_delay: parseInt(e.target.value) || 0 })}
-                      min="0"
-                      max="60000"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Delay before showing widget (0-60000ms)</p>
-                  </div>
-                </div>
-
-                {(editingRule.trigger_type === 'onClick' || editingRule.trigger_type === 'onFormSubmit') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Element Selector (CSS) {editingRule.trigger_type === 'onFormSubmit' && <span className="text-gray-500 font-normal">(Optional)</span>}
-                      {editingRule.trigger_type === 'onClick' && <span className="text-red-500">*</span>}
-                    </label>
-                    <Input
-                      value={editingRule.element_selector || ''}
-                      onChange={(e) => setEditingRule({ ...editingRule, element_selector: e.target.value })}
-                      placeholder={editingRule.trigger_type === 'onFormSubmit' ? 'e.g., form#contact-form (leave empty to auto-detect all forms)' : 'e.g., #submit-button or .cta-button'}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {editingRule.trigger_type === 'onFormSubmit' 
-                        ? 'Optional: Target a specific form. If empty, widget will intercept ALL form submissions on the page.'
-                        : 'CSS selector for the element to trigger on click'}
-                    </p>
-                  </div>
-                )}
-
-                {editingRule.trigger_type === 'onScroll' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Scroll Threshold (%)
-                    </label>
-                    <Input
-                      type="number"
-                      value={editingRule.scroll_threshold !== undefined ? editingRule.scroll_threshold : 50}
-                      onChange={(e) => setEditingRule({ ...editingRule, scroll_threshold: parseInt(e.target.value) || 50 })}
-                      min="0"
-                      max="100"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Show widget when user scrolls to this percentage of the page (0-100). Default: 50%</p>
-                  </div>
-                )}
-                </div>
-              </Accordion>
-
-              {/* Activity Filtering - Accordion */}
-              <Accordion
-                title="Activity Filtering"
-                defaultOpen={true}
-                icon={
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Filter className="h-4 w-4 text-orange-600" />
-                  </div>
-                }
-              >
-                <div className="space-y-4">
-                
-                {/* Compact warning */}
-                <div className="bg-red-50 border-l-4 border-red-400 rounded-r-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-red-800 leading-relaxed">
-                      <strong className="font-semibold">Critical:</strong> Selected activities must be from your widget's selected activities list. Invalid selections will prevent the widget from showing.
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-semibold text-gray-900">
-                      Select Activities
-                    </label>
-                    <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                      {(editingRule.activities || []).length > 0 ? (
-                        <span className="text-orange-600 font-medium">
-                          {(editingRule.activities || []).length} selected
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">All activities</span>
-                      )}
                     </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mb-3">Leave empty to show all activities from your widget</p>
-                  
-                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-80 overflow-y-auto bg-white shadow-sm">
-                    {activities.length === 0 ? (
-                      <div className="p-6 text-center">
-                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">No activities available</p>
-                        <p className="text-xs text-gray-400 mt-1">Add activities to your widget first</p>
+
+                    {(editingRule.trigger_type === 'onClick' || editingRule.trigger_type === 'onFormSubmit') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Element Selector (CSS) {editingRule.trigger_type === 'onFormSubmit' && <span className="text-gray-500 font-normal">(Optional)</span>}
+                          {editingRule.trigger_type === 'onClick' && <span className="text-red-500">*</span>}
+                        </label>
+                        <Input
+                          value={editingRule.element_selector || ''}
+                          onChange={(e) => setEditingRule({ ...editingRule, element_selector: e.target.value })}
+                          placeholder={editingRule.trigger_type === 'onFormSubmit' ? 'e.g., form#contact-form (leave empty to auto-detect all forms)' : 'e.g., #submit-button or .cta-button'}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {editingRule.trigger_type === 'onFormSubmit'
+                            ? 'Optional: Target a specific form. If empty, widget will intercept ALL form submissions on the page.'
+                            : 'CSS selector for the element to trigger on click'}
+                        </p>
                       </div>
-                    ) : (
-                      activities.map((activity) => {
-                        const isSelected = (editingRule.activities || []).includes(activity.id);
-                        return (
-                          <div
-                            key={activity.id}
-                            className={`relative transition-all duration-200 ${
-                              isSelected 
-                                ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-l-4 border-l-orange-500 shadow-sm' 
-                                : 'bg-white border-l-4 border-l-transparent hover:bg-gray-50 hover:border-l-gray-300'
-                            }`}
+                    )}
+
+                    {editingRule.trigger_type === 'onScroll' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Scroll Threshold (%)
+                        </label>
+                        <Input
+                          type="number"
+                          value={editingRule.scroll_threshold !== undefined ? editingRule.scroll_threshold : 50}
+                          onChange={(e) => setEditingRule({ ...editingRule, scroll_threshold: parseInt(e.target.value) || 50 })}
+                          min="0"
+                          max="100"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Show widget when user scrolls to this percentage of the page (0-100). Default: 50%</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Tab 3: Activity Filtering */}
+                <TabsContent value="filtering" className="mt-0 space-y-4">
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <Filter className="h-4 w-4 text-orange-600" />
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Activity Filtering</h4>
+                    </div>
+
+                    {/* Compact warning */}
+                    <div className="bg-red-50 border-l-4 border-red-400 rounded-r-lg p-3 mb-4">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-red-800 leading-relaxed">
+                          <strong className="font-semibold">Critical:</strong> Selected activities must be from your widget's selected activities list. Invalid selections will prevent the widget from showing.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-semibold text-gray-900">
+                          Select Activities
+                        </label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => setEditingRule({ ...editingRule, activities: activities.map(a => a.id) })}
                           >
-                            <label className="flex items-start gap-3 p-4 cursor-pointer group">
-                              <div className="flex items-center justify-center">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked;
-                                    const currentActivities = editingRule.activities || [];
-                                    const currentActivityPurposes = editingRule.activity_purposes || {};
-                                    
-                                    if (checked) {
-                                      setEditingRule({ 
-                                        ...editingRule, 
-                                        activities: [...currentActivities, activity.id]
-                                      });
-                                    } else {
-                                      const { [activity.id]: removed, ...restPurposes } = currentActivityPurposes;
-                                      setEditingRule({ 
-                                        ...editingRule, 
-                                        activities: currentActivities.filter(id => id !== activity.id),
-                                        activity_purposes: Object.keys(restPurposes).length > 0 ? restPurposes : undefined
-                                      });
-                                    }
-                                  }}
-                                  className="mt-1 flex-shrink-0 w-5 h-5"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-3 mb-2">
+                            Select All
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => setEditingRule({ ...editingRule, activities: [] })}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded mb-3 inline-block">
+                        {(editingRule.activities || []).length > 0 ? (
+                          <span className="text-orange-600 font-medium">
+                            {(editingRule.activities || []).length} selected
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">All activities (Default)</span>
+                        )}
+                      </div>
+
+                      <div className="border border-gray-200 rounded-lg max-h-80 overflow-y-auto bg-white shadow-sm p-2">
+                        {activities.length === 0 ? (
+                          <div className="p-6 text-center">
+                            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No activities available</p>
+                            <p className="text-xs text-gray-400 mt-1">Add activities to your widget first</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {activities.map((activity) => {
+                              const isSelected = (editingRule.activities || []).includes(activity.id);
+                              return (
+                                <label
+                                  key={activity.id}
+                                  className={`flex items-start gap-2 p-2 rounded-md border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50 border-blue-100' : ''}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      const currentActivities = editingRule.activities || [];
+                                      let newActivities;
+                                      if (checked) {
+                                        newActivities = [...currentActivities, activity.id];
+                                      } else {
+                                        newActivities = currentActivities.filter(id => id !== activity.id);
+                                      }
+                                      setEditingRule({ ...editingRule, activities: newActivities });
+                                    }}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 mt-0.5 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 shrink-0"
+                                  />
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <h6 className={`text-sm font-semibold truncate transition-colors ${
-                                        isSelected ? 'text-orange-900' : 'text-gray-900 group-hover:text-orange-600'
-                                      }`}>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <h6 className={`text-sm font-medium break-words ${isSelected ? 'text-blue-700' : 'text-gray-900'}`}>
                                         {activity.activityName}
                                       </h6>
                                       {isSelected && (
-                                        <Badge className="bg-orange-500 text-white text-xs flex-shrink-0">
-                                          <CheckCircle className="h-3 w-3 mr-1" />
-                                          Selected
-                                        </Badge>
+                                        <CheckCircle className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                      <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 flex-shrink-0">
                                         {activity.industry}
                                       </Badge>
                                       {activity.purposes && activity.purposes.length > 0 && (
@@ -1660,251 +1677,232 @@ export default function DPDPAWidgetPage() {
                                       )}
                                     </div>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap mt-3">
-                                  <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-gray-200 text-xs">
-                                    <span className="text-[10px] uppercase font-semibold text-gray-500">ID:</span>
-                                    <code className="text-xs text-gray-700 font-mono">
-                                      {activity.id.slice(0, 8)}...
-                                    </code>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      navigator.clipboard.writeText(activity.id);
-                                      toast.success(`Copied: ${activity.activityName}`);
-                                    }}
-                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-white text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 rounded transition-colors flex-shrink-0"
-                                  >
-                                    <Copy className="h-3 w-3" />
-                                    Copy
-                                  </button>
-                                </div>
-                              </div>
-                            </label>
-                            {isSelected && (
-                              <div className="absolute top-2 right-2">
-                                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
-                              </div>
-                            )}
+                                  {isSelected && (
+                                    <div className="absolute top-2 right-2">
+                                      <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
+                                    </div>
+                                  )}
+                                </label>
+                              );
+                            })}
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-                </div>
-              </Accordion>
+                        )}
+                      </div>
 
-              {/* Purpose Filtering - Accordion (Only show if activities are selected) */}
-              {(editingRule.activities && editingRule.activities.length > 0) && (
-                <Accordion
-                  title="Purpose Filtering (Advanced)"
-                  defaultOpen={false}
-                  icon={
-                    <div className="p-2 bg-pink-100 rounded-lg">
-                      <CheckCircle2 className="h-4 w-4 text-pink-600" />
-                    </div>
-                  }
-                >
-                  <div className="space-y-4">
-                  <div className="bg-pink-50 border-l-4 border-pink-400 rounded-r-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <span className="text-pink-600 text-sm">💡</span>
-                      <p className="text-xs text-pink-800 leading-relaxed">
-                        Select specific purposes to show for each activity. Leave "Show all purposes" checked to display all purposes.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {editingRule.activities.map((activityId) => {
-                      const activity = activities.find(a => a.id === activityId);
-                      if (!activity || !activity.purposes || activity.purposes.length === 0) return null;
-                      
-                      const selectedPurposes = editingRule.activity_purposes?.[activityId];
-                      // If selectedPurposes is undefined or empty array, show all purposes
-                      // If selectedPurposes has values, show only those purposes
-                      const isAllPurposesSelected = !selectedPurposes || selectedPurposes.length === 0;
-                      
-                      return (
-                        <div key={activityId} className="border border-gray-200 rounded-lg p-4 bg-white">
-                          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                            <h5 className="font-medium text-gray-900 truncate flex-1 min-w-0">{activity.activityName}</h5>
-                            <Badge variant="secondary" className="flex-shrink-0">{activity.industry}</Badge>
+                      {/* Purpose Filtering (Advanced) - Only show if activities are selected */}
+                      {(editingRule.activities && editingRule.activities.length > 0) && (
+                        <div className="mt-6 border-t pt-6">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 bg-pink-100 rounded-lg">
+                              <CheckCircle2 className="h-4 w-4 text-pink-600" />
+                            </div>
+                            <h4 className="font-semibold text-gray-900">Purpose Filtering (Advanced)</h4>
                           </div>
-                          <div className="space-y-3">
-                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                              <Checkbox
-                                checked={isAllPurposesSelected}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  const currentActivityPurposes = editingRule.activity_purposes || {};
-                                  if (checked) {
-                                    // Show all purposes (remove from activity_purposes or set to empty)
-                                    const { [activityId]: removed, ...rest } = currentActivityPurposes;
-                                    setEditingRule({
-                                      ...editingRule,
-                                      activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
-                                    });
-                                  } else {
-                                    // Select all purposes by default (user wants to filter, so start with all selected)
-                                    const allPurposeIds = activity.purposes.map(p => p.id);
-                                    setEditingRule({
-                                      ...editingRule,
-                                      activity_purposes: { ...currentActivityPurposes, [activityId]: allPurposeIds }
-                                    });
-                                  }
-                                }}
-                                className="flex-shrink-0"
-                              />
-                              <span className="text-sm font-medium text-gray-700">Show all purposes</span>
-                              {isAllPurposesSelected && (
-                                <Badge variant="outline" className="ml-auto text-xs text-green-600 flex-shrink-0">
-                                  {activity.purposes.length} purposes
-                                </Badge>
-                              )}
-                            </label>
-                            {!isAllPurposesSelected && selectedPurposes && (
-                              <div className="ml-8 space-y-2 border-l-2 border-blue-200 pl-4 bg-blue-50/30 rounded-r p-3">
-                                <p className="text-xs text-blue-700 font-medium mb-2">
-                                  Filtering: {selectedPurposes.length} of {activity.purposes.length} purposes
-                                </p>
-                                <div className="space-y-2">
-                                  {activity.purposes.map((purpose) => (
-                                    <label key={purpose.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
-                                      <Checkbox
-                                        checked={selectedPurposes.includes(purpose.id)}
+
+                          <div className="bg-pink-50 border-l-4 border-pink-400 rounded-r-lg p-3 mb-4">
+                            <div className="flex items-start gap-2">
+                              <span className="text-pink-600 text-sm">💡</span>
+                              <p className="text-xs text-pink-800 leading-relaxed">
+                                Select specific purposes to show for each activity. Leave "Show all purposes" checked to display all purposes.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            {editingRule.activities.map((activityId) => {
+                              const activity = activities.find(a => a.id === activityId);
+                              if (!activity || !activity.purposes || activity.purposes.length === 0) return null;
+
+                              const selectedPurposes = editingRule.activity_purposes?.[activityId];
+                              const isAllPurposesSelected = !selectedPurposes || selectedPurposes.length === 0;
+
+                              return (
+                                <div key={activityId} className="border border-gray-200 rounded-lg p-4 bg-white">
+                                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                    <h5 className="font-medium text-gray-900 break-words flex-1 min-w-0">{activity.activityName}</h5>
+                                    <Badge variant="secondary" className="flex-shrink-0">{activity.industry}</Badge>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                                      <input
+                                        type="checkbox"
+                                        checked={isAllPurposesSelected}
                                         onChange={(e) => {
                                           const checked = e.target.checked;
                                           const currentActivityPurposes = editingRule.activity_purposes || {};
-                                          const currentPurposes = currentActivityPurposes[activityId] || [];
-                                          
                                           if (checked) {
+                                            // Show all purposes (remove from activity_purposes or set to empty)
+                                            const { [activityId]: removed, ...rest } = currentActivityPurposes;
                                             setEditingRule({
                                               ...editingRule,
-                                              activity_purposes: {
-                                                ...currentActivityPurposes,
-                                                [activityId]: [...currentPurposes, purpose.id]
-                                              }
+                                              activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
                                             });
                                           } else {
-                                            const newPurposes = currentPurposes.filter(id => id !== purpose.id);
-                                            // If no purposes selected, remove from activity_purposes (show all)
-                                            if (newPurposes.length === 0) {
-                                              const { [activityId]: removed, ...rest } = currentActivityPurposes;
-                                              setEditingRule({
-                                                ...editingRule,
-                                                activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
-                                              });
-                                            } else {
-                                              setEditingRule({
-                                                ...editingRule,
-                                                activity_purposes: {
-                                                  ...currentActivityPurposes,
-                                                  [activityId]: newPurposes
-                                                }
-                                              });
-                                            }
+                                            // Select all purposes by default (user wants to filter, so start with all selected)
+                                            const allPurposeIds = activity.purposes.map(p => p.id);
+                                            setEditingRule({
+                                              ...editingRule,
+                                              activity_purposes: { ...currentActivityPurposes, [activityId]: allPurposeIds }
+                                            });
                                           }
                                         }}
-                                        className="flex-shrink-0"
+                                        className="mt-0.5 flex-shrink-0"
                                       />
-                                      <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{purpose.purposeName}</span>
-                                      <Badge variant="outline" className="ml-auto text-xs flex-shrink-0">
-                                        {purpose.legalBasis.replace('-', ' ')}
-                                      </Badge>
+                                      <span className="text-sm font-medium text-gray-700 pt-0.5">Show all purposes</span>
+                                      {isAllPurposesSelected && (
+                                        <Badge variant="outline" className="ml-auto text-xs text-green-600 flex-shrink-0">
+                                          {activity.purposes.length} purposes
+                                        </Badge>
+                                      )}
                                     </label>
-                                  ))}
+                                    {!isAllPurposesSelected && selectedPurposes && (
+                                      <div className="ml-0 sm:ml-8 space-y-2 border-l-2 border-blue-200 pl-4 bg-blue-50/30 rounded-r p-3">
+                                        <p className="text-xs text-blue-700 font-medium mb-2">
+                                          Filtering: {selectedPurposes.length} of {activity.purposes.length} purposes
+                                        </p>
+                                        <div className="grid grid-cols-1 gap-2">
+                                          {activity.purposes.map((purpose) => (
+                                            <label key={purpose.id} className="flex items-start gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                                              <input
+                                                type="checkbox"
+                                                checked={selectedPurposes.includes(purpose.id)}
+                                                onChange={(e) => {
+                                                  const checked = e.target.checked;
+                                                  const currentActivityPurposes = editingRule.activity_purposes || {};
+                                                  const currentPurposes = currentActivityPurposes[activityId] || [];
+
+                                                  if (checked) {
+                                                    setEditingRule({
+                                                      ...editingRule,
+                                                      activity_purposes: {
+                                                        ...currentActivityPurposes,
+                                                        [activityId]: [...currentPurposes, purpose.id]
+                                                      }
+                                                    });
+                                                  } else {
+                                                    const newPurposes = currentPurposes.filter(id => id !== purpose.id);
+                                                    // If no purposes selected, remove from activity_purposes (show all)
+                                                    if (newPurposes.length === 0) {
+                                                      const { [activityId]: removed, ...rest } = currentActivityPurposes;
+                                                      setEditingRule({
+                                                        ...editingRule,
+                                                        activity_purposes: Object.keys(rest).length > 0 ? rest : undefined
+                                                      });
+                                                    } else {
+                                                      setEditingRule({
+                                                        ...editingRule,
+                                                        activity_purposes: {
+                                                          ...currentActivityPurposes,
+                                                          [activityId]: newPurposes
+                                                        }
+                                                      });
+                                                    }
+                                                  }
+                                                }}
+                                                className="mt-0.5 flex-shrink-0"
+                                              />
+                                              <span className="text-sm text-gray-700 flex-1 min-w-0 break-words">{purpose.purposeName}</span>
+                                              <Badge variant="outline" className="ml-auto text-xs flex-shrink-0">
+                                                {purpose.legalBasis.replace('-', ' ')}
+                                              </Badge>
+                                            </label>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })}
                           </div>
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
                   </div>
-                  </div>
-                </Accordion>
-              )}
+                </TabsContent>
 
-              {/* Notice Content Override - Accordion */}
-              <Accordion
-                title="Notice Content (Optional)"
-                defaultOpen={false}
-                icon={
-                  <div className="p-2 bg-indigo-100 rounded-lg">
-                    <FileText className="h-4 w-4 text-indigo-600" />
+                {/* Tab 4: Content Configuration */}
+                <TabsContent value="content" className="mt-0 space-y-4">
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-2 bg-indigo-100 rounded-lg">
+                        <FileText className="h-4 w-4 text-indigo-600" />
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Notice Content</h4>
+                    </div>
+
+                    <div className="bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg p-3 mb-4">
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-indigo-800 leading-relaxed">
+                          Override the default widget title, message, or HTML content for this rule. Leave empty to use defaults.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Custom Title
+                        </label>
+                        <Input
+                          value={editingRule.notice_content?.title || ''}
+                          onChange={(e) => setEditingRule({
+                            ...editingRule,
+                            notice_content: {
+                              ...(editingRule.notice_content || {}),
+                              title: e.target.value || undefined
+                            }
+                          })}
+                          placeholder="Leave empty to use default title"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Custom Message
+                        </label>
+                        <Textarea
+                          value={editingRule.notice_content?.message || ''}
+                          onChange={(e) => setEditingRule({
+                            ...editingRule,
+                            notice_content: {
+                              ...(editingRule.notice_content || {}),
+                              message: e.target.value || undefined
+                            }
+                          })}
+                          placeholder="Leave empty to use default message"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Custom HTML Content
+                        </label>
+                        <Textarea
+                          value={editingRule.notice_content?.html || ''}
+                          onChange={(e) => setEditingRule({
+                            ...editingRule,
+                            notice_content: {
+                              ...(editingRule.notice_content || {}),
+                              html: e.target.value || undefined
+                            }
+                          })}
+                          placeholder="Custom HTML for privacy notice (optional)"
+                          rows={5}
+                          className="font-mono text-xs"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">HTML content will override the generated privacy notice</p>
+                      </div>
+                    </div>
                   </div>
-                }
-              >
-                <div className="space-y-4">
-                <p className="text-xs text-gray-500 mb-4">
-                  Override the default widget title, message, or HTML content for this rule. Leave empty to use defaults.
-                </p>
-                
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Custom Title
-                    </label>
-                    <Input
-                      value={editingRule.notice_content?.title || ''}
-                      onChange={(e) => setEditingRule({
-                        ...editingRule,
-                        notice_content: { 
-                          ...(editingRule.notice_content || {}), 
-                          title: e.target.value || undefined
-                        }
-                      })}
-                      placeholder="Leave empty to use default title"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Custom Message
-                    </label>
-                    <Textarea
-                      value={editingRule.notice_content?.message || ''}
-                      onChange={(e) => setEditingRule({
-                        ...editingRule,
-                        notice_content: { 
-                          ...(editingRule.notice_content || {}), 
-                          message: e.target.value || undefined
-                        }
-                      })}
-                      placeholder="Leave empty to use default message"
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Custom HTML Content
-                    </label>
-                    <Textarea
-                      value={editingRule.notice_content?.html || ''}
-                      onChange={(e) => setEditingRule({
-                        ...editingRule,
-                        notice_content: { 
-                          ...(editingRule.notice_content || {}), 
-                          html: e.target.value || undefined
-                        }
-                      })}
-                      placeholder="Custom HTML for privacy notice (optional)"
-                      rows={5}
-                      className="font-mono text-xs"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">HTML content will override the generated privacy notice</p>
-                  </div>
-                </div>
-                </div>
-              </Accordion>
+                </TabsContent>
+              </div>
+            </Tabs>
 
             {/* Actions - Sticky Footer */}
-            <div className="flex gap-3 pt-6 border-t-2 border-gray-200 sticky bottom-0 bg-white">
+            <div className="flex gap-3 pt-6 border-t-2 border-gray-200 sticky bottom-0 bg-white mt-auto">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1934,177 +1932,181 @@ export default function DPDPAWidgetPage() {
       )}
 
       {/* Notifications Banner */}
-      {notifications.length > 0 && (
-        <div className="space-y-2" role="alert" aria-live="polite">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`relative overflow-hidden rounded-xl border p-4 shadow-sm ${
-                notification.type === 'error' ? 'bg-red-50 border-red-200' :
-                notification.type === 'warning' ? 'bg-orange-50 border-orange-200' :
-                notification.type === 'success' ? 'bg-green-50 border-green-200' :
-                'bg-blue-50 border-blue-200'
-              }`}
-            >
-              <button
-                onClick={() => setNotifications(notifications.filter(n => n.id !== notification.id))}
-                className="absolute top-2 right-2 p-1 hover:bg-black/10 rounded"
-                aria-label="Dismiss notification"
+      {
+        notifications.length > 0 && (
+          <div className="space-y-2" role="alert" aria-live="polite">
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`relative overflow-hidden rounded-xl border p-4 shadow-sm ${notification.type === 'error' ? 'bg-red-50 border-red-200' :
+                  notification.type === 'warning' ? 'bg-orange-50 border-orange-200' :
+                    notification.type === 'success' ? 'bg-green-50 border-green-200' :
+                      'bg-blue-50 border-blue-200'
+                  }`}
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <div className="flex items-start gap-3">
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                  notification.type === 'error' ? 'bg-red-100' :
-                  notification.type === 'warning' ? 'bg-orange-100' :
-                  notification.type === 'success' ? 'bg-green-100' :
-                  'bg-blue-100'
-                }`}>
-                  {notification.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600" />}
-                  {notification.type === 'warning' && <AlertCircle className="h-5 w-5 text-orange-600" />}
-                  {notification.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600" />}
-                  {notification.type === 'info' && <Info className="h-5 w-5 text-blue-600" />}
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 text-sm">{notification.title}</h4>
-                  <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Quick Analytics Summary */}
-      {config.widgetId && widgetStats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-600">Weekly Consents</p>
-                  <p className="text-3xl font-bold text-blue-900 mt-2">{widgetStats.weeklyConsents}</p>
-                  <p className="text-xs text-blue-700 mt-1">Last 7 days</p>
-                </div>
-                <div className="p-3 bg-blue-500 rounded-full">
-                  <BarChart3 className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-indigo-600">Total Consents</p>
-                  <p className="text-3xl font-bold text-indigo-900 mt-2">{widgetStats.totalConsents}</p>
-                  <p className="text-xs text-indigo-700 mt-1">All time</p>
-                </div>
-                <div className="p-3 bg-indigo-500 rounded-full">
-                  <CheckCircle className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-600">Conversion Rate</p>
-                  <p className="text-3xl font-bold text-green-900 mt-2">{widgetStats.conversionRate}%</p>
-                  <p className="text-xs text-green-700 mt-1">Acceptance rate</p>
-                </div>
-                <div className="p-3 bg-green-500 rounded-full">
-                  <Sparkles className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-indigo-600">Activities</p>
-                  <p className="text-3xl font-bold text-indigo-900 mt-2">{validSelectedActivitiesCount}</p>
-                  <p className="text-xs text-indigo-700 mt-1">Configured</p>
-                </div>
-                <div className="p-3 bg-indigo-500 rounded-full">
-                  <Shield className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Privacy Notice Modal */}
-      {showPrivacyNoticeModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowPrivacyNoticeModal(false)}
-        >
-          <div 
-            className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Full Privacy Notice Preview</h2>
-                <p className="text-sm text-gray-600 mt-1">This is what users will see and download</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={downloadPrivacyNotice}
-                  variant="outline"
-                  size="sm"
-                  className="shadow-sm"
-                >
-                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download
-                </Button>
                 <button
-                  onClick={() => setShowPrivacyNoticeModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Close modal"
+                  onClick={() => setNotifications(notifications.filter(n => n.id !== notification.id))}
+                  className="absolute top-2 right-2 p-1 hover:bg-black/10 rounded"
+                  aria-label="Dismiss notification"
                 >
-                  <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div 
-                className="prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: generatedPrivacyNotice }}
-              />
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 border-t bg-gray-50 rounded-b-2xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span>Auto-generated from your processing activities</span>
+                <div className="flex items-start gap-3">
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${notification.type === 'error' ? 'bg-red-100' :
+                    notification.type === 'warning' ? 'bg-orange-100' :
+                      notification.type === 'success' ? 'bg-green-100' :
+                        'bg-blue-100'
+                    }`}>
+                    {notification.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600" />}
+                    {notification.type === 'warning' && <AlertCircle className="h-5 w-5 text-orange-600" />}
+                    {notification.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600" />}
+                    {notification.type === 'info' && <Info className="h-5 w-5 text-blue-600" />}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 text-sm">{notification.title}</h4>
+                    <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                  </div>
                 </div>
-                <Button
-                  onClick={() => setShowPrivacyNoticeModal(false)}
-                  variant="default"
-                >
-                  Close Preview
-                </Button>
+              </div>
+            ))}
+          </div>
+        )
+      }
+
+      {/* Quick Analytics Summary */}
+      {
+        config.widgetId && widgetStats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-600">Weekly Consents</p>
+                    <p className="text-3xl font-bold text-blue-900 mt-2">{widgetStats.weeklyConsents}</p>
+                    <p className="text-xs text-blue-700 mt-1">Last 7 days</p>
+                  </div>
+                  <div className="p-3 bg-blue-500 rounded-full">
+                    <BarChart3 className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-indigo-600">Total Consents</p>
+                    <p className="text-3xl font-bold text-indigo-900 mt-2">{widgetStats.totalConsents}</p>
+                    <p className="text-xs text-indigo-700 mt-1">All time</p>
+                  </div>
+                  <div className="p-3 bg-indigo-500 rounded-full">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Conversion Rate</p>
+                    <p className="text-3xl font-bold text-green-900 mt-2">{widgetStats.conversionRate}%</p>
+                    <p className="text-xs text-green-700 mt-1">Acceptance rate</p>
+                  </div>
+                  <div className="p-3 bg-green-500 rounded-full">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-indigo-600">Activities</p>
+                    <p className="text-3xl font-bold text-indigo-900 mt-2">{validSelectedActivitiesCount}</p>
+                    <p className="text-xs text-indigo-700 mt-1">Configured</p>
+                  </div>
+                  <div className="p-3 bg-indigo-500 rounded-full">
+                    <Shield className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
+
+      {/* Privacy Notice Modal */}
+      {
+        showPrivacyNoticeModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowPrivacyNoticeModal(false)}
+          >
+            <div
+              className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Full Privacy Notice Preview</h2>
+                  <p className="text-sm text-gray-600 mt-1">This is what users will see and download</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={downloadPrivacyNotice}
+                    variant="outline"
+                    size="sm"
+                    className="shadow-sm"
+                  >
+                    <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download
+                  </Button>
+                  <button
+                    onClick={() => setShowPrivacyNoticeModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Close modal"
+                  >
+                    <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: generatedPrivacyNotice }}
+                />
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t bg-gray-50 rounded-b-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>Auto-generated from your processing activities</span>
+                  </div>
+                  <Button
+                    onClick={() => setShowPrivacyNoticeModal(false)}
+                    variant="default"
+                  >
+                    Close Preview
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Configuration Grid */}
       <div className="grid gap-8 lg:grid-cols-3">
@@ -2146,7 +2148,7 @@ export default function DPDPAWidgetPage() {
                   </p>
                 </div>
               )}
-              
+
               {/* Search, Filter, and Sort Controls */}
               {activities.length > 0 && (
                 <div className="mb-6 space-y-3">
@@ -2163,7 +2165,7 @@ export default function DPDPAWidgetPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </div>
-                    
+
                     {/* Filter by Industry */}
                     <select
                       value={activityFilter}
@@ -2175,7 +2177,7 @@ export default function DPDPAWidgetPage() {
                         <option key={industry} value={industry}>{industry}</option>
                       ))}
                     </select>
-                    
+
                     {/* Sort */}
                     <select
                       value={activitySort}
@@ -2186,7 +2188,7 @@ export default function DPDPAWidgetPage() {
                       <option value="industry">Sort by Industry</option>
                     </select>
                   </div>
-                  
+
                   {/* Results count */}
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>
@@ -2206,7 +2208,7 @@ export default function DPDPAWidgetPage() {
                   </div>
                 </div>
               )}
-              
+
               {activities.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="flex justify-center mb-4">
@@ -2242,53 +2244,52 @@ export default function DPDPAWidgetPage() {
                     </div>
                   ) : (
                     filteredAndSortedActivities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className={`group relative border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 ${
-                        config.selectedActivities.includes(activity.id)
+                      <div
+                        key={activity.id}
+                        className={`group relative border-2 rounded-xl p-5 cursor-pointer transition-all duration-200 ${config.selectedActivities.includes(activity.id)
                           ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-blue-50 shadow-md scale-[1.02]'
                           : 'border-gray-200 hover:border-indigo-300 hover:shadow-sm hover:scale-[1.01]'
-                      }`}
-                      onClick={() => handleActivityToggle(activity.id)}
-                    >
-                      {config.selectedActivities.includes(activity.id) && (
-                        <div className="absolute top-3 right-3">
-                          <CheckCircle className="h-5 w-5 text-indigo-600" />
-                        </div>
-                      )}
-                      <div className="flex items-start gap-4">
-                        <div className="mt-0.5">
-                          <Checkbox
-                            checked={config.selectedActivities.includes(activity.id)}
-                            onChange={() => handleActivityToggle(activity.id)}
-                            className="h-5 w-5"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-semibold text-gray-900 text-base">
-                              {activity.activityName}
-                            </h4>
-                            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
-                              {activity.industry}
-                            </Badge>
+                          }`}
+                        onClick={() => handleActivityToggle(activity.id)}
+                      >
+                        {config.selectedActivities.includes(activity.id) && (
+                          <div className="absolute top-3 right-3">
+                            <CheckCircle className="h-5 w-5 text-indigo-600" />
                           </div>
-                          <p className="text-sm text-gray-600 mb-3 leading-relaxed">
-                            {activity.purposes.map(p => p.purposeName).join(', ') || 'No purposes configured'}
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {activity.purposes.flatMap(p => p.dataCategories.map(cat => cat.categoryName)).map((categoryName, i) => (
-                              <span
-                                key={i}
-                                className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md font-medium text-gray-700"
-                              >
-                                {categoryName}
-                              </span>
-                            ))}
+                        )}
+                        <div className="flex items-start gap-4">
+                          <div className="mt-0.5">
+                            <Checkbox
+                              checked={config.selectedActivities.includes(activity.id)}
+                              onChange={() => handleActivityToggle(activity.id)}
+                              className="h-5 w-5"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-gray-900 text-base">
+                                {activity.activityName}
+                              </h4>
+                              <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
+                                {activity.industry}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                              {activity.purposes.map(p => p.purposeName).join(', ') || 'No purposes configured'}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {activity.purposes.flatMap(p => p.dataCategories.map(cat => cat.categoryName)).map((categoryName, i) => (
+                                <span
+                                  key={i}
+                                  className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-md font-medium text-gray-700"
+                                >
+                                  {categoryName}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
                     ))
                   )}
                 </div>
@@ -2361,154 +2362,153 @@ export default function DPDPAWidgetPage() {
                       const hasNoPurposeFiltering = !rule.activity_purposes || Object.keys(rule.activity_purposes).length === 0;
                       const hasMultipleActivities = rule.activities && rule.activities.length > 1;
                       const hasIssues = hasNoActivities || (hasMultipleActivities && hasNoPurposeFiltering);
-                      
+
                       return (
-                      <div
-                        key={rule.id}
-                        className={`border-2 rounded-xl p-4 transition-all ${
-                          hasIssues && rule.is_active
+                        <div
+                          key={rule.id}
+                          className={`border-2 rounded-xl p-4 transition-all ${hasIssues && rule.is_active
                             ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-white shadow-sm'
                             : rule.is_active
-                            ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-white shadow-sm'
-                            : 'border-gray-200 bg-gray-50 opacity-60'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <Badge
-                                variant={rule.is_active ? 'default' : 'secondary'}
-                                className={hasIssues && rule.is_active ? 'bg-yellow-600' : rule.is_active ? 'bg-blue-600' : 'bg-gray-400'}
-                              >
-                                {rule.is_active ? 'Active' : 'Inactive'}
-                              </Badge>
-                              {hasIssues && rule.is_active && (
-                                <Badge variant="destructive" className="text-xs">
-                                  ⚠️ Needs Fix
+                              ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-white shadow-sm'
+                              : 'border-gray-200 bg-gray-50 opacity-60'
+                            }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <Badge
+                                  variant={rule.is_active ? 'default' : 'secondary'}
+                                  className={hasIssues && rule.is_active ? 'bg-yellow-600' : rule.is_active ? 'bg-blue-600' : 'bg-gray-400'}
+                                >
+                                  {rule.is_active ? 'Active' : 'Inactive'}
                                 </Badge>
-                              )}
-                              <h4 className="font-semibold text-gray-900">{rule.rule_name}</h4>
-                              <Badge variant="outline" className="text-xs">
-                                Priority: {rule.priority}
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600 mb-3">
-                              <div>
-                                <span className="font-medium">URL Pattern:</span>{' '}
-                                <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">
-                                  {rule.url_pattern || '(empty)'}
-                                </code>
+                                {hasIssues && rule.is_active && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    ⚠️ Needs Fix
+                                  </Badge>
+                                )}
+                                <h4 className="font-semibold text-gray-900">{rule.rule_name}</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  Priority: {rule.priority}
+                                </Badge>
                               </div>
-                              <div>
-                                <span className="font-medium">Match Type:</span>{' '}
-                                <span className="capitalize">{rule.url_match_type}</span>
-                              </div>
-                              <div>
-                                <span className="font-medium">Trigger:</span>{' '}
-                                <span className="capitalize">{rule.trigger_type}</span>
-                                {rule.trigger_type === 'onScroll' && rule.scroll_threshold !== undefined && (
-                                  <span className="text-gray-500 ml-1">({rule.scroll_threshold}%)</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-600 mb-3">
+                                <div>
+                                  <span className="font-medium block mb-0.5">URL Pattern:</span>
+                                  <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded break-all block w-fit max-w-full">
+                                    {rule.url_pattern || '(empty)'}
+                                  </code>
+                                </div>
+                                <div>
+                                  <span className="font-medium block mb-0.5">Match Type:</span>
+                                  <span className="capitalize">{rule.url_match_type}</span>
+                                </div>
+                                <div>
+                                  <span className="font-medium block mb-0.5">Trigger:</span>
+                                  <span className="capitalize">{rule.trigger_type}</span>
+                                  {rule.trigger_type === 'onScroll' && rule.scroll_threshold !== undefined && (
+                                    <span className="text-gray-500 ml-1">({rule.scroll_threshold}%)</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="font-medium block mb-0.5">Activities:</span>
+                                  {rule.activities && rule.activities.length > 0
+                                    ? `${rule.activities.length} selected`
+                                    : <span className="text-yellow-600">⚠️ None (shows all)</span>}
+                                </div>
+                                {rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0 ? (
+                                  <div className="sm:col-span-2 md:col-span-4">
+                                    <span className="font-medium">Purposes:</span>{' '}
+                                    <span className="text-green-600">✓ Filtered ({Object.keys(rule.activity_purposes).length} activities)</span>
+                                  </div>
+                                ) : (
+                                  <div className="sm:col-span-2 md:col-span-4">
+                                    <span className="font-medium">Purposes:</span>{' '}
+                                    <span className="text-yellow-600">⚠️ None (shows all)</span>
+                                  </div>
                                 )}
                               </div>
-                              <div>
-                                <span className="font-medium">Activities:</span>{' '}
-                                {rule.activities && rule.activities.length > 0
-                                  ? `${rule.activities.length} selected`
-                                  : <span className="text-yellow-600">⚠️ None (shows all)</span>}
-                              </div>
-                              {rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0 ? (
-                                <div>
-                                  <span className="font-medium">Purposes:</span>{' '}
-                                  <span className="text-green-600">✓ Filtered ({Object.keys(rule.activity_purposes).length} activities)</span>
+                              {rule.notice_content && (rule.notice_content.title || rule.notice_content.message) && (
+                                <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                                  <p className="text-xs text-blue-900">
+                                    <span className="font-medium">Custom Notice:</span>{' '}
+                                    {rule.notice_content.title || rule.notice_content.message || 'Custom HTML content'}
+                                  </p>
                                 </div>
-                              ) : (
-                                <div>
-                                  <span className="font-medium">Purposes:</span>{' '}
-                                  <span className="text-yellow-600">⚠️ None (shows all)</span>
+                              )}
+
+                              {/* Warning Messages */}
+                              {hasIssues && rule.is_active && (
+                                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
+                                  <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ Configuration Issues:</p>
+                                  <ul className="list-disc list-inside text-sm text-yellow-800 space-y-1">
+                                    {hasNoActivities && (
+                                      <li>No activities specified - will show ALL activities</li>
+                                    )}
+                                    {!hasNoActivities && hasNoPurposeFiltering && (
+                                      <li>No purpose filtering - will show ALL purposes from selected activities</li>
+                                    )}
+                                    {hasMultipleActivities && hasNoPurposeFiltering && (
+                                      <li>Multiple activities without filtering = multiple purposes may show</li>
+                                    )}
+                                  </ul>
+                                  <p className="mt-2 text-sm text-yellow-900 font-medium">
+                                    💡 Fix: Specify activities array and activity_purposes mapping
+                                  </p>
                                 </div>
                               )}
                             </div>
-                            {rule.notice_content && (rule.notice_content.title || rule.notice_content.message) && (
-                              <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
-                                <p className="text-xs text-blue-900">
-                                  <span className="font-medium">Custom Notice:</span>{' '}
-                                  {rule.notice_content.title || rule.notice_content.message || 'Custom HTML content'}
-                                </p>
-                              </div>
-                            )}
-                            
-                            {/* Warning Messages */}
-                            {hasIssues && rule.is_active && (
-                              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
-                                <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ Configuration Issues:</p>
-                                <ul className="list-disc list-inside text-sm text-yellow-800 space-y-1">
-                                  {hasNoActivities && (
-                                    <li>No activities specified - will show ALL activities</li>
-                                  )}
-                                  {!hasNoActivities && hasNoPurposeFiltering && (
-                                    <li>No purpose filtering - will show ALL purposes from selected activities</li>
-                                  )}
-                                  {hasMultipleActivities && hasNoPurposeFiltering && (
-                                    <li>Multiple activities without filtering = multiple purposes may show</li>
-                                  )}
-                                </ul>
-                                <p className="mt-2 text-sm text-yellow-900 font-medium">
-                                  💡 Fix: Specify activities array and activity_purposes mapping
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 ml-4">
-                            <Tooltip content="Move up">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleMoveRule(rule.id, 'up')}
-                                disabled={index === 0}
-                                className="h-8 w-8 p-0"
-                              >
-                                <ChevronUp className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
-                            <Tooltip content="Move down">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleMoveRule(rule.id, 'down')}
-                                disabled={index === (config.displayRules?.length || 0) - 1}
-                                className="h-8 w-8 p-0"
-                              >
-                                <ChevronDown className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
-                            <Tooltip content="Edit rule">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditRule(rule)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
-                            <Tooltip content="Delete rule">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteRule(rule.id)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
+                            <div className="flex items-center gap-1 ml-4">
+                              <Tooltip content="Move up">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMoveRule(rule.id, 'up')}
+                                  disabled={index === 0}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip content="Move down">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMoveRule(rule.id, 'down')}
+                                  disabled={index === (config.displayRules?.length || 0) - 1}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip content="Edit rule">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditRule(rule)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip content="Delete rule">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteRule(rule.id)}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </Tooltip>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
-              
+
               {config.displayRules && config.displayRules.length > 0 && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs text-blue-900 flex items-start gap-2">
@@ -2671,11 +2671,10 @@ export default function DPDPAWidgetPage() {
                           });
                         }
                       }}
-                      className={`flex items-center gap-2 p-3 border-2 rounded-lg transition-all ${
-                        config.supportedLanguages?.includes(lang.code)
-                          ? 'border-blue-500 bg-blue-50 shadow-sm'
-                          : 'border-gray-200 hover:border-blue-300 bg-white'
-                      }`}
+                      className={`flex items-center gap-2 p-3 border-2 rounded-lg transition-all ${config.supportedLanguages?.includes(lang.code)
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-gray-200 hover:border-blue-300 bg-white'
+                        }`}
                     >
                       <span className="text-xl">{lang.flag}</span>
                       <span className="text-sm font-medium text-gray-700 flex-1 text-left">{lang.name}</span>
@@ -2698,8 +2697,8 @@ export default function DPDPAWidgetPage() {
           </Card>
 
           {/* Appearance */}
-          <Accordion 
-            title="Appearance & Theme" 
+          <Accordion
+            title="Appearance & Theme"
             defaultOpen={false}
             icon={<div className="p-2 bg-purple-100 rounded-lg"><Palette className="h-5 w-5 text-purple-600" /></div>}
             className="shadow-sm hover:shadow-md transition-shadow"
@@ -2721,16 +2720,16 @@ export default function DPDPAWidgetPage() {
                       className="group relative p-3 border-2 border-gray-200 rounded-xl hover:border-indigo-300 transition-all hover:shadow-md"
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <div 
-                          className="w-6 h-6 rounded-full shadow-sm" 
+                        <div
+                          className="w-6 h-6 rounded-full shadow-sm"
                           style={{ backgroundColor: preset.primaryColor }}
                         ></div>
-                        <div 
-                          className="w-4 h-4 rounded border" 
+                        <div
+                          className="w-4 h-4 rounded border"
                           style={{ backgroundColor: preset.backgroundColor }}
                         ></div>
-                        <div 
-                          className="w-4 h-4 rounded" 
+                        <div
+                          className="w-4 h-4 rounded"
                           style={{ backgroundColor: preset.textColor }}
                         ></div>
                       </div>
@@ -2952,7 +2951,7 @@ export default function DPDPAWidgetPage() {
                     </button>
                   </div>
                 </div>
-                <div 
+                <div
                   className="shadow-2xl max-w-md mx-auto overflow-hidden transition-all duration-300 hover:shadow-3xl"
                   style={{
                     backgroundColor: config.theme.backgroundColor,
@@ -2966,9 +2965,9 @@ export default function DPDPAWidgetPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         {config.theme.logoUrl ? (
-                          <img 
-                            src={config.theme.logoUrl} 
-                            alt="Brand Logo" 
+                          <img
+                            src={config.theme.logoUrl}
+                            alt="Brand Logo"
                             className="h-9 w-auto object-contain"
                             style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
                             onError={(e) => {
@@ -2976,9 +2975,9 @@ export default function DPDPAWidgetPage() {
                             }}
                           />
                         ) : (
-                          <div 
+                          <div
                             className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
-                            style={{ 
+                            style={{
                               background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
                               boxShadow: `0 4px 8px ${config.theme.primaryColor}40`
                             }}
@@ -2992,7 +2991,7 @@ export default function DPDPAWidgetPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <select 
+                        <select
                           value={previewLanguage}
                           onChange={(e) => handlePreviewLanguageChange(e.target.value)}
                           disabled={translatingPreview}
@@ -3000,7 +2999,7 @@ export default function DPDPAWidgetPage() {
                           style={{ borderColor: '#e5e7eb', opacity: translatingPreview ? 0.5 : 1, fontSize: '11px' }}
                         >
                           {Array.from(new Set(config.supportedLanguages || ['en'])).map(code => {
-                            const langMap: Record<string, {name: string}> = {
+                            const langMap: Record<string, { name: string }> = {
                               en: { name: 'English' },
                               hi: { name: 'हिंदी' },
                               pa: { name: 'ਪੰਜਾਬੀ' },
@@ -3038,29 +3037,29 @@ export default function DPDPAWidgetPage() {
                           <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Purpose</div>
                           <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Data Categories</div>
                         </div>
-                        
+
                         {/* Table Body */}
                         <div className="space-y-2">
                           {config.selectedActivities.flatMap((actId) => {
                             const activity = activities.find(a => a.id === actId);
                             if (!activity || !activity.purposes || activity.purposes.length === 0) return [];
-                            
+
                             // Create a row for each purpose within this activity
                             return activity.purposes.map((purpose, purposeIdx) => {
                               const dataCategories = purpose.dataCategories?.map(cat => cat.categoryName) || [];
                               const uniqueKey = `${actId}-${purpose.id || purposeIdx}`;
-                              
+
                               return (
                                 <div key={uniqueKey} className="grid grid-cols-[auto_1fr_1.5fr] gap-3 items-start p-2.5 border-2 rounded-lg bg-gradient-to-b from-white to-gray-50 hover:shadow-md transition-all" style={{ borderColor: '#e5e7eb' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    className="mt-0.5" 
-                                    style={{ 
-                                      width: '16px', 
+                                  <input
+                                    type="checkbox"
+                                    className="mt-0.5"
+                                    style={{
+                                      width: '16px',
                                       height: '16px',
                                       accentColor: config.theme.primaryColor,
                                       borderRadius: '3px'
-                                    }} 
+                                    }}
                                   />
                                   <div className="text-xs font-semibold text-gray-800 leading-tight pt-0.5">
                                     {purpose.purposeName || 'Unknown Purpose'}
@@ -3097,15 +3096,15 @@ export default function DPDPAWidgetPage() {
                         </div>
                         <button
                           className="px-3.5 py-2 text-[11px] font-bold rounded-lg border-2 transition-all hover:shadow-lg flex items-center gap-1.5"
-                          style={{ 
+                          style={{
                             backgroundColor: 'white',
                             color: config.theme.primaryColor,
                             borderColor: config.theme.primaryColor
                           }}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2"/>
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2" />
                           </svg>
                           Preference Centre
                         </button>
@@ -3143,7 +3142,7 @@ export default function DPDPAWidgetPage() {
                       </button>
                       <button
                         className="flex-1 px-3 py-2.5 rounded-xl text-[11px] font-bold text-white transition-all hover:shadow-lg hover:scale-105 shadow-md"
-                        style={{ 
+                        style={{
                           background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
                           boxShadow: `0 4px 8px ${config.theme.primaryColor}40`
                         }}
@@ -3173,24 +3172,24 @@ export default function DPDPAWidgetPage() {
           </Accordion>
 
           {/* Behavior Settings */}
-          <Accordion 
-            title="Behavior Settings" 
+          <Accordion
+            title="Behavior Settings"
             defaultOpen={false}
             icon={<div className="p-2 bg-green-100 rounded-lg"><Zap className="h-5 w-5 text-green-600" /></div>}
             className="shadow-sm hover:shadow-md transition-shadow"
           >
             <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="flex items-start gap-3">
-                    <Play className="h-5 w-5 text-green-600 mt-0.5" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">Auto Show Widget</p>
-                        <Tooltip content="When enabled, the widget will automatically appear after the specified delay. When disabled, you'll need to trigger it programmatically." />
-                      </div>
-                      <p className="text-sm text-gray-600">Automatically display widget when users visit</p>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-start gap-3">
+                  <Play className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900">Auto Show Widget</p>
+                      <Tooltip content="When enabled, the widget will automatically appear after the specified delay. When disabled, you'll need to trigger it programmatically." />
                     </div>
+                    <p className="text-sm text-gray-600">Automatically display widget when users visit</p>
                   </div>
+                </div>
                 <Checkbox
                   checked={config.autoShow}
                   onChange={(e) =>
@@ -3318,11 +3317,10 @@ export default function DPDPAWidgetPage() {
                       <button
                         key={platform.id}
                         onClick={() => setSelectedPlatform(platform.id as any)}
-                        className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                          selectedPlatform === platform.id
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-200'
-                        }`}
+                        className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${selectedPlatform === platform.id
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-200'
+                          }`}
                       >
                         <span className="mr-1">{platform.icon}</span>
                         {platform.label}
@@ -3343,7 +3341,7 @@ export default function DPDPAWidgetPage() {
                   </div>
 
                   {/* Copy Button */}
-                  <Button 
+                  <Button
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
@@ -3420,7 +3418,7 @@ export default function DPDPAWidgetPage() {
                   <p className="text-sm text-gray-600 mb-4">
                     Save your configuration first to generate the embed code
                   </p>
-                  <Button onClick={handleSave} variant="default" size="sm">
+                  <Button onClick={() => handleSave(false)} variant="default" size="sm">
                     <Save className="mr-2 h-4 w-4" />
                     Save Now
                   </Button>
@@ -3459,10 +3457,9 @@ export default function DPDPAWidgetPage() {
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all ${
-                      complianceStatus.isCompliant ? 'bg-green-600' : 'bg-orange-500'
-                    }`}
+                  <div
+                    className={`h-2 rounded-full transition-all ${complianceStatus.isCompliant ? 'bg-green-600' : 'bg-orange-500'
+                      }`}
                     style={{ width: `${(complianceStatus.requirementsMet / complianceStatus.totalRequirements) * 100}%` }}
                   ></div>
                 </div>
@@ -3470,12 +3467,10 @@ export default function DPDPAWidgetPage() {
 
               {/* Requirements Checklist */}
               <div className="space-y-3">
-                <div className={`flex items-start gap-3 p-3 rounded-lg border ${
-                  config.privacyNoticeVersion ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
-                }`}>
-                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                    config.privacyNoticeVersion ? 'bg-green-100' : 'bg-orange-100'
+                <div className={`flex items-start gap-3 p-3 rounded-lg border ${config.privacyNoticeVersion ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
                   }`}>
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${config.privacyNoticeVersion ? 'bg-green-100' : 'bg-orange-100'
+                    }`}>
                     {config.privacyNoticeVersion ? (
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     ) : (
@@ -3492,13 +3487,11 @@ export default function DPDPAWidgetPage() {
                     )}
                   </div>
                 </div>
-                
-                <div className={`flex items-start gap-3 p-3 rounded-lg border ${
-                  config.selectedActivities.length > 0 ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
-                }`}>
-                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                    config.selectedActivities.length > 0 ? 'bg-green-100' : 'bg-orange-100'
+
+                <div className={`flex items-start gap-3 p-3 rounded-lg border ${config.selectedActivities.length > 0 ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
                   }`}>
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${config.selectedActivities.length > 0 ? 'bg-green-100' : 'bg-orange-100'
+                    }`}>
                     {config.selectedActivities.length > 0 ? (
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     ) : (
@@ -3516,12 +3509,10 @@ export default function DPDPAWidgetPage() {
                   </div>
                 </div>
 
-                <div className={`flex items-start gap-3 p-3 rounded-lg border ${
-                  config.privacyNoticeLastUpdated ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
-                }`}>
-                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                    config.privacyNoticeLastUpdated ? 'bg-green-100' : 'bg-orange-100'
+                <div className={`flex items-start gap-3 p-3 rounded-lg border ${config.privacyNoticeLastUpdated ? 'bg-white border-green-200' : 'bg-orange-50 border-orange-200'
                   }`}>
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${config.privacyNoticeLastUpdated ? 'bg-green-100' : 'bg-orange-100'
+                    }`}>
                     {config.privacyNoticeLastUpdated ? (
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     ) : (
@@ -3556,14 +3547,14 @@ export default function DPDPAWidgetPage() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-600">Last Updated:</span>
                     <span className="text-gray-900 font-medium">
-                      {config.privacyNoticeLastUpdated 
+                      {config.privacyNoticeLastUpdated
                         ? new Date(config.privacyNoticeLastUpdated).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
                         : 'Not set'
                       }
                     </span>
@@ -3580,11 +3571,11 @@ export default function DPDPAWidgetPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 border-green-300 hover:bg-green-50"
+                  className="flex-1 border-green-300 hover:bg-green-50 whitespace-nowrap"
                   onClick={updatePrivacyNoticeVersion}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -3593,7 +3584,7 @@ export default function DPDPAWidgetPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 border-green-300 hover:bg-green-50"
+                  className="flex-1 border-green-300 hover:bg-green-50 whitespace-nowrap"
                   onClick={() => {
                     const selectedActivitiesData = activities.filter(a => config.selectedActivities.includes(a.id));
                     if (selectedActivitiesData.length === 0) {
@@ -3758,7 +3749,7 @@ export default function DPDPAWidgetPage() {
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-gray-900 mb-1">Integration Status</h4>
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      {config.widgetId 
+                      {config.widgetId
                         ? 'Preference Centre is fully integrated and ready to use. Users can access it through the "Manage Preferences" button in the widget.'
                         : 'Please save your widget configuration to activate the Preference Centre integration.'
                       }
@@ -3776,7 +3767,7 @@ export default function DPDPAWidgetPage() {
                     <p className="text-xs text-gray-600 mb-2">Users are directed to:</p>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 text-xs bg-gray-100 px-2 py-1.5 rounded border border-gray-200 block overflow-x-auto">
-                        {typeof window !== 'undefined' 
+                        {typeof window !== 'undefined'
                           ? `${window.location.origin}/privacy-centre/${config.widgetId || '{widgetId}'}?visitorId={visitorId}`
                           : '/privacy-centre/{widgetId}?visitorId={visitorId}'
                         }
@@ -3967,6 +3958,6 @@ export default function DPDPAWidgetPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

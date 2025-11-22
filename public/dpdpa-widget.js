@@ -3677,30 +3677,50 @@ Digital Personal Data Protection Act, 2023
 
     const acceptedActivities = [];
     const rejectedActivities = [];
-    const activityPurposeConsents = {}; // Track purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
+    const acceptedPurposeConsents = {}; // Track accepted purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
+    const rejectedPurposeConsents = {}; // Track rejected purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
 
     Object.keys(activityConsents).forEach(activityId => {
+      const activity = activities.find(a => a.id === activityId);
+
       if (activityConsents[activityId].status === 'accepted') {
         acceptedActivities.push(activityId);
 
-        // Track purposes for this activity if purposes are filtered
-        const activity = activities.find(a => a.id === activityId);
+        // Track purposes for this accepted activity
         if (activity && activity.purposes && Array.isArray(activity.purposes)) {
           // Store consented purpose IDs for this activity
           // Use purposeId (the actual purpose UUID) not id (which is activity_purpose join table ID)
-          activityPurposeConsents[activityId] = activity.purposes
+          acceptedPurposeConsents[activityId] = activity.purposes
             .map(p => p.purposeId || p.id) // Fallback to id if purposeId not available
             .filter(id => id); // Remove any undefined/null values
         }
       } else if (activityConsents[activityId].status === 'rejected') {
         rejectedActivities.push(activityId);
+
+        // Track purposes for this rejected activity (NEW)
+        if (activity && activity.purposes && Array.isArray(activity.purposes)) {
+          // Store rejected purpose IDs for this activity
+          rejectedPurposeConsents[activityId] = activity.purposes
+            .map(p => p.purposeId || p.id)
+            .filter(id => id);
+        }
       }
     });
 
-    // Determine final status
-    let finalStatus = overallStatus;
+    // Determine final status based on actual activity arrays
+    // This must match the database constraint: valid_consent_activities
+    let finalStatus;
     if (acceptedActivities.length > 0 && rejectedActivities.length > 0) {
       finalStatus = 'partial';
+    } else if (acceptedActivities.length > 0) {
+      finalStatus = 'accepted';
+    } else if (rejectedActivities.length > 0) {
+      finalStatus = 'rejected';
+    } else {
+      // No activities - this shouldn't happen due to earlier validation, but handle it
+      console.error('[Consently DPDPA] No activities consented or rejected');
+      alert('Please select at least one activity to save your preferences.');
+      return;
     }
 
     // Include rule context if a rule was matched
@@ -3724,8 +3744,11 @@ Digital Personal Data Protection Act, 2023
       ruleContext: ruleContext, // Track which rule triggered this consent
       rejectedActivities: rejectedActivities,
       activityConsents: activityConsents,
-      visitorEmail: verifiedEmail, // Send verified email if available
-      activityPurposeConsents: Object.keys(activityPurposeConsents).length > 0 ? activityPurposeConsents : undefined, // Track purpose-level consent
+      visitorEmail: verifiedEmail || undefined, // Send verified email if available (convert null to undefined)
+      acceptedPurposeConsents: Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined, // Track accepted purpose-level consent
+      rejectedPurposeConsents: Object.keys(rejectedPurposeConsents).length > 0 ? rejectedPurposeConsents : undefined, // Track rejected purpose-level consent
+      // DEPRECATED: Keep for backward compatibility, will be removed in v2.0
+      activityPurposeConsents: Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined,
       metadata: {
         language: navigator.language || 'en',
         referrer: document.referrer || null,

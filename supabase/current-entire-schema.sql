@@ -75,6 +75,28 @@ CREATE TABLE public.banner_versions (
   CONSTRAINT banner_versions_banner_id_fkey FOREIGN KEY (banner_id) REFERENCES public.banner_configs(id),
   CONSTRAINT banner_versions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.blog_posts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  excerpt text NOT NULL,
+  content text NOT NULL,
+  category text NOT NULL DEFAULT 'General'::text,
+  tags ARRAY DEFAULT '{}'::text[],
+  featured_image text,
+  author_name text NOT NULL,
+  author_email text NOT NULL,
+  published boolean DEFAULT false,
+  published_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  reading_time integer DEFAULT 5,
+  views integer DEFAULT 0,
+  meta_title text,
+  meta_description text,
+  seo_keywords ARRAY,
+  CONSTRAINT blog_posts_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.consent_analytics (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid NOT NULL,
@@ -354,14 +376,32 @@ CREATE TABLE public.dpdp_rights_requests (
   CONSTRAINT dpdp_rights_requests_pkey PRIMARY KEY (id),
   CONSTRAINT dpdp_rights_requests_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id)
 );
+CREATE TABLE public.dpdpa_consent_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  widget_id text NOT NULL,
+  visitor_id text NOT NULL,
+  rule_id text,
+  rule_name text,
+  consent_status text NOT NULL CHECK (consent_status = ANY (ARRAY['accepted'::text, 'rejected'::text, 'partial'::text])),
+  accepted_activities ARRAY DEFAULT '{}'::text[],
+  rejected_activities ARRAY DEFAULT '{}'::text[],
+  consented_at timestamp with time zone NOT NULL DEFAULT now(),
+  user_agent text,
+  device_type text CHECK (device_type = ANY (ARRAY['Desktop'::text, 'Mobile'::text, 'Tablet'::text, 'Unknown'::text])),
+  country text,
+  language text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  consent_record_id uuid,
+  CONSTRAINT dpdpa_consent_events_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_widget FOREIGN KEY (widget_id) REFERENCES public.dpdpa_widget_configs(widget_id),
+  CONSTRAINT dpdpa_consent_events_consent_record_id_fkey FOREIGN KEY (consent_record_id) REFERENCES public.dpdpa_consent_records(id)
+);
 CREATE TABLE public.dpdpa_consent_records (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   widget_id text NOT NULL,
   visitor_id text NOT NULL,
-  visitor_email text,
-  visitor_email_hash text,
-  consent_status text NOT NULL CHECK (consent_status = ANY (ARRAY['accepted'::text, 'rejected'::text, 'partial'::text])),
-  accepted_activities ARRAY DEFAULT '{}'::uuid[],
+  consent_status text NOT NULL CHECK (consent_status = ANY (ARRAY['accepted'::text, 'rejected'::text, 'partial'::text, 'revoked'::text])),
+  consented_activities ARRAY DEFAULT '{}'::uuid[],
   rejected_activities ARRAY DEFAULT '{}'::uuid[],
   activity_consents jsonb DEFAULT '{}'::jsonb,
   ip_address text,
@@ -372,9 +412,9 @@ CREATE TABLE public.dpdpa_consent_records (
   country text,
   language text,
   referrer text,
-  consent_timestamp timestamp with time zone DEFAULT now(),
-  last_updated timestamp with time zone DEFAULT now(),
-  expires_at timestamp with time zone,
+  consent_given_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  consent_expires_at timestamp with time zone,
   consent_version text DEFAULT '1.0'::text,
   widget_version text,
   created_at timestamp with time zone DEFAULT now(),
@@ -382,6 +422,13 @@ CREATE TABLE public.dpdpa_consent_records (
   region character varying,
   revoked_at timestamp with time zone,
   revocation_reason text,
+  current_url text,
+  page_title character varying,
+  consent_details jsonb DEFAULT '{}'::jsonb,
+  consent_id character varying NOT NULL,
+  privacy_notice_version character varying,
+  visitor_email_hash character varying,
+  visitor_email text,
   CONSTRAINT dpdpa_consent_records_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.dpdpa_grievances (
@@ -404,6 +451,24 @@ CREATE TABLE public.dpdpa_grievances (
   escalation_reason text,
   CONSTRAINT dpdpa_grievances_pkey PRIMARY KEY (id),
   CONSTRAINT dpdpa_grievances_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.dpdpa_rule_match_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  widget_id text NOT NULL,
+  visitor_id text NOT NULL,
+  rule_id text NOT NULL,
+  rule_name text NOT NULL,
+  url_pattern text NOT NULL,
+  page_url text NOT NULL,
+  matched_at timestamp with time zone NOT NULL DEFAULT now(),
+  trigger_type text NOT NULL CHECK (trigger_type = ANY (ARRAY['onPageLoad'::text, 'onClick'::text, 'onFormSubmit'::text, 'onScroll'::text])),
+  user_agent text,
+  device_type text CHECK (device_type = ANY (ARRAY['Desktop'::text, 'Mobile'::text, 'Tablet'::text, 'Unknown'::text])),
+  country text,
+  language text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT dpdpa_rule_match_events_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_widget FOREIGN KEY (widget_id) REFERENCES public.dpdpa_widget_configs(widget_id)
 );
 CREATE TABLE public.dpdpa_widget_configs (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -439,6 +504,8 @@ CREATE TABLE public.dpdpa_widget_configs (
   privacy_notice_version character varying,
   privacy_notice_last_updated timestamp with time zone,
   requires_reconsent boolean DEFAULT false,
+  display_rules jsonb DEFAULT '[]'::jsonb,
+  otp_expiration_minutes integer DEFAULT 10 CHECK (otp_expiration_minutes >= 1 AND otp_expiration_minutes <= 60),
   CONSTRAINT dpdpa_widget_configs_pkey PRIMARY KEY (id),
   CONSTRAINT dpdpa_widget_configs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -466,6 +533,33 @@ CREATE TABLE public.email_templates (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT email_templates_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.email_verification_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  widget_id text NOT NULL,
+  visitor_id text NOT NULL,
+  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['otp_sent'::text, 'otp_verified'::text, 'otp_failed'::text, 'otp_skipped'::text, 'rate_limited'::text])),
+  email_hash text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT email_verification_events_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_email_verification_events_widget FOREIGN KEY (widget_id) REFERENCES public.dpdpa_widget_configs(widget_id)
+);
+CREATE TABLE public.email_verification_otps (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  email character varying NOT NULL,
+  email_hash character varying NOT NULL,
+  otp_code character varying NOT NULL,
+  visitor_id character varying NOT NULL,
+  widget_id character varying NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  verified boolean DEFAULT false,
+  verified_at timestamp with time zone,
+  attempts integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT email_verification_otps_pkey PRIMARY KEY (id),
+  CONSTRAINT email_verification_otps_widget_id_fkey FOREIGN KEY (widget_id) REFERENCES public.dpdpa_widget_configs(widget_id)
 );
 CREATE TABLE public.processing_activities (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -545,8 +639,6 @@ CREATE TABLE public.users (
 CREATE TABLE public.visitor_consent_preferences (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   visitor_id text NOT NULL,
-  visitor_email text,
-  visitor_email_hash text,
   widget_id text NOT NULL,
   activity_id uuid NOT NULL,
   consent_status text NOT NULL CHECK (consent_status = ANY (ARRAY['accepted'::text, 'rejected'::text, 'withdrawn'::text])),
@@ -559,6 +651,8 @@ CREATE TABLE public.visitor_consent_preferences (
   expires_at timestamp with time zone,
   consent_version text DEFAULT '1.0'::text,
   created_at timestamp with time zone DEFAULT now(),
+  visitor_email_hash character varying,
+  visitor_email text,
   CONSTRAINT visitor_consent_preferences_pkey PRIMARY KEY (id),
   CONSTRAINT visitor_consent_preferences_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES public.processing_activities(id)
 );
