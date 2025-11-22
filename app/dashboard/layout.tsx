@@ -49,7 +49,6 @@ const navigation = [
     icon: BarChart3,
     children: [
       { name: 'Analytics Dashboard', href: '/dashboard/reports' },
-      { name: 'Email Verification', href: '/dashboard/analytics/email-verification' },
       { name: 'Audit Logs', href: '/dashboard/audit' },
     ],
   },

@@ -4,7 +4,27 @@ import { createClient } from '@/lib/supabase/server';
 /**
  * Email Verification Analytics API
  * Provides metrics and statistics for email verification flows
+ * Restricted to admin users only
  */
+
+// Hardcoded admin credentials (secured with environment variables recommended for production)
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin@consently.in';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'C0n$ently@dm!n2024#Secure';
+
+// Verify admin authentication
+function verifyAdminAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return false;
+  }
+
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+  const [username, password] = credentials.split(':');
+
+  return username === ADMIN_USERNAME && password === ADMIN_PASSWORD;
+}
 
 interface EmailVerificationMetrics {
   overview: {
@@ -43,24 +63,76 @@ interface EmailVerificationMetrics {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const searchParams = request.nextUrl.searchParams;
-
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    // Verify admin authentication
+    if (!verifyAdminAuth(request)) {
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
+        { success: false, error: 'Unauthorized - Admin access required' },
+        { 
+          status: 401,
+          headers: {
+            'WWW-Authenticate': 'Basic realm="Admin Panel"'
+          }
+        }
       );
     }
 
+    const supabase = await createClient();
+    const searchParams = request.nextUrl.searchParams;
+
     // Get query parameters
     const widgetId = searchParams.get('widgetId');
+    const userId = searchParams.get('userId');
     const days = parseInt(searchParams.get('days') || '30');
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
+
+    // If filtering by user, first get their widget IDs
+    let widgetIdsToFilter: string[] | null = null;
+    if (userId) {
+      const { data: userWidgets, error: widgetsError } = await supabase
+        .from('dpdpa_widget_configs')
+        .select('widget_id')
+        .eq('user_id', userId);
+
+      if (widgetsError) {
+        console.error('[Analytics] Error fetching user widgets:', widgetsError);
+        return NextResponse.json(
+          { success: false, error: `Failed to fetch user widgets: ${widgetsError.message}` },
+          { status: 500 }
+        );
+      }
+
+      widgetIdsToFilter = userWidgets?.map(w => w.widget_id) || [];
+      
+      // If user has no widgets, return empty results
+      if (widgetIdsToFilter.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            overview: {
+              totalOtpSent: 0,
+              totalVerified: 0,
+              totalFailed: 0,
+              totalSkipped: 0,
+              totalRateLimited: 0,
+              verificationRate: 0,
+              skipRate: 0,
+              averageTimeToVerifySeconds: 0,
+            },
+            timeSeries: [],
+            byWidget: [],
+            recentEvents: [],
+          },
+          meta: {
+            startDate: startDate.toISOString(),
+            endDate: new Date().toISOString(),
+            days,
+            widgetId: widgetId || 'all',
+            userId: userId || 'all',
+          },
+        });
+      }
+    }
 
     // Base query filters
     let eventsQuery = supabase
@@ -68,8 +140,20 @@ export async function GET(request: NextRequest) {
       .select('*')
       .gte('created_at', startDate.toISOString());
 
-    // Filter by widget if specified
+    // Filter by user's widgets if userId is specified
+    if (widgetIdsToFilter && widgetIdsToFilter.length > 0) {
+      eventsQuery = eventsQuery.in('widget_id', widgetIdsToFilter);
+    }
+
+    // Filter by specific widget if specified (takes precedence)
     if (widgetId) {
+      // If userId is also specified, ensure the widget belongs to that user
+      if (userId && widgetIdsToFilter && !widgetIdsToFilter.includes(widgetId)) {
+        return NextResponse.json(
+          { success: false, error: 'Widget does not belong to the specified user' },
+          { status: 400 }
+        );
+      }
       eventsQuery = eventsQuery.eq('widget_id', widgetId);
     }
 
@@ -176,13 +260,21 @@ export async function GET(request: NextRequest) {
       else if (event.event_type === 'otp_verified') widgetData.verified++;
     });
 
-    // Fetch widget names
+    // Fetch widget names and user info
     const widgetIds = Array.from(widgetMap.keys());
     if (widgetIds.length > 0) {
-      const { data: widgets } = await supabase
+      let widgetsQuery = supabase
         .from('dpdpa_widget_configs')
-        .select('widget_id, name')
-        .in('widget_id', widgetIds);
+        .select('widget_id, name, user_id');
+
+      // If filtering by user, only fetch widgets for that user
+      if (userId) {
+        widgetsQuery = widgetsQuery.eq('user_id', userId);
+      }
+
+      widgetsQuery = widgetsQuery.in('widget_id', widgetIds);
+
+      const { data: widgets } = await widgetsQuery;
 
       widgets?.forEach(widget => {
         const widgetData = widgetMap.get(widget.widget_id);
@@ -233,6 +325,7 @@ export async function GET(request: NextRequest) {
         endDate: new Date().toISOString(),
         days,
         widgetId: widgetId || 'all',
+        userId: userId || 'all',
       },
     });
 
