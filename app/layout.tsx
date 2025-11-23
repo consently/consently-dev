@@ -60,6 +60,7 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          storageKey="consently-theme"
         >
           <SkipLink />
           <main id="main-content" className="min-h-screen">

@@ -65,19 +65,19 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-b from-white to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <ScrollingBanner />
       {/* Navigation */}
-      <nav className="border-b border-blue-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="border-b border-blue-100 bg-white/80 dark:bg-gray-900/80 dark:border-gray-700 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-2">
               <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600" />
-              <span className="text-xl sm:text-2xl font-bold text-gray-900">Consently</span>
+              <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Consently</span>
             </Link>
             
             {/* Desktop Navigation */}

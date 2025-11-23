@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { Database } from '@/types/database.types';
 import { cache } from '@/lib/cache';
-import { successResponse } from '@/lib/api-response';
 import { AppError, handleApiError } from '@/lib/api-error';
 
 // Initialize Supabase client
@@ -26,9 +25,11 @@ export async function GET(
     const cachedConfig = await cache.get(cacheKey);
 
     if (cachedConfig) {
-      const response = successResponse(cachedConfig);
+      // Return data directly for widget compatibility
+      const response = NextResponse.json(cachedConfig);
       response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
       response.headers.set('X-Cache', 'HIT');
+      response.headers.set('Access-Control-Allow-Origin', '*');
       return response;
     }
 
@@ -49,62 +50,79 @@ export async function GET(
       throw new AppError('Widget configuration not found', 404);
     }
 
-    // Type assertion to help TypeScript understand the type
-    const widgetConfig: Database['public']['Tables']['widget_configs']['Row'] = data;
+    // Type assertion - using 'any' because database has more properties than generated types
+    const widgetConfig = data as any;
 
-    // Fetch active banner config
-    const { data: bannerConfig, error: bannerError } = await supabase
-      .from('banner_configs')
-      .select('*')
-      .eq('user_id', widgetConfig.user_id)
-      .eq('is_active', true)
-      .single();
+    // Extract banner configuration from widget config (it's embedded, not a separate table)
+    const bannerContent = widgetConfig.banner_content || {};
+    const theme = widgetConfig.theme || {};
 
-    if (bannerError && bannerError.code !== 'PGRST116') {
-      console.error('Error fetching banner config:', bannerError);
-    }
-
-    // Default banner config if none found
-    const finalBannerConfig = bannerConfig || {
-      position: 'bottom',
-      theme: 'light',
-      primary_color: '#2563eb',
-      secondary_color: '#ffffff',
-      text_color: '#1f2937',
-      button_style: 'rounded',
-      show_branding: true,
-      title: 'Cookie Consent',
-      description: 'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
-      accept_button_text: 'Accept All',
-      reject_button_text: 'Reject All',
-      settings_button_text: 'Cookie Settings',
-      privacy_policy_link: '#',
-      cookie_policy_link: '#'
-    };
-
-    // Construct response
+    // Construct response - flattened structure for widget compatibility
     const responseData = {
-      widget: {
-        id: widgetConfig.widget_id,
-        domain: widgetConfig.domain,
-        categories: widgetConfig.categories,
-        behavior: widgetConfig.behavior,
-        consent_duration: widgetConfig.consent_duration,
-        show_branding_link: widgetConfig.show_branding_link,
-        block_scripts: widgetConfig.block_scripts,
-        respect_dnt: widgetConfig.respect_dnt,
-        gdpr_applies: widgetConfig.gdpr_applies,
-        auto_block: widgetConfig.auto_block
+      // Widget identifiers (required for widget.js validation)
+      widgetId: widgetConfig.widget_id,
+      bannerId: widgetConfig.widget_id,
+
+      // Widget configuration
+      domain: widgetConfig.domain,
+      categories: widgetConfig.categories || ['necessary', 'analytics', 'marketing', 'social'],
+      behavior: widgetConfig.behavior || 'explicit',
+      consentDuration: widgetConfig.consent_duration || 365,
+      showBrandingLink: widgetConfig.show_branding_link !== false,
+      blockScripts: widgetConfig.block_scripts !== false,
+      respectDNT: widgetConfig.respect_dnt || false,
+      gdprApplies: widgetConfig.gdpr_applies !== false,
+      autoBlock: widgetConfig.auto_block || [],
+      autoShow: widgetConfig.auto_show !== false,
+      showAfterDelay: widgetConfig.show_after_delay || 0,
+
+      // Banner configuration
+      position: widgetConfig.position || 'bottom',
+      layout: widgetConfig.layout || 'bar',
+      theme: {
+        primaryColor: theme.primaryColor || '#3b82f6',
+        secondaryColor: theme.secondaryColor || theme.backgroundColor || '#ffffff',
+        backgroundColor: theme.backgroundColor || '#ffffff',
+        textColor: theme.textColor || '#1f2937',
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: 14,
+        borderRadius: theme.borderRadius || 8,
+        boxShadow: true,
+        logoUrl: theme.logoUrl || null,
       },
-      banner: finalBannerConfig
+      title: bannerContent.title || 'Cookie Consent',
+      message: bannerContent.message || 'We use cookies to enhance your browsing experience.',
+      acceptButton: {
+        text: bannerContent.acceptButtonText || 'Accept All',
+        backgroundColor: theme.primaryColor || '#3b82f6',
+        textColor: '#ffffff'
+      },
+      rejectButton: {
+        text: bannerContent.rejectButtonText || 'Reject All',
+        backgroundColor: 'transparent',
+        textColor: theme.primaryColor || '#3b82f6',
+        borderColor: theme.primaryColor || '#3b82f6'
+      },
+      settingsButton: {
+        text: bannerContent.settingsButtonText || 'Cookie Settings',
+        backgroundColor: '#f3f4f6',
+        textColor: theme.textColor || '#1f2937'
+      },
+      showRejectButton: true,
+      showSettingsButton: true,
+      privacyPolicyUrl: bannerContent.privacyPolicyUrl || bannerContent.cookiePolicyUrl || '#',
+      cookiePolicyUrl: bannerContent.cookiePolicyUrl || '#',
+      supportedLanguages: widgetConfig.supported_languages || ['en']
     };
 
     // Cache the response
     await cache.set(cacheKey, responseData, CACHE_TTL);
 
-    const response = successResponse(responseData);
+    // Return data directly for widget compatibility
+    const response = NextResponse.json(responseData);
     response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
     response.headers.set('X-Cache', 'MISS');
+    response.headers.set('Access-Control-Allow-Origin', '*');
 
     return response;
 
