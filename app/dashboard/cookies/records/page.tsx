@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Search, Download, CheckCircle2, XCircle, AlertCircle, Globe, Monitor, Smartphone, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { ExportSecurityModal } from '@/components/security/export-security-modal';
 
 interface ConsentRecord {
   id: string;
@@ -49,6 +50,7 @@ export default function CookieConsentRecordsPage() {
   const [dateRange, setDateRange] = useState('30d');
   const [totalRecords, setTotalRecords] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
 
   // Fetch records on mount and when filters change
   useEffect(() => {
@@ -94,7 +96,11 @@ export default function CookieConsentRecordsPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleExportClick = () => {
+    setIsSecurityModalOpen(true);
+  };
+
+  const executeExport = () => {
     // Helper function to escape CSV fields
     const escapeCSV = (value: string | null | undefined): string => {
       if (!value) return 'N/A';
@@ -245,7 +251,7 @@ export default function CookieConsentRecordsPage() {
               {records.length} record{records.length !== 1 ? 's' : ''} found
             </CardDescription>
           </div>
-          <Button onClick={handleExport} variant="outline">
+          <Button onClick={handleExportClick} variant="outline">
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
@@ -301,9 +307,8 @@ export default function CookieConsentRecordsPage() {
                         <div className="flex items-center gap-2">
                           {statusIcons[record.status]}
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              statusColors[record.status]
-                            }`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[record.status]
+                              }`}
                           >
                             {record.status}
                           </span>
@@ -345,6 +350,13 @@ export default function CookieConsentRecordsPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+
+      <ExportSecurityModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        onVerified={executeExport}
+        actionName="export cookie records"
+      />
+    </div >
   );
 }

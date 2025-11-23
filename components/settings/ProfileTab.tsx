@@ -44,6 +44,9 @@ export function ProfileTab({ data, onUpdate, updating }: ProfileTabProps) {
     try {
       const result = await onUpdate({
         full_name: formData.fullName,
+        company_name: formData.companyName,
+        phone: formData.phone,
+        website: formData.website,
       });
 
       if (result.success) {
@@ -94,8 +97,7 @@ export function ProfileTab({ data, onUpdate, updating }: ProfileTabProps) {
                 placeholder="Your Company Inc."
                 error={errors.companyName?.message}
                 disabled={updating}
-                helperText="Read-only (set during onboarding)"
-                readOnly
+                helperText="Your company or organization name"
               />
               <Input
                 {...register('phone')}
@@ -104,7 +106,7 @@ export function ProfileTab({ data, onUpdate, updating }: ProfileTabProps) {
                 placeholder="+91 98765 43210"
                 error={errors.phone?.message}
                 disabled={updating}
-                helperText="Optional"
+                helperText="Optional - Include country code (e.g., +91)"
               />
             </div>
 
@@ -115,7 +117,7 @@ export function ProfileTab({ data, onUpdate, updating }: ProfileTabProps) {
               placeholder="https://yourcompany.com"
               error={errors.website?.message}
               disabled={updating}
-              helperText="Optional"
+              helperText="Optional - Your company website URL"
             />
 
             <div className="flex justify-end pt-4">

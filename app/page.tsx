@@ -24,6 +24,7 @@ import {
   Briefcase,
   Target,
   Users,
+  Cookie,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -79,7 +80,7 @@ export default function Home() {
               <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600" />
               <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Consently</span>
             </Link>
-            
+
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
               <Link href="/pricing">
@@ -168,7 +169,7 @@ export default function Home() {
             <p className="text-base sm:text-xl lg:text-2xl text-gray-600 mb-4 sm:mb-6 max-w-3xl mx-auto leading-relaxed px-4">
               Stay compliant, avoid penalties, and build user trust — without writing a single line of code.
             </p>
-            
+
             {/* 4 Key USP Badges */}
             <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-4 max-w-5xl mx-auto">
               <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl shadow-md hover:shadow-lg transition-all">
@@ -207,7 +208,7 @@ export default function Home() {
                 Full access to all features
               </span>
             </div>
-            
+
             {/* Product Preview - Real Dashboard Screenshot */}
             <div className="mt-8 sm:mt-12 px-4 max-w-6xl mx-auto">
               <div className="rounded-2xl border-4 border-blue-200 shadow-2xl overflow-hidden bg-white">
@@ -225,7 +226,7 @@ export default function Home() {
                         consently.in/dashboard
                       </div>
                     </div>
-                    
+
                     {/* Dashboard Content */}
                     <div className="p-4 sm:p-6 bg-gradient-to-b from-white to-gray-50">
                       {/* Header */}
@@ -368,6 +369,51 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Guide Banners */}
+      <section className="py-8 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-6">
+            <Link href="/guides/cookie-consent" className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all border border-blue-100">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-blue-50 group-hover:bg-blue-100 transition-colors" />
+              <div className="relative z-10">
+                <div className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 mb-4">
+                  <Cookie className="h-3 w-3 mr-1.5" />
+                  Guide
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  Complete Guide to Cookie Consent
+                </h3>
+                <p className="text-gray-600 mb-4 text-sm">
+                  Learn everything about cookie compliance, scanning, and categorization.
+                </p>
+                <div className="flex items-center text-blue-600 font-medium text-sm">
+                  Read Guide <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/guides/dpdpa-consent" className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all border border-purple-100">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-purple-50 group-hover:bg-purple-100 transition-colors" />
+              <div className="relative z-10">
+                <div className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-purple-100 text-purple-700 mb-4">
+                  <Shield className="h-3 w-3 mr-1.5" />
+                  Guide
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                  Mastering DPDPA Compliance
+                </h3>
+                <p className="text-gray-600 mb-4 text-sm">
+                  Understand your obligations under India's new data protection law.
+                </p>
+                <div className="flex items-center text-purple-600 font-medium text-sm">
+                  Read Guide <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
       </section>
@@ -639,7 +685,7 @@ export default function Home() {
                 ))}
               </div>
               <p className="text-gray-700 mb-6 leading-relaxed">
-                "We replaced CookieYes and saved 70% on costs while achieving full DPDP compliance. 
+                "We replaced CookieYes and saved 70% on costs while achieving full DPDP compliance.
                 The 22-language support is a game-changer for our pan-India audience."
               </p>
               <div className="flex items-center gap-3">
@@ -661,7 +707,7 @@ export default function Home() {
                 ))}
               </div>
               <p className="text-gray-700 mb-6 leading-relaxed">
-                "Setup took literally 5 minutes. The automated cookie scanner found trackers 
+                "Setup took literally 5 minutes. The automated cookie scanner found trackers
                 we didn't even know existed. Best investment for compliance."
               </p>
               <div className="flex items-center gap-3">
@@ -683,7 +729,7 @@ export default function Home() {
                 ))}
               </div>
               <p className="text-gray-700 mb-6 leading-relaxed">
-                "Finally, a consent management solution that understands Indian regulations. 
+                "Finally, a consent management solution that understands Indian regulations.
                 The audit reports saved us during our compliance review."
               </p>
               <div className="flex items-center gap-3">
@@ -869,7 +915,7 @@ export default function Home() {
                   Full access to all features across all plans
                 </p>
               </div>
-              
+
               <div className="grid md:grid-cols-2 gap-6 mb-8">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
@@ -900,7 +946,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="text-center">
                 <Link href="/signup">
                   <Button size="lg" className="text-lg px-12 py-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-xl shadow-blue-500/30">
@@ -937,8 +983,8 @@ export default function Home() {
                 Is Consently really DPDP 2023 compliant?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> Yes! Consently is built specifically for the Digital Personal Data Protection Act (DPDP) 2023. 
-                We handle all requirements including granular consent, purpose-specific data collection, data subject rights, 
+                <strong>A:</strong> Yes! Consently is built specifically for the Digital Personal Data Protection Act (DPDP) 2023.
+                We handle all requirements including granular consent, purpose-specific data collection, data subject rights,
                 and complete audit trails. Our platform is updated continuously to stay compliant with the latest regulations.
               </p>
             </div>
@@ -950,8 +996,8 @@ export default function Home() {
                 How long does implementation take?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> Most customers are live in under 5 minutes! Simply sign up, run a cookie scan on your website, 
-                customize your consent banner, and add one line of code to your site. Our automated scanner does the heavy lifting, 
+                <strong>A:</strong> Most customers are live in under 5 minutes! Simply sign up, run a cookie scan on your website,
+                customize your consent banner, and add one line of code to your site. Our automated scanner does the heavy lifting,
                 and you can start collecting compliant consent immediately.
               </p>
             </div>
@@ -963,8 +1009,8 @@ export default function Home() {
                 What happens after the 1-month free trial?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> After your free month, you only pay ₹0.01 per consent recorded—no fixed monthly fees, 
-                no plan lock-in. If you collect 10,000 consents in a month, you pay only ₹100. If you collect 0 consents, 
+                <strong>A:</strong> After your free month, you only pay ₹0.01 per consent recorded—no fixed monthly fees,
+                no plan lock-in. If you collect 10,000 consents in a month, you pay only ₹100. If you collect 0 consents,
                 you pay ₹0. Cancel anytime with zero penalties.
               </p>
             </div>
@@ -976,8 +1022,8 @@ export default function Home() {
                 Do I need technical knowledge to set this up?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> No! Consently is designed for non-technical users. Our automated cookie scanner analyzes your 
-                website and generates a ready-to-use consent banner. You just copy one line of JavaScript code and paste it into 
+                <strong>A:</strong> No! Consently is designed for non-technical users. Our automated cookie scanner analyzes your
+                website and generates a ready-to-use consent banner. You just copy one line of JavaScript code and paste it into
                 your website. We provide step-by-step guides and priority support during your trial.
               </p>
             </div>
@@ -989,8 +1035,8 @@ export default function Home() {
                 Which Indian languages are supported?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> All 22 Schedule 8 languages: Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati, Kannada, 
-                Malayalam, Odia, Punjabi, Assamese, Maithili, Sanskrit, Santali, Kashmiri, Nepali, Konkani, Sindhi, Dogri, Manipuri, 
+                <strong>A:</strong> All 22 Schedule 8 languages: Hindi, Bengali, Telugu, Marathi, Tamil, Urdu, Gujarati, Kannada,
+                Malayalam, Odia, Punjabi, Assamese, Maithili, Sanskrit, Santali, Kashmiri, Nepali, Konkani, Sindhi, Dogri, Manipuri,
                 and Bodo. Your consent banners automatically adapt based on user location and browser language preferences.
               </p>
             </div>
@@ -1002,8 +1048,8 @@ export default function Home() {
                 Can I use Consently on multiple websites?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> Yes! There's no limit on the number of domains or websites. You pay only for actual consents 
-                recorded, regardless of how many websites you manage. Perfect for agencies managing multiple clients or businesses 
+                <strong>A:</strong> Yes! There's no limit on the number of domains or websites. You pay only for actual consents
+                recorded, regardless of how many websites you manage. Perfect for agencies managing multiple clients or businesses
                 with multiple web properties.
               </p>
             </div>

@@ -312,9 +312,7 @@ export class CookieService {
       p_user_id: log.user_id,
       p_date: today,
     }).then((result) => {
-      if (!result.error) {
-        console.log('Analytics aggregated for', today);
-      } else {
+      if (result.error) {
         console.error('Failed to aggregate analytics:', result.error);
       }
     });

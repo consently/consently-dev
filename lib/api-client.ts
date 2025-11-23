@@ -148,7 +148,7 @@ export const api = {
   // User Profile
   profile: {
     get: () => apiRequest('/api/user/profile'),
-    update: (data: { full_name?: string; avatar_url?: string }) =>
+    update: (data: { full_name?: string; avatar_url?: string; company_name?: string; phone?: string; website?: string }) =>
       apiRequest('/api/user/profile', {
         method: 'PUT',
         body: data,
@@ -209,7 +209,7 @@ export const api = {
       apiRequest(`/api/cookies/manage?id=${id}`, {
         method: 'DELETE',
       }),
-    
+
     // Banner Configuration
     getBanners: (params?: { id?: string; active?: boolean; versions?: boolean }) => {
       const queryParams = new URLSearchParams();
@@ -234,7 +234,7 @@ export const api = {
       apiRequest(`/api/cookies/banner?id=${id}`, {
         method: 'DELETE',
       }),
-    
+
     // Analytics
     getAnalytics: (params?: { start_date?: string; end_date?: string; granularity?: string; category?: string; export?: string }) => {
       const queryParams = new URLSearchParams();
@@ -250,7 +250,7 @@ export const api = {
         method: 'POST',
         body: data,
       }),
-    
+
     // Compliance
     getCompliance: (params?: { id?: string; history?: boolean; regulation?: string }) => {
       const queryParams = new URLSearchParams();
@@ -275,7 +275,7 @@ export const api = {
       apiRequest(`/api/cookies/compliance?schedule_id=${schedule_id}`, {
         method: 'DELETE',
       }),
-    
+
     // Translations
     getTranslations: (params?: { language?: string; active?: boolean; export?: string }) => {
       const queryParams = new URLSearchParams();
@@ -305,7 +305,7 @@ export const api = {
         method: 'DELETE',
       });
     },
-    
+
     // Legacy endpoints
     getBannerConfig: () => apiRequest('/api/cookies/banner-config'),
     saveBannerConfig: (data: any) =>
@@ -403,7 +403,7 @@ export function useApiQuery<T = any>(
 
       try {
         const response = await fetcher();
-        
+
         if (mounted) {
           if (response.error) {
             setError(response.error);

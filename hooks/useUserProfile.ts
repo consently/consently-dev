@@ -61,6 +61,9 @@ export function useUserProfile(): UseUserProfileReturn {
       const response = await api.profile.update({
         full_name: updateData.full_name,
         avatar_url: updateData.avatar_url,
+        company_name: updateData.company_name,
+        phone: updateData.phone,
+        website: updateData.website,
       });
 
       if (response.error) {

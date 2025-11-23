@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import type { ConsentRecordRequest, ConsentDetails, RuleContext, PartialRuleContext } from '@/types/dpdpa-widget.types';
 import { consentRecordRequestSchema } from '@/types/dpdpa-widget.types';
 import { logSuccess } from '@/lib/audit';
+import { generateVerifiedConsentId, generateUnverifiedConsentId } from '@/lib/consent-id-utils';
 import crypto from 'crypto';
 
 /**
@@ -157,7 +158,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Enrich records with activity names
+    // Enrich records with activity names and emails from visitor_consent_preferences if missing
+    const visitorIds = [...new Set((data || []).map((r: any) => r.visitor_id))];
+    const widgetIdsForEmailLookup = widgetId ? [widgetId] : widgetIds;
+
+    // Fetch emails from visitor_consent_preferences for records that don't have email
+    const recordsWithoutEmail = (data || []).filter((r: any) => !r.visitor_email);
+    const emailMap = new Map<string, string>();
+
+    if (recordsWithoutEmail.length > 0 && widgetIdsForEmailLookup.length > 0) {
+      const { data: preferencesWithEmail } = await supabase
+        .from('visitor_consent_preferences')
+        .select('visitor_id, visitor_email')
+        .in('visitor_id', visitorIds)
+        .in('widget_id', widgetIdsForEmailLookup)
+        .not('visitor_email', 'is', null);
+
+      if (preferencesWithEmail) {
+        preferencesWithEmail.forEach((p: any) => {
+          if (p.visitor_email && !emailMap.has(p.visitor_id)) {
+            emailMap.set(p.visitor_id, p.visitor_email);
+          }
+        });
+      }
+    }
+
+    // Enrich records with activity names and emails
     const enrichedData = (data || []).map((record: any) => ({
       ...record,
       acceptedActivityNames: (record.consented_activities || []).map((id: string) =>
@@ -166,6 +192,8 @@ export async function GET(request: NextRequest) {
       rejectedActivityNames: (record.rejected_activities || []).map((id: string) =>
         activityMap.get(id) || 'Unknown Activity'
       ),
+      // Use email from consent record, or fallback to visitor_consent_preferences
+      visitor_email: record.visitor_email || emailMap.get(record.visitor_id) || null,
     }));
 
     const totalPages = Math.ceil((count || 0) / limit);
@@ -424,10 +452,50 @@ export async function POST(request: NextRequest) {
     const visitorEmail = body.visitorEmail || null;
 
     // Check if consent record already exists for this visitor AND this specific page URL
+    // OR if email is verified, check for existing consent by email hash
     // This allows tracking consent per page, which is needed for the Pages tab
     let existingConsent = null;
 
-    if (currentUrl) {
+    // First priority: Check for email-based consent (for verified emails)
+    if (visitorEmailHash) {
+      console.log('[Consent Record API] Checking for existing consent by email hash...');
+
+      const { data: emailConsents, error: emailConsentError } = await supabase
+        .from('dpdpa_consent_records')
+        .select('id, consent_status, consented_activities, rejected_activities, consent_details')
+        .eq('widget_id', body.widgetId)
+        .eq('visitor_email_hash', visitorEmailHash)
+        .order('consent_given_at', { ascending: false })
+        .limit(1);
+
+      if (!emailConsentError && emailConsents && emailConsents.length > 0) {
+        const latestEmailConsent = emailConsents[0];
+
+        // Determine if we should update existing or create new
+        // Update if: same consent status and similar activities
+        const isSameStatus = latestEmailConsent.consent_status === body.consentStatus;
+        const activitiesMatch =
+          JSON.stringify((latestEmailConsent.consented_activities || []).sort()) ===
+          JSON.stringify((body.acceptedActivities || []).sort()) &&
+          JSON.stringify((latestEmailConsent.rejected_activities || []).sort()) ===
+          JSON.stringify((body.rejectedActivities || []).sort());
+
+        if (isSameStatus && activitiesMatch) {
+          // Update existing record instead of creating new one
+          existingConsent = { id: latestEmailConsent.id };
+          console.log('[Consent Record API] Found existing consent for verified email with matching status/activities, will update');
+        } else {
+          // Different consent - will create new record with email-based consent_id
+          console.log('[Consent Record API] Consent changed for verified email (status or activities differ), will create new record with email-based ID');
+        }
+      } else if (emailConsentError) {
+        console.error('[Consent Record API] Error checking for existing email consent:', emailConsentError);
+        // Continue with creating new record if check fails
+      }
+    }
+
+    // Second priority: Check for URL-specific consent (existing logic)
+    if (!existingConsent && currentUrl) {
       // Import URL normalization utility for consistent URL handling
       const { normalizeUrl } = await import('@/lib/url-utils');
 
@@ -578,8 +646,82 @@ export async function POST(request: NextRequest) {
       }
     }
 
+
     // Status validation already done above using validation utilities
     const finalConsentStatus = body.consentStatus;
+
+    // Generate privacy notice snapshot for this consent record
+    // This ensures we have an exact copy of what the user saw
+    let privacyNoticeSnapshot: string | undefined = undefined;
+    try {
+      const { generatePrivacyNoticeHTML, sanitizeHTML } = await import('@/lib/dpdpa-notice');
+
+      // Fetch widget configuration and activities to generate the notice
+      const { data: widgetConfigData, error: widgetConfigError } = await supabase
+        .from('dpdpa_widget_configs')
+        .select('selected_activities, domain')
+        .eq('widget_id', body.widgetId)
+        .eq('is_active', true)
+        .single();
+
+      if (!widgetConfigError && widgetConfigData) {
+        const selectedActivitiesIds = widgetConfigData.selected_activities || [];
+
+        // Fetch activities with full details
+        const { data: activitiesRaw, error: activitiesError } = await supabase
+          .from('processing_activities')
+          .select(`
+            id,
+            activity_name,
+            industry,
+            activity_purposes(
+              id,
+              purpose_id,
+              legal_basis,
+              custom_description,
+              purposes(
+                id,
+                purpose_name,
+                description
+              ),
+              purpose_data_categories(
+                id,
+                category_name,
+                retention_period
+              )
+            )
+          `)
+          .in('id', selectedActivitiesIds)
+          .eq('is_active', true);
+
+        if (!activitiesError && activitiesRaw) {
+          // Transform activities to match the format expected by generatePrivacyNoticeHTML
+          const activities = activitiesRaw.map((activity: any) => ({
+            id: activity.id,
+            activity_name: activity.activity_name,
+            industry: activity.industry,
+            purposes: (activity.activity_purposes || []).map((ap: any) => ({
+              id: ap.id,
+              purposeId: ap.purpose_id,
+              purposeName: ap.purposes?.purpose_name || 'Unknown Purpose',
+              legalBasis: ap.legal_basis,
+              customDescription: ap.custom_description,
+              dataCategories: (ap.purpose_data_categories || []).map((c: any) => ({
+                id: c.id,
+                categoryName: c.category_name,
+                retentionPeriod: c.retention_period,
+              })),
+            })),
+          }));
+
+          const generatedHTML = generatePrivacyNoticeHTML(activities, widgetConfigData.domain);
+          privacyNoticeSnapshot = sanitizeHTML(generatedHTML);
+        }
+      }
+    } catch (error) {
+      console.error('[Consent Record API] Error generating privacy notice snapshot:', error);
+      // Continue without snapshot - not critical
+    }
 
     const consentDetails: ConsentDetails = {
       activityConsents: body.activityConsents || {},
@@ -587,6 +729,7 @@ export async function POST(request: NextRequest) {
       acceptedPurposeConsents: validatedAcceptedPurposeConsents, // NEW: accepted purposes
       rejectedPurposeConsents: validatedRejectedPurposeConsents, // NEW: rejected purposes
       ruleContext: ruleContext,
+      privacy_notice_snapshot: privacyNoticeSnapshot, // NEW: Store snapshot of the notice
       metadata: {
         referrer: referrer || undefined,
         currentUrl: currentUrl || undefined,
@@ -601,6 +744,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
+
     if (existingConsent) {
       // Update existing consent record
       const updateData: any = {
@@ -609,6 +753,7 @@ export async function POST(request: NextRequest) {
         rejected_activities: validatedRejectedActivities,
         consent_details: consentDetails, // Store rule context and activity consents
         visitor_email_hash: visitorEmailHash, // Optional: for cross-device consent management
+        visitor_email: visitorEmail, // Store actual email for admin dashboard identification
         ip_address: ipAddress,
         user_agent: userAgent,
         device_type: deviceType,
@@ -658,10 +803,21 @@ export async function POST(request: NextRequest) {
 
       result = data;
     } else {
-      // Generate unique consent_id with random component to avoid collisions
+      // Generate consent_id with different patterns for verified vs unverified emails
+      // Format for verified emails: ${widgetId}_${emailHash16}_${timestamp}
+      // Format for unverified: ${widgetId}_${visitorId}_${timestamp}_${randomSuffix}
+      // Note: Widget IDs and visitor IDs may contain underscores
       const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const consentId = `${body.widgetId}_${body.visitorId}_${timestamp}_${randomSuffix}`;
+      let consentId: string;
+
+      if (visitorEmailHash) {
+        // Deterministic pattern for verified emails using email hash prefix
+        // This allows identifying all consents from the same email while maintaining uniqueness
+        consentId = generateVerifiedConsentId(body.widgetId, visitorEmailHash, timestamp);
+      } else {
+        // Random pattern for unverified/anonymous visitors
+        consentId = generateUnverifiedConsentId(body.widgetId, body.visitorId, timestamp);
+      }
 
       // Create new consent record
       const insertData: any = {
@@ -673,6 +829,7 @@ export async function POST(request: NextRequest) {
         rejected_activities: validatedRejectedActivities,
         consent_details: consentDetails, // Store rule context and activity consents
         visitor_email_hash: visitorEmailHash, // Optional: for cross-device consent management
+        visitor_email: visitorEmail, // Store actual email for admin dashboard identification
         ip_address: ipAddress,
         user_agent: userAgent,
         device_type: deviceType,

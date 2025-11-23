@@ -230,7 +230,7 @@ export interface ConsentRecordRequest {
   metadata?: ConsentMetadata;
   consentDuration?: number;
   revocationReason?: string; // Optional reason for revocation
-  visitorEmail?: string; // Optional: for cross-device consent management (will be hashed)
+  visitorEmail?: string | null; // Optional: for cross-device consent management (will be hashed)
 }
 
 /**
@@ -260,8 +260,10 @@ export interface ConsentDetails {
   acceptedPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes user accepted
   rejectedPurposeConsents?: Record<string, string[]>; // { activity_id: [purpose_id_1, purpose_id_2] } - purposes user rejected
   ruleContext: RuleContext | null;
+  privacy_notice_snapshot?: string; // NEW: Snapshot of the privacy notice HTML at consent time
   metadata: ConsentMetadata;
 }
+
 
 // ============================================================================
 // Validation Schemas

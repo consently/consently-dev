@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { generateVerifiedConsentId, generateUnverifiedConsentId } from '@/lib/consent-id-utils';
 import crypto from 'crypto';
 
 /**
@@ -157,10 +158,29 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Extract visitor email if available (check both preference records and consent records)
+    let visitorEmail = preferences?.find(p => p.visitor_email)?.visitor_email || null;
+
+    // If not found in preferences, check consent records as fallback
+    if (!visitorEmail) {
+      const { data: consentRecords } = await supabase
+        .from('dpdpa_consent_records')
+        .select('visitor_email')
+        .eq('visitor_id', visitorId)
+        .eq('widget_id', widgetId)
+        .not('visitor_email', 'is', null)
+        .order('consent_given_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      visitorEmail = consentRecords?.visitor_email || null;
+    }
+
     return NextResponse.json({
       data: {
         widgetName: widgetConfig.name,
         domain: widgetConfig.domain,
+        visitorEmail,
         activities: activitiesWithConsent,
       },
     });
@@ -380,10 +400,19 @@ export async function PATCH(request: NextRequest) {
         // Include withdrawn activities in rejected_activities array for database constraint
         const allRejectedActivities = [...rejectedActivities, ...withdrawnActivities];
 
-        // Generate unique consent_id
+        // Generate consent_id with different patterns for verified vs unverified emails
+        // Format for verified emails: ${widgetId}_${emailHash16}_${timestamp}
+        // Format for unverified: ${widgetId}_${visitorId}_${timestamp}_${randomSuffix}
         const timestamp = Date.now();
-        const randomSuffix = Math.random().toString(36).substring(2, 8);
-        const consentId = `${widgetId}_${visitorId}_${timestamp}_${randomSuffix}`;
+        let consentId: string;
+
+        if (visitorEmailHash) {
+          // Deterministic pattern for verified emails using email hash prefix
+          consentId = generateVerifiedConsentId(widgetId, visitorEmailHash, timestamp);
+        } else {
+          // Random pattern for unverified/anonymous visitors
+          consentId = generateUnverifiedConsentId(widgetId, visitorId, timestamp);
+        }
 
         // Build consent details
         const consentDetails = {
@@ -526,10 +555,8 @@ export async function DELETE(request: NextRequest) {
 
     // Create a consent record to track this full revocation
     try {
-      // Generate unique consent_id
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const consentId = `${widgetId}_${visitorId}_${timestamp}_${randomSuffix}`;
+      // Generate consent_id (no email hash available in DELETE, use random pattern)
+      const consentId = generateUnverifiedConsentId(widgetId, visitorId);
 
       // Create consent record with revoked status
       const { error: consentRecordError } = await supabase

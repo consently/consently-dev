@@ -5,9 +5,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { 
-  Shield, 
-  Download, 
+import {
+  Shield,
+  Download,
   Filter,
   Search,
   AlertCircle,
@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { ExportSecurityModal } from '@/components/security/export-security-modal';
 
 type AuditLog = {
   id: string;
@@ -61,6 +62,10 @@ export default function AuditLogsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Security Modal State
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [pendingExportFormat, setPendingExportFormat] = useState<'csv' | 'json' | 'pdf' | null>(null);
+
   useEffect(() => {
     fetchLogs();
   }, [page, actionFilter, statusFilter, startDate, endDate]);
@@ -79,7 +84,7 @@ export default function AuditLogsPage() {
       if (endDate) params.append('end_date', endDate);
 
       const response = await fetch(`/api/audit/logs?${params}`);
-      
+
       if (!response.ok) throw new Error('Failed to fetch logs');
 
       const data = await response.json();
@@ -92,14 +97,22 @@ export default function AuditLogsPage() {
     }
   };
 
-  const handleExport = async (format: 'csv' | 'json' | 'pdf') => {
+  const handleExportClick = (format: 'csv' | 'json' | 'pdf') => {
+    setPendingExportFormat(format);
+    setIsSecurityModalOpen(true);
+  };
+
+  const executeExport = async () => {
+    if (!pendingExportFormat) return;
+
+    const format = pendingExportFormat;
     try {
       const params = new URLSearchParams({ format });
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
       const response = await fetch(`/api/audit/export?${params}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to export logs' }));
         throw new Error(errorData.error || 'Failed to export logs');
@@ -117,6 +130,8 @@ export default function AuditLogsPage() {
     } catch (error) {
       console.error('Error exporting logs:', error);
       alert(error instanceof Error ? error.message : 'Failed to export logs');
+    } finally {
+      setPendingExportFormat(null);
     }
   };
 
@@ -140,15 +155,15 @@ export default function AuditLogsPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => handleExport('csv')}>
+          <Button variant="outline" onClick={() => handleExportClick('csv')}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
-          <Button variant="outline" onClick={() => handleExport('json')}>
+          <Button variant="outline" onClick={() => handleExportClick('json')}>
             <Download className="mr-2 h-4 w-4" />
             Export JSON
           </Button>
-          <Button variant="outline" onClick={() => handleExport('pdf')}>
+          <Button variant="outline" onClick={() => handleExportClick('pdf')}>
             <Download className="mr-2 h-4 w-4" />
             Export PDF
           </Button>
@@ -374,6 +389,12 @@ export default function AuditLogsPage() {
           </>
         )}
       </Card>
-    </div>
+      <ExportSecurityModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        onVerified={executeExport}
+        actionName="export audit logs"
+      />
+    </div >
   );
 }

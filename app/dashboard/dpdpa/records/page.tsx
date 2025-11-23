@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Download, Filter, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Download, Filter, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { ExportSecurityModal } from '@/components/security/export-security-modal';
 
 interface ConsentRecord {
   id: string; // unique session ID
@@ -52,6 +53,8 @@ export default function ConsentRecordsPage() {
   const [dateRange, setDateRange] = useState('30d'); // 7d, 30d, 90d, all
   const [totalRecords, setTotalRecords] = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [showVerifiedEmails, setShowVerifiedEmails] = useState(false);
 
   // Fetch records on mount and when filters change
   useEffect(() => {
@@ -99,7 +102,11 @@ export default function ConsentRecordsPage() {
     });
   };
 
-  const handleExport = () => {
+  const handleExportClick = () => {
+    setIsSecurityModalOpen(true);
+  };
+
+  const executeExport = () => {
     // Helper function to escape CSV fields
     const escapeCSV = (value: string | null | undefined): string => {
       if (!value) return 'N/A';
@@ -308,10 +315,30 @@ export default function ConsentRecordsPage() {
               {records.length} record{records.length !== 1 ? 's' : ''} found
             </CardDescription>
           </div>
-          <Button onClick={handleExport} variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowVerifiedEmails(!showVerifiedEmails)}
+              variant="outline"
+              size="sm"
+              title={showVerifiedEmails ? "Hide verified emails" : "Show verified emails"}
+            >
+              {showVerifiedEmails ? (
+                <>
+                  <EyeOff className="mr-2 h-4 w-4" />
+                  Hide Emails
+                </>
+              ) : (
+                <>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Show Emails
+                </>
+              )}
+            </Button>
+            <Button onClick={handleExportClick} variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -356,7 +383,9 @@ export default function ConsentRecordsPage() {
                           <td className="p-3 align-middle">
                             <div className="flex flex-col">
                               <span className="text-sm font-medium text-gray-900">
-                                {record.visitor_email || (record.visitor_email_hash ? 'Verified User' : 'Anonymous')}
+                                {record.visitor_email
+                                  ? (showVerifiedEmails ? record.visitor_email : 'Verified User (Hidden)')
+                                  : (record.visitor_email_hash ? (showVerifiedEmails ? 'Verified User (Email Not Available)' : 'Verified User (Hidden)') : 'Anonymous')}
                               </span>
                               <div className="font-mono text-xs text-gray-500 max-w-[140px] truncate" title={record.id}>
                                 {record.id.substring(0, 18)}...
@@ -553,9 +582,19 @@ export default function ConsentRecordsPage() {
               {records.length} record{records.length !== 1 ? 's' : ''} found
             </p>
           </div>
-          <Button onClick={handleExport} variant="outline" size="sm">
-            <Download className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowVerifiedEmails(!showVerifiedEmails)}
+              variant="outline"
+              size="sm"
+              title={showVerifiedEmails ? "Hide emails" : "Show emails"}
+            >
+              {showVerifiedEmails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            <Button onClick={handleExportClick} variant="outline" size="sm">
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -596,7 +635,9 @@ export default function ConsentRecordsPage() {
                         </span>
                       </div>
                       <div className="text-sm font-medium text-gray-900">
-                        {record.visitor_email || (record.visitor_email_hash ? 'Verified User' : 'Anonymous Visitor')}
+                        {record.visitor_email
+                          ? (showVerifiedEmails ? record.visitor_email : 'Verified User (Hidden)')
+                          : (record.visitor_email_hash ? (showVerifiedEmails ? 'Verified User (Email Not Available)' : 'Verified User (Hidden)') : 'Anonymous Visitor')}
                       </div>
                       <div className="font-mono text-xs text-gray-500 truncate mt-1">
                         ID: {record.id.substring(0, 20)}...
@@ -734,6 +775,14 @@ export default function ConsentRecordsPage() {
           })
         )}
       </div>
-    </div>
+
+      <ExportSecurityModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        onVerified={executeExport}
+        actionName="export DPDPA records"
+      />
+    </div >
   );
 }
+

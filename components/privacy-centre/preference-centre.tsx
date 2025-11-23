@@ -60,6 +60,7 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   const [activities, setActivities] = useState<Activity[]>([]);
   const [widgetName, setWidgetName] = useState('');
   const [domain, setDomain] = useState('');
+  const [visitorEmail, setVisitorEmail] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<Record<string, 'accepted' | 'rejected' | 'withdrawn'>>({});
   const [originalStatus, setOriginalStatus] = useState<Record<string, 'accepted' | 'rejected' | 'withdrawn'>>({});
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
@@ -90,7 +91,9 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       const data = await response.json();
       setActivities(data.data.activities || []);
       setWidgetName(data.data.widgetName || '');
+      setWidgetName(data.data.widgetName || '');
       setDomain(data.data.domain || '');
+      setVisitorEmail(data.data.visitorEmail || null);
 
       // Initialize preferences state - keep original status for proper revocation handling
       const prefs: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
@@ -518,15 +521,16 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
       </Card>
 
       {/* Email Linking Card - Only show after consent has been given */}
-      {activities.some(activity => 
+      {activities.some(activity =>
         activity.consentStatus === 'accepted' || activity.consentGivenAt !== null
       ) && (
-        <EmailLinkCard
-          visitorId={visitorId}
-          widgetId={widgetId}
-          onVerified={() => fetchPreferences(true)}
-        />
-      )}
+          <EmailLinkCard
+            visitorId={visitorId}
+            widgetId={widgetId}
+            linkedEmail={visitorEmail}
+            onVerified={() => fetchPreferences(true)}
+          />
+        )}
 
       {/* Modern Action Bar */}
       <div className="bg-white/60 backdrop-blur-sm border border-gray-200 rounded-2xl p-4 md:p-5 shadow-sm">
@@ -618,8 +622,8 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
               <Card
                 key={activity.id}
                 className={`border-0 shadow-lg transition-all duration-300 overflow-hidden hover:shadow-xl ${isAccepted
-                    ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 ring-2 ring-green-200'
-                    : 'bg-gradient-to-br from-white to-gray-50 hover:from-blue-50/30'
+                  ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 ring-2 ring-green-200'
+                  : 'bg-gradient-to-br from-white to-gray-50 hover:from-blue-50/30'
                   }`}
               >
                 <CardHeader className="pb-4 md:pb-5">

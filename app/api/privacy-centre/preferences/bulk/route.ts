@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { generateVerifiedConsentId, generateUnverifiedConsentId } from '@/lib/consent-id-utils';
 import crypto from 'crypto';
 
 /**
@@ -119,17 +120,17 @@ export async function POST(request: NextRequest) {
     }>;
 
     if (action === 'accept_all') {
-      preferencesArray = selectedActivities.map(activityId => ({
+      preferencesArray = selectedActivities.map((activityId: string) => ({
         activityId,
         consentStatus: 'accepted' as const,
       }));
     } else if (action === 'reject_all') {
-      preferencesArray = selectedActivities.map(activityId => {
+      preferencesArray = selectedActivities.map((activityId: string) => {
         // If previously accepted, mark as withdrawn; otherwise rejected
         const wasAccepted = originalStatusMap.get(activityId) === 'accepted';
         return {
           activityId,
-          consentStatus: (wasAccepted ? 'withdrawn' : 'rejected') as const,
+          consentStatus: wasAccepted ? ('withdrawn' as const) : ('rejected' as const),
         };
       });
     } else {
@@ -154,11 +155,11 @@ export async function POST(request: NextRequest) {
 
     const validActivityIds = new Set((existingActivities || []).map((a: any) => a.id));
     const invalidActivities = activityIds.filter(id => !validActivityIds.has(id));
-    
+
     if (invalidActivities.length > 0) {
       console.error('[Bulk Preferences] Invalid activity IDs:', invalidActivities);
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid activity IDs provided',
           details: `Activities not found: ${invalidActivities.join(', ')}`
         },
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
       console.error('[Bulk Preferences] Upsert data sample:', JSON.stringify(upsertData.slice(0, 1), null, 2));
       console.error('[Bulk Preferences] Total records to upsert:', upsertData.length);
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to save preferences',
           details: upsertError.message,
           code: upsertError.code,
@@ -230,7 +231,7 @@ export async function POST(request: NextRequest) {
       // Determine overall consent status
       const totalActivities = preferencesArray.length;
       const allWithdrawn = withdrawnActivities.length === totalActivities;
-      
+
       let consentStatus: 'accepted' | 'rejected' | 'partial' | 'revoked';
       if (allWithdrawn) {
         consentStatus = 'revoked';
@@ -244,10 +245,19 @@ export async function POST(request: NextRequest) {
 
       const allRejectedActivities = [...rejectedActivities, ...withdrawnActivities];
 
-      // Generate unique consent_id
+      // Generate consent_id with different patterns for verified vs unverified emails
+      // Format for verified emails: ${widgetId}_${emailHash16}_${timestamp}
+      // Format for unverified: ${widgetId}_${visitorId}_${timestamp}_${randomSuffix}
       const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const consentId = `${widgetId}_${visitorId}_${timestamp}_${randomSuffix}`;
+      let consentId: string;
+
+      if (visitorEmailHash) {
+        // Deterministic pattern for verified emails using email hash prefix
+        consentId = generateVerifiedConsentId(widgetId, visitorEmailHash, timestamp);
+      } else {
+        // Random pattern for unverified/anonymous visitors
+        consentId = generateUnverifiedConsentId(widgetId, visitorId, timestamp);
+      }
 
       const consentDetails = {
         activityConsents: {},
@@ -319,7 +329,7 @@ export async function POST(request: NextRequest) {
       code: error?.code,
     });
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
         code: error?.code || 'UNKNOWN_ERROR',

@@ -39,6 +39,21 @@ export function Footer() {
             </ul>
           </div>
           <div>
+            <h3 className="text-white font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Resources</h3>
+            <ul className="space-y-2 text-xs sm:text-sm">
+              <li>
+                <Link href="/guides/cookie-consent" className="hover:text-white transition-colors inline-block py-1 touch-manipulation">
+                  Cookie Consent Guide
+                </Link>
+              </li>
+              <li>
+                <Link href="/guides/dpdpa-consent" className="hover:text-white transition-colors inline-block py-1 touch-manipulation">
+                  DPDPA Consent Guide
+                </Link>
+              </li>
+            </ul>
+          </div>
+          <div>
             <h3 className="text-white font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Company</h3>
             <ul className="space-y-2 text-xs sm:text-sm">
               <li>

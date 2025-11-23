@@ -81,6 +81,8 @@ export async function GET(
     const records = data.map(record => ({
       principalId: record.visitor_id,
       name: record.visitor_email || (record.visitor_email_hash ? 'Verified User (Hidden)' : 'Anonymous Visitor'),
+      visitorEmail: record.visitor_email || null, // Include actual email for optional display
+      visitorEmailHash: record.visitor_email_hash || null,
       consentDate: record.consent_given_at || record.last_updated,
       noticeVersion: record.consent_version,
       channel: record.device_type || 'Unknown',

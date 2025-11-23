@@ -428,3 +428,103 @@ export function checkResendConfig(): {
   };
 }
 
+
+/**
+ * Send Admin Action OTP email
+ */
+export async function sendAdminOTPEmail(
+  email: string,
+  otp: string,
+  action: string = 'export data',
+  expiresInMinutes: number = 10
+): Promise<{ success: boolean; error?: string }> {
+  const subject = `Verify your identity to ${action} - Consently`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Identity</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f7fa; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">
+                🛡️ Security Verification
+              </h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
+                Hello,
+              </p>
+              
+              <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: #374151;">
+                We received a request to <strong>${action}</strong> from your account. To proceed, please verify your identity using the One-Time Password (OTP) below:
+              </p>
+              
+              <!-- OTP Box -->
+              <div style="background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px;">
+                  Your Verification Code
+                </p>
+                <p style="margin: 0; font-size: 42px; font-weight: 700; color: #111827; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                  ${otp}
+                </p>
+              </div>
+              
+              <p style="margin: 30px 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
+                <strong>⏰ This code will expire in ${expiresInMinutes} minutes.</strong>
+              </p>
+              
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
+                If you did not initiate this request, please ignore this email and consider changing your password if you suspect unauthorized access.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280;">
+                This email was sent by <strong>Consently</strong>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const text = `
+Verify Identity - Consently
+
+We received a request to ${action} from your account.
+
+Your Verification Code: ${otp}
+
+This code will expire in ${expiresInMinutes} minutes.
+
+If you did not initiate this request, please ignore this email.
+  `.trim();
+
+  return sendEmail({
+    to: email,
+    subject,
+    html,
+    text,
+  });
+}

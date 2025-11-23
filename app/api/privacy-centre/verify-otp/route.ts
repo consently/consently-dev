@@ -263,6 +263,7 @@ export async function POST(request: NextRequest) {
         .from('visitor_consent_preferences')
         .update({
           visitor_email_hash: emailHash,
+          visitor_email: email, // Store actual email for UI display
           last_updated: new Date().toISOString()
         })
         .eq('visitor_id', visitorId)
@@ -281,6 +282,45 @@ export async function POST(request: NextRequest) {
       console.log('[Verify OTP] ✅ Successfully linked preferences. Updated rows:', updatedData?.length || 0);
     } else {
       console.log('[Verify OTP] No existing preferences found to link');
+    }
+
+    // SYNC EMAIL TO CONSENT RECORDS: Update existing consent records with verified email
+    try {
+      console.log('[Verify OTP] Syncing email to consent records...');
+      const { data: consentRecords, error: consentRecordsError } = await supabase
+        .from('dpdpa_consent_records')
+        .select('id')
+        .eq('visitor_id', visitorId)
+        .eq('widget_id', widgetId)
+        .or('visitor_email.is.null,visitor_email_hash.is.null');
+
+      if (consentRecordsError) {
+        console.warn('[Verify OTP] Failed to fetch consent records (non-critical):', consentRecordsError);
+      } else if (consentRecords && consentRecords.length > 0) {
+        console.log(`[Verify OTP] Found ${consentRecords.length} consent records to update with email`);
+        
+        const { error: updateConsentError } = await supabase
+          .from('dpdpa_consent_records')
+          .update({
+            visitor_email_hash: emailHash,
+            visitor_email: email,
+            updated_at: new Date().toISOString()
+          })
+          .eq('visitor_id', visitorId)
+          .eq('widget_id', widgetId)
+          .or('visitor_email.is.null,visitor_email_hash.is.null');
+
+        if (updateConsentError) {
+          console.error('[Verify OTP] ❌ Error updating consent records:', updateConsentError);
+        } else {
+          console.log(`[Verify OTP] ✅ Successfully updated ${consentRecords.length} consent records with email`);
+        }
+      } else {
+        console.log('[Verify OTP] No consent records found that need email update');
+      }
+    } catch (consentSyncError) {
+      console.error('[Verify OTP] Unexpected error syncing email to consent records:', consentSyncError);
+      // Don't fail the request, this is an enhancement
     }
 
     // SYNC LOGIC: Check if this email has preferences from other devices and sync them to this device
@@ -319,6 +359,7 @@ export async function POST(request: NextRequest) {
           activity_id: pref.activity_id,
           consent_status: pref.consent_status,
           visitor_email_hash: emailHash, // Ensure hash is set
+          visitor_email: email, // Store actual email
           ip_address: pref.ip_address, // Optional: keep original IP or use current? Keeping original for audit trail of decision
           user_agent: pref.user_agent,
           device_type: pref.device_type,

@@ -8,6 +8,9 @@ import { z } from 'zod';
 const profileUpdateSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters').optional(),
   avatar_url: z.string().url('Invalid avatar URL').optional().or(z.literal('')),
+  company_name: z.string().min(2, 'Company name must be at least 2 characters').optional(),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format').optional().or(z.literal('')),
+  website: z.string().url('Invalid website URL').optional().or(z.literal('')),
 });
 
 // GET - Fetch user profile
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: 'Rate limit exceeded' },
-        { 
+        {
           status: 429,
           headers: {
             'X-RateLimit-Limit': rateLimitResult.limit.toString(),
@@ -57,7 +60,7 @@ export async function GET(request: NextRequest) {
       // No rows returned - create a default profile
       // Determine auth provider from user metadata
       const authProvider = user.app_metadata?.provider || 'email';
-      
+
       const { data: newProfile, error: createError } = await supabase
         .from('users')
         .insert({
@@ -75,9 +78,9 @@ export async function GET(request: NextRequest) {
         console.error('Error creating profile:', createError);
         console.error('Create error details:', { code: createError.code, message: createError.message, details: createError.details });
         await logFailure(user.id, 'user.register', 'users', createError.message, request);
-        return NextResponse.json({ 
-          error: 'Failed to create profile', 
-          details: createError.message 
+        return NextResponse.json({
+          error: 'Failed to create profile',
+          details: createError.message
         }, { status: 500 });
       }
 
@@ -169,6 +172,9 @@ export async function PUT(request: NextRequest) {
       .update({
         full_name: updateData.full_name,
         avatar_url: updateData.avatar_url,
+        company_name: updateData.company_name,
+        phone: updateData.phone,
+        website: updateData.website,
         updated_at: new Date().toISOString(),
       })
       .eq('id', user.id)

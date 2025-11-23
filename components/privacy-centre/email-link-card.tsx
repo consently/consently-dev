@@ -11,10 +11,11 @@ import { Mail, Shield, Check, Loader2, Link2, Smartphone, Clock, ArrowRight } fr
 interface EmailLinkCardProps {
   visitorId: string;
   widgetId: string;
+  linkedEmail?: string | null;
   onVerified?: () => void;
 }
 
-export function EmailLinkCard({ visitorId, widgetId, onVerified }: EmailLinkCardProps) {
+export function EmailLinkCard({ visitorId, widgetId, linkedEmail, onVerified }: EmailLinkCardProps) {
   const [step, setStep] = useState<'input' | 'verify'>('input');
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -198,7 +199,92 @@ export function EmailLinkCard({ visitorId, widgetId, onVerified }: EmailLinkCard
       </CardHeader>
 
       <CardContent className="p-5 md:p-6 space-y-6">
-        {step === 'input' ? (
+        {linkedEmail ? (
+          // Linked State - Enhanced Banner
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Success Banner */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl p-6 border-2 border-green-200 shadow-lg">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-green-200 rounded-full -mr-16 -mt-16 opacity-30 blur-2xl"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-200 rounded-full -ml-12 -mb-12 opacity-30 blur-2xl"></div>
+              
+              <div className="relative flex items-start gap-4">
+                <div className="flex h-12 w-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 items-center justify-center shadow-lg shadow-green-200 flex-shrink-0 animate-pulse">
+                  <Check className="h-6 w-6 text-white" strokeWidth={3} />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+                      ✨ Email Linked Successfully!
+                    </h3>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      Your consent preferences are now synchronized across all your devices
+                    </p>
+                  </div>
+                  
+                  {/* Email Display */}
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-green-200/50 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 items-center justify-center flex-shrink-0">
+                        <Mail className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">
+                          Linked Email Address
+                        </p>
+                        <p className="text-sm md:text-base font-semibold text-gray-900 truncate">
+                          {linkedEmail}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Benefits List */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <div className="flex h-5 w-5 rounded-full bg-green-100 items-center justify-center flex-shrink-0">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </div>
+                      <span>Auto-sync across devices</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <div className="flex h-5 w-5 rounded-full bg-green-100 items-center justify-center flex-shrink-0">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </div>
+                      <span>One-time verification</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <div className="flex h-5 w-5 rounded-full bg-green-100 items-center justify-center flex-shrink-0">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </div>
+                      <span>Secure & encrypted</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <div className="flex h-5 w-5 rounded-full bg-green-100 items-center justify-center flex-shrink-0">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </div>
+                      <span>Easy to manage</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Notice */}
+            <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 rounded-lg bg-blue-100 items-center justify-center flex-shrink-0 mt-0.5">
+                  <Smartphone className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">Cross-Device Sync Active</h4>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    Any changes you make to your consent preferences will automatically apply to all devices using this email address.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : step === 'input' ? (
           // Step 1: Email Input
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
@@ -350,7 +436,7 @@ export function EmailLinkCard({ visitorId, widgetId, onVerified }: EmailLinkCard
           </div>
         )}
       </CardContent>
-    </Card>
+    </Card >
   );
 }
 

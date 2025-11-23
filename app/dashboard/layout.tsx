@@ -78,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         // Fetch user profile to check onboarding status
         const { data: profile } = await supabase
           .from('users')
-          .select('onboarding_completed, full_name')
+          .select('onboarding_completed, full_name, company_name, phone, website, avatar_url')
           .eq('id', authUser.id)
           .single();
 
@@ -113,7 +113,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           id: authUser.id,
           email: authUser.email!,
           fullName: profile?.full_name || authUser.user_metadata?.full_name || '',
-          companyName: authUser.user_metadata?.company_name || '',
+          companyName: profile?.company_name || authUser.user_metadata?.company_name || '',
           emailVerified: !!authUser.email_confirmed_at,
           twoFactorEnabled: false,
           createdAt: authUser.created_at,
@@ -131,10 +131,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     try {
       // Log logout attempt (before sign out)
       const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
+
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         console.error('Logout error:', error);
         toast.error('Failed to sign out. Please try again.');
@@ -143,7 +143,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       // Clear user store
       clearUser();
-      
+
       // Log successful logout
       if (currentUser) {
         try {
@@ -164,7 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Force router refresh and redirect
       router.refresh();
       router.push('/login');
-      
+
       toast.success('Signed out successfully');
     } catch (error) {
       console.error('Unexpected logout error:', error);
@@ -194,9 +194,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 safe-left ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 safe-left ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
@@ -205,8 +204,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600" />
               <span className="text-lg sm:text-xl font-bold text-gray-900">Consently</span>
             </Link>
-            <button 
-              onClick={() => setSidebarOpen(false)} 
+            <button
+              onClick={() => setSidebarOpen(false)}
               className="lg:hidden p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
               aria-label="Close menu"
             >
@@ -230,9 +229,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           <span className="truncate">{item.name}</span>
                         </div>
                         <ChevronDown
-                          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${
-                            expandedItems.includes(item.name) ? 'rotate-180' : ''
-                          }`}
+                          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${expandedItems.includes(item.name) ? 'rotate-180' : ''
+                            }`}
                         />
                       </button>
                       {expandedItems.includes(item.name) && (
@@ -241,11 +239,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <li key={child.href}>
                               <Link
                                 href={child.href}
-                                className={`block px-3 py-3 text-sm rounded-lg transition-all duration-200 touch-manipulation ${
-                                  isActive(child.href)
-                                    ? 'bg-blue-50 text-blue-600 font-medium'
-                                    : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200'
-                                }`}
+                                className={`block px-3 py-3 text-sm rounded-lg transition-all duration-200 touch-manipulation ${isActive(child.href)
+                                  ? 'bg-blue-50 text-blue-600 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200'
+                                  }`}
                                 onClick={() => setSidebarOpen(false)}
                               >
                                 <span className="truncate block">{child.name}</span>
@@ -258,11 +255,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   ) : (
                     <Link
                       href={item.href!}
-                      className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${
-                        isActive(item.href!)
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
-                      }`}
+                      className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${isActive(item.href!)
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-700 hover:bg-gray-100 active:bg-gray-200'
+                        }`}
                       onClick={() => setSidebarOpen(false)}
                     >
                       <item.icon className="h-5 w-5 mr-3 flex-shrink-0" />
@@ -292,7 +288,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
                   <div className="text-left min-w-0 flex-1">
                     <p className="font-medium truncate text-sm">{user?.fullName || 'User'}</p>
-                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    {user?.companyName && (
+                      <p className="text-xs text-gray-500 truncate">{user.companyName}</p>
+                    )}
+                    <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                   </div>
                 </div>
                 <ChevronDown
@@ -328,8 +327,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="lg:pl-64 min-h-screen flex flex-col">
         {/* Top bar */}
         <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-3 sm:px-4 lg:px-8 safe-top backdrop-blur-sm bg-white/95">
-          <button 
-            onClick={() => setSidebarOpen(true)} 
+          <button
+            onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 touch-manipulation"
             aria-label="Open menu"
           >
