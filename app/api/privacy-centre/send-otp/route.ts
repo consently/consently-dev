@@ -22,51 +22,51 @@ interface SendOTPRequest {
 export async function POST(request: NextRequest) {
   try {
     console.log('[Send OTP] Request received');
-    
+
     // Check critical environment variables
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       console.error('[Send OTP] CRITICAL: NEXT_PUBLIC_SUPABASE_URL not set');
       return NextResponse.json(
-        { 
+        {
           error: 'Server configuration error',
           details: process.env.NODE_ENV === 'development' ? 'NEXT_PUBLIC_SUPABASE_URL not configured' : 'Database not configured'
         },
         { status: 500 }
       );
     }
-    
+
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('[Send OTP] CRITICAL: SUPABASE_SERVICE_ROLE_KEY not set in environment');
       console.error('[Send OTP] This is required for the service client to work');
       console.error('[Send OTP] Please add SUPABASE_SERVICE_ROLE_KEY to your deployment environment variables');
       return NextResponse.json(
-        { 
+        {
           error: 'Server configuration error',
-          details: process.env.NODE_ENV === 'development' 
+          details: process.env.NODE_ENV === 'development'
             ? 'SUPABASE_SERVICE_ROLE_KEY not configured. Add it to .env.local'
             : 'Database service key not configured. Contact support.'
         },
         { status: 500 }
       );
     }
-    
+
     if (!process.env.RESEND_API_KEY) {
       console.error('[Send OTP] CRITICAL: RESEND_API_KEY not set');
       return NextResponse.json(
-        { 
+        {
           error: 'Email service not configured',
           details: process.env.NODE_ENV === 'development' ? 'RESEND_API_KEY not configured' : 'Email service not configured'
         },
         { status: 500 }
       );
     }
-    
+
     const supabase = await createServiceClient();
-    
+
     let body: SendOTPRequest;
     try {
       body = await request.json();
-      console.log('[Send OTP] Request body parsed:', { 
+      console.log('[Send OTP] Request body parsed:', {
         email: body.email ? body.email.substring(0, 3) + '***' : 'missing',
         visitorId: body.visitorId ? body.visitorId.substring(0, 10) + '...' : 'missing',
         widgetId: body.widgetId || 'missing'
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         .select('otp_expiration_minutes')
         .eq('widget_id', widgetId)
         .single();
-      
+
       // Only use the value if we got it successfully and it's a valid number
       if (!configError && widgetConfig?.otp_expiration_minutes && typeof widgetConfig.otp_expiration_minutes === 'number') {
         otpExpirationMinutes = widgetConfig.otp_expiration_minutes;
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     // Check rate limiting - max 3 OTP requests per email per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const emailHash = crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
-    
+
     const { data: recentOTPs, error: countError } = await supabase
       .from('email_verification_otps')
       .select('id')
@@ -156,12 +156,12 @@ export async function POST(request: NextRequest) {
         errorDetails: countError.details,
         errorHint: countError.hint
       });
-      
+
       // Check if table doesn't exist (common production issue)
       if (countError.message?.includes('relation') && countError.message?.includes('does not exist')) {
         console.error('[Send OTP] CRITICAL: email_verification_otps table does not exist!');
         return NextResponse.json(
-          { 
+          {
             error: 'Database configuration error. The email verification table is missing.',
             details: process.env.NODE_ENV === 'development' ? {
               message: countError.message,
@@ -171,9 +171,9 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      
+
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to verify rate limit',
           details: process.env.NODE_ENV === 'development' ? countError.message : undefined
         },
@@ -194,9 +194,9 @@ export async function POST(request: NextRequest) {
       } catch (eventError: any) {
         console.warn('[Send OTP] Failed to track rate limit event (non-critical):', eventError?.message || eventError);
       }
-      
+
       return NextResponse.json(
-        { 
+        {
           error: 'Too many OTP requests. Please try again later.',
           retryAfter: 3600 // seconds
         },
@@ -247,12 +247,12 @@ export async function POST(request: NextRequest) {
         errorHint: insertError.hint,
         fullError: JSON.stringify(insertError, null, 2),
       });
-      
+
       // Check for common production issues
       if (insertError.message?.includes('relation') && insertError.message?.includes('does not exist')) {
         console.error('[Send OTP] CRITICAL: email_verification_otps table does not exist in production!');
         return NextResponse.json(
-          { 
+          {
             error: 'Database configuration error. Please contact support.',
             details: process.env.NODE_ENV === 'development' ? {
               message: insertError.message,
@@ -262,11 +262,11 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      
+
       if (insertError.code === '42501' || insertError.message?.includes('permission denied') || insertError.message?.includes('row-level security')) {
         console.error('[Send OTP] CRITICAL: RLS policy blocking insert!');
         return NextResponse.json(
-          { 
+          {
             error: 'Database permission error. Please contact support.',
             details: process.env.NODE_ENV === 'development' ? {
               message: insertError.message,
@@ -277,9 +277,9 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      
+
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to generate OTP',
           details: process.env.NODE_ENV === 'development' ? {
             message: insertError.message,
@@ -291,7 +291,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     console.log('[Send OTP] OTP stored successfully:', { otpRecordId: otpRecord.id });
 
     // Send OTP email with dynamic expiration
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.success) {
       console.error('❌ Failed to send OTP email:', emailResult.error);
-      
+
       // Run diagnostics to help debug the issue
       const config = checkResendConfig();
       console.error('📋 Resend Configuration Check:', {
@@ -310,30 +310,30 @@ export async function POST(request: NextRequest) {
         fromEmail: config.fromEmail,
         apiKeyPrefix: config.apiKeyPrefix,
       });
-      
+
       console.error('Email send failure details:', {
         email: email.substring(0, 3) + '***', // Partial email for logging
         otpRecordId: otpRecord.id,
         error: emailResult.error,
       });
-      
+
       // Delete the OTP record since we couldn't send the email
       const { error: deleteError } = await supabase
         .from('email_verification_otps')
         .delete()
         .eq('id', otpRecord.id);
-      
+
       if (deleteError) {
         console.error('Failed to delete OTP record after email failure:', deleteError);
       }
 
       // Check if it's a configuration issue
-      if (emailResult.error?.includes('not configured') || 
-          emailResult.error?.includes('RESEND_API_KEY') ||
-          !config.apiKeyConfigured ||
-          !config.clientInitialized) {
+      if (emailResult.error?.includes('not configured') ||
+        emailResult.error?.includes('RESEND_API_KEY') ||
+        !config.apiKeyConfigured ||
+        !config.clientInitialized) {
         return NextResponse.json(
-          { 
+          {
             error: 'Email service is not properly configured. Please contact support.',
             details: process.env.NODE_ENV === 'development' ? {
               configCheck: config,
@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to send OTP email. Please try again.',
           details: process.env.NODE_ENV === 'development' ? emailResult.error : undefined
         },
@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`✅ OTP sent to ${email} for visitor ${visitorId}`);
+    console.log(`✅ OTP sent to ${email.substring(0, 3)}*** for visitor ${visitorId}`);
 
     // Track OTP sent event (non-blocking - don't fail if this fails)
     try {
@@ -362,9 +362,9 @@ export async function POST(request: NextRequest) {
         visitor_id: visitorId,
         event_type: 'otp_sent',
         email_hash: emailHash,
-        metadata: { 
+        metadata: {
           otp_id: otpRecord.id,
-          expiration_minutes: otpExpirationMinutes 
+          expiration_minutes: otpExpirationMinutes
         },
       });
     } catch (eventError: any) {
@@ -390,16 +390,16 @@ export async function POST(request: NextRequest) {
       cause: error?.cause,
       fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
     });
-    
+
     // Check for common production issues
     const errorMessage = error?.message?.toLowerCase() || '';
     const errorCode = error?.code?.toLowerCase() || '';
-    
+
     // Database/table doesn't exist
     if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
       console.error('[Send OTP] CRITICAL: Table does not exist in production database!');
       return NextResponse.json(
-        { 
+        {
           error: 'Database configuration error. Please contact support.',
           details: process.env.NODE_ENV === 'development' ? {
             message: error?.message,
@@ -409,12 +409,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // RLS policy issue
     if (errorCode.includes('42501') || errorMessage.includes('permission denied') || errorMessage.includes('row-level security')) {
       console.error('[Send OTP] CRITICAL: RLS policy blocking insert!');
       return NextResponse.json(
-        { 
+        {
           error: 'Database permission error. Please contact support.',
           details: process.env.NODE_ENV === 'development' ? {
             message: error?.message,
@@ -425,12 +425,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Resend configuration issue
     if (errorMessage.includes('resend') || errorMessage.includes('api key') || !process.env.RESEND_API_KEY) {
       console.error('[Send OTP] CRITICAL: Resend API key not configured!');
       return NextResponse.json(
-        { 
+        {
           error: 'Email service configuration error. Please contact support.',
           details: process.env.NODE_ENV === 'development' ? {
             message: error?.message,
@@ -440,11 +440,11 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Database connection issue
     if (errorMessage.includes('database') || errorMessage.includes('supabase') || errorCode.includes('PGRST') || errorCode.includes('ECONNREFUSED')) {
       return NextResponse.json(
-        { 
+        {
           error: 'Database connection error. Please try again later.',
           details: process.env.NODE_ENV === 'development' ? {
             message: error?.message,
@@ -455,10 +455,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Generic error with better logging
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         details: process.env.NODE_ENV === 'development' ? {
           message: error?.message,

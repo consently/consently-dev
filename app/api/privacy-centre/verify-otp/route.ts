@@ -372,7 +372,7 @@ export async function POST(request: NextRequest) {
     // Send confirmation email (non-blocking - don't fail if this fails)
     try {
       await sendPreferencesLinkedEmail(email, uniqueDevices);
-      console.log(`✅ Confirmation email sent to ${email}`);
+      console.log(`✅ Confirmation email sent to ${email.substring(0, 3)}***`);
     } catch (emailError: any) {
       console.error('Failed to send confirmation email (non-critical):', emailError?.message || emailError);
       // Don't fail the verification if email sending fails

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import type { DisplayRule, DPDPAWidgetConfig, ProcessingActivityPublic } from '@/types/dpdpa-widget.types';
+import { cache } from '@/lib/cache';
 
 /**
  * Public API endpoint to fetch DPDPA widget configuration
@@ -22,11 +23,11 @@ export async function GET(
 
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { 
+        {
           error: 'Rate limit exceeded',
-          retryAfter: rateLimitResult.retryAfter 
+          retryAfter: rateLimitResult.retryAfter
         },
-        { 
+        {
           status: 429,
           headers: {
             'X-RateLimit-Limit': rateLimitResult.limit.toString(),
@@ -47,6 +48,34 @@ export async function GET(
       );
     }
 
+    // Try to get from cache first
+    const cacheKey = `dpdpa-widget-config:${widgetId}`;
+    const cachedConfig = await cache.get(cacheKey);
+
+    if (cachedConfig) {
+      const response = NextResponse.json(cachedConfig);
+      const etag = `"${Buffer.from(JSON.stringify(cachedConfig)).toString('base64').substring(0, 32)}"`;
+
+      // Check If-None-Match header for conditional requests
+      const requestEtag = request.headers.get('If-None-Match');
+      if (requestEtag === etag) {
+        return new NextResponse(null, {
+          status: 304,
+          headers: {
+            'ETag': etag,
+            'Cache-Control': 'public, max-age=60, must-revalidate',
+            'Access-Control-Allow-Origin': '*',
+          }
+        });
+      }
+
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120, must-revalidate');
+      response.headers.set('ETag', etag);
+      response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('X-Cache', 'HIT');
+      return response;
+    }
+
     // Create supabase client (no auth check needed for public endpoint)
     const supabase = await createClient();
 
@@ -65,11 +94,11 @@ export async function GET(
         code: configError?.code,
       });
       return NextResponse.json(
-        { 
+        {
           error: 'Widget configuration not found',
           code: 'WIDGET_NOT_FOUND'
         },
-        { 
+        {
           status: 404,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -79,23 +108,8 @@ export async function GET(
       );
     }
 
-    // Log selected activities for debugging
-    console.log('[Widget Public API] Widget ID:', widgetId);
-    console.log('[Widget Public API] Selected activities from config:', widgetConfig.selected_activities);
-    console.log('[Widget Public API] Selected activities count:', widgetConfig.selected_activities?.length || 0);
-
     // Fetch the processing activities associated with this widget with full purpose details
     const selectedActivitiesIds = widgetConfig.selected_activities || [];
-    
-    // If no activities selected, return empty array but log warning
-    if (!selectedActivitiesIds || selectedActivitiesIds.length === 0) {
-      console.warn('[Widget Public API] No activities selected in widget configuration!');
-      console.warn('[Widget Public API] Widget config:', {
-        widgetId: widgetConfig.widget_id,
-        name: widgetConfig.name,
-        selected_activities: widgetConfig.selected_activities
-      });
-    }
 
     // OPTIMIZED: Use Supabase joins to fetch all data in ONE query (no N+1 problem)
     const { data: activitiesRaw, error: activitiesError } = await supabase
@@ -128,21 +142,6 @@ export async function GET(
       console.error('[Widget Public API] Error fetching activities:', activitiesError);
     }
 
-    console.log('[Widget Public API] Activities fetched from database:', activitiesRaw?.length || 0);
-    if (activitiesRaw && activitiesRaw.length > 0) {
-      console.log('[Widget Public API] First activity:', {
-        id: activitiesRaw[0].id,
-        name: activitiesRaw[0].activity_name,
-        hasPurposes: !!activitiesRaw[0].activity_purposes
-      });
-    } else if (selectedActivitiesIds.length > 0) {
-      console.warn('[Widget Public API] No activities found despite selected_activities being non-empty!');
-      console.warn('[Widget Public API] This might indicate:');
-      console.warn('  1. Activity IDs in selected_activities do not match any records');
-      console.warn('  2. Activities exist but are marked as is_active = false');
-      console.warn('  3. Data type mismatch (UUID vs string)');
-    }
-
     // Transform the joined data into the expected format
     const activities = (activitiesRaw || []).map((activity: any) => {
       // Transform purposes with their categories
@@ -167,21 +166,8 @@ export async function GET(
         purposes: purposesWithCategories,
       };
 
-      // Log activity structure for debugging
-      console.log('[Widget Public API] Processed activity:', {
-        id: processedActivity.id,
-        name: processedActivity.activity_name,
-        purposesCount: processedActivity.purposes?.length || 0,
-      });
-
       return processedActivity;
     });
-
-    console.log('[Widget Public API] Final activities count after processing:', activities.length);
-    if (activities.length === 0 && selectedActivitiesIds.length > 0) {
-      console.error('[Widget Public API] CRITICAL: Activities were selected but none were returned!');
-      console.error('[Widget Public API] This indicates a data mismatch or query issue.');
-    }
 
     // Generate privacy notice HTML (with sanitization)
     let privacyNoticeHTML = '<p style="color:#6b7280;">Privacy notice content...</p>';
@@ -195,25 +181,25 @@ export async function GET(
       widgetId: widgetConfig.widget_id,
       name: widgetConfig.name || 'DPDPA Consent Widget',
       domain: widgetConfig.domain,
-      
+
       // Appearance
       position: (widgetConfig.position || 'modal') as DPDPAWidgetConfig['position'],
       layout: (widgetConfig.layout || 'modal') as DPDPAWidgetConfig['layout'],
       theme: (widgetConfig.theme || {}) as DPDPAWidgetConfig['theme'],
-      
+
       // Content
       title: widgetConfig.title || 'Your Data Privacy Rights',
       message: widgetConfig.message || 'We process your personal data with your consent.',
       acceptButtonText: widgetConfig.accept_button_text || 'Accept All',
       rejectButtonText: widgetConfig.reject_button_text || 'Reject All',
       customizeButtonText: widgetConfig.customize_button_text || 'Manage Preferences',
-      
+
       // Processing activities - ensure it's always an array and properly typed
       activities: (Array.isArray(activities) ? activities : []) as ProcessingActivityPublic[],
-      
+
       // Privacy notice (sanitized)
       privacyNoticeHTML: privacyNoticeHTML,
-      
+
       // Behavior
       autoShow: widgetConfig.auto_show ?? true,
       showAfterDelay: widgetConfig.show_after_delay ?? 1000,
@@ -221,44 +207,34 @@ export async function GET(
       respectDNT: widgetConfig.respect_dnt ?? false,
       requireExplicitConsent: widgetConfig.require_explicit_consent ?? true,
       showDataSubjectsRights: widgetConfig.show_data_subjects_rights ?? true,
-      
+
       // Advanced
       language: widgetConfig.language || 'en',
-      supportedLanguages: Array.isArray(widgetConfig.supported_languages) 
-        ? widgetConfig.supported_languages 
+      supportedLanguages: Array.isArray(widgetConfig.supported_languages)
+        ? widgetConfig.supported_languages
         : ['en'],
       customTranslations: widgetConfig.custom_translations || undefined,
       showBranding: widgetConfig.show_branding ?? true,
       customCSS: widgetConfig.custom_css || undefined,
-      
+
       // NEW: Display rules for page-specific notices (filter inactive rules and validate)
       display_rules: filterAndValidateDisplayRules(widgetConfig.display_rules),
-      
+
       // Metadata
       version: '2.0.0' // Updated version for display rules support
     };
 
-    // Log final response structure for debugging
-    console.log('[Widget Public API] Final response structure:', {
-      widgetId: response.widgetId,
-      activitiesCount: response.activities.length,
-      hasActivities: response.activities.length > 0,
-      activitiesStructure: response.activities.length > 0 ? {
-        firstActivityId: response.activities[0].id,
-        firstActivityName: response.activities[0].activity_name,
-        firstActivityPurposesCount: response.activities[0].purposes?.length || 0,
-        firstActivityDataAttributesCount: response.activities[0].data_attributes?.length || 0
-      } : null
-    });
+    // Cache the config
+    await cache.set(cacheKey, response, 3600); // Cache for 1 hour
 
     // Generate ETag for cache validation
     const configString = JSON.stringify(response);
     const etag = `"${Buffer.from(configString).toString('base64').substring(0, 32)}"`;
-    
+
     // Check If-None-Match header for conditional requests
     const requestEtag = request.headers.get('If-None-Match');
     if (requestEtag === etag) {
-      return new NextResponse(null, { 
+      return new NextResponse(null, {
         status: 304,
         headers: {
           'ETag': etag,
@@ -267,7 +243,7 @@ export async function GET(
         }
       });
     }
-    
+
     // Set cache headers (cache for 1 minute for faster updates)
     return NextResponse.json(response, {
       headers: {
@@ -277,6 +253,7 @@ export async function GET(
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
         'Access-Control-Allow-Headers': 'Content-Type, Cache-Control, If-None-Match',
+        'X-Cache': 'MISS',
       }
     });
 
@@ -284,21 +261,21 @@ export async function GET(
     // Enhanced error logging for production
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     console.error('[Widget Public API] Error fetching widget configuration:', {
       widgetId: await params.then(p => p.widgetId).catch(() => 'unknown'),
       error: errorMessage,
       stack: errorStack,
       timestamp: new Date().toISOString(),
     });
-    
+
     // Don't expose internal error details to clients
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to load widget configuration',
         code: 'WIDGET_CONFIG_ERROR'
       },
-      { 
+      {
         status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',
@@ -323,37 +300,37 @@ export async function OPTIONS() {
 // Helper function to generate privacy notice HTML
 function generatePrivacyNoticeHTML(activities: any[], domain: string): string {
   const companyName = domain || '[Your Company Name]';
-  
+
   const activitySections = activities.map((activity, index) => {
     // Use new purposes structure (ONLY structure now - no legacy fallback)
     let purposesList = '';
     let allDataCategories: string[] = [];
     let retentionText = 'N/A';
-    
+
     if (activity.purposes && activity.purposes.length > 0) {
       // Show all purposes
       purposesList = activity.purposes.map((p: any) => {
         const dataCategories = p.dataCategories?.map((cat: any) => cat.categoryName) || [];
         allDataCategories.push(...dataCategories);
-        
-        const retentionPeriods = p.dataCategories?.map((cat: any) => 
+
+        const retentionPeriods = p.dataCategories?.map((cat: any) =>
           `${cat.categoryName}: ${cat.retentionPeriod}`
         ) || [];
-        
+
         if (retentionPeriods.length > 0) {
           retentionText = retentionPeriods.join(', ');
         }
-        
+
         return `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis.replace('-', ' '))})</li>`;
       }).join('');
     } else {
       purposesList = '<li>No purposes defined</li>';
     }
-    
-    const dataCategoriesText = allDataCategories.length > 0 
+
+    const dataCategoriesText = allDataCategories.length > 0
       ? allDataCategories.map((c: string) => escapeHtml(c)).join(', ')
       : 'N/A';
-    
+
     return `
     <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 8px;">
       <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 600;">
@@ -449,7 +426,7 @@ function filterAndValidateDisplayRules(rules: any): DisplayRule[] {
   if (!rules || !Array.isArray(rules)) {
     return [];
   }
-  
+
   // Filter inactive rules and validate structure
   return rules
     .filter((rule: any) => {
@@ -459,19 +436,19 @@ function filterAndValidateDisplayRules(rules: any): DisplayRule[] {
       if (!rule.id || !rule.rule_name || !rule.url_pattern) return false;
       if (!['exact', 'contains', 'startsWith', 'regex'].includes(rule.url_match_type)) return false;
       if (!['onPageLoad', 'onClick', 'onFormSubmit', 'onScroll'].includes(rule.trigger_type)) return false;
-      
+
       // Validate priority is a number
       if (typeof rule.priority !== 'number' || rule.priority < 0 || rule.priority > 1000) {
         console.warn('[Widget Public API] Invalid priority in rule:', rule.id);
         return false;
       }
-      
+
       // Validate URL pattern length (prevent DoS via extremely long patterns)
       if (rule.url_pattern.length > 500) {
         console.warn('[Widget Public API] URL pattern too long in rule:', rule.id);
         return false;
       }
-      
+
       // Validate regex patterns (if regex type)
       if (rule.url_match_type === 'regex') {
         try {
@@ -481,7 +458,7 @@ function filterAndValidateDisplayRules(rules: any): DisplayRule[] {
           return false;
         }
       }
-      
+
       // Validate activities array if present
       if (rule.activities && Array.isArray(rule.activities)) {
         // Limit number of activities per rule (prevent abuse)
@@ -491,11 +468,11 @@ function filterAndValidateDisplayRules(rules: any): DisplayRule[] {
         }
         // Validate UUIDs
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        rule.activities = rule.activities.filter((id: string) => 
+        rule.activities = rule.activities.filter((id: string) =>
           typeof id === 'string' && uuidRegex.test(id)
         );
       }
-      
+
       // Validate scroll_threshold if present (for onScroll trigger)
       if (rule.trigger_type === 'onScroll') {
         if (rule.scroll_threshold !== undefined) {
@@ -505,7 +482,7 @@ function filterAndValidateDisplayRules(rules: any): DisplayRule[] {
           }
         }
       }
-      
+
       return true;
     })
     .sort((a: DisplayRule, b: DisplayRule) => (b.priority || 100) - (a.priority || 100)) // Sort by priority
@@ -519,7 +496,7 @@ function escapeHtml(text: string): string {
   if (typeof text !== 'string') {
     return '';
   }
-  
+
   const map: { [key: string]: string } = {
     '&': '&amp;',
     '<': '&lt;',
@@ -538,7 +515,7 @@ function sanitizeHTML(html: string): string {
   if (typeof html !== 'string') {
     return '';
   }
-  
+
   // Basic sanitization: remove script tags and event handlers
   // For production, consider using DOMPurify or similar library
   return html

@@ -61,12 +61,28 @@ const buttonStyleSchema = z.object({
   fontWeight: z.enum(['normal', 'medium', 'semibold', 'bold']).optional(),
 });
 
+// Sanitization helpers
+function sanitizeCSS(css: string | undefined): string | undefined {
+  if (!css) return undefined;
+  // Basic sanitization: remove </style> to prevent breaking out
+  // Also remove javascript: protocol to prevent execution in CSS (e.g. background-image)
+  return css
+    .replace(/<\/style>/gi, '')
+    .replace(/javascript:/gi, '');
+}
+
+function sanitizeJS(js: string | undefined): string | undefined {
+  if (!js) return undefined;
+  // Basic sanitization: remove </script> to prevent breaking out
+  return js.replace(/<\/script>/gi, '');
+}
+
 const bannerConfigSchema = z.object({
   name: z.string().min(1, 'Banner name is required'),
   description: z.string().optional().or(z.literal('')),
   position: bannerPositionSchema,
   layout: bannerLayoutSchema,
-  
+
   // Theme customization
   theme: z.object({
     primaryColor: hexColorSchema,
@@ -78,7 +94,7 @@ const bannerConfigSchema = z.object({
     borderRadius: z.number().min(0).max(50).optional(),
     boxShadow: z.boolean().optional(),
   }),
-  
+
   // Content
   title: z.string().min(1),
   message: z.string().min(1),
@@ -112,12 +128,12 @@ const bannerConfigSchema = z.object({
     }
   }),
   termsText: z.string().optional().or(z.literal('')).default('Terms & Conditions'),
-  
+
   // Buttons
   acceptButton: buttonStyleSchema,
   rejectButton: buttonStyleSchema.optional(),
   settingsButton: buttonStyleSchema.optional(),
-  
+
   // Behavior
   showRejectButton: z.boolean().default(true),
   showSettingsButton: z.boolean().default(true),
@@ -125,12 +141,12 @@ const bannerConfigSchema = z.object({
   showAfterDelay: z.number().min(0).max(60000).optional().default(0),
   respectDNT: z.boolean().default(false),
   blockContent: z.boolean().default(false),
-  
+
   // Advanced
-  customCSS: z.string().optional().or(z.literal('')),
-  customJS: z.string().optional().or(z.literal('')),
+  customCSS: z.string().optional().or(z.literal('')).transform(val => sanitizeCSS(val)),
+  customJS: z.string().optional().or(z.literal('')).transform(val => sanitizeJS(val)),
   zIndex: z.number().min(1).max(999999).optional().default(9999),
-  
+
   // Status
   is_active: z.boolean().default(true),
   is_default: z.boolean().default(false),
@@ -181,9 +197,9 @@ function transformBannerToCamelCase(banner: any) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -226,7 +242,7 @@ export async function GET(request: NextRequest) {
           .eq('banner_id', bannerId)
           .order('created_at', { ascending: false })
           .limit(10);
-        
+
         versions = versionData;
       }
 
@@ -277,9 +293,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -295,7 +311,7 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       console.error('Validation failed:', validationResult.error.issues);
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid request data',
           details: validationResult.error.issues.map(issue => ({
             field: issue.path.join('.'),
@@ -414,13 +430,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error creating banner config:', error);
-    
+
     // Return more detailed error information
     const errorMessage = error?.message || 'Failed to create banner configuration';
     const errorDetails = error?.details || error?.hint || undefined;
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
         details: errorDetails ? [errorDetails] : undefined
       },
@@ -436,9 +452,9 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -477,7 +493,7 @@ export async function PUT(request: NextRequest) {
     if (!validationResult.success) {
       console.error('Validation failed (update):', validationResult.error.issues);
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid request data',
           details: validationResult.error.issues.map(issue => ({
             field: issue.path.join('.'),
@@ -501,7 +517,7 @@ export async function PUT(request: NextRequest) {
     // Transform camelCase to snake_case for database (only fields that are present)
     const config = validationResult.data;
     const dbUpdates: any = {};
-    
+
     if (config.name !== undefined) dbUpdates.name = config.name;
     if (config.description !== undefined) dbUpdates.description = config.description;
     if (config.position !== undefined) dbUpdates.position = config.position;
@@ -584,9 +600,9 @@ export async function PUT(request: NextRequest) {
         action: 'banner_configured',
         resource_type: 'banner_config',
         resource_id: id,
-        changes: { 
+        changes: {
           before: existingBanner,
-          after: updatedBanner 
+          after: updatedBanner
         },
         ip_address: request.headers.get('x-forwarded-for') || undefined,
         user_agent: request.headers.get('user-agent') || undefined,
@@ -609,13 +625,13 @@ export async function PUT(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error updating banner config:', error);
-    
+
     // Return more detailed error information
     const errorMessage = error?.message || 'Failed to update banner configuration';
     const errorDetails = error?.details || error?.hint || undefined;
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
         details: errorDetails ? [errorDetails] : undefined
       },
@@ -631,9 +647,9 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },

@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import ConsentlyCookieWidget from "@/components/cookie/ConsentlyCookieWidget";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { SkipLink } from "@/components/ui/SkipLink";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -51,11 +53,21 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
-        {children}
-        <ConsentlyCookieWidget />
-        <SpeedInsights />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SkipLink />
+          <main id="main-content" className="min-h-screen">
+            {children}
+          </main>
+          <ConsentlyCookieWidget />
+          <SpeedInsights />
+        </ThemeProvider>
       </body>
     </html>
   );

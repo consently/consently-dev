@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { displayRulesSchema } from '@/types/dpdpa-widget.types';
 import { logSuccess, logFailure } from '@/lib/audit';
+import { checkRateLimit, getUserIdentifier } from '@/lib/rate-limit';
 
 // Validation schema
 // UUID validation regex
@@ -129,6 +130,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limiting: 30 requests per minute for creating widgets
+    const rateLimitResult = checkRateLimit({
+      max: 30,
+      window: 60000,
+      identifier: getUserIdentifier(user.id),
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please try again later.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': rateLimitResult.retryAfter?.toString() || '60',
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.retryAfter?.toString() || '60'
+          }
+        }
+      );
+    }
+
     // Parse and validate request body
     const body = await request.json();
     const validationResult = widgetConfigSchema.safeParse(body);
@@ -190,7 +213,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating widget config:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
-      
+
       // Log widget creation failure
       await logFailure(
         user.id,
@@ -199,7 +222,7 @@ export async function POST(request: NextRequest) {
         error.message,
         request
       );
-      
+
       return NextResponse.json(
         { error: 'Failed to create widget configuration', details: error.message },
         { status: 500 }
@@ -242,6 +265,28 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limiting: 30 requests per minute for updating widgets
+    const rateLimitResult = checkRateLimit({
+      max: 30,
+      window: 60000,
+      identifier: getUserIdentifier(user.id),
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please try again later.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': rateLimitResult.retryAfter?.toString() || '60',
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.retryAfter?.toString() || '60'
+          }
+        }
+      );
+    }
+
     // Parse request body
     const body = await request.json();
     const { widgetId, ...updateData } = body;
@@ -264,7 +309,7 @@ export async function PUT(request: NextRequest) {
 
     // Prepare data for update (convert camelCase to snake_case)
     const updatePayload: any = {};
-    
+
     if (configData.name !== undefined) updatePayload.name = configData.name;
     if (configData.domain !== undefined) updatePayload.domain = configData.domain;
     if (configData.position !== undefined) updatePayload.position = configData.position;
@@ -275,7 +320,7 @@ export async function PUT(request: NextRequest) {
     if (configData.acceptButtonText !== undefined) updatePayload.accept_button_text = configData.acceptButtonText;
     if (configData.rejectButtonText !== undefined) updatePayload.reject_button_text = configData.rejectButtonText;
     if (configData.customizeButtonText !== undefined) updatePayload.customize_button_text = configData.customizeButtonText;
-    
+
     // Validate and filter UUIDs for selectedActivities (same as POST)
     if (configData.selectedActivities !== undefined) {
       const validatedActivities = (configData.selectedActivities || [])
@@ -300,20 +345,20 @@ export async function PUT(request: NextRequest) {
     if (configData.customCSS !== undefined) updatePayload.custom_css = configData.customCSS;
     if (configData.isActive !== undefined) updatePayload.is_active = configData.isActive;
     if (configData.supportedLanguages !== undefined) updatePayload.supported_languages = configData.supportedLanguages;
-    
+
     // IMPROVED: Validate and clean display rules with empty state detection
     if (configData.displayRules !== undefined) {
       // Get the selected_activities to validate against
       const selectedActivities = updatePayload.selected_activities || configData.selectedActivities || [];
-      
+
       // Clean display rules: ensure rule activities are subset of selected_activities
       const cleanedDisplayRules = (configData.displayRules || []).map((rule: any) => {
         // If rule has activities specified, filter to only include those in selected_activities
         if (rule.activities && Array.isArray(rule.activities) && rule.activities.length > 0) {
-          const validRuleActivities = rule.activities.filter((activityId: string) => 
+          const validRuleActivities = rule.activities.filter((activityId: string) =>
             selectedActivities.includes(activityId)
           );
-          
+
           // Log if any activities were filtered out
           if (validRuleActivities.length !== rule.activities.length) {
             const invalidActivities = rule.activities.filter((id: string) => !selectedActivities.includes(id));
@@ -324,7 +369,7 @@ export async function PUT(request: NextRequest) {
               validActivities: validRuleActivities
             });
           }
-          
+
           // EMPTY STATE VALIDATION: Warn if rule will result in zero activities
           if (validRuleActivities.length === 0) {
             console.error('[Widget Config API] ⚠️ CRITICAL: Display rule will show ZERO activities!', {
@@ -337,10 +382,10 @@ export async function PUT(request: NextRequest) {
             // Mark rule as inactive to prevent showing empty widget
             return { ...rule, activities: validRuleActivities, is_active: false, _auto_disabled: true };
           }
-          
+
           return { ...rule, activities: validRuleActivities };
         }
-        
+
         // If no activities specified, rule shows all selected_activities
         // Validate that selected_activities is not empty
         if (selectedActivities.length === 0) {
@@ -353,22 +398,22 @@ export async function PUT(request: NextRequest) {
           // Mark rule as inactive
           return { ...rule, is_active: false, _auto_disabled: true };
         }
-        
+
         return rule;
       });
-      
+
       updatePayload.display_rules = cleanedDisplayRules;
-      
+
       // Count auto-disabled rules
       const autoDisabledCount = cleanedDisplayRules.filter((r: any) => r._auto_disabled).length;
-      
+
       console.log('[Widget Config API] Display rules validated:', {
         rulesCount: cleanedDisplayRules.length,
         activeRulesCount: cleanedDisplayRules.filter((r: any) => r.is_active).length,
         autoDisabledCount,
         selectedActivitiesCount: selectedActivities.length
       });
-      
+
       if (autoDisabledCount > 0) {
         console.warn('[Widget Config API] ⚠️ Some rules were auto-disabled due to empty state. Check logs above for details.');
       }
@@ -387,7 +432,7 @@ export async function PUT(request: NextRequest) {
       console.error('[Widget Config API] Error updating widget config:', error);
       console.error('[Widget Config API] Error details:', JSON.stringify(error, null, 2));
       console.error('[Widget Config API] Update payload:', JSON.stringify(updatePayload, null, 2));
-      
+
       // Log widget update failure
       await logFailure(
         user.id,
@@ -396,7 +441,7 @@ export async function PUT(request: NextRequest) {
         error.message,
         request
       );
-      
+
       return NextResponse.json(
         { error: 'Failed to update widget configuration', details: error.message },
         { status: 500 }
@@ -449,6 +494,28 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Rate limiting: 30 requests per minute for deleting widgets
+    const rateLimitResult = checkRateLimit({
+      max: 30,
+      window: 60000,
+      identifier: getUserIdentifier(user.id),
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please try again later.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': rateLimitResult.retryAfter?.toString() || '60',
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.retryAfter?.toString() || '60'
+          }
+        }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const widgetId = searchParams.get('widgetId');
 
@@ -499,9 +566,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     console.log('DPDPA widget and all related data deleted successfully');
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: 'Widget and all related data deleted successfully' 
+      message: 'Widget and all related data deleted successfully'
     });
   } catch (error) {
     console.error('Unexpected error:', error);

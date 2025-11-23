@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, Target, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Target, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface PurposeStats {
   activityId: string;
@@ -78,7 +79,7 @@ export function PurposeLevelAnalytics({
   const fetchPurposeAnalytics = async () => {
     try {
       setLoading(true);
-      
+
       const params = new URLSearchParams();
       if (widgetId) params.append('widgetId', widgetId);
       if (activityId) params.append('activityId', activityId);
@@ -87,7 +88,7 @@ export function PurposeLevelAnalytics({
       params.append('sortBy', 'consentRate');
 
       const response = await fetch(`/api/dpdpa/analytics/purpose-level?${params.toString()}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch purpose analytics');
       }
@@ -96,7 +97,7 @@ export function PurposeLevelAnalytics({
       setPurposeStats(result.data || []);
       setActivityBreakdown(result.activityBreakdown || []);
       setSummary(result.summary || null);
-      
+
       // Expand first activity by default
       if (result.activityBreakdown?.length > 0) {
         setExpandedActivities(new Set([result.activityBreakdown[0].activityId]));
@@ -147,8 +148,17 @@ export function PurposeLevelAnalytics({
           <CardDescription>Consent rates by processing purpose</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
           </div>
         </CardContent>
       </Card>
@@ -166,9 +176,9 @@ export function PurposeLevelAnalytics({
             </CardTitle>
             <CardDescription>Consent rates by processing purpose</CardDescription>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchPurposeAnalytics}
             className="gap-2"
           >
@@ -283,7 +293,7 @@ export function PurposeLevelAnalytics({
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Dual Progress Bar */}
                         <div className="h-3 bg-gray-100 rounded-full overflow-hidden flex">
                           <div

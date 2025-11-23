@@ -300,6 +300,9 @@ export function EmailLinkCard({ visitorId, widgetId, onVerified }: EmailLinkCard
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                   onKeyPress={(e) => e.key === 'Enter' && handleVerifyOTP()}
                   disabled={loading}
+                  onFocus={(e) => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
                   className="text-center text-3xl font-mono tracking-[0.5em] h-16 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 bg-white shadow-sm transition-all"
                 />
                 {remainingAttempts < 3 && (

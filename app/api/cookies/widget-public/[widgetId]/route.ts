@@ -1,349 +1,125 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import { Database } from '@/types/database.types';
+import { cache } from '@/lib/cache';
+import { successResponse } from '@/lib/api-response';
+import { AppError, handleApiError } from '@/lib/api-error';
+
+// Initialize Supabase client
+const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// Cache TTL in seconds (1 hour)
+const CACHE_TTL = 3600;
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ widgetId: string }> }
 ) {
   try {
     const { widgetId } = await params;
 
-    if (!widgetId) {
-      return NextResponse.json(
-        { error: 'Widget ID is required' },
-        { status: 400 }
-      );
+    // Try to get from cache first
+    const cacheKey = `widget-config:${widgetId}`;
+    const cachedConfig = await cache.get(cacheKey);
+
+    if (cachedConfig) {
+      const response = successResponse(cachedConfig);
+      response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
+      response.headers.set('X-Cache', 'HIT');
+      return response;
     }
 
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.delete({ name, ...options });
-          },
-        },
-      }
-    );
-
-    // Fetch widget configuration with linked banner template
-    const { data: widgetConfig, error: widgetError } = await supabase
+    // Fetch widget config
+    const { data, error: widgetError } = await supabase
       .from('widget_configs')
       .select('*')
       .eq('widget_id', widgetId)
       .single();
 
     if (widgetError) {
-      console.error(`[Widget API] Widget config error for ${widgetId}:`, widgetError.message);
-      return NextResponse.json(
-        { 
-          error: 'Widget configuration not found',
-          widgetId: widgetId,
-          hint: 'Please create this widget in the Consently dashboard first'
-        },
-        { 
-          status: 404,
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-          }
-        }
-      );
+      console.error('Error fetching widget config:', widgetError);
+      throw new AppError('Failed to fetch widget configuration', 500);
     }
 
-    // Fetch the linked banner template or default
-    let banner = null;
-    
-    if (widgetConfig.banner_template_id) {
-      // Fetch the specific linked template
-      const { data: linkedBanner } = await supabase
-        .from('banner_configs')
-        .select('*')
-        .eq('id', widgetConfig.banner_template_id)
-        .eq('is_active', true)
-        .single();
-      
-      banner = linkedBanner;
-    }
-    
-    // If no banner linked or found, try to get user's default banner
-    if (!banner && widgetConfig.user_id) {
-      const { data: defaultBanner } = await supabase
-        .from('banner_configs')
-        .select('*')
-        .eq('user_id', widgetConfig.user_id)
-        .eq('is_default', true)
-        .eq('is_active', true)
-        .single();
-      
-      banner = defaultBanner;
-    }
-    
-    // If still no banner, get the most recent active one for the user
-    if (!banner && widgetConfig.user_id) {
-      const { data: recentBanner } = await supabase
-        .from('banner_configs')
-        .select('*')
-        .eq('user_id', widgetConfig.user_id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      banner = recentBanner;
+    if (!data) {
+      console.error('Widget configuration not found for widgetId:', widgetId);
+      throw new AppError('Widget configuration not found', 404);
     }
 
-    // If still no banner, create a default one for the user
-    if (!banner && widgetConfig.user_id) {
-      console.warn('No banner template found, creating default banner for user:', widgetConfig.user_id);
-      
-      // Create a default banner template in the database
-      const { data: newBanner, error: createError } = await supabase
-        .from('banner_configs')
-        .insert({
-          user_id: widgetConfig.user_id,
-          name: 'Default Cookie Consent Banner',
-          description: 'Auto-generated default banner template',
-          position: 'bottom',
-          layout: 'bar',
-          theme: {
-            primaryColor: '#3b82f6',
-            secondaryColor: '#1e40af',
-            backgroundColor: '#ffffff',
-            textColor: '#1f2937',
-            fontFamily: 'system-ui, sans-serif',
-            fontSize: 14,
-            borderRadius: 8,
-            boxShadow: true
-          },
-          title: 'Cookie Consent',
-          message: 'We use cookies to improve your experience on our website. By browsing this website, you agree to our use of cookies.',
-          privacy_policy_url: null,
-          privacy_policy_text: 'Privacy Policy',
-          accept_button: {
-            text: 'Accept All',
-            backgroundColor: '#3b82f6',
-            textColor: '#ffffff',
-            borderRadius: 8
-          },
-          reject_button: {
-            text: 'Reject All',
-            backgroundColor: '#ffffff',
-            textColor: '#3b82f6',
-            borderColor: '#3b82f6',
-            borderRadius: 8
-          },
-          settings_button: {
-            text: 'Cookie Settings',
-            backgroundColor: '#f3f4f6',
-            textColor: '#1f2937',
-            borderRadius: 8
-          },
-          show_reject_button: true,
-          show_settings_button: true,
-          auto_show: true,
-          show_after_delay: 0,
-          respect_dnt: false,
-          block_content: false,
-          z_index: 9999,
-          is_active: true,
-          is_default: true
-        })
-        .select()
-        .single();
-      
-      if (createError) {
-        console.error('Failed to create default banner:', createError);
-        // Fall back to inline default if DB insert fails
-        banner = {
-          id: 'default',
-          name: 'Default Banner',
-          layout: 'bar',
-          position: 'bottom',
-          theme: {
-            primaryColor: '#3b82f6',
-            secondaryColor: '#1e40af',
-            backgroundColor: '#ffffff',
-            textColor: '#1f2937',
-            fontFamily: 'system-ui, sans-serif',
-            fontSize: 14,
-            borderRadius: 8,
-            boxShadow: true
-          },
-          title: 'Cookie Consent',
-          message: 'We use cookies to improve your experience on our website. By browsing this website, you agree to our use of cookies.',
-          privacy_policy_url: null,
-          privacy_policy_text: 'Privacy Policy',
-          accept_button: {
-            text: 'Accept All',
-            backgroundColor: '#3b82f6',
-            textColor: '#ffffff',
-            borderRadius: 8
-          },
-          reject_button: {
-            text: 'Reject All',
-            backgroundColor: 'transparent',
-            textColor: '#3b82f6',
-            borderColor: '#3b82f6',
-            borderRadius: 8
-          },
-          settings_button: {
-            text: 'Cookie Settings',
-            backgroundColor: '#f3f4f6',
-            textColor: '#1f2937',
-            borderRadius: 8
-          },
-          show_reject_button: true,
-          show_settings_button: true,
-          auto_show: true,
-          show_after_delay: 0,
-          respect_dnt: false,
-          block_content: false,
-          z_index: 9999,
-          custom_css: null,
-          custom_js: null
-        };
-      } else {
-        banner = newBanner;
-        console.log('Created default banner with ID:', newBanner.id);
-        
-        // Link the newly created banner to this widget
-        await supabase
-          .from('widget_configs')
-          .update({ banner_template_id: newBanner.id })
-          .eq('widget_id', widgetConfig.widget_id);
-      }
+    // Type assertion to help TypeScript understand the type
+    const widgetConfig: Database['public']['Tables']['widget_configs']['Row'] = data;
+
+    // Fetch active banner config
+    const { data: bannerConfig, error: bannerError } = await supabase
+      .from('banner_configs')
+      .select('*')
+      .eq('user_id', widgetConfig.user_id)
+      .eq('is_active', true)
+      .single();
+
+    if (bannerError && bannerError.code !== 'PGRST116') {
+      console.error('Error fetching banner config:', bannerError);
     }
 
-    // Transform snake_case database fields to camelCase for JavaScript
-    // Priority: Widget settings > Banner template > Defaults
-    const config = {
-      // Widget configuration (highest priority)
-      widgetId: widgetConfig.widget_id,
-      domain: widgetConfig.domain,
-      categories: Array.isArray(widgetConfig.categories) && widgetConfig.categories.length > 0
-        ? widgetConfig.categories.filter(cat => cat != null && typeof cat === 'string')
-        : ['necessary'],
-      behavior: widgetConfig.behavior,
-      consentDuration: widgetConfig.consent_duration,
-      showBrandingLink: widgetConfig.show_branding_link,
-      blockScripts: widgetConfig.block_scripts,
-      respectDNT: widgetConfig.respect_dnt,
-      gdprApplies: widgetConfig.gdpr_applies,
-      autoBlock: Array.isArray(widgetConfig.auto_block) && widgetConfig.auto_block.length > 0
-        ? widgetConfig.auto_block.filter(item => item != null)
-        : [],
-      language: widgetConfig.language || 'en',
-      
-      // Banner template design (merged with widget settings)
-      bannerId: banner.id,
-      bannerName: banner.name,
-      // Position and layout - widget config overrides banner template
-      layout: widgetConfig.layout || banner.layout || 'bar',
-      position: widgetConfig.position || banner.position || 'bottom',
-      
-      // Theme configuration - widget theme overrides banner theme
-      theme: {
-        ...(banner.theme || {}),
-        ...(widgetConfig.theme || {}), // Widget theme takes precedence
-        // Explicit fallback chain for logo
-        logoUrl: widgetConfig.theme?.logoUrl || banner.theme?.logoUrl || null,
-        fontFamily: widgetConfig.theme?.fontFamily || banner.theme?.fontFamily || 'system-ui, sans-serif',
-      },
-      
-      // Supported languages - widget config is authoritative
-      supportedLanguages: Array.isArray(widgetConfig.supported_languages) && widgetConfig.supported_languages.length > 0
-        ? widgetConfig.supported_languages 
-        : ['en'],
-      
-      // Content - widget banner_content overrides banner template
-      title: widgetConfig.banner_content?.title || banner.title,
-      message: widgetConfig.banner_content?.message || banner.message,
-      privacyPolicyUrl: widgetConfig.banner_content?.privacyPolicyUrl || banner.privacy_policy_url,
-      privacyPolicyText: widgetConfig.banner_content?.privacyPolicyText || banner.privacy_policy_text || 'Privacy Policy',
-      cookiePolicyUrl: widgetConfig.banner_content?.cookiePolicyUrl || banner.cookie_policy_url,
-      cookiePolicyText: widgetConfig.banner_content?.cookiePolicyText || banner.cookie_policy_text || 'Cookie Policy',
-      termsUrl: widgetConfig.banner_content?.termsUrl || banner.terms_url,
-      termsText: widgetConfig.banner_content?.termsText || banner.terms_text || 'Terms & Conditions',
-      
-      // Button configurations - widget banner_content overrides banner template
-      acceptButton: {
-        ...banner.accept_button,
-        text: widgetConfig.banner_content?.acceptButtonText || banner.accept_button?.text || 'Accept All'
-      },
-      rejectButton: {
-        ...banner.reject_button,
-        text: widgetConfig.banner_content?.rejectButtonText || banner.reject_button?.text || 'Reject All'
-      },
-      settingsButton: {
-        ...banner.settings_button,
-        text: widgetConfig.banner_content?.settingsButtonText || banner.settings_button?.text || 'Cookie Settings'
-      },
-      
-      // Behavior settings - prefer widget config, fallback to banner
-      showRejectButton: banner.show_reject_button ?? true,
-      showSettingsButton: banner.show_settings_button ?? true,
-      autoShow: widgetConfig.auto_show ?? banner.auto_show ?? true,
-      showAfterDelay: widgetConfig.show_after_delay ?? banner.show_after_delay ?? 0,
-      blockContent: banner.block_content ?? false,
-      zIndex: banner.z_index ?? 9999,
-      customCSS: banner.custom_css,
-      customJS: banner.custom_js,
+    // Default banner config if none found
+    const finalBannerConfig = bannerConfig || {
+      position: 'bottom',
+      theme: 'light',
+      primary_color: '#2563eb',
+      secondary_color: '#ffffff',
+      text_color: '#1f2937',
+      button_style: 'rounded',
+      show_branding: true,
+      title: 'Cookie Consent',
+      description: 'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
+      accept_button_text: 'Accept All',
+      reject_button_text: 'Reject All',
+      settings_button_text: 'Cookie Settings',
+      privacy_policy_link: '#',
+      cookie_policy_link: '#'
     };
 
-    // Set cache headers for better performance (cache for 1 minute for faster updates)
-    const response = NextResponse.json(config);
-    // Reduced from 5 min to 1 min to allow changes to propagate faster
-    // s-maxage=60 (CDN cache 1 min), stale-while-revalidate=120 (2 min grace period)
-    // In development, disable cache completely for testing
-    const isDev = process.env.NODE_ENV === 'development';
-    response.headers.set('Cache-Control', isDev 
-      ? 'no-cache, no-store, must-revalidate' 
-      : 'public, s-maxage=60, stale-while-revalidate=120, must-revalidate');
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    // Add timestamp and debug info for troubleshooting
-    response.headers.set('X-Config-Timestamp', new Date().toISOString());
-    response.headers.set('X-Widget-Position', config.position);
-    response.headers.set('X-Widget-Layout', config.layout);
-    response.headers.set('X-Widget-Source', widgetConfig.banner_template_id ? 'widget+banner' : 'widget-only');
-    
-    // Log critical config for debugging
-    console.log('[Widget API] Returning config:', {
-      widgetId,
-      position: config.position,
-      layout: config.layout,
-      title: config.title?.substring(0, 50),
-      hasTemplate: !!widgetConfig.banner_template_id
-    });
-    
+    // Construct response
+    const responseData = {
+      widget: {
+        id: widgetConfig.widget_id,
+        domain: widgetConfig.domain,
+        categories: widgetConfig.categories,
+        behavior: widgetConfig.behavior,
+        consent_duration: widgetConfig.consent_duration,
+        show_branding_link: widgetConfig.show_branding_link,
+        block_scripts: widgetConfig.block_scripts,
+        respect_dnt: widgetConfig.respect_dnt,
+        gdpr_applies: widgetConfig.gdpr_applies,
+        auto_block: widgetConfig.auto_block
+      },
+      banner: finalBannerConfig
+    };
+
+    // Cache the response
+    await cache.set(cacheKey, responseData, CACHE_TTL);
+
+    const response = successResponse(responseData);
+    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
+    response.headers.set('X-Cache', 'MISS');
+
     return response;
 
   } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
-// Handle OPTIONS for CORS
-export async function OPTIONS() {
+export async function OPTIONS(request: Request) {
   return new NextResponse(null, {
-    status: 200,
+    status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }

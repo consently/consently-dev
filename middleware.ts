@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
     try {
       const { checkAndExpireTrial } = await import('@/lib/subscription');
       const trialCheck = await checkAndExpireTrial(user.id);
-      
+
       if (trialCheck.expired) {
         console.log('[Middleware] Trial expired for user:', user.id);
         // Note: User is downgraded to free plan automatically
@@ -65,6 +65,19 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
+  }
+
+  // Log API requests
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    const startTime = Date.now();
+    const logData = {
+      timestamp: new Date().toISOString(),
+      method: request.method,
+      path: request.nextUrl.pathname,
+      query: Object.fromEntries(request.nextUrl.searchParams),
+      userAgent: request.headers.get('user-agent'),
+    };
+    console.log(JSON.stringify(logData));
   }
 
   return supabaseResponse;

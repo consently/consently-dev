@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, TrendingUp, TrendingDown, Activity, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Activity, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface ActivityStats {
   activityId: string;
@@ -29,12 +30,12 @@ interface ActivityLevelAnalyticsProps {
   maxItems?: number;
 }
 
-export function ActivityLevelAnalytics({ 
-  widgetId, 
-  startDate, 
-  endDate, 
+export function ActivityLevelAnalytics({
+  widgetId,
+  startDate,
+  endDate,
   showTopOnly = false,
-  maxItems = 10 
+  maxItems = 10
 }: ActivityLevelAnalyticsProps) {
   const [loading, setLoading] = useState(true);
   const [activityStats, setActivityStats] = useState<ActivityStats[]>([]);
@@ -53,7 +54,7 @@ export function ActivityLevelAnalytics({
   const fetchActivityAnalytics = async () => {
     try {
       setLoading(true);
-      
+
       const params = new URLSearchParams();
       if (widgetId) params.append('widgetId', widgetId);
       if (startDate) params.append('startDate', startDate);
@@ -62,7 +63,7 @@ export function ActivityLevelAnalytics({
       params.append('sortOrder', 'desc');
 
       const response = await fetch(`/api/dpdpa/analytics/activity-level?${params.toString()}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch activity analytics');
       }
@@ -78,7 +79,7 @@ export function ActivityLevelAnalytics({
     }
   };
 
-  const displayedActivities = showTopOnly && summary?.topActivities 
+  const displayedActivities = showTopOnly && summary?.topActivities
     ? summary.topActivities.slice(0, maxItems)
     : activityStats.filter(a => a.totalConsents > 0).slice(0, maxItems);
 
@@ -93,8 +94,15 @@ export function ActivityLevelAnalytics({
           <CardDescription>Consent rates by processing activity</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
           </div>
         </CardContent>
       </Card>
@@ -112,9 +120,9 @@ export function ActivityLevelAnalytics({
             </CardTitle>
             <CardDescription>Consent rates by processing activity</CardDescription>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchActivityAnalytics}
             className="gap-2"
           >

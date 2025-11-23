@@ -2,32 +2,77 @@
 
 /* Blue & White Trustworthy Theme */
 @theme {
-  --color-primary: hsl(217 91% 60%); /* Trustworthy Blue */
+  --color-primary: hsl(217 91% 60%);
+  /* Trustworthy Blue */
   --color-primary-foreground: hsl(0 0% 100%);
-  
-  --color-secondary: hsl(214 100% 97%); /* Light Blue */
+
+  --color-secondary: hsl(214 100% 97%);
+  /* Light Blue */
   --color-secondary-foreground: hsl(217 91% 60%);
-  
+
   --color-muted: hsl(210 40% 96.1%);
   --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  
+
   --color-accent: hsl(217 91% 60%);
   --color-accent-foreground: hsl(0 0% 100%);
-  
+
   --color-destructive: hsl(0 84.2% 60.2%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  
+
   --color-success: hsl(142 76% 36%);
   --color-success-foreground: hsl(0 0% 100%);
-  
+
   --color-warning: hsl(38 92% 50%);
   --color-warning-foreground: hsl(0 0% 100%);
-  
+
   --color-info: hsl(199 89% 48%);
   --color-info-foreground: hsl(0 0% 100%);
-  
+
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222.2 84% 4.9%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222.2 84% 4.9%);
+
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222.2 84% 4.9%);
+
+  --color-border: hsl(214.3 31.8% 91.4%);
+  --color-input: hsl(214.3 31.8% 91.4%);
+  --color-ring: hsl(217 91% 60%);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+.dark {
+  --color-background: hsl(222.2 84% 4.9%);
+  --color-foreground: hsl(210 40% 98%);
+
+  --color-card: hsl(222.2 84% 4.9%);
+  --color-card-foreground: hsl(210 40% 98%);
+
+  --color-popover: hsl(222.2 84% 4.9%);
+  --color-popover-foreground: hsl(210 40% 98%);
+
+  --color-primary: hsl(217 91% 60%);
+  --color-primary-foreground: hsl(222.2 47.4% 11.2%);
+
+  --color-secondary: hsl(217.2 32.6% 17.5%);
+  --color-secondary-foreground: hsl(210 40% 98%);
+
+  --color-muted: hsl(217.2 32.6% 17.5%);
+  --color-muted-foreground: hsl(215 20.2% 65.1%);
+
+  --color-accent: hsl(217.2 32.6% 17.5%);
+  --color-accent-foreground: hsl(210 40% 98%);
+
+  --color-destructive: hsl(0 62.8% 30.6%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+
+  --color-border: hsl(217.2 32.6% 17.5%);
+  --color-input: hsl(217.2 32.6% 17.5%);
+  --color-ring: hsl(224.3 76.3% 48%);
 }
 
 body {
@@ -42,21 +87,27 @@ body {
   * {
     -webkit-tap-highlight-color: transparent;
   }
-  
-  input, textarea, select, button {
-    font-size: 16px; /* Prevents zoom on iOS */
+
+  input,
+  textarea,
+  select,
+  button {
+    font-size: 16px;
+    /* Prevents zoom on iOS */
   }
-  
+
   /* Improve touch targets */
-  button, a, [role="button"] {
+  button,
+  a,
+  [role="button"] {
     min-height: 44px;
   }
-  
+
   /* Optimize scrolling performance */
   * {
     -webkit-overflow-scrolling: touch;
   }
-  
+
   /* Prevent horizontal scroll */
   body {
     overflow-x: hidden;
@@ -167,32 +218,32 @@ body {
 }
 
 /* Numbered sections styling */
-.blog-content > div,
-.blog-content > section {
+.blog-content>div,
+.blog-content>section {
   @apply mb-8;
 }
 
 /* Better spacing for numbered lists */
-.blog-content ol > li {
+.blog-content ol>li {
   @apply mb-5 pl-3;
   @apply text-base sm:text-lg;
 }
 
-.blog-content ol > li > strong {
+.blog-content ol>li>strong {
   @apply text-blue-700 text-lg sm:text-xl block mb-3 font-bold;
 }
 
 /* Style numbered list items that start with numbers like "1. Right to Access" */
-.blog-content ol > li:first-line {
+.blog-content ol>li:first-line {
   @apply font-semibold;
 }
 
 /* Better visual separation for list items */
-.blog-content ol > li:not(:last-child) {
+.blog-content ol>li:not(:last-child) {
   @apply pb-2 border-b border-gray-100;
 }
 
-.blog-content ul > li:not(:last-child) {
+.blog-content ul>li:not(:last-child) {
   @apply pb-2;
 }
 
@@ -201,6 +252,7 @@ body {
   0% {
     transform: translate3d(0, 0, 0);
   }
+
   100% {
     transform: translate3d(-50%, 0, 0);
   }
@@ -210,6 +262,7 @@ body {
   0% {
     -webkit-transform: translate3d(0, 0, 0);
   }
+
   100% {
     -webkit-transform: translate3d(-50%, 0, 0);
   }
@@ -238,6 +291,7 @@ body {
     transform: translateY(-20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -248,6 +302,7 @@ body {
   from {
     width: 100%;
   }
+
   to {
     width: 0%;
   }
@@ -273,11 +328,12 @@ body {
 
 /* Touch-friendly interactions */
 @media (hover: none) and (pointer: coarse) {
+
   button:hover,
   a:hover {
     opacity: 1;
   }
-  
+
   button:active,
   a:active {
     opacity: 0.8;
@@ -305,15 +361,15 @@ html {
   .safe-top {
     padding-top: max(1rem, env(safe-area-inset-top));
   }
-  
+
   .safe-bottom {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
-  
+
   .safe-left {
     padding-left: max(1rem, env(safe-area-inset-left));
   }
-  
+
   .safe-right {
     padding-right: max(1rem, env(safe-area-inset-right));
   }
@@ -325,6 +381,7 @@ html {
     transform: translateY(-10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -336,6 +393,7 @@ html {
     transform: translateY(10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -346,6 +404,7 @@ html {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -356,6 +415,7 @@ html {
     transform: scale(0.95);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -380,13 +440,18 @@ html {
 }
 
 /* Smooth transitions for interactive elements */
-button, a, [role="button"] {
+button,
+a,
+[role="button"] {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Performance optimizations */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -410,5 +475,31 @@ button, a, [role="button"] {
 @media (max-width: 640px) {
   .card {
     border-radius: 0.75rem;
+  }
+}
+
+/* Tablet Layout Optimizations */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  /* Optimize grid layouts for tablet */
+  .grid-cols-1.md\:grid-cols-2,
+  .grid-cols-2.md\:grid-cols-3,
+  .grid-cols-1.md\:grid-cols-3 {
+    gap: 1rem;
+  }
+
+  /* Analytics cards spacing */
+  .analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  /* Better card sizing for tablets */
+  .card {
+    padding: 1.25rem;
   }
 }

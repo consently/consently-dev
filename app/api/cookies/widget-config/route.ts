@@ -41,9 +41,9 @@ type WidgetConfigData = {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError) {
       console.error('Auth error:', authError);
       return NextResponse.json(
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     console.log('Processing widget config save for user:', user.id);
 
     const config: WidgetConfigData = await request.json();
-    console.log('Received config:', JSON.stringify(config, null, 2));
+    console.log('Received config for widget:', config.widgetId);
 
     // Validate required fields
     if (!config.widgetId || typeof config.widgetId !== 'string') {
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         .eq('id', config.bannerTemplateId)
         .eq('user_id', user.id)
         .single();
-      
+
       if (templateError || !template) {
         return NextResponse.json(
           { error: 'Invalid banner template ID or template does not belong to user' },
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       banner_content: config.bannerContent || null
     };
 
-    console.log('Database data:', JSON.stringify(dbData, null, 2));
+    console.log('Prepared database data for widget:', dbData.widget_id);
 
     if (existing) {
       console.log('Updating existing config with ID:', existing.id);
@@ -219,14 +219,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Widget config saved successfully');
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: 'Configuration saved successfully' 
+      message: 'Configuration saved successfully'
     });
 
   } catch (error) {
     console.error('Error saving widget config:', error);
-    
+
     // Provide more specific error messages
     if (error instanceof Error) {
       console.error('Error details:', {
@@ -237,12 +237,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle different types of database errors
-    const errorMessage = error instanceof Error 
-      ? error.message 
+    const errorMessage = error instanceof Error
+      ? error.message
       : 'Unknown error occurred';
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to save configuration',
         details: errorMessage,
         timestamp: new Date().toISOString()
@@ -255,9 +255,9 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError) {
       console.error('Auth error in GET:', authError);
       return NextResponse.json(
@@ -331,18 +331,18 @@ export async function GET() {
       }
     };
 
-    console.log('Returning config:', JSON.stringify(config, null, 2));
+    console.log('Returning config for widget:', config.widgetId);
     return NextResponse.json(config);
 
   } catch (error) {
     console.error('Error fetching widget config:', error);
-    
-    const errorMessage = error instanceof Error 
-      ? error.message 
+
+    const errorMessage = error instanceof Error
+      ? error.message
       : 'Unknown error occurred';
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch configuration',
         details: errorMessage,
         timestamp: new Date().toISOString()
@@ -355,9 +355,9 @@ export async function GET() {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError) {
       console.error('Auth error in DELETE:', authError);
       return NextResponse.json(
@@ -388,7 +388,7 @@ export async function DELETE(request: NextRequest) {
 
     // After migration 08, consent tables now have widget_id column
     // Delete widget-specific consent records and logs
-    
+
     // Delete consent_logs for this widget
     console.log('Deleting widget-specific consent logs...');
     const { error: logsDeleteError } = await supabase
@@ -432,20 +432,20 @@ export async function DELETE(request: NextRequest) {
     }
 
     console.log('Widget and all related data deleted successfully');
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: 'Widget and all related data deleted successfully'
     });
 
   } catch (error) {
     console.error('Error deleting widget config:', error);
-    
-    const errorMessage = error instanceof Error 
-      ? error.message 
+
+    const errorMessage = error instanceof Error
+      ? error.message
       : 'Unknown error occurred';
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to delete widget configuration',
         details: errorMessage,
         timestamp: new Date().toISOString()
