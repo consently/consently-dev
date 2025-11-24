@@ -56,10 +56,10 @@ export async function GET(
     // Fetch all consent records for this widget with page URLs
     const { data: consentRecords, error: recordsError } = await supabase
       .from('dpdpa_consent_records')
-      .select('current_url, page_title, visitor_id, consent_status, consent_timestamp')
+      .select('current_url, page_title, visitor_id, consent_status, consent_given_at')
       .eq('widget_id', widgetId)
       .not('current_url', 'is', null)
-      .order('consent_timestamp', { ascending: false });
+      .order('consent_given_at', { ascending: false });
 
     if (recordsError) {
       console.error('[Widget Pages API] Error fetching consent records:', recordsError);
@@ -90,7 +90,7 @@ export async function GET(
           visitCount: 1,
           consentCount: isAccepted || isPartial ? 1 : 0,
           uniqueVisitors: 1,
-          lastSeen: record.consent_timestamp,
+          lastSeen: record.consent_given_at,
           acceptedCount: isAccepted ? 1 : 0,
           rejectedCount: isRejected ? 1 : 0,
           partialCount: isPartial ? 1 : 0,
@@ -112,10 +112,10 @@ export async function GET(
         if (isPartial) existing.partialCount++;
 
         // Update last seen timestamp
-        const currentTimestamp = new Date(record.consent_timestamp);
+        const currentTimestamp = new Date(record.consent_given_at);
         const existingTimestamp = new Date(existing.lastSeen);
         if (currentTimestamp > existingTimestamp) {
-          existing.lastSeen = record.consent_timestamp;
+          existing.lastSeen = record.consent_given_at;
         }
 
         // Update title if not set

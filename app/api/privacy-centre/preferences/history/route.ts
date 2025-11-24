@@ -46,11 +46,11 @@ export async function GET(request: NextRequest) {
     // Fetch consent records to get page URLs for each time period
     const { data: consentRecords } = await supabase
       .from('dpdpa_consent_records')
-      .select('consent_timestamp, current_url, page_title')
+      .select('consent_given_at, current_url, page_title')
       .eq('visitor_id', visitorId)
       .eq('widget_id', widgetId)
       .not('current_url', 'is', null)
-      .order('consent_timestamp', { ascending: false });
+      .order('consent_given_at', { ascending: false });
 
     if (historyError) {
       console.error('Error fetching consent history:', historyError);
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         const recordTime = new Date(record.changed_at).getTime();
         // Find the record with closest timestamp (within 1 minute)
         const closestRecord = consentRecords.find((cr: any) => {
-          const crTime = new Date(cr.consent_timestamp).getTime();
+          const crTime = new Date(cr.consent_given_at).getTime();
           return Math.abs(crTime - recordTime) < 60000; // Within 1 minute
         });
         

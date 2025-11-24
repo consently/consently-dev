@@ -77,19 +77,47 @@ export async function GET(
 
     const totalPages = Math.ceil((count || 0) / limit);
 
+    // Fetch emails from email_verification_otps for records with hash but no email
+    const emailMap = new Map<string, string>();
+    const recordsWithHashButNoEmail = (data || []).filter(r => r.visitor_email_hash && !r.visitor_email);
+    
+    if (recordsWithHashButNoEmail.length > 0) {
+      const emailHashes = [...new Set(recordsWithHashButNoEmail.map(r => r.visitor_email_hash))];
+      
+      const { data: verifiedEmails } = await supabase
+        .from('email_verification_otps')
+        .select('email_hash, email')
+        .in('email_hash', emailHashes)
+        .eq('verified', true)
+        .order('verified_at', { ascending: false });
+
+      if (verifiedEmails) {
+        verifiedEmails.forEach((e: any) => {
+          if (e.email && !emailMap.has(e.email_hash)) {
+            emailMap.set(e.email_hash, e.email);
+          }
+        });
+      }
+    }
+
     // Transform data for UI
-    const records = data.map(record => ({
-      principalId: record.visitor_id,
-      name: record.visitor_email || (record.visitor_email_hash ? 'Verified User (Hidden)' : 'Anonymous Visitor'),
-      visitorEmail: record.visitor_email || null, // Include actual email for optional display
-      visitorEmailHash: record.visitor_email_hash || null,
-      consentDate: record.consent_given_at || record.last_updated,
-      noticeVersion: record.consent_version,
-      channel: record.device_type || 'Unknown',
-      status: record.consent_status,
-      declineDate: record.consent_status !== 'accepted' ? record.last_updated : null,
-      reason: null, // Reason not stored in preferences table, would need to join history or logs
-    }));
+    const records = (data || []).map(record => {
+      // Get email from record, or lookup from email verification table
+      const email = record.visitor_email || (record.visitor_email_hash ? emailMap.get(record.visitor_email_hash) : null);
+      
+      return {
+        principalId: record.visitor_id,
+        name: email || (record.visitor_email_hash ? 'Verified User (Hidden)' : 'Anonymous Visitor'),
+        visitorEmail: email || null, // Include actual email for optional display
+        visitorEmailHash: record.visitor_email_hash || null,
+        consentDate: record.consent_given_at || record.last_updated,
+        noticeVersion: record.consent_version,
+        channel: record.device_type || 'Unknown',
+        status: record.consent_status,
+        declineDate: record.consent_status !== 'accepted' ? record.last_updated : null,
+        reason: null, // Reason not stored in preferences table, would need to join history or logs
+      };
+    });
 
     return NextResponse.json({
       data: records,

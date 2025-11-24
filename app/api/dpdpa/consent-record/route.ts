@@ -158,29 +158,81 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Enrich records with activity names and emails from visitor_consent_preferences if missing
+    // Enrich records with activity names and emails from visitor_consent_preferences or email_verification_otps if missing
     const visitorIds = [...new Set((data || []).map((r: any) => r.visitor_id))];
     const widgetIdsForEmailLookup = widgetId ? [widgetId] : widgetIds;
 
-    // Fetch emails from visitor_consent_preferences for records that don't have email
-    const recordsWithoutEmail = (data || []).filter((r: any) => !r.visitor_email);
+    // Fetch emails for records that don't have email (check for null, undefined, or empty string)
+    const recordsWithoutEmail = (data || []).filter((r: any) => !r.visitor_email || r.visitor_email.trim() === '');
     const emailMap = new Map<string, string>();
 
-    if (recordsWithoutEmail.length > 0 && widgetIdsForEmailLookup.length > 0) {
-      const { data: preferencesWithEmail } = await supabase
-        .from('visitor_consent_preferences')
-        .select('visitor_id, visitor_email')
-        .in('visitor_id', visitorIds)
-        .in('widget_id', widgetIdsForEmailLookup)
-        .not('visitor_email', 'is', null);
+    if (recordsWithoutEmail.length > 0) {
+      console.log('[Consent Record API] Found', recordsWithoutEmail.length, 'records without email, attempting to fetch from other sources');
+      
+      // First, try to get emails from visitor_consent_preferences
+      if (widgetIdsForEmailLookup.length > 0) {
+        const { data: preferencesWithEmail } = await supabase
+          .from('visitor_consent_preferences')
+          .select('visitor_id, visitor_email')
+          .in('visitor_id', visitorIds)
+          .in('widget_id', widgetIdsForEmailLookup)
+          .not('visitor_email', 'is', null);
 
-      if (preferencesWithEmail) {
-        preferencesWithEmail.forEach((p: any) => {
-          if (p.visitor_email && !emailMap.has(p.visitor_id)) {
-            emailMap.set(p.visitor_id, p.visitor_email);
-          }
-        });
+        if (preferencesWithEmail) {
+          console.log('[Consent Record API] Found', preferencesWithEmail.length, 'emails from visitor_consent_preferences');
+          preferencesWithEmail.forEach((p: any) => {
+            if (p.visitor_email && !emailMap.has(p.visitor_id)) {
+              emailMap.set(p.visitor_id, p.visitor_email);
+            }
+          });
+        }
       }
+
+      // Second, for records with email_hash but no email yet, lookup in email_verification_otps
+      const recordsWithHashButNoEmail = recordsWithoutEmail.filter((r: any) => r.visitor_email_hash);
+      if (recordsWithHashButNoEmail.length > 0) {
+        const emailHashes = [...new Set(recordsWithHashButNoEmail.map((r: any) => r.visitor_email_hash))];
+        console.log('[Consent Record API] Found', recordsWithHashButNoEmail.length, 'records with email_hash but no email');
+        console.log('[Consent Record API] Looking up', emailHashes.length, 'unique email hashes in email_verification_otps');
+        
+        const { data: verifiedEmails, error: emailLookupError } = await supabase
+          .from('email_verification_otps')
+          .select('email_hash, email')
+          .in('email_hash', emailHashes)
+          .eq('verified', true)
+          .order('verified_at', { ascending: false });
+
+        if (emailLookupError) {
+          console.error('[Consent Record API] Error looking up emails from email_verification_otps:', emailLookupError);
+        }
+
+        if (verifiedEmails && verifiedEmails.length > 0) {
+          console.log('[Consent Record API] Found', verifiedEmails.length, 'verified emails from email_verification_otps');
+          
+          // Create a hash-to-email map
+          const hashToEmailMap = new Map<string, string>();
+          verifiedEmails.forEach((e: any) => {
+            if (e.email && !hashToEmailMap.has(e.email_hash)) {
+              hashToEmailMap.set(e.email_hash, e.email);
+            }
+          });
+
+          // Map emails back to visitor_ids based on their email_hash
+          recordsWithHashButNoEmail.forEach((r: any) => {
+            if (r.visitor_email_hash && hashToEmailMap.has(r.visitor_email_hash)) {
+              const email = hashToEmailMap.get(r.visitor_email_hash)!;
+              emailMap.set(r.visitor_id, email);
+              console.log('[Consent Record API] Mapped email for visitor', r.visitor_id.substring(0, 10) + '...');
+            }
+          });
+          
+          console.log('[Consent Record API] Successfully mapped', emailMap.size, 'emails total');
+        } else {
+          console.log('[Consent Record API] No verified emails found in email_verification_otps');
+        }
+      }
+    } else {
+      console.log('[Consent Record API] All records already have visitor_email set');
     }
 
     // Enrich records with activity names and emails

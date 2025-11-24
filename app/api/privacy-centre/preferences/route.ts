@@ -158,22 +158,52 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Extract visitor email if available (check both preference records and consent records)
+    // Extract visitor email if available (check preference records, consent records, and email verification)
     let visitorEmail = preferences?.find(p => p.visitor_email)?.visitor_email || null;
 
     // If not found in preferences, check consent records as fallback
     if (!visitorEmail) {
       const { data: consentRecords } = await supabase
         .from('dpdpa_consent_records')
-        .select('visitor_email')
+        .select('visitor_email, visitor_email_hash')
         .eq('visitor_id', visitorId)
         .eq('widget_id', widgetId)
-        .not('visitor_email', 'is', null)
         .order('consent_given_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      visitorEmail = consentRecords?.visitor_email || null;
+      if (consentRecords?.visitor_email) {
+        visitorEmail = consentRecords.visitor_email;
+      } else if (consentRecords?.visitor_email_hash) {
+        // Third fallback: lookup in email_verification_otps using the hash
+        const { data: verifiedEmail } = await supabase
+          .from('email_verification_otps')
+          .select('email')
+          .eq('email_hash', consentRecords.visitor_email_hash)
+          .eq('verified', true)
+          .order('verified_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        visitorEmail = verifiedEmail?.email || null;
+      }
+    }
+
+    // If still not found, check if there's an email hash in preferences and lookup from verification
+    if (!visitorEmail) {
+      const emailHash = preferences?.find(p => p.visitor_email_hash)?.visitor_email_hash;
+      if (emailHash) {
+        const { data: verifiedEmail } = await supabase
+          .from('email_verification_otps')
+          .select('email')
+          .eq('email_hash', emailHash)
+          .eq('verified', true)
+          .order('verified_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        visitorEmail = verifiedEmail?.email || null;
+      }
     }
 
     return NextResponse.json({

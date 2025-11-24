@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       .eq('widget_id', widgetId);
 
     if (range !== 'all') {
-      consentQuery = consentQuery.gte('consent_timestamp', dateFilter);
+      consentQuery = consentQuery.gte('consent_given_at', dateFilter);
     }
 
     const { data: consents, error: consentsError } = await consentQuery;
@@ -137,10 +137,10 @@ export async function GET(request: NextRequest) {
 
     // Get recent consents
     const recentConsents = consents
-      ?.sort((a, b) => new Date(b.consent_timestamp).getTime() - new Date(a.consent_timestamp).getTime())
+      ?.sort((a, b) => new Date(b.consent_given_at).getTime() - new Date(a.consent_given_at).getTime())
       .slice(0, 50)
       .map(consent => ({
-        timestamp: consent.consent_timestamp,
+        timestamp: consent.consent_given_at,
         status: consent.consent_status,
         deviceType: consent.device_type || 'unknown',
         country: consent.country || 'unknown',
@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
       rawData: {
         consents: consents?.map(c => ({
           id: c.id,
-          timestamp: c.consent_timestamp,
+          timestamp: c.consent_given_at,
           status: c.consent_status,
           acceptedActivities: c.consented_activities,
           rejectedActivities: c.rejected_activities,

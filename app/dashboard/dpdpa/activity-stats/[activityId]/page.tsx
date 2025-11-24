@@ -725,9 +725,17 @@ export default function ActivityStatsPage() {
         <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Consent Record Details</SheetTitle>
-            <SheetDescription>
-              {selectedRecordDetails?.visitor_email || 'Anonymous User'}
-            </SheetDescription>
+            {selectedRecordDetails?.visitor_email ? (
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
+                  {selectedRecordDetails.visitor_email}
+                </Badge>
+              </div>
+            ) : (
+              <SheetDescription>
+                Anonymous Visitor
+              </SheetDescription>
+            )}
           </SheetHeader>
 
           {detailsLoading ? (
@@ -778,25 +786,14 @@ export default function ActivityStatsPage() {
                 </Card>
               </div>
 
-              {/* Privacy Notice */}
-              {selectedRecordDetails.privacyNoticeHTML ? (
+              {/* Data Processing Activities */}
+              {selectedRecordDetails.privacyNoticeHTML && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Privacy Notice {selectedRecordDetails.isHistoricalSnapshot ? '(Verified Snapshot)' : '(Current Version)'}</h3>
-                  {!selectedRecordDetails.isHistoricalSnapshot && (
-                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-xs text-yellow-800">
-                        ⚠️ This is the current version of the privacy notice. The actual notice accepted by the user may have differed if the configuration has changed since consent was given.
-                      </p>
-                    </div>
-                  )}
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Data Processing Activities</h3>
                   <div
                     className="prose prose-sm max-w-none border border-gray-200 rounded-lg p-4 bg-white"
                     dangerouslySetInnerHTML={{ __html: selectedRecordDetails.privacyNoticeHTML }}
                   />
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No privacy notice available
                 </div>
               )}
             </div>

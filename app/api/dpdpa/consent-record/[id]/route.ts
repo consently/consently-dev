@@ -89,6 +89,44 @@ export async function GET(
         const widgetInfo = userWidgets.find(w => w.widget_id === record.widget_id);
         const domain = widgetInfo?.domain || '';
 
+        // Lookup visitor email if not present in the record
+        let visitorEmail = record.visitor_email;
+        
+        if (!visitorEmail || visitorEmail.trim() === '') {
+            console.log('[Consent Record Details API] No email in record, attempting lookup...');
+            
+            // First, try to get email from visitor_consent_preferences
+            const { data: preferences } = await supabase
+                .from('visitor_consent_preferences')
+                .select('visitor_email')
+                .eq('visitor_id', record.visitor_id)
+                .eq('widget_id', record.widget_id)
+                .not('visitor_email', 'is', null)
+                .limit(1)
+                .maybeSingle();
+
+            if (preferences?.visitor_email) {
+                visitorEmail = preferences.visitor_email;
+                console.log('[Consent Record Details API] Found email from preferences');
+            } else if (record.visitor_email_hash) {
+                // Second, lookup in email_verification_otps using the hash
+                console.log('[Consent Record Details API] Looking up email from hash...');
+                const { data: verifiedEmail } = await supabase
+                    .from('email_verification_otps')
+                    .select('email')
+                    .eq('email_hash', record.visitor_email_hash)
+                    .eq('verified', true)
+                    .order('verified_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (verifiedEmail?.email) {
+                    visitorEmail = verifiedEmail.email;
+                    console.log('[Consent Record Details API] Found email from verification');
+                }
+            }
+        }
+
         // Check if we have a stored snapshot of the privacy notice
         let privacyNoticeHTML = record.consent_details?.privacy_notice_snapshot;
         let isHistoricalSnapshot = !!privacyNoticeHTML;
@@ -168,6 +206,7 @@ export async function GET(
         return NextResponse.json({
             data: {
                 ...record,
+                visitor_email: visitorEmail, // Use the looked up email
                 privacyNoticeHTML,
                 isHistoricalSnapshot,
             }

@@ -75,7 +75,7 @@ export async function GET(
       .eq('widget_id', widgetId);
 
     if (range !== 'all') {
-      consentQuery = consentQuery.gte('consent_timestamp', dateFilter);
+      consentQuery = consentQuery.gte('consent_given_at', dateFilter);
     }
 
     const { data: consents, error: consentsError } = await consentQuery;
@@ -125,7 +125,7 @@ export async function GET(
     // Time series data (daily breakdown)
     const timeSeriesMap = new Map<string, { accepted: number; rejected: number; partial: number }>();
     consents?.forEach(c => {
-      const date = new Date(c.consent_timestamp).toISOString().split('T')[0];
+      const date = new Date(c.consent_given_at).toISOString().split('T')[0];
       if (!timeSeriesMap.has(date)) {
         timeSeriesMap.set(date, { accepted: 0, rejected: 0, partial: 0 });
       }
