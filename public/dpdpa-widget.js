@@ -221,6 +221,8 @@
   let activityConsents = {};
   let consentID = null; // User-visible Consent ID (Format: CNST-XXXX-XXXX-XXXX)
   let verifiedEmail = null; // Store verified email address
+  let userEmail = null; // Store user email for OTP flow
+  let currentPrefilledEmail = null; // Store prefilled email for global access
   let globalClickHandler = null; // Global reference to cleanup language menu listener
   let primaryColor = '#4c8bf5'; // Default primary color, updated when config loads
   let visitorEmail = null; // Visitor email for cross-device consent management
@@ -484,6 +486,31 @@
     } catch (error) {
       console.error('[Consently DPDPA] Verification error:', error);
       return { valid: false, error: 'Unable to verify Consent ID' };
+    }
+  }
+
+  // Check user status (New vs Verified)
+  async function checkUserStatus(emailHash) {
+    if (!emailHash) return { status: 'new' };
+
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/dpdpa/check-user-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailHash: emailHash,
+          widgetId: widgetId
+        })
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+      return { status: 'new' };
+    } catch (error) {
+      console.error('[Consently DPDPA] Check user status error:', error);
+      return { status: 'new' };
     }
   }
 
@@ -756,7 +783,7 @@
     const formHandlers = new WeakMap();
 
     targetForms.forEach(form => {
-      const submitHandler = (e) => {
+      const submitHandler = async (e) => {
         // Check if consent already given
         const existingConsent = ConsentStorage.get(`consently_dpdpa_consent_${widgetId}`);
         const hasConsent = existingConsent && existingConsent.timestamp;
@@ -768,6 +795,45 @@
 
           console.log('[Consently DPDPA] Form submission intercepted - showing consent widget');
 
+          // Smart Pre-fill Logic
+          let prefilledEmail = null;
+          let userStatus = 'new';
+
+          // Scan for email field
+          // Check if smart pre-fill is enabled
+          if (!config.enableSmartPreFill) {
+            console.log('[Consently DPDPA] Smart pre-fill is disabled by site owner - using manual input');
+            prefilledEmail = null;
+            userStatus = 'new';
+          } else {
+            // Parse custom selectors from config (fallback to defaults)
+            const selectors = config.emailFieldSelectors || 'input[type="email"], input[name*="email" i]';
+
+            let emailInput = null;
+            try {
+              emailInput = form.querySelector(selectors);
+              if (!emailInput) {
+                console.log('[Consently DPDPA] No email field found with selectors:', selectors);
+              }
+            } catch (e) {
+              console.error('[Consently DPDPA] Invalid email field selector:', selectors, e);
+              console.log('[Consently DPDPA] Falling back to manual email input');
+            }
+
+            if (emailInput && emailInput.value) {
+              prefilledEmail = emailInput.value;
+              console.log('[Consently DPDPA] ✓ Smart Pre-fill: Found email in form:', prefilledEmail);
+
+              // Check user status
+              const emailHash = await hashString(prefilledEmail);
+              const statusResult = await checkUserStatus(emailHash);
+              userStatus = statusResult.status || 'new';
+              console.log('[Consently DPDPA] User status:', userStatus, userStatus === 'verified' ? '(returning user)' : '(new user)');
+            } else {
+              console.log('[Consently DPDPA] No email found, user will need to enter email manually');
+            }
+          }
+
           // Apply rule and show widget
           applyRule(rule);
           trackRuleMatch(rule);
@@ -777,7 +843,8 @@
           const submitButton = e.submitter || form.querySelector('[type="submit"]');
 
           // Show widget and handle consent
-          showConsentWidget();
+          console.log('[Consently DPDPA] Showing widget with pre-filled email:', prefilledEmail || 'none');
+          showConsentWidget(prefilledEmail, userStatus);
 
           // Listen for consent completion to resume form submission
           window.addEventListener('consentlyDPDPAConsent', function handleConsent(consentEvent) {
@@ -1531,424 +1598,7 @@
     }
   }
 
-  // Show Email Verification Modal (optional first-time user flow)
-  async function showEmailVerificationModal(initialState = {}) {
-    return new Promise((resolve) => {
-      const modal = document.createElement('div');
-      modal.id = 'dpdpa-email-verification-modal';
-      modal.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999999;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        padding: 16px;
-      `;
 
-      let currentStep = initialState.step || 'input'; // 'input' or 'verify'
-      let userEmail = initialState.email || '';
-      let countdown = initialState.countdown || 0;
-      let countdownInterval = null;
-      let otpExpirationMinutes = initialState.expiresInMinutes || 10;
-
-      // Start countdown immediately if passed in state
-      if (countdown > 0) {
-        countdownInterval = setInterval(() => {
-          countdown--;
-          if (countdown <= 0) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-            renderModal();
-          } else {
-            const resendBtn = document.getElementById('resend-otp-btn');
-            if (resendBtn) {
-              resendBtn.textContent = `Resend in ${countdown}s`;
-            }
-          }
-        }, 1000);
-      }
-
-      function renderModal() {
-        if (currentStep === 'input') {
-          modal.innerHTML = `
-            <div style="background:white;border-radius:16px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:slideUp 0.3s ease-out;max-height:90vh;overflow-y:auto;">
-              <div style="text-align:center;margin-bottom:20px;">
-                <div style="width:56px;height:56px;background:linear-gradient(135deg, #9333EA 0%, #7C3AED 100%);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 12px rgba(147,51,234,0.2);">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-                <h2 style="margin:0 0 6px 0;font-size:24px;font-weight:700;color:#1a1a1a;letter-spacing:-0.3px;">Link Your Preferences</h2>
-                <p style="color:#64748b;font-size:14px;margin:0;line-height:1.4;">Sync your consent across devices with email verification</p>
-              </div>
-              
-              <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e2e8f0;">
-                <label style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:10px;color:#1e293b;font-size:13px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#9333EA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  Email Address
-                </label>
-                <div style="position:relative;margin-bottom:12px;">
-                  <input 
-                    type="email" 
-                    id="email-input"
-                    placeholder="your@email.com"
-                    style="width:100%;padding:12px 12px 12px 38px;border:2px solid #cbd5e1;border-radius:10px;font-size:15px;box-sizing:border-box;transition:all 0.2s;background:white;"
-                    onfocus="this.style.borderColor='#9333EA';this.style.boxShadow='0 0 0 3px rgba(147,51,234,0.1)'"
-                    onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
-                  />
-                  <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-                <button 
-                  id="send-otp-btn"
-                  style="width:100%;padding:12px;background:linear-gradient(135deg, #9333EA 0%, #7C3AED 100%);border:none;color:white;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(147,51,234,0.25);"
-                  onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(147,51,234,0.35)'"
-                  onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(147,51,234,0.25)'"
-                >
-                  <span style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Send Verification Code
-                  </span>
-                </button>
-                <div id="email-error" style="color:#dc2626;margin-top:10px;font-size:13px;display:none;padding:10px;background:#fee;border-radius:8px;border-left:3px solid #dc2626;"></div>
-              </div>
-              
-              <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
-                <div style="flex:1;height:1px;background:#e2e8f0;"></div>
-                <span style="color:#94a3b8;font-size:12px;font-weight:500;">OR</span>
-                <div style="flex:1;height:1px;background:#e2e8f0;"></div>
-              </div>
-              
-              <button 
-                id="skip-email-btn"
-                style="width:100%;padding:12px;background:white;border:2px solid #e2e8f0;color:#1e293b;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;"
-                onmouseover="this.style.borderColor='#9333EA';this.style.background='#f8fafc'"
-                onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'"
-              >
-                <span style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                  <span>Skip for Now</span>
-                </span>
-              </button>
-              
-              <div style="text-align:center;margin-top:16px;padding:12px;background:#f8fafc;border-radius:10px;">
-                <p style="font-size:12px;color:#64748b;margin:0;line-height:1.5;">
-                  <strong style="color:#1e293b;">Privacy:</strong> Your email is encrypted and only used for verification.
-                </p>
-              </div>
-            </div>
-            <style>
-              @keyframes slideUp {
-                from { opacity: 0; transform: translateY(10px) scale(0.98); }
-                to { opacity: 1; transform: translateY(0) scale(1); }
-              }
-            </style>
-          `;
-        } else {
-          // OTP verification step
-          modal.innerHTML = `
-            <div style="background:white;border-radius:16px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:slideUp 0.3s ease-out;max-height:90vh;overflow-y:auto;">
-              <div style="text-align:center;margin-bottom:20px;">
-                <div style="width:56px;height:56px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 12px rgba(16,185,129,0.2);">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-                <h2 style="margin:0 0 6px 0;font-size:24px;font-weight:700;color:#1a1a1a;letter-spacing:-0.3px;">Code Sent!</h2>
-                <p style="color:#64748b;font-size:14px;margin:0;line-height:1.4;">Check ${userEmail} for your verification code</p>
-              </div>
-              
-              <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e2e8f0;">
-                <label style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:10px;color:#1e293b;font-size:13px;">
-                  Enter 6-Digit Code
-                </label>
-                <input 
-                  type="text" 
-                  id="otp-input"
-                  inputmode="numeric"
-                  pattern="\\d{6}"
-                  maxlength="6"
-                  placeholder="000000"
-                  style="width:100%;padding:16px;border:2px solid #cbd5e1;border-radius:10px;font-size:24px;font-family:ui-monospace,monospace;text-align:center;letter-spacing:0.5em;box-sizing:border-box;transition:all 0.2s;background:white;"
-                  onfocus="this.style.borderColor='#10b981';this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.1)'"
-                  onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
-                />
-                <button 
-                  id="verify-otp-btn"
-                  style="width:100%;padding:12px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border:none;color:white;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(16,185,129,0.25);margin-top:12px;"
-                  onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.35)'"
-                  onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.25)'"
-                >
-                  <span style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Verify & Continue
-                  </span>
-                </button>
-                <button 
-                  id="resend-otp-btn"
-                  ${countdown > 0 ? 'disabled' : ''}
-                  style="width:100%;padding:10px;background:transparent;border:2px solid #e2e8f0;color:#64748b;border-radius:10px;font-weight:500;font-size:13px;cursor:pointer;transition:all 0.2s;margin-top:8px;${countdown > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}"
-                  onmouseover="${countdown > 0 ? '' : 'this.style.borderColor=\x27#10b981\x27;this.style.color=\x27#10b981\x27;'}" 
-                  onmouseout="${countdown > 0 ? '' : 'this.style.borderColor=\x27#e2e8f0\x27;this.style.color=\x27#64748b\x27;'}" 
-                >
-                  ${countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
-                </button>
-                <div id="otp-error" style="color:#dc2626;margin-top:10px;font-size:13px;display:none;padding:10px;background:#fee;border-radius:8px;border-left:3px solid #dc2626;"></div>
-              </div>
-              
-              <button 
-                id="change-email-btn"
-                style="width:100%;padding:10px;background:transparent;border:none;color:#9333EA;font-weight:500;font-size:13px;cursor:pointer;transition:all 0.2s;"
-                onmouseover="this.style.textDecoration='underline'"
-                onmouseout="this.style.textDecoration='none'"
-              >
-                Change Email
-              </button>
-              
-              <div style="text-align:center;margin-top:12px;padding:12px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
-                <p style="font-size:12px;color:#166534;margin:0;line-height:1.5;">
-                  Code expires in <strong>${otpExpirationMinutes} minute${otpExpirationMinutes !== 1 ? 's' : ''}</strong>. Check spam if you don't see it.
-                </p>
-              </div>
-            </div>
-            <style>
-              @keyframes slideUp {
-                from { opacity: 0; transform: translateY(10px) scale(0.98); }
-                to { opacity: 1; transform: translateY(0) scale(1); }
-              }
-            </style>
-          `;
-        }
-
-        attachEmailModalListeners();
-      }
-
-      function attachEmailModalListeners() {
-        if (currentStep === 'input') {
-          const sendBtn = document.getElementById('send-otp-btn');
-          const skipBtn = document.getElementById('skip-email-btn');
-          const emailInput = document.getElementById('email-input');
-          const errorDiv = document.getElementById('email-error');
-
-          sendBtn.addEventListener('click', async () => {
-            const email = emailInput.value.trim();
-            if (!email) {
-              errorDiv.textContent = 'Please enter your email address';
-              errorDiv.style.display = 'block';
-              return;
-            }
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-              errorDiv.textContent = 'Please enter a valid email address';
-              errorDiv.style.display = 'block';
-              return;
-            }
-
-            sendBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><div style="width:16px;height:16px;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"></div>Sending...</span>';
-            sendBtn.disabled = true;
-            errorDiv.style.display = 'none';
-
-            try {
-              const apiBase = getApiUrl();
-              const response = await fetch(`${apiBase}/api/privacy-centre/send-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email: email,
-                  visitorId: consentID || getConsentID(),
-                  widgetId: widgetId,
-                }),
-              });
-
-              const data = await response.json();
-
-              // Store expiration time from response
-              if (data.expiresInMinutes) {
-                otpExpirationMinutes = data.expiresInMinutes;
-              }
-
-              if (!response.ok) {
-                if (response.status === 429) {
-                  errorDiv.textContent = 'Too many requests. Please try again in 1 hour.';
-                } else {
-                  errorDiv.textContent = data.error || 'Failed to send code';
-                }
-                errorDiv.style.display = 'block';
-                sendBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Send Verification Code</span>';
-                sendBtn.disabled = false;
-                return;
-              }
-
-              userEmail = email;
-              currentStep = 'verify';
-              countdown = 60;
-              countdownInterval = setInterval(() => {
-                countdown--;
-                if (countdown <= 0) {
-                  clearInterval(countdownInterval);
-                  countdownInterval = null;
-                  renderModal();
-                } else {
-                  const resendBtn = document.getElementById('resend-otp-btn');
-                  if (resendBtn) {
-                    resendBtn.textContent = `Resend in ${countdown}s`;
-                  }
-                }
-              }, 1000);
-              renderModal();
-            } catch (error) {
-              console.error('[Email Verification] Send OTP error:', error);
-              errorDiv.textContent = 'Failed to send code. Please try again.';
-              errorDiv.style.display = 'block';
-              sendBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Send Verification Code</span>';
-              sendBtn.disabled = false;
-            }
-          });
-
-          skipBtn.addEventListener('click', () => {
-            if (countdownInterval) clearInterval(countdownInterval);
-            modal.remove();
-            resolve({ verified: false, skipped: true });
-          });
-        } else {
-          // Verify step
-          const verifyBtn = document.getElementById('verify-otp-btn');
-          const resendBtn = document.getElementById('resend-otp-btn');
-          const changeBtn = document.getElementById('change-email-btn');
-          const otpInput = document.getElementById('otp-input');
-          const errorDiv = document.getElementById('otp-error');
-
-          // Auto-format OTP input
-          otpInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.replace(/\D/g, '').substring(0, 6);
-          });
-
-          verifyBtn.addEventListener('click', async () => {
-            const otp = otpInput.value.trim();
-            if (!/^\d{6}$/.test(otp)) {
-              errorDiv.textContent = 'Please enter a 6-digit code';
-              errorDiv.style.display = 'block';
-              return;
-            }
-
-            verifyBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><div style="width:16px;height:16px;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"></div>Verifying...</span>';
-            verifyBtn.disabled = true;
-            errorDiv.style.display = 'none';
-
-            try {
-              const apiBase = getApiUrl();
-              const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email: userEmail,
-                  otpCode: otp,
-                  visitorId: consentID || getConsentID(),
-                  widgetId: widgetId,
-                }),
-              });
-
-              const data = await response.json();
-
-              if (!response.ok) {
-                if (data.code === 'INVALID_OTP') {
-                  errorDiv.textContent = data.error + (data.remainingAttempts !== undefined ? ` (${data.remainingAttempts} attempts remaining)` : '');
-                } else {
-                  errorDiv.textContent = data.error || 'Verification failed';
-                }
-                errorDiv.style.display = 'block';
-                verifyBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Verify & Continue</span>';
-                verifyBtn.disabled = false;
-                return;
-              }
-
-              // Success!
-              if (countdownInterval) clearInterval(countdownInterval);
-              modal.remove();
-              showToast('✅ Email verified! Your preferences are now linked.', 'success');
-              resolve({ verified: true, email: userEmail, linkedDevices: data.linkedDevices });
-            } catch (error) {
-              console.error('[Email Verification] Verify OTP error:', error);
-              errorDiv.textContent = 'Verification failed. Please try again.';
-              errorDiv.style.display = 'block';
-              verifyBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Verify & Continue</span>';
-              verifyBtn.disabled = false;
-            }
-          });
-
-          resendBtn.addEventListener('click', async () => {
-            if (countdown > 0) return;
-
-            resendBtn.textContent = 'Sending...';
-            resendBtn.disabled = true;
-            errorDiv.style.display = 'none';
-
-            try {
-              const apiBase = getApiUrl();
-              const response = await fetch(`${apiBase}/api/privacy-centre/send-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email: userEmail,
-                  visitorId: consentID || getConsentID(),
-                  widgetId: widgetId,
-                }),
-              });
-
-              if (response.ok) {
-                showToast('📧 New code sent!', 'success');
-                countdown = 60;
-                countdownInterval = setInterval(() => {
-                  countdown--;
-                  if (countdown <= 0) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                    renderModal();
-                  } else {
-                    resendBtn.textContent = `Resend in ${countdown}s`;
-                  }
-                }, 1000);
-                renderModal();
-              } else {
-                const data = await response.json();
-                errorDiv.textContent = data.error || 'Failed to resend code';
-                errorDiv.style.display = 'block';
-                resendBtn.textContent = 'Resend Code';
-                resendBtn.disabled = false;
-              }
-            } catch (error) {
-              console.error('[Email Verification] Resend OTP error:', error);
-              errorDiv.textContent = 'Failed to resend code. Please try again.';
-              errorDiv.style.display = 'block';
-              resendBtn.textContent = 'Resend Code';
-              resendBtn.disabled = false;
-            }
-          });
-
-          changeBtn.addEventListener('click', () => {
-            if (countdownInterval) clearInterval(countdownInterval);
-            currentStep = 'input';
-            countdown = 0;
-            renderModal();
-          });
-        }
-      }
-
-      document.body.appendChild(modal);
-      renderModal();
-    });
-  }
 
   // Show Consent ID Verification Screen
   async function showVerificationScreen() {
@@ -1986,53 +1636,8 @@
             <p style="color:#64748b;font-size:14px;margin:0;line-height:1.4;">Verify your identity to manage consent preferences securely in compliance with DPDPA 2023.</p>
           </div>
           
-          <!-- Tabs -->
-          <div style="display:flex;background:#f1f5f9;padding:4px;border-radius:10px;margin-bottom:20px;">
-            <button id="tab-consent-id" style="flex:1;padding:8px;border:none;background:${mode === 'consent-id' ? 'white' : 'transparent'};color:${mode === 'consent-id' ? '#4F76F6' : '#64748b'};font-weight:600;font-size:13px;border-radius:8px;cursor:pointer;box-shadow:${mode === 'consent-id' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'};transition:all 0.2s;">
-              Consent ID
-            </button>
-            <button id="tab-email" style="flex:1;padding:8px;border:none;background:${mode === 'email' ? 'white' : 'transparent'};color:${mode === 'email' ? '#4F76F6' : '#64748b'};font-weight:600;font-size:13px;border-radius:8px;cursor:pointer;box-shadow:${mode === 'email' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'};transition:all 0.2s;">
-              Email Address
-            </button>
-          </div>
-
           <!-- Input Section -->
           <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e2e8f0;">
-            ${mode === 'consent-id' ? `
-              <label style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:10px;color:#1e293b;font-size:13px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 17v-2m0-4V7m9 5a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#4F76F6" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Consent ID
-              </label>
-              <div style="position:relative;margin-bottom:12px;">
-                <input 
-                  type="text" 
-                  id="consent-id-input"
-                  placeholder="CNST-XXXX-XXXX-XXXX"
-                  maxlength="19"
-                  style="width:100%;padding:12px 12px 12px 38px;border:2px solid #cbd5e1;border-radius:10px;font-size:15px;font-family:ui-monospace,monospace;text-transform:uppercase;box-sizing:border-box;transition:all 0.2s;background:white;"
-                  onfocus="this.style.borderColor='#4F76F6';this.style.boxShadow='0 0 0 3px rgba(79,118,246,0.1)'"
-                  onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'"
-                />
-                <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <button 
-                id="verify-consent-btn"
-                style="width:100%;padding:12px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border:none;color:white;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(79,118,246,0.25);"
-                onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(79,118,246,0.35)'"
-                onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(79,118,246,0.25)'"
-              >
-                <span style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  Verify & Load
-                </span>
-              </button>
-            ` : `
               <label style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:10px;color:#1e293b;font-size:13px;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#4F76F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2065,7 +1670,6 @@
                   Send Verification Code
                 </span>
               </button>
-            `}
             <div id="verify-error" style="color:#dc2626;margin-top:10px;font-size:13px;display:none;padding:10px;background:#fee;border-radius:8px;border-left:3px solid #dc2626;"></div>
           </div>
           
@@ -2104,7 +1708,10 @@
           @media (max-width: 480px) {
             #dpdpa-verification-modal > div {
               padding: 20px !important;
-              border-radius: 12px !important;
+              border-radius: 16px !important;
+              width: 92% !important;
+              max-width: none !important;
+              margin: 0 auto;
             }
             #dpdpa-verification-modal > div h2 {
               font-size: 20px !important;
@@ -2120,25 +1727,8 @@
     }
 
     function attachListeners() {
-      const tabConsentId = modal.querySelector('#tab-consent-id');
-      const tabEmail = modal.querySelector('#tab-email');
       const startFreshBtn = modal.querySelector('#start-fresh-btn');
       const errorDiv = modal.querySelector('#verify-error');
-
-      // Tab switching
-      tabConsentId.addEventListener('click', () => {
-        if (mode !== 'consent-id') {
-          mode = 'consent-id';
-          renderModal();
-        }
-      });
-
-      tabEmail.addEventListener('click', () => {
-        if (mode !== 'email') {
-          mode = 'email';
-          renderModal();
-        }
-      });
 
       // Start Fresh
       startFreshBtn.addEventListener('click', () => {
@@ -2159,62 +1749,11 @@
         }
       });
 
-      // Tab Listeners
+      // Email Mode Logic
+      const sendBtn = modal.querySelector('#send-otp-btn');
+      const emailInput = modal.querySelector('#email-input');
 
-      if (mode === 'consent-id') {
-        const verifyBtn = modal.querySelector('#verify-consent-btn');
-        const input = modal.querySelector('#consent-id-input');
-
-        // Auto-format input logic (same as before)
-        let isFormatting = false;
-        input.addEventListener('input', (e) => {
-          if (isFormatting) return;
-          isFormatting = true;
-          const cursorPos = e.target.selectionStart;
-          const oldValue = e.target.value;
-          let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-          if (value.startsWith('CNST')) value = value.substring(4);
-          if (value.length > 12) value = value.substring(0, 12);
-          let formatted = 'CNST-';
-          if (value.length > 0) formatted += value.substring(0, 4);
-          if (value.length > 4) formatted += '-' + value.substring(4, 8);
-          if (value.length > 8) formatted += '-' + value.substring(8, 12);
-          e.target.value = formatted;
-          const dashesBeforeCursor = (oldValue.substring(0, cursorPos).match(/-/g) || []).length;
-          const dashesInNew = (formatted.substring(0, cursorPos).match(/-/g) || []).length;
-          const newCursorPos = cursorPos + (dashesInNew - dashesBeforeCursor);
-          e.target.setSelectionRange(newCursorPos, newCursorPos);
-          isFormatting = false;
-        });
-
-        verifyBtn.addEventListener('click', async () => {
-          const inputID = input.value.trim();
-          errorDiv.style.display = 'none';
-          if (!inputID || inputID === 'CNST-') {
-            errorDiv.textContent = 'Please enter a Consent ID';
-            errorDiv.style.display = 'block';
-            return;
-          }
-          verifyBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><div style="width:16px;height:16px;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"></div>Verifying...</span>';
-          verifyBtn.disabled = true;
-          const result = await verifyConsentID(inputID);
-          if (result.valid) {
-            storeConsentID(inputID);
-            consentID = inputID;
-            modal.remove();
-            showToast('✅ Consent ID verified! Your preferences have been loaded.', 'success');
-          } else {
-            errorDiv.textContent = result.error || 'Consent ID not found. Please check and try again.';
-            errorDiv.style.display = 'block';
-            verifyBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Verify & Load</span>';
-            verifyBtn.disabled = false;
-          }
-        });
-      } else {
-        // Email Mode
-        const sendBtn = modal.querySelector('#send-otp-btn');
-        const emailInput = modal.querySelector('#email-input');
-
+      if (sendBtn && emailInput) {
         sendBtn.addEventListener('click', async () => {
           const email = emailInput.value.trim();
           if (!email) {
@@ -2243,6 +1782,7 @@
                 visitorId: consentID || getConsentID(),
                 widgetId: widgetId,
               }),
+
             });
 
             const data = await response.json();
@@ -2257,19 +1797,7 @@
 
             // Success - Switch to OTP modal (Step 2)
             modal.remove();
-            showEmailVerificationModal({
-              step: 'verify',
-              email: email,
-              countdown: 60,
-              expiresInMinutes: data.expiresInMinutes
-            }).then(result => {
-              if (result && result.verified) {
-                showToast('✅ Identity verified! Syncing preferences...', 'success');
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
-              }
-            });
+            showConsentWidget(email, 'verified');
 
           } catch (error) {
             console.error('[Email Verification] Send OTP error:', error);
@@ -2682,7 +2210,7 @@ Digital Personal Data Protection Act, 2023
             }
           }
           return; // Don't show widget on page load for onClick triggers
-        } else if (matchedRule.trigger_type === 'onFormSubmit' && matchedRule.element_selector) {
+        } else if (matchedRule.trigger_type === 'onFormSubmit') {
           setupFormSubmitTrigger(matchedRule);
           // Track rule match when submitted (tracked in setupFormSubmitTrigger via applyRule)
           // For onFormSubmit triggers, check consent against all activities (rule applies when submitted)
@@ -2748,6 +2276,14 @@ Digital Personal Data Protection Act, 2023
       } else if (!matchedRule) {
         const hasRulesConfigured = Array.isArray(config.display_rules) && config.display_rules.length > 0;
         if (hasRulesConfigured) {
+          // Check if any rule has formSubmit trigger - if so, set it up globally
+          const formSubmitRule = config.display_rules.find(r => r.trigger_type === 'onFormSubmit');
+          if (formSubmitRule) {
+            console.log('[Consently DPDPA] Setting up global form submit trigger (no page-specific rule matched)');
+            setupFormSubmitTrigger(formSubmitRule);
+            return;
+          }
+
           // STRICT: Do not show widget when rules exist but none matched
           const currentPath = (typeof window !== 'undefined' && window.location && window.location.pathname) || '/';
           console.warn('[Consently DPDPA] ⚠️ Display rules configured but none matched for:', currentPath);
@@ -2762,12 +2298,37 @@ Digital Personal Data Protection Act, 2023
         }
       } else {
         // Matched rule exists but trigger is not onPageLoad (onClick, onFormSubmit, onScroll already handled above)
-        // Show verification screen for new users (email verification will be offered after consent)
-        showVerificationScreen();
+        // These triggers are already set up and will show the widget when they fire
+        return;
       }
     } else {
-      // No stored Consent ID - show verification screen for new users
-      showVerificationScreen();
+      // No stored Consent ID - check if we have a non-onPageLoad trigger that should wait
+      const matchedRule = evaluateDisplayRules();
+      if (matchedRule && (matchedRule.trigger_type === 'onClick' || matchedRule.trigger_type === 'onFormSubmit' || matchedRule.trigger_type === 'onScroll')) {
+        // For non-onPageLoad triggers, set them up but don't show verification screen immediately
+        if (matchedRule.trigger_type === 'onClick' && matchedRule.element_selector) {
+          setupClickTrigger(matchedRule);
+        } else if (matchedRule.trigger_type === 'onFormSubmit') {
+          setupFormSubmitTrigger(matchedRule);
+        } else if (matchedRule.trigger_type === 'onScroll') {
+          setupScrollTrigger(matchedRule);
+        }
+        return; // Wait for trigger to fire
+      }
+
+      // No rule matched - check if we have form submit rules configured globally
+      const hasRulesConfigured = Array.isArray(config.display_rules) && config.display_rules.length > 0;
+      if (hasRulesConfigured) {
+        const formSubmitRule = config.display_rules.find(r => r.trigger_type === 'onFormSubmit');
+        if (formSubmitRule) {
+          console.log('[Consently DPDPA] Setting up global form submit trigger for new user (no page-specific rule matched)');
+          setupFormSubmitTrigger(formSubmitRule);
+          return;
+        }
+      }
+
+      // For non-onPageLoad triggers, wait for them to fire - don't show anything immediately
+      return;
     }
   }
 
@@ -2827,10 +2388,21 @@ Digital Personal Data Protection Act, 2023
   }
 
   // Create and show consent widget
-  async function showConsentWidget() {
+  async function showConsentWidget(prefilledEmail = null, userStatus = 'new') {
+    // Log smart pre-fill status
+    console.log('[Consently DPDPA] showConsentWidget called with:', {
+      prefilledEmail: prefilledEmail || 'none',
+      userStatus: userStatus,
+      smartPreFillActive: !!prefilledEmail
+    });
+
     if (document.getElementById('consently-dpdpa-widget')) {
       return; // Already shown
     }
+
+    // Update global state
+    currentPrefilledEmail = prefilledEmail || null;
+    userEmail = prefilledEmail || null;
 
     // Validate that there are activities to show
     if (!activities || activities.length === 0) {
@@ -2938,14 +2510,15 @@ Digital Personal Data Protection Act, 2023
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       z-index: 999998;
       display: flex;
       align-items: center;
       justify-content: center;
       opacity: 0;
-      transition: opacity 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     `;
 
     // Create widget container
@@ -2953,12 +2526,14 @@ Digital Personal Data Protection Act, 2023
     widget.id = 'consently-dpdpa-widget';
     widget.style.cssText = `
       position: relative;
-      background: ${backgroundColor};
+      background: ${backgroundColor === '#ffffff' ? 'rgba(255, 255, 255, 0.95)' : backgroundColor};
       color: ${textColor};
       font-family: ${fontFamily};
       font-size: ${fontSize}px;
-      border-radius: ${borderRadius}px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       max-width: 760px;
       max-height: 90vh;
       width: 92%;
@@ -2974,7 +2549,7 @@ Digital Personal Data Protection Act, 2023
     function buildWidgetHTML() {
       return `
       <!-- Header Section -->
-      <div style="padding: 20px 24px; border-bottom: 2px solid #e5e7eb; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; background: #ffffff;">
         <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
           <div style="display: flex; align-items: center; gap: 12px;">
             ${config.theme.logoUrl ? `
@@ -2985,8 +2560,8 @@ Digital Personal Data Protection Act, 2023
               </div>
             `}
             <div>
-              <h2 style="margin: 0 0 2px 0; font-size: 22px; font-weight: 800; color: ${textColor}; letter-spacing: -0.02em;">${t.privacyNotice}</h2>
-              <p style="margin: 0; font-size: 11px; color: #6b7280; font-weight: 500;">${t.dpdpaCompliance}</p>
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">Your Data Permissions</h2>
+              <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">To proceed with your request, we need your consent under DPDP Act 2023. Please review your choices below.</p>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -3028,10 +2603,9 @@ Digital Personal Data Protection Act, 2023
         <!-- Processing Activities Table View - Enhanced Design -->
         <div style="margin-bottom: 20px;">
           <!-- Table Header -->
-          <div style="display: grid; grid-template-columns: auto 1fr 1.5fr; gap: 12px; padding: 0 12px 10px 12px; border-bottom: 2px solid #e5e7eb;">
-            <div style="width: 20px;"></div>
-            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">${t.purpose}</div>
-            <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">${t.dataCategories}</div>
+          <!-- Consent Categories Header -->
+          <div style="margin-bottom: 16px;">
+            <h3 style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px 0;">CONSENT CATEGORIES</h3>
           </div>
           
           <!-- Table Body -->
@@ -3067,23 +2641,31 @@ Digital Personal Data Protection Act, 2023
         }
 
         return `
-              <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="display: grid; grid-template-columns: auto 1fr 1.5fr; gap: 12px; align-items: start; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; background: linear-gradient(to bottom, #ffffff, #fafbfc); transition: all 0.25s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="display: flex; gap: 16px; align-items: flex-start; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff; transition: all 0.2s ease; margin-bottom: 12px;">
                 <!-- Checkbox -->
                 <label style="display: flex; align-items: center; cursor: pointer; padding-top: 2px;">
-                  <input type="checkbox" class="activity-checkbox" data-activity-id="${activity.id}" style="width: 18px; height: 18px; cursor: pointer; accent-color: ${primaryColor}; border-radius: 4px;" />
+                  <div class="custom-checkbox-wrapper" style="position: relative; width: 24px; height: 24px;">
+                    <input type="checkbox" class="activity-checkbox" data-activity-id="${activity.id}" style="opacity: 0; position: absolute; width: 100%; height: 100%; cursor: pointer; z-index: 2;" />
+                    <div class="checkbox-visual" style="width: 24px; height: 24px; border: 2px solid #d1d5db; border-radius: 6px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; background: white;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0; transform: scale(0.8); transition: all 0.2s;">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                  </div>
                 </label>
                 
-                <!-- Purpose Name -->
-                <div style="font-size: 14px; font-weight: 600; color: ${textColor}; line-height: 1.3; padding-top: 2px;">
-                  ${escapeHtml(activity.activity_name)}
-                  ${purposesList.length > 0 ? `<div style="font-size: 11px; font-weight: 400; color: #6b7280; margin-top: 4px;">${purposesList.map(p => escapeHtml(p)).join(', ')}</div>` : ''}
-                </div>
-                
-                <!-- Data Categories -->
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                  ${dataCategories.map(attr => `
-                    <span style="display: inline-block; font-size: 11px; padding: 5px 10px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); border: 1px solid #e5e7eb; border-radius: 6px; font-weight: 500; color: ${textColor}; white-space: nowrap;">${escapeHtml(attr)}</span>
-                  `).join('')}
+                <!-- Content -->
+                <div style="flex: 1;">
+                  <div style="font-size: 15px; font-weight: 700; color: ${textColor}; margin-bottom: 6px; line-height: 1.3;">
+                    ${escapeHtml(activity.activity_name)}
+                  </div>
+                  
+                  <div style="font-size: 13px; color: #6b7280; line-height: 1.5;">
+                    <span style="color: #9ca3af;">Purpose:</span> ${purposesList.length > 0 ? escapeHtml(purposesList.join(', ')) : escapeHtml(activity.activity_description || 'Process data')}
+                  </div>
+                  <div style="font-size: 13px; color: #6b7280; line-height: 1.5; margin-top: 2px;">
+                    <span style="color: #9ca3af;">Data:</span> ${dataCategories.map(c => escapeHtml(c)).join(', ')}
+                  </div>
                 </div>
                 
                 <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
@@ -3114,31 +2696,65 @@ Digital Personal Data Protection Act, 2023
           </div>
         </div>
         
-        <!-- Footer Links -->
-        <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
+      </div>
+
+      <!-- Secure This Consent Section -->
+      <div class="dpdpa-secure-section" style="padding: 24px; background: linear-gradient(to right, #f8fafc, #f1f5f9); border-top: 1px solid rgba(0,0,0,0.05); border-bottom: 1px solid rgba(0,0,0,0.05);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <div style="width: 24px; height: 24px; background: ${primaryColor}15; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${primaryColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: ${textColor};">
+            Secure This Consent
+          </h3>
+        </div>
+        <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
+          ${userStatus === 'verified'
+          ? `We've sent a code to <strong style="color:${primaryColor}">${escapeHtml(prefilledEmail)}</strong> to manage your consents.`
+          : `We'll send a code to ${prefilledEmail ? `<strong style="color:${primaryColor}">${escapeHtml(prefilledEmail)}</strong>` : 'your email'} to manage all your consents.`}
+        </p>
+
+        <div class="dpdpa-secure-flex" style="display: flex; gap: 10px; align-items: center;">
+          ${userStatus === 'verified' ? `
+            <!-- OTP Input for Verified User -->
+            <div class="dpdpa-secure-input-group" style="display: flex; gap: 12px; flex: 1; align-items: flex-start;">
+              <div style="flex: 1; position: relative;">
+                 <input type="text" id="dpdpa-otp-input" placeholder="- - - - -" style="width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 18px; outline: none; transition: all 0.2s; text-align: center; letter-spacing: 8px; font-family: monospace; font-weight: 600;" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <button id="dpdpa-resend-btn" style="background: none; border: none; color: ${primaryColor}; font-weight: 600; font-size: 13px; cursor: pointer; padding: 0; white-space: nowrap;">[ Resend Code ]</button>
+                <button id="dpdpa-change-email-btn" style="background: none; border: none; color: #64748b; font-weight: 500; font-size: 12px; cursor: pointer; padding: 0; white-space: nowrap; text-decoration: underline;">Change Email</button>
+              </div>
+              <button id="dpdpa-verify-btn" style="display: none;">Sync</button>
+            </div>
+          ` : `
+            <!-- Email Input for New User -->
+            <div class="dpdpa-secure-input-group" style="display: flex; gap: 8px; flex: 1;">
+              <input type="email" id="dpdpa-email-input" value="${escapeHtml(prefilledEmail || '')}" placeholder="name@example.com" style="flex: 1; padding: 12px 16px; border: ${prefilledEmail ? `2px solid ${primaryColor}` : '1px solid #cbd5e1'}; border-radius: 12px; font-size: 14px; outline: none; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); ${prefilledEmail ? `background: linear-gradient(to right, ${primaryColor}08, transparent);` : 'background: white;'}" />
+              <button id="dpdpa-send-code-btn" style="padding: 10px 20px; background: ${prefilledEmail ? `linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd)` : 'white'}; color: ${prefilledEmail ? 'white' : textColor}; border: ${prefilledEmail ? 'none' : '1px solid #cbd5e1'}; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 13px; white-space: nowrap; box-shadow: ${prefilledEmail ? `0 4px 12px ${primaryColor}40` : '0 1px 2px rgba(0,0,0,0.05)'}; transition: all 0.2s;">
+                ${prefilledEmail ? '✓ Send Code' : 'Send Code'}
+              </button>
+            </div>
+          `}
+        </div>
+      </div>
+      
+      <!-- Footer Links -->
+      <div style="padding: 12px 24px; background: #ffffff; margin-bottom: 0;">
           <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
             ${t.grievanceText.replace('{here}', `<a href="#" id="dpdpa-grievance-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">${t.here}</a>`).replace('{here2}', `<a href="#" id="dpdpa-dpb-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">${t.here}</a>`)}
           </p>
         </div>
       </div>
 
-      <!-- Footer Actions - Enhanced Design -->
-      <div style="padding: 18px 24px; border-top: 2px solid #e5e7eb; background: linear-gradient(to bottom, #fafbfc, #f3f4f6); display: flex; gap: 12px; align-items: center; justify-content: space-between; box-shadow: 0 -2px 8px rgba(0,0,0,0.05);">
-        <button id="dpdpa-download-icon" style="padding: 12px; background: white; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="${t.downloadButton}">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
+      <!-- Footer Actions -->
+      <div class="dpdpa-footer-actions" style="padding: 20px 24px; border-top: 1px solid rgba(0,0,0,0.05); background: #ffffff; display: flex; justify-content: center; border-radius: 0 0 24px 24px;">
+        <button id="dpdpa-confirm-btn" style="width: 100%; max-width: 100%; padding: 16px 24px; background: linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd); color: white; border: none; border-radius: 14px; cursor: pointer; font-size: 16px; font-weight: 700; transition: all 0.2s; box-shadow: 0 8px 20px -4px ${primaryColor}50; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">
+          Confirm & Submit
         </button>
-        <div style="flex: 1; display: flex; gap: 10px; min-width: 0;">
-          <button id="dpdpa-accept-selected-btn" style="flex: 1; min-width: 0; padding: 13px 20px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); color: ${textColor}; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${t.acceptSelected}
-          </button>
-          <button id="dpdpa-accept-all-btn" style="flex: 1; min-width: 0; padding: 13px 20px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 8px rgba(59,130,246,0.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${translatedConfig.acceptButtonText}
-          </button>
-        </div>
       </div>
       
       <!-- Powered by Consently -->
@@ -3149,6 +2765,48 @@ Digital Personal Data Protection Act, 2023
           </p>
         </div>
       ` : ''}
+      <style>
+        @media (max-width: 640px) {
+          #consently-dpdpa-widget {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 85vh !important;
+            border-radius: 20px 20px 0 0 !important;
+            margin: 0 !important;
+            transform: none !important;
+          }
+          
+          #consently-dpdpa-overlay {
+             align-items: flex-end !important;
+             padding: 0 !important;
+          }
+
+          .dpdpa-secure-flex {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          
+          .dpdpa-secure-input-group {
+            width: 100% !important;
+          }
+          
+          /* Make email input and button stack on very small screens if needed */
+          @media (max-width: 380px) {
+             .dpdpa-secure-input-group {
+                flex-direction: column !important;
+             }
+             #dpdpa-send-code-btn {
+                width: 100% !important;
+             }
+          }
+
+          .dpdpa-footer-actions {
+             padding: 16px !important;
+          }
+        }
+      </style>
     `;
     }
 
@@ -3419,6 +3077,143 @@ Digital Personal Data Protection Act, 2023
 
   // Attach event listeners
   function attachEventListeners(overlay, widget) {
+    // Get theme colors for use in event handlers
+    const theme = config.theme || {};
+    const textColor = theme.textColor || '#1f2937';
+    const buttonPrimaryColor = theme.primaryColor || primaryColor;
+
+    // Secure This Consent Buttons
+    const sendCodeBtn = widget.querySelector('#dpdpa-send-code-btn');
+    if (sendCodeBtn) {
+      sendCodeBtn.addEventListener('click', async () => {
+        const emailInput = widget.querySelector('#dpdpa-email-input');
+        const email = emailInput ? emailInput.value : null;
+
+        if (!email || !email.includes('@')) {
+          alert('Please enter a valid email address');
+          return;
+        }
+
+        // Simulate sending code
+        const originalText = sendCodeBtn.textContent;
+        sendCodeBtn.textContent = 'Sending...';
+        sendCodeBtn.disabled = true;
+
+        try {
+          const apiBase = getApiUrl();
+          const response = await fetch(`${apiBase}/api/privacy-centre/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: email,
+              visitorId: consentID || getConsentID(),
+              widgetId: widgetId,
+            }),
+          });
+
+          if (response.ok) {
+            // Switch to OTP view
+            const secureSection = widget.querySelector('#dpdpa-email-input').closest('div').parentElement;
+            secureSection.innerHTML = `
+                    <h3 style="margin: 0 0 8px 0; font-size: 15px; font-weight: 700; color: ${textColor};">Secure This Consent</h3>
+                    <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
+                        Enter the code sent to <strong style="color:${buttonPrimaryColor}">${escapeHtml(email)}</strong>
+                    </p>
+                    <div style="display: flex; gap: 12px; flex: 1; align-items: center;">
+                        <div style="flex: 1; position: relative;">
+                            <input type="text" id="dpdpa-otp-input" placeholder="- - - - - -" style="width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 18px; outline: none; transition: all 0.2s; text-align: center; letter-spacing: 8px; font-family: monospace; font-weight: 600;" />
+                        </div>
+                        <button id="dpdpa-resend-btn" style="background: none; border: none; color: ${buttonPrimaryColor}; font-weight: 600; font-size: 13px; cursor: pointer; padding: 0; white-space: nowrap;">[ Resend Code ]</button>
+                    </div>
+                `;
+            // Re-attach listeners for the new content
+            attachEventListeners(overlay, widget);
+            userEmail = email; // Update global
+          } else {
+            alert('Failed to send code. Please try again.');
+            sendCodeBtn.textContent = originalText;
+            sendCodeBtn.disabled = false;
+          }
+        } catch (e) {
+          console.error('Send OTP error', e);
+          alert('Error sending code');
+          sendCodeBtn.textContent = originalText;
+          sendCodeBtn.disabled = false;
+        }
+      });
+    }
+
+    // Change Email Logic
+    const changeEmailBtn = widget.querySelector('#dpdpa-change-email-btn');
+    if (changeEmailBtn) {
+      changeEmailBtn.addEventListener('click', () => {
+        // Remove the widget and show it again as new user
+        const overlay = document.getElementById('consently-dpdpa-overlay');
+        if (overlay) overlay.remove();
+        // Reset user status effectively by calling showConsentWidget with cleared prefilledEmail
+        showConsentWidget(null, 'new');
+      });
+    }
+
+    // Resend Button Logic
+    const resendBtn = widget.querySelector('#dpdpa-resend-btn');
+    if (resendBtn) {
+      resendBtn.addEventListener('click', async () => {
+        if (!userEmail) return;
+        resendBtn.textContent = 'Sending...';
+        resendBtn.disabled = true;
+        try {
+          const apiBase = getApiUrl();
+          await fetch(`${apiBase}/api/privacy-centre/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: userEmail,
+              visitorId: consentID || getConsentID(),
+              widgetId: widgetId,
+            }),
+          });
+          resendBtn.textContent = 'Sent!';
+          setTimeout(() => {
+            resendBtn.textContent = '[ Resend Code ]';
+            resendBtn.disabled = false;
+          }, 3000);
+        } catch (e) {
+          resendBtn.textContent = 'Error';
+          setTimeout(() => {
+            resendBtn.textContent = '[ Resend Code ]';
+            resendBtn.disabled = false;
+          }, 3000);
+        }
+      });
+    }
+
+    const verifyBtn = widget.querySelector('#dpdpa-verify-btn');
+    if (verifyBtn) {
+      verifyBtn.addEventListener('click', async () => {
+        const otpInput = widget.querySelector('#dpdpa-otp-input');
+        const code = otpInput ? otpInput.value : null;
+
+        if (!code || code.length < 4) {
+          alert('Please enter a valid code');
+          return;
+        }
+
+        // Simulate verification
+        verifyBtn.textContent = 'Verifying...';
+        verifyBtn.disabled = true;
+
+        // TODO: Implement actual API call to verify OTP
+        await new Promise(r => setTimeout(r, 1000));
+
+        // On success, save consent with verified status
+        verifiedEmail = document.querySelector('#dpdpa-email-input')?.value || verifiedEmail; // Update global verified email
+
+        // Auto-accept all if verifying (or keep current selection)
+        // For now, just trigger saveConsent
+        await handleAcceptAll(overlay);
+      });
+    }
 
     // Checkboxes for activities with enhanced visual feedback (table view)
     const checkboxes = widget.querySelectorAll('.activity-checkbox');
@@ -3426,6 +3221,9 @@ Digital Personal Data Protection Act, 2023
       checkbox.addEventListener('change', function () {
         const activityId = this.getAttribute('data-activity-id');
         const item = this.closest('.dpdpa-activity-item');
+        const checkboxVisual = this.parentElement.querySelector('.checkbox-visual');
+        const checkmark = checkboxVisual?.querySelector('svg');
+
         if (this.checked) {
           setActivityConsent(activityId, 'accepted');
           item.style.borderColor = primaryColor;
@@ -3433,6 +3231,16 @@ Digital Personal Data Protection Act, 2023
           item.style.background = '#f0f9ff';
           item.style.boxShadow = '0 4px 12px rgba(59,130,246,0.25)';
           item.style.borderLeftWidth = '4px';
+
+          // Update checkbox visual
+          if (checkboxVisual) {
+            checkboxVisual.style.background = primaryColor;
+            checkboxVisual.style.borderColor = primaryColor;
+          }
+          if (checkmark) {
+            checkmark.style.opacity = '1';
+            checkmark.style.transform = 'scale(1)';
+          }
 
           // Remove warning if exists
           const warning = item.querySelector('.revocation-warning');
@@ -3444,6 +3252,16 @@ Digital Personal Data Protection Act, 2023
           item.style.background = 'white';
           item.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
           item.style.borderLeftWidth = '2px';
+
+          // Update checkbox visual
+          if (checkboxVisual) {
+            checkboxVisual.style.background = 'white';
+            checkboxVisual.style.borderColor = '#d1d5db';
+          }
+          if (checkmark) {
+            checkmark.style.opacity = '0';
+            checkmark.style.transform = 'scale(0.8)';
+          }
         }
       });
     });
@@ -3480,37 +3298,78 @@ Digital Personal Data Protection Act, 2023
       });
     }
 
-    // Accept selected button
-    const acceptSelectedBtn = widget.querySelector('#dpdpa-accept-selected-btn');
-    if (acceptSelectedBtn) {
-      acceptSelectedBtn.addEventListener('click', () => {
-        handleAcceptSelected(overlay);
-      });
-      // Enhanced hover effects
-      acceptSelectedBtn.addEventListener('mouseenter', () => {
-        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #e5e7eb, #d1d5db)';
-        acceptSelectedBtn.style.transform = 'translateY(-1px)';
-      });
-      acceptSelectedBtn.addEventListener('mouseleave', () => {
-        acceptSelectedBtn.style.background = 'linear-gradient(to bottom, #f9fafb, #f3f4f6)';
-        acceptSelectedBtn.style.transform = 'translateY(0)';
-      });
-    }
+    // Confirm & Submit Button
+    const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', async () => {
+        // Check if OTP is entered
+        const otpInput = widget.querySelector('#dpdpa-otp-input');
+        const otp = otpInput ? otpInput.value.replace(/\s/g, '') : null;
 
-    // Accept all button
-    const acceptAllBtn = widget.querySelector('#dpdpa-accept-all-btn');
-    if (acceptAllBtn) {
-      acceptAllBtn.addEventListener('click', () => {
-        handleAcceptAll(overlay);
+        if (otp && otp.length >= 4) {
+          // Verify OTP first
+          confirmBtn.textContent = 'Verifying...';
+          confirmBtn.disabled = true;
+
+          try {
+            const apiBase = getApiUrl();
+            const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: userEmail || currentPrefilledEmail, // Use global or prefilled
+                otpCode: otp,
+                visitorId: consentID || getConsentID(),
+                widgetId: widgetId,
+              }),
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+
+              // Verification success
+              verifiedEmail = userEmail || currentPrefilledEmail;
+
+              // Handle Stable Consent ID
+              if (data.stableConsentId && data.stableConsentId !== consentID) {
+                console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
+                consentID = data.stableConsentId;
+                storeConsentID(consentID);
+
+                // Update storage key if needed (though we usually read by widgetId)
+                // But we should ensure the consent record is associated with this new ID
+              }
+
+              // Proceed to submit consent
+              confirmBtn.textContent = 'Saving...';
+              handleAcceptSelected(overlay);
+            } else {
+              alert('Invalid Verification Code');
+              confirmBtn.textContent = 'Confirm & Submit';
+              confirmBtn.disabled = false;
+              return;
+            }
+          } catch (e) {
+            console.error('Verification error', e);
+            alert('Verification failed. Proceeding with consent.');
+            // Fallback: submit anyway? Or stop? 
+            // Let's proceed for now to not block user
+            handleAcceptSelected(overlay);
+          }
+        } else {
+          // No OTP, just submit
+          handleAcceptSelected(overlay);
+        }
       });
+
       // Enhanced hover effects
-      acceptAllBtn.addEventListener('mouseenter', () => {
-        acceptAllBtn.style.transform = 'translateY(-2px)';
-        acceptAllBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
+      confirmBtn.addEventListener('mouseenter', () => {
+        confirmBtn.style.transform = 'translateY(-2px)';
+        confirmBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
       });
-      acceptAllBtn.addEventListener('mouseleave', () => {
-        acceptAllBtn.style.transform = 'translateY(0)';
-        acceptAllBtn.style.boxShadow = '0 4px 8px rgba(59,130,246,0.3)';
+      confirmBtn.addEventListener('mouseleave', () => {
+        confirmBtn.style.transform = 'translateY(0)';
+        confirmBtn.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
       });
     }
 
@@ -3786,46 +3645,14 @@ Digital Personal Data Protection Act, 2023
       // Track consent event for analytics
       trackConsentEvent(consentData, config._matchedRule || null);
 
-      // Removed showConsentSuccessModal - banner already shows success message
-      // showConsentSuccessModal(consentID);
-
-      // Show email verification modal AFTER consent is given (only if user accepted at least one activity)
-      if (acceptedActivities.length > 0) {
-        const emailVerificationDeclined = ConsentStorage.get('consently_email_verification_declined');
-        if (!emailVerificationDeclined && config.enableEmailVerification !== false) {
-          // Show email verification modal after a short delay to let success message show first
-          setTimeout(async () => {
-            try {
-              const emailResult = await showEmailVerificationModal();
-              if (emailResult.verified) {
-                console.log('[Consently DPDPA] Email verified after consent');
-                visitorEmail = emailResult.email;
-              } else if (emailResult.skipped) {
-                console.log('[Consently DPDPA] Email verification skipped after consent');
-                ConsentStorage.set('consently_email_verification_declined', true, 1); // Store for 1 day
-              }
-            } catch (error) {
-              console.error('[Consently DPDPA] Error showing email verification modal:', error);
-            }
-          }, 1500); // Show after 1.5 seconds to let success message display first
-        }
-      }
-
       // Show floating preference centre button
       showFloatingPreferenceButton();
 
-      // Update widget to show success state before hiding
-      showSuccessState(overlay, acceptedActivities, rejectedActivities, finalStatus);
+      // Show premium notification
+      showPremiumNotification(finalStatus, storageData);
 
-      // Offer receipt options after a delay
-      setTimeout(() => {
-        try { showReceiptOptions(storageData); } catch (e) { /* noop */ }
-      }, 2000);
-
-      // Hide widget after showing success state
-      setTimeout(() => {
-        hideWidget(overlay);
-      }, 3000);
+      // Hide widget immediately
+      hideWidget(overlay);
 
       console.log('[Consently DPDPA] Consent saved successfully');
     } catch (error) {
@@ -3834,244 +3661,175 @@ Digital Personal Data Protection Act, 2023
     }
   }
 
-  // Show success state in widget after consent
-  function showSuccessState(overlay, acceptedActivities, rejectedActivities, status) {
-    const widget = overlay.querySelector('#consently-dpdpa-widget');
-    if (!widget) return;
+  // Show premium notification toast
+  function showPremiumNotification(status, consentData) {
+    // Remove existing toast if any
+    const existingToast = document.getElementById('dpdpa-premium-toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
 
     const theme = config.theme || {};
     const primaryColor = theme.primaryColor || '#3b82f6';
-    const backgroundColor = theme.backgroundColor || '#ffffff';
     const textColor = theme.textColor || '#1f2937';
-    const borderRadius = theme.borderRadius || 12;
 
-    // Get activity names
-    const acceptedNames = acceptedActivities.map(id => {
-      const activity = activities.find(a => a.id === id);
-      return activity ? activity.activity_name : id;
-    }).filter(Boolean);
+    const toast = document.createElement('div');
+    toast.id = 'dpdpa-premium-toast';
 
-    const rejectedNames = rejectedActivities.map(id => {
-      const activity = activities.find(a => a.id === id);
-      return activity ? activity.activity_name : id;
-    }).filter(Boolean);
-
-    // Create success message with better UI
-    let statusText = '';
-    let statusSubtext = '';
-    if (status === 'accepted') {
-      statusText = 'All Preferences Accepted';
-      statusSubtext = 'Your consent has been recorded for all activities';
-    } else if (status === 'partial') {
-      statusText = 'Preferences Saved Successfully';
-      statusSubtext = 'Your privacy choices have been saved and applied';
-    } else {
-      statusText = 'Preferences Saved Successfully';
-      statusSubtext = 'Your privacy choices have been saved and applied';
-    }
-
-    // Update widget content with modern success state
-    widget.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-    widget.innerHTML = `
-      <div style="padding: 40px 32px; text-align: center; font-family: ${theme.fontFamily || 'system-ui, sans-serif'}; position: relative; overflow: hidden;">
-        <!-- Animated background gradient -->
-        <div style="position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: radial-gradient(circle, ${primaryColor}15 0%, transparent 70%); border-radius: 50%; transform: translate(30%, -30%);"></div>
-        <div style="position: absolute; bottom: 0; left: 0; width: 150px; height: 150px; background: radial-gradient(circle, ${primaryColor}10 0%, transparent 70%); border-radius: 50%; transform: translate(-30%, 30%);"></div>
-        
-        <div style="position: relative; z-index: 1;">
-          <!-- Modern icon with gradient -->
-          <div style="width: 80px; height: 80px; margin: 0 auto 24px; background: linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd); border-radius: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px ${primaryColor}40, 0 0 0 8px ${primaryColor}15; animation: successPulse 0.6s ease-out;">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation: checkmark 0.5s ease-out 0.2s both;">
-              <path d="M20 6L9 17l-5-5"></path>
-            </svg>
-          </div>
-          
-          <!-- Success badge -->
-          <div style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M20 6L9 17l-5-5"></path>
-            </svg>
-            Saved
-          </div>
-          
-          <h2 style="margin: 0 0 10px; font-size: 28px; font-weight: 700; color: ${textColor}; letter-spacing: -0.5px;">
-            ${statusText}
-          </h2>
-          <p style="margin: 0 0 32px; font-size: 15px; color: ${textColor}aa; line-height: 1.6; max-width: 400px; margin-left: auto; margin-right: auto;">
-            ${statusSubtext}
-          </p>
-          
-          ${acceptedNames.length > 0 ? `
-          <div style="background: linear-gradient(135deg, ${primaryColor}12, ${primaryColor}08); border: 2px solid ${primaryColor}30; border-radius: 16px; padding: 20px; margin-bottom: 16px; text-align: left; backdrop-filter: blur(10px);">
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${primaryColor}" stroke-width="2.5">
-                <path d="M20 6L9 17l-5-5"></path>
-              </svg>
-              Accepted (${acceptedNames.length})
-            </div>
-            <div style="font-size: 14px; color: ${textColor}; line-height: 1.8; font-weight: 500;">
-              ${acceptedNames.map(name => `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: ${primaryColor};"></span>${name}</div>`).join('')}
-            </div>
-          </div>
-          ` : ''}
-          ${rejectedNames.length > 0 ? `
-          <div style="background: linear-gradient(135deg, #f3f4f612, #f3f4f608); border: 2px solid #9ca3af30; border-radius: 16px; padding: 20px; text-align: left; backdrop-filter: blur(10px);">
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5">
-                <path d="M18 6L6 18M6 6l12 12"></path>
-              </svg>
-              Rejected (${rejectedNames.length})
-            </div>
-            <div style="font-size: 14px; color: ${textColor}aa; line-height: 1.8; font-weight: 500;">
-              ${rejectedNames.map(name => `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ca3af;"></span>${name}</div>`).join('')}
-            </div>
-          </div>
-          ` : ''}
-          
-          <!-- Email Linking Prompt (Optional) - Hidden initially, shown only after consent -->
-          <div id="email-link-prompt" style="display: none; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #bfdbfe; border-radius: 16px; padding: 20px; margin-top: 20px; text-align: left; animation: slideIn 0.4s ease-out 0.5s both;">
-            <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;">
-              <div style="flex-shrink: 0; width: 40px; height: 40px; background: linear-gradient(135deg, #9333EA 0%, #7C3AED 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(147,51,234,0.25);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                </svg>
-              </div>
-              <div style="flex: 1;">
-                <h3 style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: ${textColor};">Sync Across Devices?</h3>
-                <p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">Link your email to sync preferences across all your devices</p>
-              </div>
-              <button id="email-link-dismiss" style="flex-shrink: 0; background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s; font-size: 18px; line-height: 1;" title="Dismiss">
-                ×
-              </button>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button id="email-link-btn" style="flex: 1; padding: 10px 16px; background: linear-gradient(135deg, #9333EA 0%, #7C3AED 100%); border: none; color: white; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(147,51,234,0.25);">
-                Link Email
-              </button>
-              <button id="email-link-skip" style="padding: 10px 16px; background: white; border: 2px solid #e2e8f0; color: #64748b; border-radius: 8px; font-weight: 500; font-size: 13px; cursor: pointer; transition: all 0.2s;">
-                Maybe Later
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <style>
-        @keyframes successPulse {
-          0% { transform: scale(0); opacity: 0; }
-          50% { transform: scale(1.1); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes checkmark {
-          0% { stroke-dasharray: 0 24; stroke-dashoffset: 24; opacity: 0; }
-          100% { stroke-dasharray: 24 0; stroke-dashoffset: 0; opacity: 1; }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      </style>
+    // Glassmorphism styles
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 16px 20px;
+      border-radius: 16px;
+      box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 10px 15px -3px rgba(0, 0, 0, 0.05),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transform: translateY(100px) scale(0.95);
+      opacity: 0;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: ${theme.fontFamily || 'system-ui, -apple-system, sans-serif'};
+      max-width: 380px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
     `;
 
-    // Attach email linking event listeners
-    const emailLinkBtn = widget.querySelector('#email-link-btn');
-    const emailLinkSkip = widget.querySelector('#email-link-skip');
-    const emailLinkDismiss = widget.querySelector('#email-link-dismiss');
-    const emailPrompt = widget.querySelector('#email-link-prompt');
+    // Success Icon
+    const iconHtml = `
+      <div style="
+        width: 40px; 
+        height: 40px; 
+        border-radius: 12px; 
+        background: linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd); 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        box-shadow: 0 4px 12px ${primaryColor}40;
+        flex-shrink: 0;
+      ">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"></path>
+        </svg>
+      </div>
+    `;
 
-    // Check if user already has email linked or previously declined (skip showing prompt)
-    const hasEmailLinked = ConsentStorage.get('consently_email_verification_declined');
-    if (hasEmailLinked && emailPrompt) {
-      emailPrompt.style.display = 'none';
-    }
+    // Content
+    const contentHtml = `
+      <div style="flex: 1;">
+        <h4 style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">Preferences Saved</h4>
+        <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 500;">Your privacy choices are active.</p>
+      </div>
+    `;
 
-    if (emailLinkBtn) {
-      emailLinkBtn.addEventListener('click', async () => {
-        // Hide the prompt
-        if (emailPrompt) {
-          emailPrompt.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-          emailPrompt.style.opacity = '0';
-          emailPrompt.style.transform = 'translateY(-10px)';
-          setTimeout(() => {
-            if (emailPrompt && emailPrompt.parentNode) {
-              emailPrompt.remove();
-            }
-          }, 300);
-        }
+    // Action Button (Download Receipt)
+    const buttonHtml = `
+      <button id="dpdpa-toast-download" style="
+        padding: 8px 12px; 
+        background: #f1f5f9; 
+        color: #475569; 
+        border: none; 
+        border-radius: 8px; 
+        font-size: 12px; 
+        font-weight: 600; 
+        cursor: pointer; 
+        transition: all 0.2s; 
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      ">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Receipt
+      </button>
+    `;
 
-        // Show email verification modal
-        try {
-          const emailResult = await showEmailVerificationModal();
-          if (emailResult.verified) {
-            showToast('✅ Email linked! Your preferences will sync across devices.', 'success');
-            visitorEmail = emailResult.email;
-            // Clear the declined flag since they completed it
-            ConsentStorage.delete('consently_email_verification_declined');
+    // Close Button
+    const closeHtml = `
+      <button id="dpdpa-toast-close" style="
+        padding: 4px; 
+        background: transparent; 
+        border: none; 
+        color: #94a3b8; 
+        cursor: pointer; 
+        margin-left: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background 0.2s;
+      ">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    `;
+
+    toast.innerHTML = iconHtml + contentHtml + buttonHtml + closeHtml;
+    document.body.appendChild(toast);
+
+    // Add hover effect for download button
+    const downloadBtn = toast.querySelector('#dpdpa-toast-download');
+    downloadBtn.addEventListener('mouseenter', () => {
+      downloadBtn.style.background = '#e2e8f0';
+      downloadBtn.style.color = '#1e293b';
+    });
+    downloadBtn.addEventListener('mouseleave', () => {
+      downloadBtn.style.background = '#f1f5f9';
+      downloadBtn.style.color = '#475569';
+    });
+    downloadBtn.addEventListener('click', () => {
+      downloadConsentReceipt(consentData);
+    });
+
+    // Close button handler
+    const closeBtn = toast.querySelector('#dpdpa-toast-close');
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.background = '#f1f5f9';
+      closeBtn.style.color = '#64748b';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.background = 'transparent';
+      closeBtn.style.color = '#94a3b8';
+    });
+    closeBtn.addEventListener('click', () => {
+      hideToast();
+    });
+
+    // Animate in
+    requestAnimationFrame(() => {
+      toast.style.transform = 'translateY(0) scale(1)';
+      toast.style.opacity = '1';
+    });
+
+    // Auto dismiss after 5 seconds
+    const timeoutId = setTimeout(() => {
+      hideToast();
+    }, 5000);
+
+    function hideToast() {
+      clearTimeout(timeoutId);
+      if (toast && document.body.contains(toast)) {
+        toast.style.transform = 'translateY(20px) scale(0.95)';
+        toast.style.opacity = '0';
+        setTimeout(() => {
+          if (document.body.contains(toast)) {
+            toast.remove();
           }
-        } catch (error) {
-          console.error('[Consently DPDPA] Email linking error:', error);
-        }
-      });
-
-      emailLinkBtn.addEventListener('mouseenter', function () {
-        this.style.transform = 'translateY(-1px)';
-        this.style.boxShadow = '0 4px 12px rgba(147,51,234,0.35)';
-      });
-      emailLinkBtn.addEventListener('mouseleave', function () {
-        this.style.transform = 'translateY(0)';
-        this.style.boxShadow = '0 2px 8px rgba(147,51,234,0.25)';
-      });
-    }
-
-    if (emailLinkSkip) {
-      emailLinkSkip.addEventListener('click', () => {
-        if (emailPrompt) {
-          emailPrompt.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-          emailPrompt.style.opacity = '0';
-          emailPrompt.style.transform = 'translateY(-10px)';
-          setTimeout(() => {
-            if (emailPrompt && emailPrompt.parentNode) {
-              emailPrompt.remove();
-            }
-          }, 300);
-        }
-        // Remember they skipped for this session
-        ConsentStorage.set('consently_email_verification_declined', true, 1); // 1 day
-      });
-
-      emailLinkSkip.addEventListener('mouseenter', function () {
-        this.style.borderColor = '#9333EA';
-        this.style.background = '#f8fafc';
-      });
-      emailLinkSkip.addEventListener('mouseleave', function () {
-        this.style.borderColor = '#e2e8f0';
-        this.style.background = 'white';
-      });
-    }
-
-    if (emailLinkDismiss) {
-      emailLinkDismiss.addEventListener('click', () => {
-        if (emailPrompt) {
-          emailPrompt.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-          emailPrompt.style.opacity = '0';
-          emailPrompt.style.transform = 'translateY(-10px)';
-          setTimeout(() => {
-            if (emailPrompt && emailPrompt.parentNode) {
-              emailPrompt.remove();
-            }
-          }, 300);
-        }
-        // Remember they dismissed for this session
-        ConsentStorage.set('consently_email_verification_declined', true, 1); // 1 day
-      });
-
-      emailLinkDismiss.addEventListener('mouseenter', function () {
-        this.style.background = '#f1f5f9';
-        this.style.color = '#64748b';
-      });
-      emailLinkDismiss.addEventListener('mouseleave', function () {
-        this.style.background = 'transparent';
-        this.style.color = '#94a3b8';
-      });
+        }, 400);
+      }
     }
   }
 
@@ -4104,344 +3862,106 @@ Digital Personal Data Protection Act, 2023
     return div.innerHTML;
   }
 
+
   function downloadConsentReceipt(consent) {
     const visitorId = consentID || getConsentID();
     const receiptData = {
       widgetId,
       visitorId,
-      privacyCentreUrl: `${window.location.origin}/privacy-centre/${widgetId}?visitorId=${visitorId}`,
+      privacyCentreUrl: window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId,
       ...consent
     };
     const blob = new Blob([JSON.stringify(receiptData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `dpdpa-consent-${widgetId}-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = 'consent-receipt-' + visitorId + '.json';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
   function openPrivacyCentre() {
     const visitorId = consentID || getConsentID();
-    const scriptSrc = currentScript.src;
-    let baseUrl;
-
-    if (scriptSrc && scriptSrc.includes('http')) {
-      const url = new URL(scriptSrc);
-      baseUrl = url.origin;
-    } else {
-      baseUrl = window.location.origin;
-    }
-
-    const privacyCentreUrl = `${baseUrl}/privacy-centre/${widgetId}?visitorId=${visitorId}`;
-    window.open(privacyCentreUrl, '_blank');
+    window.open(window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId, '_blank');
   }
 
-  // Show floating button for preference centre access
   function showFloatingPreferenceButton() {
-    // Don't create multiple buttons
-    if (document.getElementById('dpdpa-float-btn')) {
-      return;
-    }
+    if (document.getElementById('dpdpa-floating-btn')) return;
 
-    // Restore verified email if available
-    const storedEmail = ConsentStorage.get('consently_verified_email');
-    if (storedEmail) {
-      verifiedEmail = storedEmail;
-    }
+    const btn = document.createElement('button');
+    btn.id = 'dpdpa-floating-btn';
+    btn.title = 'Manage Privacy Preferences';
+    btn.style.cssText = 'position: fixed; ' +
+      'bottom: 20px; ' +
+      'left: 20px; ' +
+      'width: 50px; ' +
+      'height: 50px; ' +
+      'border-radius: 50%; ' +
+      'background: white; ' +
+      'border: none; ' +
+      'box-shadow: 0 4px 12px rgba(0,0,0,0.15); ' +
+      'cursor: pointer; ' +
+      'z-index: 999997; ' +
+      'display: flex; ' +
+      'align-items: center; ' +
+      'justify-content: center; ' +
+      'transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);';
 
-    // Check if we should show the widget
-    // 1. If explicit consent exists (accepted/rejected), don't show unless it's expired
-    // 2. If no consent, check display rules
-    const cookieWidgetBtn = document.getElementById('consently-float-btn');
-    if (cookieWidgetBtn) {
-      // Add DPDPA option to existing cookie widget menu
-      addDPDPAToCookieMenu(cookieWidgetBtn);
-      return;
-    }
+    btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="' + primaryColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' +
+      '</svg>';
 
-    // If cookie widget doesn't exist, create our own button on the right side
-    const visitorId = consentID || getConsentID();
-    const button = document.createElement('div');
-    button.id = 'dpdpa-float-btn';
-    button.innerHTML = `
-      <style>
-        #dpdpa-float-btn {
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          z-index: 9998;
-          cursor: pointer;
-        }
-        .dpdpa-float-trigger {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 12px;
-          background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-          border: none;
-          border-radius: 50%;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-          transition: all 0.3s;
-          width: 48px;
-          height: 48px;
-          color: white;
-        }
-        .dpdpa-float-trigger:hover {
-          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
-          transform: translateY(-2px) scale(1.05);
-        }
-        .dpdpa-float-tooltip {
-          position: absolute;
-          bottom: 100%;
-          right: 0;
-          margin-bottom: 12px;
-          background: #1f2937;
-          color: white;
-          padding: 8px 12px;
-          border-radius: 8px;
-          font-size: 12px;
-          white-space: nowrap;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.2s;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        .dpdpa-float-tooltip::after {
-          content: '';
-          position: absolute;
-          top: 100%;
-          right: 12px;
-          border: 6px solid transparent;
-          border-top-color: #1f2937;
-        }
-        #dpdpa-float-btn:hover .dpdpa-float-tooltip {
-          opacity: 1;
-        }
-      </style>
-      <div class="dpdpa-float-trigger" title="Manage Your Privacy Preferences">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
-        </svg>
-        <div class="dpdpa-float-tooltip">Manage Preferences</div>
-      </div>
-    `;
-
-    document.body.appendChild(button);
-
-    button.querySelector('.dpdpa-float-trigger').addEventListener('click', () => {
-      openPrivacyCentre();
+    btn.addEventListener('click', () => {
+      showConsentWidget();
     });
+
+    btn.addEventListener('mouseenter', () => {
+      btn.style.transform = 'scale(1.1)';
+      btn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transform = 'scale(1)';
+      btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    });
+
+    document.body.appendChild(btn);
   }
 
-  // Add DPDPA option to existing cookie widget menu
-  function addDPDPAToCookieMenu(cookieWidgetBtn) {
-    const menu = cookieWidgetBtn.querySelector('#consently-float-menu');
-    if (!menu) return;
-
-    // Check if DPDPA option already exists
-    if (menu.querySelector('#consently-dpdpa-prefs-btn')) return;
-
-    // Find the section label or create one
-    let sectionLabel = menu.querySelector('.section-label');
-    if (!sectionLabel || sectionLabel.textContent !== 'DPDPA Preferences') {
-      // Add divider and section label
-      const divider = document.createElement('div');
-      divider.className = 'divider';
-      divider.style.cssText = 'height: 1px; background: #e5e7eb; margin: 4px 0;';
-
-      const label = document.createElement('div');
-      label.className = 'section-label';
-      label.style.cssText = 'padding: 8px 16px; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; background: #f9fafb;';
-      label.textContent = 'DPDPA Preferences';
-
-      // Find the consent ID section (last child) and insert before it
-      const consentIdSection = menu.querySelector('div[style*="padding: 12px 16px"]');
-      if (consentIdSection) {
-        menu.insertBefore(divider, consentIdSection);
-        menu.insertBefore(label, consentIdSection);
-      } else {
-        menu.appendChild(divider);
-        menu.appendChild(label);
-      }
-    }
-
-    // Add DPDPA preferences button
-    const dpdpaBtn = document.createElement('button');
-    dpdpaBtn.id = 'consently-dpdpa-prefs-btn';
-    dpdpaBtn.style.cssText = 'width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; cursor: pointer; font-size: 14px; color: #374151; transition: background 0.15s; display: flex; align-items: center; gap: 8px;';
-    dpdpaBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
-      </svg>
-      DPDPA Preferences
-    `;
-
-    dpdpaBtn.addEventListener('mouseenter', function () {
-      this.style.background = '#f3f4f6';
-    });
-    dpdpaBtn.addEventListener('mouseleave', function () {
-      this.style.background = 'white';
-    });
-
-    dpdpaBtn.addEventListener('click', function () {
-      menu.classList.remove('show');
-      openPrivacyCentre();
-    });
-
-    // Insert before consent ID section
-    const consentIdSection = menu.querySelector('div[style*="padding: 12px 16px"]');
-    if (consentIdSection) {
-      menu.insertBefore(dpdpaBtn, consentIdSection);
-    } else {
-      menu.appendChild(dpdpaBtn);
-    }
+  function addDPDPAToCookieMenu() {
+    // Implementation for adding to existing cookie menu if present
+    // This is a placeholder for integration with other cookie widgets
   }
-
-  // Listen for custom event from cookie widget
-  window.addEventListener('consently-open-dpdpa-prefs', function () {
-    openPrivacyCentre();
-  });
 
   function openGrievanceForm() {
-    // Simple modal form
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000000;display:flex;align-items:center;justify-content:center;';
-    const modal = document.createElement('div');
-    modal.style.cssText = 'background:#fff;border-radius:12px;max-width:480px;width:92%;padding:16px;font-family:system-ui,sans-serif;';
-    modal.innerHTML = `
-      <h3 style="margin:0 0 8px 0;font-size:16px;color:#111827;font-weight:700;">Raise a Grievance</h3>
-      <p style="margin:0 0 12px 0;color:#374151;font-size:13px;">Describe your issue or request. We will review it within 72 hours.</p>
-      <input id="g-email" type="email" placeholder="Email (optional)" value="${visitorEmail || ''}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;font-size:13px;" />
-      <textarea id="g-message" rows="4" placeholder="Your message" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;"></textarea>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
-        <button id="g-cancel" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer;">Cancel</button>
-        <button id="g-submit" style="padding:8px 12px;border:none;border-radius:8px;background:#3b82f6;color:#fff;cursor:pointer;font-weight:600;">Submit</button>
-      </div>
-    `;
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    modal.querySelector('#g-cancel').addEventListener('click', () => document.body.removeChild(overlay));
-    modal.querySelector('#g-submit').addEventListener('click', async () => {
-      const email = (modal.querySelector('#g-email')).value || null;
-      const message = (modal.querySelector('#g-message')).value?.trim();
-      if (!message) { alert('Please enter a message.'); return; }
-      // Validate email format if provided
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        alert('Please enter a valid email address.');
-        return;
-      }
-      try {
-        const scriptSrc = currentScript.src;
-        const apiBase = scriptSrc && scriptSrc.includes('http') ? new URL(scriptSrc).origin : window.location.origin;
-        const res = await fetch(`${apiBase}/api/dpdpa/grievances`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ widgetId, email, message })
-        });
-        if (!res.ok) throw new Error('Failed');
-        alert('Your request has been captured and we will take action within 72 hours.');
-        document.body.removeChild(overlay);
-      } catch (e) {
-        alert('Failed to submit. Please try again later.');
-      }
-    });
-  }
-
-  function showReceiptOptions(consent) {
     const visitorId = consentID || getConsentID();
-    const bar = document.createElement('div');
-    bar.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:999999;background:#111827;color:#fff;padding:12px 16px;border-radius:12px;display:flex;flex-direction:column;gap:8px;align-items:center;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);font-family:system-ui,sans-serif;font-size:13px;max-width:90%;min-width:300px;`;
-    bar.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;width:100%;">
-        <span style="opacity:.9;flex:1;">Consent saved.</span>
-        <button id="dpdpa-receipt-close" style="background:transparent;border:none;color:#fff;opacity:.7;cursor:pointer;padding:4px;">✕</button>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;">
-        <button id="dpdpa-download-receipt" style="background:#10b981;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;flex:1;min-width:120px;">Download receipt</button>
-        <button id="dpdpa-manage-preferences-float" style="background:#3b82f6;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;flex:1;min-width:120px;">Manage Preferences</button>
-        ${visitorEmail ? `<button id="dpdpa-email-receipt" style="background:#6366f1;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;flex:1;min-width:120px;">Email receipt</button>` : ''}
-      </div>
-      <div style="width:100%;padding:8px;background:rgba(255,255,255,0.1);border-radius:6px;margin-top:4px;">
-        <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">Your Visitor ID (save this for future access):</div>
-        <div style="font-family:monospace;font-size:11px;word-break:break-all;user-select:all;cursor:text;background:rgba(0,0,0,0.2);padding:6px;border-radius:4px;">${visitorId}</div>
-      </div>
-    `;
-    document.body.appendChild(bar);
-    bar.querySelector('#dpdpa-download-receipt').addEventListener('click', () => {
-      downloadConsentReceipt(consent);
-    });
-    bar.querySelector('#dpdpa-manage-preferences-float').addEventListener('click', () => {
-      openPrivacyCentre();
-      document.body.removeChild(bar);
-    });
-    const emailBtn = bar.querySelector('#dpdpa-email-receipt');
-    if (emailBtn) {
-      emailBtn.addEventListener('click', () => {
-        const body = encodeURIComponent(JSON.stringify({ widgetId, visitorId, ...consent }, null, 2));
-        window.location.href = `mailto:${visitorEmail}?subject=Your DPDPA Consent Receipt&body=${body}`;
-      });
-    }
-    bar.querySelector('#dpdpa-receipt-close').addEventListener('click', () => {
-      document.body.removeChild(bar);
-    });
-    setTimeout(() => {
-      if (document.body.contains(bar)) document.body.removeChild(bar);
-    }, 15000);
+    // Use the configured grievance URL or default to privacy centre grievance tab
+    const grievanceUrl = window.location.origin + '/privacy-centre/' + widgetId + '/grievance?visitorId=' + visitorId;
+    window.open(grievanceUrl, '_blank');
   }
+
+
+
 
   // Public API
-  window.consentlyDPDPA = window.consentlyDPDPA || {};
-  window.consentlyDPDPA[widgetId] = {
-    show: function () {
-      showConsentWidget();
+  window.ConsentlyDPDPA = {
+    init: init,
+    show: showConsentWidget,
+    hide: () => {
+      const overlay = document.getElementById('consently-dpdpa-overlay');
+      if (overlay) hideWidget(overlay);
     },
-
-    getConsent: function () {
-      return ConsentStorage.get(`consently_dpdpa_consent_${widgetId}`);
-    },
-
-    clearConsent: function () {
-      ConsentStorage.delete(`consently_dpdpa_consent_${widgetId}`);
-      console.log('[Consently DPDPA] Consent cleared');
-    },
-
-    withdraw: function () {
-      this.clearConsent();
-      this.show();
-    },
-
-    getConsentID: function () {
-      return consentID || getConsentID();
-    },
-
-    verifyConsentID: async function (id) {
-      return await verifyConsentID(id);
-    },
-
-    showVerificationScreen: function () {
-      showVerificationScreen();
-    },
-
-    downloadReceipt: function () {
-      const consent = this.getConsent();
+    getConsent: () => ConsentStorage.get('consently_dpdpa_consent_' + widgetId),
+    openPrivacyCentre: openPrivacyCentre,
+    downloadReceipt: () => {
+      const consent = ConsentStorage.get('consently_dpdpa_consent_' + widgetId);
       if (consent) downloadConsentReceipt(consent);
-    },
-
-    openPrivacyCentre: function () {
-      openPrivacyCentre();
     }
   };
 
-  // Also expose a global function for backward compatibility
-  window.ConsentlyDPDPA = {
-    openPrivacyCentre: openPrivacyCentre
-  };
-
-  // Initialize on DOM ready
+  // Auto-init
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
@@ -4449,4 +3969,3 @@ Digital Personal Data Protection Act, 2023
   }
 
 })();
-

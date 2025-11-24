@@ -165,6 +165,10 @@ export interface DPDPAWidgetConfig {
   showBranding: boolean;
   customCSS?: string;
 
+  // Smart Email Pre-fill Settings
+  enableSmartPreFill: boolean;
+  emailFieldSelectors: string;
+
   // Display rules (NEW in v2.0)
   display_rules: DisplayRule[];
 

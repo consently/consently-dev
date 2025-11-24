@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/ui/footer';
-import { Shield, CheckCircle2, ArrowRight, FileText, Users, Lock, Globe } from 'lucide-react';
+import { Shield, CheckCircle2, ArrowRight, FileText, Users, Lock, Globe, Zap } from 'lucide-react';
 
 export default function DpdpaConsentGuide() {
     return (
@@ -47,85 +47,75 @@ export default function DpdpaConsentGuide() {
                     <div className="prose prose-lg prose-purple mx-auto">
                         <h2>What is DPDPA 2023?</h2>
                         <p>
-                            The Digital Personal Data Protection Act (DPDPA) 2023 is India's comprehensive data privacy law. It governs how digital personal data is processed, recognizing both the rights of individuals (Data Principals) to protect their personal data and the need to process such data for lawful purposes.
+                            The Digital Personal Data Protection Act (DPDPA) 2023 is India's comprehensive data privacy law. It mandates that businesses obtain free, specific, informed, unconditional, and unambiguous consent from users before processing their personal data.
                         </p>
 
-                        <h3>Key Requirements</h3>
-                        <ul className="space-y-2">
-                            <li className="flex items-start gap-2">
-                                <CheckCircle2 className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
-                                <span><strong>Notice & Consent:</strong> Provide clear notice and obtain free, specific, informed, unconditional, and unambiguous consent.</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckCircle2 className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
-                                <span><strong>Data Principal Rights:</strong> Respect rights to access, correction, erasure, and grievance redressal.</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckCircle2 className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
-                                <span><strong>Data Fiduciary Duties:</strong> Implement security safeguards, report breaches, and erase data when no longer needed.</span>
-                            </li>
-                        </ul>
-
-                        <h2>How Consently Simplifies DPDPA</h2>
+                        <h2>The New Standard: Verified Consent</h2>
                         <p>
-                            Consently provides a purpose-built platform to handle the unique requirements of the Indian market and DPDPA regulations.
+                            Consently has introduced a secure, email-first verification flow to ensure the highest standard of compliance and user trust. We've moved away from manual IDs to a seamless <strong>Email & OTP</strong> system.
                         </p>
 
                         <div className="grid sm:grid-cols-2 gap-6 my-8 not-prose">
                             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                <Globe className="h-8 w-8 text-blue-600 mb-4" />
-                                <h4 className="text-lg font-bold mb-2">Multilingual Support</h4>
+                                <Lock className="h-8 w-8 text-blue-600 mb-4" />
+                                <h4 className="text-lg font-bold mb-2">Secure Verification</h4>
                                 <p className="text-gray-600 text-sm">
-                                    Native support for 22 Indian languages to ensure your consent notices are understood by everyone.
+                                    Users verify their identity via Email OTP, linking their consent preferences securely to their verified email address.
                                 </p>
                             </div>
                             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                <FileText className="h-8 w-8 text-purple-600 mb-4" />
-                                <h4 className="text-lg font-bold mb-2">Consent Manager</h4>
+                                <Zap className="h-8 w-8 text-purple-600 mb-4" />
+                                <h4 className="text-lg font-bold mb-2">Smart Pre-fill</h4>
                                 <p className="text-gray-600 text-sm">
-                                    Granular consent management for different processing activities and purposes.
-                                </p>
-                            </div>
-                            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                <Users className="h-8 w-8 text-green-600 mb-4" />
-                                <h4 className="text-lg font-bold mb-2">Rights Automation</h4>
-                                <p className="text-gray-600 text-sm">
-                                    Automated workflows to handle Data Principal requests for access, correction, and erasure.
-                                </p>
-                            </div>
-                            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                <Lock className="h-8 w-8 text-orange-600 mb-4" />
-                                <h4 className="text-lg font-bold mb-2">Security First</h4>
-                                <p className="text-gray-600 text-sm">
-                                    Enterprise-grade security with encryption and tokenization to protect personal data.
+                                    The widget automatically detects email addresses from form submissions on your site to pre-fill the verification field.
                                 </p>
                             </div>
                         </div>
 
-                        <h2>Getting Compliant</h2>
+                        <h2>Implementation Guide</h2>
+
+                        <h3>Step 1: Configure Your Widget</h3>
+                        <p>
+                            In your dashboard, select the processing activities relevant to your business. Ensure you've enabled the "Smart Email Pre-fill" option in the behavior settings for the best user experience.
+                        </p>
+
+                        <h3>Step 2: Embed the Code</h3>
+                        <p>
+                            Add the following script tag to your website's footer. You can optionally pass the user's email if they are already logged in.
+                        </p>
+
+                        <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto not-prose mb-6">
+                            <pre><code>{`<!-- Consently DPDPA Widget -->
+<script src="https://www.consently.in/dpdpa-widget.js" 
+        data-dpdpa-widget-id="YOUR_WIDGET_ID"
+        data-dpdpa-email="{{user_email}}"> <!-- Optional -->
+</script>`}</code></pre>
+                        </div>
+
+                        <h3>Step 3: The User Experience</h3>
                         <ol>
                             <li>
-                                <strong>Identify Data:</strong> Map out what personal data you collect and why.
+                                <strong>Consent Notice:</strong> Users see a clear notice of your processing activities.
                             </li>
                             <li>
-                                <strong>Update Notices:</strong> Ensure your privacy notices are clear and available in local languages.
+                                <strong>Secure This Consent:</strong> Users can enter their email (or have it pre-filled) in the "Secure This Consent" section.
                             </li>
                             <li>
-                                <strong>Implement Consent:</strong> Use Consently to gather and manage valid consent.
+                                <strong>OTP Verification:</strong> A one-time password is sent to their email. Upon verification, a stable <strong>Consent ID</strong> is generated and linked to their email.
                             </li>
                             <li>
-                                <strong>Train Staff:</strong> Educate your team on their responsibilities under the new law.
+                                <strong>Preferences Saved:</strong> A premium glassmorphism notification confirms their choices are saved and offers a downloadable receipt.
                             </li>
                         </ol>
 
                         <div className="bg-purple-50 border-l-4 border-purple-500 p-6 my-8 rounded-r-lg not-prose">
-                            <h4 className="text-lg font-bold text-purple-900 mb-2">Don't risk non-compliance</h4>
+                            <h4 className="text-lg font-bold text-purple-900 mb-2">Ready to upgrade?</h4>
                             <p className="text-purple-800 mb-4">
-                                Penalties under DPDPA can reach up to ₹250 Crore. Secure your business with Consently today.
+                                Ensure your compliance is future-proof with our verified consent flow.
                             </p>
-                            <Link href="/signup">
+                            <Link href="/dashboard/dpdpa/widget">
                                 <Button className="bg-purple-600 hover:bg-purple-700">
-                                    Start Compliance Journey <ArrowRight className="ml-2 h-4 w-4" />
+                                    Go to Widget Settings <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </Link>
                         </div>

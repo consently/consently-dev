@@ -1500,20 +1500,18 @@ export default function DPDPAWidgetPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Trigger Type <span className="text-red-500">*</span>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Trigger Type
                         </label>
-                        <select
-                          value={editingRule.trigger_type}
-                          onChange={(e) => setEditingRule({ ...editingRule, trigger_type: e.target.value as any })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        >
-                          <option value="onFormSubmit">📧 On Form Submit (Recommended • Smart Pre-fill)</option>
-                          <option value="onPageLoad">⚡ On Page Load</option>
-                          <option value="onClick">👆 On Click</option>
-                          <option value="onScroll">📜 On Scroll</option>
-                        </select>
+                        <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600">
+                          <Zap className="h-4 w-4" />
+                          <span className="text-sm font-medium">On Form Submission</span>
+                          <Badge variant="secondary" className="ml-auto text-xs">Default</Badge>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Widget will trigger when a user submits a form on the matched page.
+                        </p>
                       </div>
 
                       <div>
@@ -1835,7 +1833,7 @@ export default function DPDPAWidgetPage() {
                                                     }
                                                   }
                                                 }}
-                                                className="mt-0.5 flex-shrink-0"
+                                                className="h-4 w-4 rounded border-gray-300 text-blue-600 mt-0.5 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 flex-shrink-0"
                                               />
                                               <span className="text-sm text-gray-700 flex-1 min-w-0 break-words">{purpose.purposeName}</span>
                                               <Badge variant="outline" className="ml-auto text-xs flex-shrink-0">
@@ -3036,14 +3034,17 @@ export default function DPDPAWidgetPage() {
                 <div
                   className="shadow-2xl max-w-md mx-auto overflow-hidden transition-all duration-300 hover:shadow-3xl"
                   style={{
-                    backgroundColor: config.theme.backgroundColor,
+                    backgroundColor: config.theme.backgroundColor === '#ffffff' ? 'rgba(255, 255, 255, 0.95)' : config.theme.backgroundColor,
                     color: config.theme.textColor,
-                    borderRadius: `${config.theme.borderRadius}px`,
-                    border: '2px solid rgba(0,0,0,0.05)'
+                    borderRadius: '24px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
                   }}
                 >
-                  {/* Header - Enhanced Design */}
-                  <div className="p-5 border-b-2 bg-gradient-to-br from-white via-blue-50 to-gray-50" style={{ borderColor: '#e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  {/* Header */}
+                  <div className="p-5 border-b bg-white" style={{ borderColor: '#e5e7eb' }}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         {config.theme.logoUrl ? (
@@ -3110,18 +3111,14 @@ export default function DPDPAWidgetPage() {
                       {translatingPreview ? 'Translating...' : (translatedPreviewContent?.message || config.message)}
                     </p>
 
-                    {/* Activities Table View - Enhanced */}
+                    {/* Consent Categories */}
                     {config.selectedActivities.length > 0 && (
                       <div className="mb-4">
-                        {/* Table Header */}
-                        <div className="grid grid-cols-[auto_1fr_1.5fr] gap-3 mb-2 px-2">
-                          <div className="w-5"></div>
-                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Purpose</div>
-                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Data Categories</div>
-                        </div>
+                        {/* Section Header */}
+                        <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">CONSENT CATEGORIES</h3>
 
-                        {/* Table Body */}
-                        <div className="space-y-2">
+                        {/* Categories List */}
+                        <div className="space-y-3">
                           {config.selectedActivities.flatMap((actId) => {
                             const activity = activities.find(a => a.id === actId);
                             if (!activity || !activity.purposes || activity.purposes.length === 0) return [];
@@ -3132,30 +3129,31 @@ export default function DPDPAWidgetPage() {
                               const uniqueKey = `${actId}-${purpose.id || purposeIdx}`;
 
                               return (
-                                <div key={uniqueKey} className="grid grid-cols-[auto_1fr_1.5fr] gap-3 items-start p-2.5 border-2 rounded-lg bg-gradient-to-b from-white to-gray-50 hover:shadow-md transition-all" style={{ borderColor: '#e5e7eb' }}>
-                                  <input
-                                    type="checkbox"
-                                    className="mt-0.5"
-                                    style={{
-                                      width: '16px',
-                                      height: '16px',
-                                      accentColor: config.theme.primaryColor,
-                                      borderRadius: '3px'
-                                    }}
-                                  />
-                                  <div className="text-xs font-semibold text-gray-800 leading-tight pt-0.5">
-                                    {purpose.purposeName || 'Unknown Purpose'}
+                                <div key={uniqueKey} className="flex gap-4 items-start p-4 border rounded-xl bg-white hover:border-blue-300 transition-all" style={{ borderColor: '#e5e7eb' }}>
+                                  {/* Checkbox */}
+                                  <div className="pt-0.5">
+                                    <input
+                                      type="checkbox"
+                                      defaultChecked
+                                      style={{
+                                        width: '20px',
+                                        height: '20px',
+                                        accentColor: config.theme.primaryColor,
+                                        borderRadius: '4px'
+                                      }}
+                                    />
                                   </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {dataCategories.length > 0 ? (
-                                      dataCategories.map((categoryName, i) => (
-                                        <span key={i} className="text-[10px] px-2 py-0.5 bg-gray-100 border border-gray-200 rounded font-medium text-gray-700" style={{ fontSize: '9px' }}>
-                                          {categoryName}
-                                        </span>
-                                      ))
-                                    ) : (
-                                      <span className="text-[10px] px-2 py-0.5 text-gray-400 italic">No data categories</span>
-                                    )}
+                                  {/* Content */}
+                                  <div className="flex-1">
+                                    <div className="text-sm font-bold text-gray-900 mb-1.5">
+                                      {purpose.purposeName || 'Unknown Purpose'}
+                                    </div>
+                                    <div className="text-xs text-gray-600 leading-relaxed">
+                                      <span className="text-gray-400 font-medium">Purpose:</span> {activity.activityName || 'Respond to query, provide support'}
+                                    </div>
+                                    <div className="text-xs text-gray-600 leading-relaxed mt-0.5">
+                                      <span className="text-gray-400 font-medium">Data:</span> {dataCategories.join(', ') || 'Name, Email'}
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -3193,6 +3191,47 @@ export default function DPDPAWidgetPage() {
                       </div>
                     </div>
 
+
+
+                    {/* Secure This Consent Section */}
+                    <div className="p-6 -mx-5 mb-4 border-t border-b" style={{
+                      background: 'linear-gradient(to right, #f8fafc, #f1f5f9)',
+                      borderColor: 'rgba(0,0,0,0.05)'
+                    }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: `${config.theme.primaryColor}15` }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={config.theme.primaryColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                          </svg>
+                        </div>
+                        <h3 className="text-[15px] font-bold" style={{ color: config.theme.textColor }}>
+                          Secure This Consent
+                        </h3>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                        We'll send a code to <strong style={{ color: config.theme.primaryColor }}>your email</strong> to manage all your consents.
+                      </p>
+
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1 flex gap-2">
+                          <input
+                            type="email"
+                            placeholder="name@example.com"
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-sm outline-none bg-white transition-all focus:border-blue-500"
+                            style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                            disabled
+                          />
+                          <button
+                            className="px-5 py-3 rounded-xl text-[13px] font-bold border border-gray-300 bg-white text-gray-700 shadow-sm"
+                            disabled
+                          >
+                            Send Code
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Footer Links */}
                     <div className="p-2.5 bg-gray-50 rounded-lg mb-3">
                       <p className="text-[10px] text-gray-600 m-0 leading-relaxed">
@@ -3201,43 +3240,17 @@ export default function DPDPAWidgetPage() {
                     </div>
                   </div>
 
-                  {/* Footer Actions - Enhanced Design */}
-                  <div className="px-5 py-4 border-t-2 bg-gradient-to-b from-gray-50 to-gray-100 flex gap-3 items-center" style={{ borderColor: '#e5e7eb', boxShadow: '0 -2px 8px rgba(0,0,0,0.05)' }}>
+                  {/* Footer Actions */}
+                  <div className="px-5 py-4 border-t bg-white flex justify-center" style={{ borderColor: '#e5e7eb' }}>
                     <button
-                      onClick={downloadPrivacyNotice}
-                      className="p-2.5 bg-white border-2 rounded-xl transition-all hover:shadow-lg hover:scale-105"
-                      style={{ borderColor: '#e5e7eb' }}
-                      title="Download Privacy Notice"
+                      className="w-full px-6 py-4 rounded-xl text-base font-bold text-white transition-all hover:shadow-lg flex items-center justify-center tracking-wide"
+                      style={{
+                        background: `linear-gradient(135deg, ${config.theme.primaryColor}, ${config.theme.primaryColor}dd)`,
+                        boxShadow: `0 8px 20px -4px ${config.theme.primaryColor}50`
+                      }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                      </svg>
+                      Confirm & Submit
                     </button>
-                    <div className="flex-1 flex gap-2.5">
-                      <button
-                        className="flex-1 px-3 py-2.5 rounded-xl text-[11px] font-bold border-2 bg-gradient-to-b from-gray-50 to-gray-100 transition-all hover:shadow-md hover:scale-105"
-                        style={{ color: config.theme.textColor, borderColor: '#e5e7eb' }}
-                      >
-                        Accept selected
-                      </button>
-                      <button
-                        className="flex-1 px-3 py-2.5 rounded-xl text-[11px] font-bold text-white transition-all hover:shadow-lg hover:scale-105 shadow-md"
-                        style={{
-                          background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
-                          boxShadow: `0 4px 8px ${config.theme.primaryColor}40`
-                        }}
-                      >
-                        Accept all
-                      </button>
-                      <button
-                        className="flex-1 px-3 py-2.5 rounded-xl text-[11px] font-bold bg-white border-2 transition-all hover:bg-gray-50 hover:scale-105"
-                        style={{ borderColor: '#e5e7eb', color: config.theme.textColor }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
                   </div>
 
                   {/* Powered by Consently */}
@@ -4124,7 +4137,7 @@ export default function DPDPAWidgetPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </div >
     </div >
   );
 }

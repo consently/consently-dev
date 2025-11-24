@@ -201,6 +201,18 @@ export async function GET(
       ...data
     }));
 
+    // Calculate weekly stats (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const weeklyConsents = consents?.filter(c => {
+      const consentDate = new Date(c.consent_given_at);
+      return consentDate >= sevenDaysAgo;
+    }).length || 0;
+
+    // Calculate conversion rate (acceptance rate)
+    const conversionRate = totalConsents > 0 ? parseFloat(acceptanceRate.toFixed(2)) : 0;
+
     // Return comprehensive stats
     return NextResponse.json({
       widgetInfo: {
@@ -227,6 +239,10 @@ export async function GET(
       },
       timeSeries,
       activities: activityStats,
+      // Top-level fields for frontend compatibility
+      totalConsents,
+      weeklyConsents,
+      conversionRate,
     });
   } catch (error) {
     console.error('Unexpected error in widget stats:', error);

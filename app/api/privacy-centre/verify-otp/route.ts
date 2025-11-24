@@ -298,7 +298,7 @@ export async function POST(request: NextRequest) {
         console.warn('[Verify OTP] Failed to fetch consent records (non-critical):', consentRecordsError);
       } else if (consentRecords && consentRecords.length > 0) {
         console.log(`[Verify OTP] Found ${consentRecords.length} consent records to update with email`);
-        
+
         const { error: updateConsentError } = await supabase
           .from('dpdpa_consent_records')
           .update({
@@ -394,17 +394,23 @@ export async function POST(request: NextRequest) {
 
     // Count devices (unique visitor IDs) with this email hash
     let uniqueDevices = 1;
+    let stableConsentId = visitorId; // Default to current if no history
+
     try {
       const { data: linkedDevices, error: deviceCountError } = await supabase
         .from('visitor_consent_preferences')
-        .select('visitor_id')
+        .select('visitor_id, created_at')
         .eq('visitor_email_hash', emailHash)
-        .eq('widget_id', widgetId);
+        .eq('widget_id', widgetId)
+        .order('created_at', { ascending: true }); // Oldest first
 
       if (deviceCountError) {
         console.warn('Error counting linked devices (non-critical):', deviceCountError);
-      } else if (linkedDevices) {
+      } else if (linkedDevices && linkedDevices.length > 0) {
         uniqueDevices = new Set(linkedDevices.map(d => d.visitor_id)).size;
+        // The first one is the oldest because of the order
+        stableConsentId = linkedDevices[0].visitor_id;
+        console.log(`[Verify OTP] Identified stable Consent ID: ${stableConsentId} (Current: ${visitorId})`);
       }
     } catch (countError: any) {
       console.warn('Failed to count linked devices (non-critical):', countError?.message || countError);
@@ -426,6 +432,7 @@ export async function POST(request: NextRequest) {
       message: 'Email verified successfully',
       linkedDevices: uniqueDevices,
       verified_at: new Date().toISOString(),
+      stableConsentId: stableConsentId
     });
 
   } catch (error: any) {

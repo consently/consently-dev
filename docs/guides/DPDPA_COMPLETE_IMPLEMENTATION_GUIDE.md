@@ -234,18 +234,20 @@ Use the generated notice as a template for your privacy policy page
 
 1. **See Consent Notice**
    - Modal appears with your selected activities
-   - Each activity shows:
-     - Name (e.g., "Customer Registration")
-     - Purpose (detailed explanation)
-     - Data categories (Email, Name, Phone, etc.)
-     - Retention period (how long data is kept)
-     - Industry badge
+   - Each activity shows purpose, data categories, and retention period
+   - **"Secure This Consent"**: Users can enter their email to securely link their preferences.
 
 2. **Provide Consent**
    - Accept or reject each activity individually
    - OR accept/reject all at once
+   - **Smart Pre-fill**: If the user just submitted a form, their email is automatically pre-filled.
 
-3. **Manage Consent Later**
+3. **Verify & Sync (Optional)**
+   - User clicks "Send Code" to verify their email.
+   - Enters OTP to link consent to their identity.
+   - Preferences are synced across devices.
+
+4. **Manage Consent Later**
    - Widget provides "Withdraw/Modify" button
    - Can change preferences anytime
    - Can raise grievance for data rights
@@ -436,14 +438,13 @@ window.consentlyDPDPA.downloadReceipt();
 
 ## 🔒 **Security & Privacy**
 
-- ✅ Consent IDs are unique and cryptographically random
-- ✅ Email addresses can be hashed (SHA-256)
-- ✅ IP addresses stored for audit trail
-- ✅ No authentication required for public widget endpoints
-- ✅ RLS policies ensure users only see their own data
-- ✅ CORS enabled for cross-origin widget embedding
-- ✅ Consent storage respects specified duration
-- ✅ Withdrawal immediately recorded
+- ✅ **Email Verification**: OTP-based verification ensures only the owner can access their consent history.
+- ✅ **Consent IDs**: Unique and cryptographically random IDs for anonymous tracking.
+- ✅ **No PII Storage**: Email is only used for verification and is hashed for storage.
+- ✅ **IP Addresses**: Stored for audit trail as required by law.
+- ✅ **RLS Policies**: Ensure users only see their own data.
+- ✅ **CORS Enabled**: For cross-origin widget embedding.
+- ✅ **Withdrawal**: Immediately recorded and synced.
 
 ---
 

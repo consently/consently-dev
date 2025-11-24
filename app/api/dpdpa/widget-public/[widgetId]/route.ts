@@ -218,6 +218,10 @@ export async function GET(
       showBranding: widgetConfig.show_branding ?? true,
       customCSS: widgetConfig.custom_css || undefined,
 
+      // Smart Email Pre-fill Settings
+      enableSmartPreFill: widgetConfig.enable_smart_prefill ?? true,
+      emailFieldSelectors: widgetConfig.email_field_selectors || 'input[type="email"], input[name*="email" i]',
+
       // NEW: Display rules for page-specific notices (filter inactive rules and validate)
       display_rules: filterAndValidateDisplayRules(widgetConfig.display_rules),
 
