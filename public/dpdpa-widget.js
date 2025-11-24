@@ -2074,8 +2074,20 @@ Digital Personal Data Protection Act, 2023
           timestamp: data.consent.timestamp,
           expiresAt: data.consent.expiresAt,
           activityConsents: {}, // Will be populated from accepted/rejected activities if needed
-          foundByPrincipalId: data.consent.foundByPrincipalId || false
+          foundByPrincipalId: data.consent.foundByPrincipalId || false,
+          verifiedEmail: data.consent.visitorEmail || null,
+          stableConsentId: data.stableConsentId || null
         };
+
+        // Adopt stable consent ID if returned (for verified users)
+        if (data.stableConsentId && data.stableConsentId !== consentID) {
+          console.log('[Consently DPDPA] 🔄 Adopting stable Consent ID from API:', {
+            old: consentID,
+            new: data.stableConsentId
+          });
+          consentID = data.stableConsentId;
+          storeConsentID(consentID);
+        }
 
         return consentData;
       }
@@ -2149,7 +2161,8 @@ Digital Personal Data Protection Act, 2023
             rejectedActivities: apiConsent.rejectedActivities,
             activityConsents: apiConsent.activityConsents,
             timestamp: apiConsent.timestamp,
-            expiresAt: apiConsent.expiresAt
+            expiresAt: apiConsent.expiresAt,
+            verifiedEmail: apiConsent.verifiedEmail
           },
           config.consentDuration || 365
         );
@@ -2187,6 +2200,12 @@ Digital Personal Data Protection Act, 2023
         } else {
           console.log('[Consently DPDPA] No consent found in localStorage');
         }
+      }
+
+      // Restore verified email if available
+      if (existingConsent && existingConsent.verifiedEmail) {
+        verifiedEmail = existingConsent.verifiedEmail;
+        console.log('[Consently DPDPA] Restored verified email:', verifiedEmail);
       }
 
       // Evaluate display rules FIRST to determine which rule matches (if any)
@@ -2601,8 +2620,24 @@ Digital Personal Data Protection Act, 2023
           ${translatedConfig.message}
         </p>
 
-        <!-- Processing Activities Table View - Enhanced Design -->
-        <div style="margin-bottom: 20px;">
+        <!-- Verification Notice (Shown when not verified) -->
+        <div id="dpdpa-verification-notice" style="display: ${isVerified ? 'none' : 'block'}; padding: 24px; text-align: center; background: #f8fafc; border-radius: 16px; border: 1px dashed #cbd5e1; margin-bottom: 20px;">
+            <div style="width: 48px; height: 48px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: ${textColor};">Verification Required</h3>
+            <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
+                Please verify your email below to view and manage your consent preferences.
+            </p>
+        </div>
+
+        <!-- Preferences Container (Hidden until verified) -->
+        <div id="dpdpa-preferences-container" style="display: ${isVerified ? 'block' : 'none'}; animation: fadeIn 0.5s ease;">
+            <!-- Processing Activities Table View - Enhanced Design -->
+            <div style="margin-bottom: 20px;">
           <!-- Table Header -->
           <!-- Consent Categories Header -->
           <div style="margin-bottom: 16px;">
@@ -3207,14 +3242,6 @@ Digital Personal Data Protection Act, 2023
         verifyBtn.textContent = 'Verifying...';
         verifyBtn.disabled = true;
 
-        // TODO: Implement actual API call to verify OTP
-        // Wait for a moment to simulate network delay if needed, or just proceed
-        // Actually, the verify button in the UI seems to be a separate flow from Confirm & Submit
-        // But let's make sure it calls the API if that's the intention, OR if it's just a UI toggle
-        // Looking at the code, verifyBtn seems to be a placeholder in the original code?
-        // Wait, line 3203 says "TODO: Implement actual API call".
-        // If this button is clicked, we should probably call the API.
-
         try {
           const apiBase = getApiUrl();
           const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
@@ -3239,8 +3266,22 @@ Digital Personal Data Protection Act, 2023
               storeConsentID(consentID);
             }
 
-            // Auto-accept all if verifying (or keep current selection)
-            await handleAcceptAll(overlay);
+            // Reveal Preferences UI
+            const prefsContainer = widget.querySelector('#dpdpa-preferences-container');
+            const notice = widget.querySelector('#dpdpa-verification-notice');
+
+            if (prefsContainer) prefsContainer.style.display = 'block';
+            if (notice) notice.style.display = 'none';
+
+            // Update confirm button
+            const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
+            if (confirmBtn) {
+              confirmBtn.textContent = 'Save Preferences';
+              confirmBtn.disabled = false;
+            }
+
+            verifyBtn.textContent = 'Verified';
+
           } else {
             alert('Invalid Verification Code');
             verifyBtn.textContent = 'Verify';
@@ -3344,23 +3385,24 @@ Digital Personal Data Protection Act, 2023
     const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
+        // Check if already verified
+        if (verifiedEmail) {
+          console.log('[Consently DPDPA] Email verified, saving preferences...');
+          handleAcceptSelected(overlay);
+          return;
+        }
+
         // Check if OTP is entered
         const otpInput = widget.querySelector('#dpdpa-otp-input');
         const otp = otpInput ? otpInput.value.replace(/\s/g, '') : null;
         const emailToVerify = userEmail || currentPrefilledEmail;
 
         if (otp && otp.length >= 4) {
-          // Check if already verified to avoid 400 error
-          if (verifiedEmail === emailToVerify) {
-            console.log('[Consently DPDPA] Email already verified, skipping API call');
-            handleAcceptSelected(overlay);
-            return;
-          }
-
           if (isVerifying) return; // Prevent double submission
           isVerifying = true;
 
           // Verify OTP first
+          const originalText = confirmBtn.textContent;
           confirmBtn.textContent = 'Verifying...';
           confirmBtn.disabled = true;
 
@@ -3388,34 +3430,47 @@ Digital Personal Data Protection Act, 2023
                 console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
                 consentID = data.stableConsentId;
                 storeConsentID(consentID);
-
-                // Update storage key if needed (though we usually read by widgetId)
-                // But we should ensure the consent record is associated with this new ID
               }
 
-              // Proceed to submit consent
-              confirmBtn.textContent = 'Saving...';
-              handleAcceptSelected(overlay);
-            } else {
-              // Check if it's the "already verified" case (though API should handle it, 400 might be returned)
-              // But here we assume 400 means invalid OTP or expired
-              alert('Invalid Verification Code');
-              confirmBtn.textContent = 'Confirm & Submit';
+              // Reveal Preferences UI
+              const prefsContainer = widget.querySelector('#dpdpa-preferences-container');
+              const notice = widget.querySelector('#dpdpa-verification-notice');
+
+              if (prefsContainer) prefsContainer.style.display = 'block';
+              if (notice) notice.style.display = 'none';
+
+              confirmBtn.textContent = 'Save Preferences';
               confirmBtn.disabled = false;
-              return;
+
+              // Optional: Scroll to preferences
+              if (prefsContainer) prefsContainer.scrollIntoView({ behavior: 'smooth' });
+
+            } else {
+              alert('Invalid Verification Code');
+              confirmBtn.textContent = originalText;
+              confirmBtn.disabled = false;
             }
           } catch (e) {
             console.error('Verification error', e);
-            alert('Verification failed. Proceeding with consent.');
-            // Fallback: submit anyway? Or stop? 
-            // Let's proceed for now to not block user
-            handleAcceptSelected(overlay);
+            alert('Verification failed. Please try again.');
+            confirmBtn.textContent = originalText;
+            confirmBtn.disabled = false;
           } finally {
             isVerifying = false;
           }
         } else {
-          // No OTP, just submit
-          handleAcceptSelected(overlay);
+          // No OTP and not verified
+          alert('Please verify your email to manage your consent preferences.');
+
+          // Highlight email input if visible
+          const emailInput = widget.querySelector('#dpdpa-email-input');
+          if (emailInput) {
+            emailInput.focus();
+            emailInput.style.borderColor = '#ef4444';
+            setTimeout(() => {
+              emailInput.style.borderColor = '#cbd5e1';
+            }, 2000);
+          }
         }
       });
 
@@ -3687,7 +3742,8 @@ Digital Personal Data Protection Act, 2023
         rejectedActivities: rejectedActivities,
         activityConsents: activityConsents,
         timestamp: new Date().toISOString(),
-        expiresAt: result.expiresAt
+        expiresAt: result.expiresAt,
+        verifiedEmail: verifiedEmail
       };
 
       ConsentStorage.set(

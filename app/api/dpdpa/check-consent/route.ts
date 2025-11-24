@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
 
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { 
+        {
           error: 'Rate limit exceeded. Please try again later.',
-          retryAfter: rateLimitResult.retryAfter 
+          retryAfter: rateLimitResult.retryAfter
         },
-        { 
+        {
           status: 429,
           headers: {
             'X-RateLimit-Limit': rateLimitResult.limit.toString(),
@@ -44,11 +44,11 @@ export async function GET(request: NextRequest) {
     // Validate required parameters
     if (!widgetId || !visitorId) {
       return NextResponse.json(
-        { 
+        {
           error: 'widgetId and visitorId are required',
           code: 'MISSING_PARAMETERS'
         },
-        { 
+        {
           status: 400,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -77,12 +77,12 @@ export async function GET(request: NextRequest) {
         api: 'check-consent',
       });
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid widget ID or widget is not active',
           code: 'INVALID_WIDGET',
           hasConsent: false
         },
-        { 
+        {
           status: 404,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -100,15 +100,15 @@ export async function GET(request: NextRequest) {
     // Validate visitorId format (Consent ID: CNST-XXXX-XXXX-XXXX or legacy vis_xxxxx)
     const isNewFormat = /^CNST-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(visitorId);
     const isLegacyFormat = /^vis_[a-zA-Z0-9]+$/.test(visitorId);
-    
+
     if (!isNewFormat && !isLegacyFormat) {
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid Consent ID format',
           code: 'INVALID_VISITOR_ID',
           hasConsent: false
         },
-        { 
+        {
           status: 400,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -133,12 +133,12 @@ export async function GET(request: NextRequest) {
         api: 'check-consent',
       });
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to check consent',
           code: 'QUERY_ERROR',
           hasConsent: false
         },
-        { 
+        {
           status: 500,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -150,11 +150,11 @@ export async function GET(request: NextRequest) {
     // Check if we have any valid consent records
     if (!consentRecords || consentRecords.length === 0) {
       return NextResponse.json(
-        { 
+        {
           hasConsent: false,
           message: 'No consent found'
         },
-        { 
+        {
           status: 200,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -171,12 +171,12 @@ export async function GET(request: NextRequest) {
       const expiresAtDate = new Date(latestConsent.consent_expires_at);
       if (expiresAtDate < now) {
         return NextResponse.json(
-          { 
+          {
             hasConsent: false,
             message: 'Consent expired',
             expiredAt: latestConsent.consent_expires_at
           },
-          { 
+          {
             status: 200,
             headers: {
               'Access-Control-Allow-Origin': '*',
@@ -189,12 +189,12 @@ export async function GET(request: NextRequest) {
     // Check if consent was revoked
     if (latestConsent.consent_status === 'revoked') {
       return NextResponse.json(
-        { 
+        {
           hasConsent: false,
           message: 'Consent was revoked',
           revokedAt: latestConsent.consent_details?.revoked_at || null
         },
-        { 
+        {
           status: 200,
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -206,10 +206,10 @@ export async function GET(request: NextRequest) {
     // Consent exists and is valid
     logger.info('Found valid consent', {
       visitorId,
-        widgetId,
-        api: 'check-consent'
+      widgetId,
+      api: 'check-consent'
     });
-    
+
     // Return consent details
     const consentData = {
       status: latestConsent.consent_status,
@@ -220,13 +220,56 @@ export async function GET(request: NextRequest) {
       consentDetails: latestConsent.consent_details || {}
     };
 
+    // Check if this visitor has a verified email (stable consent ID)
+    // This allows cross-device sync - if user verifies on device B, they get the same ID from device A
+    let stableConsentId = null;
+    try {
+      // Query preferences to see if this visitor_id has an associated email hash
+      const { data: verifiedPrefs, error: verifiedError } = await supabase
+        .from('visitor_consent_preferences')
+        .select('visitor_email_hash, visitor_id, created_at')
+        .eq('visitor_id', visitorId)
+        .eq('widget_id', widgetId)
+        .not('visitor_email_hash', 'is', null)
+        .limit(1);
+
+      if (!verifiedError && verifiedPrefs && verifiedPrefs.length > 0) {
+        const emailHash = verifiedPrefs[0].visitor_email_hash;
+
+        // Find the oldest (canonical) visitor_id for this email hash
+        const { data: allDevices, error: devicesError } = await supabase
+          .from('visitor_consent_preferences')
+          .select('visitor_id, created_at')
+          .eq('visitor_email_hash', emailHash)
+          .eq('widget_id', widgetId)
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        if (!devicesError && allDevices && allDevices.length > 0) {
+          stableConsentId = allDevices[0].visitor_id;
+          logger.info('Found stable consent ID for verified user', {
+            currentId: visitorId,
+            stableId: stableConsentId,
+            api: 'check-consent'
+          });
+        }
+      }
+    } catch (stableIdError) {
+      // Non-critical - just log and continue
+      logger.warn('Failed to determine stable consent ID (non-critical)', {
+        api: 'check-consent',
+        error: stableIdError instanceof Error ? stableIdError.message : String(stableIdError)
+      });
+    }
+
     return NextResponse.json(
-      { 
+      {
         hasConsent: true,
         consent: consentData,
+        stableConsentId: stableConsentId, // May be null for unverified users
         message: 'Valid consent found'
       },
-      { 
+      {
         status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
@@ -239,12 +282,12 @@ export async function GET(request: NextRequest) {
       api: 'check-consent',
     });
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         code: 'INTERNAL_ERROR',
         hasConsent: false
       },
-      { 
+      {
         status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',

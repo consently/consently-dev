@@ -167,11 +167,11 @@ export async function sendOTPEmail(
               </p>
               
               <!-- OTP Box -->
-              <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
-                <p style="margin: 0 0 10px 0; font-size: 14px; color: #ffffff; text-transform: uppercase; letter-spacing: 1px;">
+              <div style="background-color: #f0f9ff; border: 3px solid #3b82f6; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e40af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                   Your OTP Code
                 </p>
-                <p style="margin: 0; font-size: 48px; font-weight: 700; color: #ffffff; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                <p style="margin: 0; font-size: 48px; font-weight: 700; color: #1e3a8a; letter-spacing: 8px; font-family: 'Courier New', monospace;">
                   ${otp}
                 </p>
               </div>
