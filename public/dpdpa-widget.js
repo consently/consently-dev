@@ -223,6 +223,7 @@
   let verifiedEmail = null; // Store verified email address
   let userEmail = null; // Store user email for OTP flow
   let currentPrefilledEmail = null; // Store prefilled email for global access
+  let isVerifying = false; // Prevent double submission
   let globalClickHandler = null; // Global reference to cleanup language menu listener
   let primaryColor = '#4c8bf5'; // Default primary color, updated when config loads
   let visitorEmail = null; // Visitor email for cross-device consent management
@@ -3199,19 +3200,60 @@ Digital Personal Data Protection Act, 2023
           return;
         }
 
+        if (isVerifying) return; // Prevent double click
+        isVerifying = true;
+
         // Simulate verification
         verifyBtn.textContent = 'Verifying...';
         verifyBtn.disabled = true;
 
         // TODO: Implement actual API call to verify OTP
-        await new Promise(r => setTimeout(r, 1000));
+        // Wait for a moment to simulate network delay if needed, or just proceed
+        // Actually, the verify button in the UI seems to be a separate flow from Confirm & Submit
+        // But let's make sure it calls the API if that's the intention, OR if it's just a UI toggle
+        // Looking at the code, verifyBtn seems to be a placeholder in the original code?
+        // Wait, line 3203 says "TODO: Implement actual API call".
+        // If this button is clicked, we should probably call the API.
 
-        // On success, save consent with verified status
-        verifiedEmail = document.querySelector('#dpdpa-email-input')?.value || verifiedEmail; // Update global verified email
+        try {
+          const apiBase = getApiUrl();
+          const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: userEmail || currentPrefilledEmail,
+              otpCode: code,
+              visitorId: consentID || getConsentID(),
+              widgetId: widgetId,
+            }),
+          });
 
-        // Auto-accept all if verifying (or keep current selection)
-        // For now, just trigger saveConsent
-        await handleAcceptAll(overlay);
+          if (response.ok) {
+            const data = await response.json();
+            verifiedEmail = userEmail || currentPrefilledEmail;
+
+            // Handle Stable Consent ID
+            if (data.stableConsentId && data.stableConsentId !== consentID) {
+              console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
+              consentID = data.stableConsentId;
+              storeConsentID(consentID);
+            }
+
+            // Auto-accept all if verifying (or keep current selection)
+            await handleAcceptAll(overlay);
+          } else {
+            alert('Invalid Verification Code');
+            verifyBtn.textContent = 'Verify';
+            verifyBtn.disabled = false;
+          }
+        } catch (e) {
+          console.error('Verification error', e);
+          alert('Verification failed');
+          verifyBtn.textContent = 'Verify';
+          verifyBtn.disabled = false;
+        } finally {
+          isVerifying = false;
+        }
       });
     }
 
@@ -3305,8 +3347,19 @@ Digital Personal Data Protection Act, 2023
         // Check if OTP is entered
         const otpInput = widget.querySelector('#dpdpa-otp-input');
         const otp = otpInput ? otpInput.value.replace(/\s/g, '') : null;
+        const emailToVerify = userEmail || currentPrefilledEmail;
 
         if (otp && otp.length >= 4) {
+          // Check if already verified to avoid 400 error
+          if (verifiedEmail === emailToVerify) {
+            console.log('[Consently DPDPA] Email already verified, skipping API call');
+            handleAcceptSelected(overlay);
+            return;
+          }
+
+          if (isVerifying) return; // Prevent double submission
+          isVerifying = true;
+
           // Verify OTP first
           confirmBtn.textContent = 'Verifying...';
           confirmBtn.disabled = true;
@@ -3317,7 +3370,7 @@ Digital Personal Data Protection Act, 2023
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                email: userEmail || currentPrefilledEmail, // Use global or prefilled
+                email: emailToVerify, // Use global or prefilled
                 otpCode: otp,
                 visitorId: consentID || getConsentID(),
                 widgetId: widgetId,
@@ -3328,7 +3381,7 @@ Digital Personal Data Protection Act, 2023
               const data = await response.json();
 
               // Verification success
-              verifiedEmail = userEmail || currentPrefilledEmail;
+              verifiedEmail = emailToVerify;
 
               // Handle Stable Consent ID
               if (data.stableConsentId && data.stableConsentId !== consentID) {
@@ -3344,6 +3397,8 @@ Digital Personal Data Protection Act, 2023
               confirmBtn.textContent = 'Saving...';
               handleAcceptSelected(overlay);
             } else {
+              // Check if it's the "already verified" case (though API should handle it, 400 might be returned)
+              // But here we assume 400 means invalid OTP or expired
               alert('Invalid Verification Code');
               confirmBtn.textContent = 'Confirm & Submit';
               confirmBtn.disabled = false;
@@ -3355,6 +3410,8 @@ Digital Personal Data Protection Act, 2023
             // Fallback: submit anyway? Or stop? 
             // Let's proceed for now to not block user
             handleAcceptSelected(overlay);
+          } finally {
+            isVerifying = false;
           }
         } else {
           // No OTP, just submit
