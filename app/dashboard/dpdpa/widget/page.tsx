@@ -44,7 +44,8 @@ import {
   Filter,
   FileText,
   HelpCircle,
-  CheckCircle2
+  CheckCircle2,
+  Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
@@ -134,6 +135,8 @@ interface WidgetConfig {
   privacyNoticeLastUpdated?: string;
   requiresReconsent?: boolean;
   displayRules?: DisplayRule[];
+  enableSmartPreFill?: boolean;
+  emailFieldSelectors?: string;
 }
 
 export default function DPDPAWidgetPage() {
@@ -1480,11 +1483,20 @@ export default function DPDPAWidgetPage() {
 
                   {/* Trigger Settings Section */}
                   <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <Zap className="h-4 w-4 text-green-600" />
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <Zap className="h-4 w-4 text-green-600" />
+                        </div>
+                        <h4 className="font-semibold text-gray-900">Trigger Settings</h4>
                       </div>
-                      <h4 className="font-semibold text-gray-900">Trigger Settings</h4>
+                      {/* Feature badge for Smart Pre-fill */}
+                      {editingRule.trigger_type === 'onFormSubmit' && (
+                        <Badge className="bg-green-100 text-green-800 text-xs border-green-300">
+                          <Mail className="h-3 w-3 mr-1" />
+                          Supports Smart Pre-fill
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1497,10 +1509,10 @@ export default function DPDPAWidgetPage() {
                           onChange={(e) => setEditingRule({ ...editingRule, trigger_type: e.target.value as any })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         >
-                          <option value="onFormSubmit">On Form Submit (Recommended)</option>
-                          <option value="onPageLoad">On Page Load</option>
-                          <option value="onClick">On Click</option>
-                          <option value="onScroll">On Scroll</option>
+                          <option value="onFormSubmit">📧 On Form Submit (Recommended • Smart Pre-fill)</option>
+                          <option value="onPageLoad">⚡ On Page Load</option>
+                          <option value="onClick">👆 On Click</option>
+                          <option value="onScroll">📜 On Scroll</option>
                         </select>
                       </div>
 
@@ -1518,18 +1530,42 @@ export default function DPDPAWidgetPage() {
                       </div>
                     </div>
 
-                    <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-100 mb-4">
+                    <div className="text-xs bg-blue-50 p-3 rounded-lg border border-blue-100 mb-4">
                       {editingRule.trigger_type === 'onFormSubmit' && (
-                        'Widget shows before any form submission. Auto-detects all forms if no selector provided.'
+                        <>
+                          <p className="text-gray-700 font-semibold">📧 Form Submit Trigger</p>
+                          <p className="text-gray-600 mt-1">
+                            Widget shows before any form submission. Auto-detects all forms if no selector provided.
+                          </p>
+                          <p className="text-green-700 font-medium mt-2 flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Supports Smart Email Pre-fill - automatically captures email from form fields
+                          </p>
+                        </>
                       )}
                       {editingRule.trigger_type === 'onPageLoad' && (
-                        'Widget shows immediately when the page loads.'
+                        <>
+                          <p className="text-gray-700 font-semibold">⚡ Page Load Trigger</p>
+                          <p className="text-gray-600 mt-1">
+                            Widget shows immediately when the page loads (after specified delay).
+                          </p>
+                        </>
                       )}
                       {editingRule.trigger_type === 'onClick' && (
-                        'Widget shows when user clicks a specific element. Requires element selector.'
+                        <>
+                          <p className="text-gray-700 font-semibold">👆 Click Trigger</p>
+                          <p className="text-gray-600 mt-1">
+                            Widget shows when user clicks a specific element. Requires element selector.
+                          </p>
+                        </>
                       )}
                       {editingRule.trigger_type === 'onScroll' && (
-                        'Widget shows when user scrolls to a certain threshold.'
+                        <>
+                          <p className="text-gray-700 font-semibold">📜 Scroll Trigger</p>
+                          <p className="text-gray-600 mt-1">
+                            Widget shows when user scrolls to a certain percentage of the page.
+                          </p>
+                        </>
                       )}
                     </div>
 
@@ -2353,160 +2389,206 @@ export default function DPDPAWidgetPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {[...(config.displayRules || [])]
-                    .sort((a, b) => b.priority - a.priority)
-                    .map((rule, index) => {
-                      // Validation checks
-                      const hasNoActivities = !rule.activities || rule.activities.length === 0;
-                      const hasNoPurposeFiltering = !rule.activity_purposes || Object.keys(rule.activity_purposes).length === 0;
-                      const hasMultipleActivities = rule.activities && rule.activities.length > 1;
-                      const hasIssues = hasNoActivities || (hasMultipleActivities && hasNoPurposeFiltering);
+                <>
+                  {/* Trigger Types Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    {[
+                      { type: 'onFormSubmit', label: 'Form Submit', icon: Mail, color: 'green', supportsPreFill: true },
+                      { type: 'onPageLoad', label: 'Page Load', icon: RefreshCw, color: 'blue', supportsPreFill: false },
+                      { type: 'onClick', label: 'Click', icon: Play, color: 'purple', supportsPreFill: false },
+                      { type: 'onScroll', label: 'Scroll', icon: ChevronDown, color: 'orange', supportsPreFill: false }
+                    ].map(({ type, label, icon: Icon, color, supportsPreFill }) => {
+                      const count = config.displayRules?.filter(r => r.trigger_type === type && r.is_active).length || 0;
+                      const colorClasses = {
+                        green: { bg: 'bg-green-50', border: 'border-green-300', icon: 'text-green-600', text: 'text-green-700' },
+                        blue: { bg: 'bg-blue-50', border: 'border-blue-300', icon: 'text-blue-600', text: 'text-blue-700' },
+                        purple: { bg: 'bg-purple-50', border: 'border-purple-300', icon: 'text-purple-600', text: 'text-purple-700' },
+                        orange: { bg: 'bg-orange-50', border: 'border-orange-300', icon: 'text-orange-600', text: 'text-orange-700' }
+                      };
+                      const colors = count > 0 ? colorClasses[color as keyof typeof colorClasses] : { bg: 'bg-gray-50', border: 'border-gray-200', icon: 'text-gray-400', text: 'text-gray-600' };
 
                       return (
                         <div
-                          key={rule.id}
-                          className={`border-2 rounded-xl p-4 transition-all ${hasIssues && rule.is_active
-                            ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-white shadow-sm'
-                            : rule.is_active
-                              ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-white shadow-sm'
-                              : 'border-gray-200 bg-gray-50 opacity-60'
-                            }`}
+                          key={type}
+                          className={`p-3 rounded-lg border-2 ${colors.bg} ${colors.border}`}
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <Badge
-                                  variant={rule.is_active ? 'default' : 'secondary'}
-                                  className={hasIssues && rule.is_active ? 'bg-yellow-600' : rule.is_active ? 'bg-blue-600' : 'bg-gray-400'}
-                                >
-                                  {rule.is_active ? 'Active' : 'Inactive'}
-                                </Badge>
-                                {hasIssues && rule.is_active && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    ⚠️ Needs Fix
-                                  </Badge>
-                                )}
-                                <h4 className="font-semibold text-gray-900">{rule.rule_name}</h4>
-                                <Badge variant="outline" className="text-xs">
-                                  Priority: {rule.priority}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-600 mb-3">
-                                <div>
-                                  <span className="font-medium block mb-0.5">URL Pattern:</span>
-                                  <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded break-all block w-fit max-w-full">
-                                    {rule.url_pattern || '(empty)'}
-                                  </code>
-                                </div>
-                                <div>
-                                  <span className="font-medium block mb-0.5">Match Type:</span>
-                                  <span className="capitalize">{rule.url_match_type}</span>
-                                </div>
-                                <div>
-                                  <span className="font-medium block mb-0.5">Trigger:</span>
-                                  <span className="capitalize">{rule.trigger_type}</span>
-                                  {rule.trigger_type === 'onScroll' && rule.scroll_threshold !== undefined && (
-                                    <span className="text-gray-500 ml-1">({rule.scroll_threshold}%)</span>
-                                  )}
-                                </div>
-                                <div>
-                                  <span className="font-medium block mb-0.5">Activities:</span>
-                                  {rule.activities && rule.activities.length > 0
-                                    ? `${rule.activities.length} selected`
-                                    : <span className="text-yellow-600">⚠️ None (shows all)</span>}
-                                </div>
-                                {rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0 ? (
-                                  <div className="sm:col-span-2 md:col-span-4">
-                                    <span className="font-medium">Purposes:</span>{' '}
-                                    <span className="text-green-600">✓ Filtered ({Object.keys(rule.activity_purposes).length} activities)</span>
-                                  </div>
-                                ) : (
-                                  <div className="sm:col-span-2 md:col-span-4">
-                                    <span className="font-medium">Purposes:</span>{' '}
-                                    <span className="text-yellow-600">⚠️ None (shows all)</span>
-                                  </div>
-                                )}
-                              </div>
-                              {rule.notice_content && (rule.notice_content.title || rule.notice_content.message) && (
-                                <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
-                                  <p className="text-xs text-blue-900">
-                                    <span className="font-medium">Custom Notice:</span>{' '}
-                                    {rule.notice_content.title || rule.notice_content.message || 'Custom HTML content'}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Warning Messages */}
-                              {hasIssues && rule.is_active && (
-                                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
-                                  <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ Configuration Issues:</p>
-                                  <ul className="list-disc list-inside text-sm text-yellow-800 space-y-1">
-                                    {hasNoActivities && (
-                                      <li>No activities specified - will show ALL activities</li>
-                                    )}
-                                    {!hasNoActivities && hasNoPurposeFiltering && (
-                                      <li>No purpose filtering - will show ALL purposes from selected activities</li>
-                                    )}
-                                    {hasMultipleActivities && hasNoPurposeFiltering && (
-                                      <li>Multiple activities without filtering = multiple purposes may show</li>
-                                    )}
-                                  </ul>
-                                  <p className="mt-2 text-sm text-yellow-900 font-medium">
-                                    💡 Fix: Specify activities array and activity_purposes mapping
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 ml-4">
-                              <Tooltip content="Move up">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleMoveRule(rule.id, 'up')}
-                                  disabled={index === 0}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <ChevronUp className="h-4 w-4" />
-                                </Button>
-                              </Tooltip>
-                              <Tooltip content="Move down">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleMoveRule(rule.id, 'down')}
-                                  disabled={index === (config.displayRules?.length || 0) - 1}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </Button>
-                              </Tooltip>
-                              <Tooltip content="Edit rule">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditRule(rule)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </Tooltip>
-                              <Tooltip content="Delete rule">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteRule(rule.id)}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </Tooltip>
-                            </div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Icon className={`h-4 w-4 ${colors.icon}`} />
+                            <span className="text-lg font-bold text-gray-900">{count}</span>
                           </div>
+                          <div className="text-xs font-medium text-gray-700 mb-1">{label}</div>
+                          {supportsPreFill && count > 0 && config.enableSmartPreFill && (
+                            <div className={`text-xs ${colors.text} flex items-center gap-1 mt-1`}>
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span className="font-medium">Smart Pre-fill</span>
+                            </div>
+                          )}
+                          {supportsPreFill && count > 0 && !config.enableSmartPreFill && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Pre-fill disabled
+                            </div>
+                          )}
                         </div>
                       );
                     })}
-                </div>
+                  </div>
+
+                  {/* Display Rules List */}
+                  <div className="space-y-3">
+                    {[...(config.displayRules || [])]
+                      .sort((a, b) => b.priority - a.priority)
+                      .map((rule, index) => {
+                        // Validation checks
+                        const hasNoActivities = !rule.activities || rule.activities.length === 0;
+                        const hasNoPurposeFiltering = !rule.activity_purposes || Object.keys(rule.activity_purposes).length === 0;
+                        const hasMultipleActivities = rule.activities && rule.activities.length > 1;
+                        const hasIssues = hasNoActivities || (hasMultipleActivities && hasNoPurposeFiltering);
+
+                        return (
+                          <div
+                            key={rule.id}
+                            className={`border-2 rounded-xl p-4 transition-all ${hasIssues && rule.is_active
+                              ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-white shadow-sm'
+                              : rule.is_active
+                                ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-white shadow-sm'
+                                : 'border-gray-200 bg-gray-50 opacity-60'
+                              }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <Badge
+                                    variant={rule.is_active ? 'default' : 'secondary'}
+                                    className={hasIssues && rule.is_active ? 'bg-yellow-600' : rule.is_active ? 'bg-blue-600' : 'bg-gray-400'}
+                                  >
+                                    {rule.is_active ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                  {hasIssues && rule.is_active && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      ⚠️ Needs Fix
+                                    </Badge>
+                                  )}
+                                  <h4 className="font-semibold text-gray-900">{rule.rule_name}</h4>
+                                  <Badge variant="outline" className="text-xs">
+                                    Priority: {rule.priority}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-600 mb-3">
+                                  <div>
+                                    <span className="font-medium block mb-0.5">URL Pattern:</span>
+                                    <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded break-all block w-fit max-w-full">
+                                      {rule.url_pattern || '(empty)'}
+                                    </code>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium block mb-0.5">Match Type:</span>
+                                    <span className="capitalize">{rule.url_match_type}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium block mb-0.5">Trigger:</span>
+                                    <span className="capitalize">{rule.trigger_type}</span>
+                                    {rule.trigger_type === 'onScroll' && rule.scroll_threshold !== undefined && (
+                                      <span className="text-gray-500 ml-1">({rule.scroll_threshold}%)</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium block mb-0.5">Activities:</span>
+                                    {rule.activities && rule.activities.length > 0
+                                      ? `${rule.activities.length} selected`
+                                      : <span className="text-yellow-600">⚠️ None (shows all)</span>}
+                                  </div>
+                                  {rule.activity_purposes && Object.keys(rule.activity_purposes).length > 0 ? (
+                                    <div className="sm:col-span-2 md:col-span-4">
+                                      <span className="font-medium">Purposes:</span>{' '}
+                                      <span className="text-green-600">✓ Filtered ({Object.keys(rule.activity_purposes).length} activities)</span>
+                                    </div>
+                                  ) : (
+                                    <div className="sm:col-span-2 md:col-span-4">
+                                      <span className="font-medium">Purposes:</span>{' '}
+                                      <span className="text-yellow-600">⚠️ None (shows all)</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {rule.notice_content && (rule.notice_content.title || rule.notice_content.message) && (
+                                  <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                                    <p className="text-xs text-blue-900">
+                                      <span className="font-medium">Custom Notice:</span>{' '}
+                                      {rule.notice_content.title || rule.notice_content.message || 'Custom HTML content'}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Warning Messages */}
+                                {hasIssues && rule.is_active && (
+                                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
+                                    <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ Configuration Issues:</p>
+                                    <ul className="list-disc list-inside text-sm text-yellow-800 space-y-1">
+                                      {hasNoActivities && (
+                                        <li>No activities specified - will show ALL activities</li>
+                                      )}
+                                      {!hasNoActivities && hasNoPurposeFiltering && (
+                                        <li>No purpose filtering - will show ALL purposes from selected activities</li>
+                                      )}
+                                      {hasMultipleActivities && hasNoPurposeFiltering && (
+                                        <li>Multiple activities without filtering = multiple purposes may show</li>
+                                      )}
+                                    </ul>
+                                    <p className="mt-2 text-sm text-yellow-900 font-medium">
+                                      💡 Fix: Specify activities array and activity_purposes mapping
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 ml-4">
+                                <Tooltip content="Move up">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleMoveRule(rule.id, 'up')}
+                                    disabled={index === 0}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <ChevronUp className="h-4 w-4" />
+                                  </Button>
+                                </Tooltip>
+                                <Tooltip content="Move down">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleMoveRule(rule.id, 'down')}
+                                    disabled={index === (config.displayRules?.length || 0) - 1}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                </Tooltip>
+                                <Tooltip content="Edit rule">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditRule(rule)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </Tooltip>
+                                <Tooltip content="Delete rule">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteRule(rule.id)}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </Tooltip>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </>
               )}
 
               {config.displayRules && config.displayRules.length > 0 && (
@@ -2986,8 +3068,8 @@ export default function DPDPAWidgetPage() {
                           </div>
                         )}
                         <div>
-                          <h2 className="font-extrabold text-xl m-0 mb-0.5" style={{ letterSpacing: '-0.02em' }}>Privacy Notice</h2>
-                          <p className="text-[11px] text-gray-500 font-medium m-0">DPDPA 2023 Compliance</p>
+                          <h2 className="font-extrabold text-xl m-0 mb-0.5" style={{ letterSpacing: '-0.02em' }}>Your Data Permissions</h2>
+                          <p className="text-[11px] text-gray-500 font-medium m-0">To proceed with your request, we need your consent under DPDP Act 2023. Please review your choices below.</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -3260,6 +3342,91 @@ export default function DPDPAWidgetPage() {
                     }
                     className="h-5 w-5"
                   />
+                </div>
+
+                {/* Smart Email Pre-fill Settings */}
+                <div className="space-y-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                  <div className="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-green-200">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <Mail className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-gray-900">Smart Email Pre-fill</p>
+                          {/* Scope indicator badge */}
+                          <Badge className="bg-blue-100 text-blue-800 text-xs border-blue-300">
+                            <Zap className="h-3 w-3 mr-1" />
+                            Form Submit Only
+                          </Badge>
+                          <Tooltip content="Automatically capture email from forms to pre-fill verification field. This feature ONLY works with 'On Form Submit' trigger type in Display Rules." />
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Extract email from forms automatically
+                        </p>
+
+                        {/* Display Rules status indicator */}
+                        {config.enableSmartPreFill && (
+                          <div className="mt-2">
+                            {(() => {
+                              const formSubmitRulesCount = (config.displayRules || []).filter(
+                                r => r.trigger_type === 'onFormSubmit' && r.is_active
+                              ).length;
+
+                              if (formSubmitRulesCount === 0) {
+                                return (
+                                  <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                                    <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                                    <span>
+                                      No active Form Submit rules found. Smart Pre-fill won't activate without them.
+                                    </span>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                    <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
+                                    <span>
+                                      Active in {formSubmitRulesCount} Form Submit {formSubmitRulesCount === 1 ? 'rule' : 'rules'}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <Checkbox
+                      checked={config.enableSmartPreFill ?? true}
+                      onChange={(e) => setConfig({ ...config, enableSmartPreFill: e.target.checked })}
+                      className="h-5 w-5"
+                    />
+                  </div>
+
+                  {config.enableSmartPreFill !== false && (
+                    <div className="space-y-2 pl-4 border-l-2 border-green-300">
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        Email Field Selectors
+                        <Tooltip content="CSS selectors to find email fields. Separate multiple selectors with commas. Widget will try each selector until it finds a match." />
+                      </label>
+                      <Input
+                        value={config.emailFieldSelectors || 'input[type="email"], input[name*="email" i]'}
+                        onChange={(e) => setConfig({ ...config, emailFieldSelectors: e.target.value })}
+                        placeholder='input[type="email"], input[name*="email" i], #email'
+                        className="font-mono text-xs"
+                      />
+                      <div className="bg-white p-3 rounded-lg border border-green-200">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Examples:</p>
+                        <ul className="text-xs text-gray-600 space-y-1">
+                          <li>• <code className="bg-gray-100 px-1 py-0.5 rounded">input[type="email"]</code> - Standard email inputs</li>
+                          <li>• <code className="bg-gray-100 px-1 py-0.5 rounded">#contact-email</code> - Specific ID</li>
+                          <li>• <code className="bg-gray-100 px-1 py-0.5 rounded">.email-field</code> - By class name</li>
+                          <li>• <code className="bg-gray-100 px-1 py-0.5 rounded">input[name="user_email"]</code> - By name attribute</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
