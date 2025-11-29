@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Download, Filter, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Search, Download, Filter, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Eye, EyeOff, Mail, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ExportSecurityModal } from '@/components/security/export-security-modal';
@@ -54,7 +54,10 @@ export default function ConsentRecordsPage() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isEmailExportModalOpen, setIsEmailExportModalOpen] = useState(false);
   const [showVerifiedEmails, setShowVerifiedEmails] = useState(false);
+  const [emailExportFormat, setEmailExportFormat] = useState<'csv' | 'json' | 'pdf'>('csv');
+  const [isExportingEmails, setIsExportingEmails] = useState(false);
 
   // Fetch records on mount and when filters change
   useEffect(() => {
@@ -104,6 +107,58 @@ export default function ConsentRecordsPage() {
 
   const handleExportClick = () => {
     setIsSecurityModalOpen(true);
+  };
+
+  const handleEmailExportClick = () => {
+    setIsEmailExportModalOpen(true);
+  };
+
+  const executeEmailExport = async () => {
+    setIsExportingEmails(true);
+    try {
+      const params = new URLSearchParams({
+        format: emailExportFormat,
+      });
+
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+
+      const response = await fetch(`/api/dpdpa/export-emails?${params.toString()}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(errorData.error || errorData.message || 'Failed to export emails');
+      }
+
+      // Get the filename from Content-Disposition header or generate one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `consent-emails-${format(new Date(), 'yyyy-MM-dd')}.${emailExportFormat}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Emails exported successfully as ${emailExportFormat.toUpperCase()}`);
+    } catch (error) {
+      console.error('Error exporting emails:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to export emails');
+    } finally {
+      setIsExportingEmails(false);
+    }
   };
 
   const executeExport = () => {
@@ -334,9 +389,13 @@ export default function ConsentRecordsPage() {
                 </>
               )}
             </Button>
+            <Button onClick={handleEmailExportClick} variant="outline" size="sm" className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100">
+              <Mail className="mr-2 h-4 w-4" />
+              Export Emails
+            </Button>
             <Button onClick={handleExportClick} variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Export Records
             </Button>
           </div>
         </CardHeader>
@@ -591,8 +650,11 @@ export default function ConsentRecordsPage() {
             >
               {showVerifiedEmails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
-            <Button onClick={handleExportClick} variant="outline" size="sm">
-              <Download className="h-4 w-4" />
+            <Button onClick={handleEmailExportClick} variant="outline" size="sm" className="bg-green-50 border-green-200 text-green-700" title="Export Emails">
+              <Mail className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleExportClick} variant="outline" size="sm" title="Export Records">
+              <FileSpreadsheet className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -782,6 +844,36 @@ export default function ConsentRecordsPage() {
         onVerified={executeExport}
         actionName="export DPDPA records"
       />
+
+      {/* Email Export Modal */}
+      <ExportSecurityModal
+        isOpen={isEmailExportModalOpen}
+        onClose={() => setIsEmailExportModalOpen(false)}
+        onVerified={executeEmailExport}
+        actionName="export verified email addresses"
+      />
+
+      {/* Email Export Format Selection (shown before security modal) */}
+      {isEmailExportModalOpen && (
+        <div className="fixed bottom-4 right-4 z-40 bg-white rounded-lg shadow-lg border p-4 max-w-xs">
+          <h4 className="text-sm font-medium text-gray-900 mb-2">Export Format</h4>
+          <div className="flex gap-2">
+            {(['csv', 'json', 'pdf'] as const).map((fmt) => (
+              <button
+                key={fmt}
+                onClick={() => setEmailExportFormat(fmt)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  emailExportFormat === fmt
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {fmt.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div >
   );
 }

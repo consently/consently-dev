@@ -356,6 +356,22 @@ export const api = {
       }
       return apiRequest(`/api/emails/logs?${queryParams.toString()}`);
     },
+    exportVerifiedEmails: (params?: {
+      format?: 'csv' | 'json' | 'pdf';
+      widgetId?: string;
+      status?: 'all' | 'accepted' | 'rejected' | 'partial' | 'revoked';
+      startDate?: string;
+      endDate?: string;
+      includeAnonymous?: boolean;
+    }) => {
+      const queryParams = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined) queryParams.append(key, String(value));
+        });
+      }
+      return apiRequest(`/api/dpdpa/export-emails?${queryParams.toString()}`);
+    },
   },
 
   // Audit Logs
