@@ -99,7 +99,7 @@ export function corsHeaders(request: NextRequest, additionalHeaders?: Record<str
   if (isOriginAllowed(origin)) {
     headers['Access-Control-Allow-Origin'] = origin || '*';
     headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-    headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+    headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Cache-Control';
     headers['Access-Control-Max-Age'] = '86400'; // 24 hours
   }
 
@@ -137,7 +137,8 @@ export function permissiveCorsHeaders(): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Cache-Control',
+    'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
   };
 }
 
@@ -171,7 +172,7 @@ export function applyCorsMiddleware(request: NextRequest, response: Response): R
   if (isOriginAllowed(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin || '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cache-Control');
   }
 
   return response;

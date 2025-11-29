@@ -69,7 +69,7 @@ export default function IntegrationPage() {
     // Always use production URL for widget script
     const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
 return `<!-- Consently DPDPA Widget -->
-<script src="${widgetUrl}/dpdpa-widget.js" 
+<script defer src="${widgetUrl}/dpdpa-widget.js" 
         data-dpdpa-widget-id="${widgetId}"
         data-dpdpa-email="{{user_email}}"><!-- optional: pass the logged-in user's email -->
 </script>`;

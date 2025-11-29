@@ -41,12 +41,17 @@ export async function GET(
       .single();
 
     if (widgetError) {
+      // PGRST116 means no rows returned - this is a 404, not a 500
+      if (widgetError.code === 'PGRST116') {
+        console.log('Widget configuration not found for widgetId:', widgetId);
+        throw new AppError('Widget configuration not found', 404);
+      }
       console.error('Error fetching widget config:', widgetError);
       throw new AppError('Failed to fetch widget configuration', 500);
     }
 
     if (!data) {
-      console.error('Widget configuration not found for widgetId:', widgetId);
+      console.log('Widget configuration not found for widgetId:', widgetId);
       throw new AppError('Widget configuration not found', 404);
     }
 
@@ -137,7 +142,8 @@ export async function OPTIONS(request: Request) {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cache-Control',
+      'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
     },
   });
 }

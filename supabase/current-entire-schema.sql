@@ -34,7 +34,7 @@ CREATE TABLE public.banner_configs (
   name text NOT NULL,
   description text,
   position text NOT NULL CHECK ("position" = ANY (ARRAY['top'::text, 'bottom'::text, 'top-left'::text, 'top-right'::text, 'bottom-left'::text, 'bottom-right'::text, 'center'::text, 'center-modal'::text])),
-  layout text NOT NULL CHECK (layout = ANY (ARRAY['bar'::text, 'box'::text, 'modal'::text, 'popup'::text, 'inline'::text, 'floating'::text])),
+  layout text NOT NULL CHECK (layout = ANY (ARRAY['bar'::text, 'box'::text, 'modal'::text, 'popup'::text, 'inline'::text, 'floating'::text, 'banner'::text])),
   theme jsonb NOT NULL DEFAULT '{"fontSize": 14, "boxShadow": true, "textColor": "#1f2937", "fontFamily": "system-ui, sans-serif", "borderRadius": 8, "primaryColor": "#3b82f6", "secondaryColor": "#1e40af", "backgroundColor": "#ffffff"}'::jsonb,
   title text NOT NULL,
   message text NOT NULL,

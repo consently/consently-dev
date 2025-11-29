@@ -31,6 +31,7 @@ const bannerPositionSchema = z.enum([
 
 const bannerLayoutSchema = z.enum([
   'bar',
+  'banner',
   'box',
   'modal',
   'popup',
