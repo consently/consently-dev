@@ -616,9 +616,10 @@ export default function CookieWidgetPage() {
   };
 
   const getEmbedCode = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com';
+    // Always use production URL for widget script
+    const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
     return `<!-- Consently Cookie Consent Widget -->
-<script src="${origin}/widget.js" data-consently-id="${config.widgetId}" async></script>`;
+<script src="${widgetUrl}/widget.js" data-consently-id="${config.widgetId}" defer></script>`;
   };
 
   const handleCopyCode = async () => {
@@ -2609,12 +2610,23 @@ function InstallSteps({ platform, embedCode }: { platform: Platform; embedCode: 
         <div className="space-y-3">
           <h4 className="font-semibold text-gray-900">Shopify</h4>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
-            <li>Open Shopify admin → Online Store → Themes → Edit code.</li>
-            <li>Open layout/theme.liquid.</li>
-            <li>Paste the snippet right before the closing <code className="px-1 rounded bg-white">&lt;/head&gt;</code> tag.</li>
-            <li>Save and publish.</li>
+            <li>Open Shopify admin → Online Store → Themes → Actions → Edit code.</li>
+            <li>Open <code className="px-1 rounded bg-white">layout/theme.liquid</code>.</li>
+            <li>Paste the snippet right before the closing <code className="px-1 rounded bg-white">&lt;/body&gt;</code> tag.</li>
+            <li>Save and publish your theme.</li>
           </ol>
           <CodeBlock code={embedCode} />
+
+          {/* Troubleshooting */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h5 className="font-semibold text-blue-900 mb-2">🔧 Troubleshooting</h5>
+            <ul className="space-y-1 text-sm text-blue-800">
+              <li>• <strong>Widget not showing?</strong> Check browser console for errors, verify widget ID is correct</li>
+              <li>• <strong>CORS error?</strong> Ensure your Shopify domain matches the widget configuration</li>
+              <li>• <strong>Theme warnings?</strong> Upload to Shopify CDN (see above)</li>
+              <li>• <strong>Test in incognito mode</strong> to see the banner as a new visitor</li>
+            </ul>
+          </div>
         </div>
       );
     case 'wordpress':
@@ -2622,12 +2634,32 @@ function InstallSteps({ platform, embedCode }: { platform: Platform; embedCode: 
         <div className="space-y-3">
           <h4 className="font-semibold text-gray-900">WordPress</h4>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
-            <li>Install and activate "Insert Headers and Footers" (or similar) plugin.</li>
+            <li>Install and activate <strong>"Insert Headers and Footers"</strong> plugin (or similar).</li>
             <li>Go to Settings → Insert Headers and Footers.</li>
-            <li>Paste the snippet into the Header section.</li>
-            <li>Save and clear caches if any.</li>
+            <li>Paste the snippet into the <strong>Footer</strong> section (before &lt;/body&gt;).</li>
+            <li>Save and clear any caches (WP Super Cache, W3 Total Cache, etc.).</li>
           </ol>
           <CodeBlock code={embedCode} />
+          
+          {/* Alternative Methods */}
+          <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h5 className="font-semibold text-gray-900 mb-2">Alternative Methods</h5>
+            <ul className="space-y-1 text-sm text-gray-700">
+              <li>• <strong>Theme Editor:</strong> Appearance → Theme Editor → footer.php (before &lt;/body&gt;)</li>
+              <li>• <strong>Child Theme:</strong> Add to your child theme's footer.php</li>
+              <li>• <strong>Code Snippets plugin:</strong> Add as a footer snippet</li>
+            </ul>
+          </div>
+
+          {/* Troubleshooting */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h5 className="font-semibold text-blue-900 mb-2">🔧 Troubleshooting</h5>
+            <ul className="space-y-1 text-sm text-blue-800">
+              <li>• <strong>Widget not showing?</strong> Clear all caches and check browser console</li>
+              <li>• <strong>Caching issues?</strong> Exclude the widget script from caching plugins</li>
+              <li>• <strong>Test in incognito mode</strong> to bypass browser cache</li>
+            </ul>
+          </div>
         </div>
       );
     case 'wix':
@@ -2635,25 +2667,66 @@ function InstallSteps({ platform, embedCode }: { platform: Platform; embedCode: 
         <div className="space-y-3">
           <h4 className="font-semibold text-gray-900">Wix</h4>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
-            <li>Wix Dashboard → Settings → Custom code.</li>
-            <li>Add Custom Code → Paste snippet.</li>
-            <li>Place code in Head → Apply to All pages → Load once.</li>
-            <li>Publish your site.</li>
+            <li>Go to Wix Dashboard → Settings → Custom Code.</li>
+            <li>Click <strong>"+ Add Custom Code"</strong>.</li>
+            <li>Paste the snippet below.</li>
+            <li>Set placement to <strong>"Body - end"</strong> (before &lt;/body&gt;).</li>
+            <li>Apply to <strong>"All pages"</strong> → Load code <strong>"Once"</strong>.</li>
+            <li>Click "Apply" and <strong>Publish your site</strong>.</li>
           </ol>
           <CodeBlock code={embedCode} />
+
+          {/* Troubleshooting */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h5 className="font-semibold text-blue-900 mb-2">🔧 Troubleshooting</h5>
+            <ul className="space-y-1 text-sm text-blue-800">
+              <li>• <strong>Widget not showing?</strong> Make sure you published after adding the code</li>
+              <li>• <strong>Check placement:</strong> Must be "Body - end", not "Head"</li>
+              <li>• <strong>Premium required:</strong> Custom code requires Wix Premium plan</li>
+              <li>• <strong>Test in incognito mode</strong> to see the banner as a new visitor</li>
+            </ul>
+          </div>
         </div>
       );
     case 'magento':
       return (
         <div className="space-y-3">
-          <h4 className="font-semibold text-gray-900">Magento</h4>
+          <h4 className="font-semibold text-gray-900">Magento 2</h4>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
-            <li>Admin → Content → Configuration → Edit your theme.</li>
-            <li>HTML Head → Scripts and Style Sheets.</li>
-            <li>Paste the snippet and Save Config.</li>
-            <li>Flush Magento caches.</li>
+            <li>Go to Admin → Content → Design → Configuration.</li>
+            <li>Edit your store view's theme.</li>
+            <li>Expand <strong>"Footer"</strong> section → Miscellaneous HTML.</li>
+            <li>Paste the snippet and click <strong>Save Config</strong>.</li>
+            <li>Flush all caches: System → Cache Management → Flush Magento Cache.</li>
           </ol>
           <CodeBlock code={embedCode} />
+
+          {/* Alternative Method */}
+          <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h5 className="font-semibold text-gray-900 mb-2">Alternative: Layout XML</h5>
+            <p className="text-sm text-gray-700 mb-2">For developers, add to your theme's default.xml:</p>
+            <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-x-auto">
+              {`<referenceContainer name="before.body.end">
+  <block class="Magento\\Framework\\View\\Element\\Text" name="consently_widget">
+    <arguments>
+      <argument name="text" xsi:type="string">
+        <![CDATA[${embedCode}]]>
+      </argument>
+    </arguments>
+  </block>
+</referenceContainer>`}
+            </pre>
+          </div>
+
+          {/* Troubleshooting */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h5 className="font-semibold text-blue-900 mb-2">🔧 Troubleshooting</h5>
+            <ul className="space-y-1 text-sm text-blue-800">
+              <li>• <strong>Widget not showing?</strong> Flush all caches and check browser console</li>
+              <li>• <strong>Full Page Cache:</strong> May need to exclude widget from FPC</li>
+              <li>• <strong>Test in incognito mode</strong> after clearing caches</li>
+            </ul>
+          </div>
         </div>
       );
     case 'squarespace':
@@ -2661,11 +2734,30 @@ function InstallSteps({ platform, embedCode }: { platform: Platform; embedCode: 
         <div className="space-y-3">
           <h4 className="font-semibold text-gray-900">Squarespace</h4>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
-            <li>Settings → Developer Tools → Code Injection.</li>
-            <li>Paste the snippet into the Header field.</li>
-            <li>Save and publish.</li>
+            <li>Go to Settings → Developer Tools → <strong>Code Injection</strong>.</li>
+            <li>Paste the snippet into the <strong>Footer</strong> field (not Header).</li>
+            <li>Click <strong>Save</strong>.</li>
+            <li>The widget will appear on all pages automatically.</li>
           </ol>
           <CodeBlock code={embedCode} />
+
+          {/* Note */}
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <h5 className="font-semibold text-amber-900 mb-2">⚠️ Important</h5>
+            <p className="text-sm text-amber-800">
+              Code Injection requires a <strong>Business plan or higher</strong>. Personal plans don't have access to this feature.
+            </p>
+          </div>
+
+          {/* Troubleshooting */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h5 className="font-semibold text-blue-900 mb-2">🔧 Troubleshooting</h5>
+            <ul className="space-y-1 text-sm text-blue-800">
+              <li>• <strong>Widget not showing?</strong> Check browser console for errors</li>
+              <li>• <strong>Use Footer, not Header</strong> for best compatibility</li>
+              <li>• <strong>Test in incognito mode</strong> to see the banner as a new visitor</li>
+            </ul>
+          </div>
         </div>
       );
     case 'webflow':
@@ -2673,11 +2765,31 @@ function InstallSteps({ platform, embedCode }: { platform: Platform; embedCode: 
         <div className="space-y-3">
           <h4 className="font-semibold text-gray-900">Webflow</h4>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
-            <li>Project Settings → Custom Code.</li>
-            <li>Paste the snippet in the Head Code area.</li>
-            <li>Save, then Publish your site.</li>
+            <li>Go to Project Settings → <strong>Custom Code</strong> tab.</li>
+            <li>Paste the snippet in the <strong>"Footer Code"</strong> section (before &lt;/body&gt;).</li>
+            <li>Click <strong>Save Changes</strong>.</li>
+            <li><strong>Publish</strong> your site to apply changes.</li>
           </ol>
           <CodeBlock code={embedCode} />
+
+          {/* Page-specific option */}
+          <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h5 className="font-semibold text-gray-900 mb-2">Page-Specific Installation</h5>
+            <p className="text-sm text-gray-700">
+              To add only to specific pages: Open the page → Settings (gear icon) → Custom Code → Before &lt;/body&gt; tag
+            </p>
+          </div>
+
+          {/* Troubleshooting */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h5 className="font-semibold text-blue-900 mb-2">🔧 Troubleshooting</h5>
+            <ul className="space-y-1 text-sm text-blue-800">
+              <li>• <strong>Widget not showing?</strong> Make sure you published after adding the code</li>
+              <li>• <strong>Use Footer Code, not Head Code</strong> for best compatibility</li>
+              <li>• <strong>Custom code requires</strong> a paid Webflow site plan</li>
+              <li>• <strong>Test in incognito mode</strong> to see the banner as a new visitor</li>
+            </ul>
+          </div>
         </div>
       );
     default:
