@@ -105,6 +105,7 @@ interface WidgetConfig {
   widgetId?: string;
   name: string;
   domain: string;
+  dpoEmail?: string; // Data Protection Officer contact email
   position: string;
   layout: string;
   theme: {
@@ -147,6 +148,7 @@ export default function DPDPAWidgetPage() {
   const [config, setConfig] = useState<WidgetConfig>({
     name: 'My DPDPA Widget',
     domain: '',
+    dpoEmail: '',
     position: 'modal',
     layout: 'modal',
     theme: {
@@ -329,6 +331,7 @@ export default function DPDPAWidgetPage() {
             widgetId: existingConfig.widget_id,
             name: existingConfig.name,
             domain: existingConfig.domain,
+            dpoEmail: existingConfig.dpo_email || '',
             position: existingConfig.position,
             layout: existingConfig.layout,
             theme: existingConfig.theme,
@@ -863,14 +866,15 @@ export default function DPDPAWidgetPage() {
     }
 
     const selectedActivitiesData = activities.filter(a => config.selectedActivities.includes(a.id));
-    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com');
+    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com', config.dpoEmail || 'dpo@consently.in');
     setGeneratedPrivacyNotice(html);
     setShowPrivacyNoticeModal(true);
   };
 
   // Privacy notice HTML generator (matches backend logic)
-  const generatePrivacyNoticeHTML = (activities: ProcessingActivity[], domain: string): string => {
+  const generatePrivacyNoticeHTML = (activities: ProcessingActivity[], domain: string, dpoEmail: string): string => {
     const companyName = domain || '[Your Company Name]';
+    const contactEmail = dpoEmail || 'dpo@consently.in';
 
     const activitySections = activities.map((activity, index) => {
       const purposes = activity.purposes || [];
@@ -958,7 +962,7 @@ export default function DPDPAWidgetPage() {
       <p style="color: #6b7280; margin-top: 24px;">
         <strong>How to Exercise Your Rights:</strong><br>
         You can manage your consent preferences or raise a grievance through our consent widget on ${escapeHtml(domain)}, 
-        or contact us at [contact-email@${escapeHtml(domain)}].
+        or contact our Data Protection Officer at <a href="mailto:${escapeHtml(contactEmail)}" style="color: #3b82f6;">${escapeHtml(contactEmail)}</a>.
       </p>
 
       <p style="color: #6b7280; margin-top: 16px;">
@@ -969,7 +973,7 @@ export default function DPDPAWidgetPage() {
     <div style="margin-top: 32px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
       <p style="margin: 0; color: #6b7280; font-size: 14px;">
         <strong>Last Updated:</strong> ${new Date().toLocaleDateString()}<br>
-        <strong>Contact:</strong> [contact-email@${escapeHtml(domain)}]<br>
+        <strong>Data Protection Officer:</strong> <a href="mailto:${escapeHtml(contactEmail)}" style="color: #3b82f6;">${escapeHtml(contactEmail)}</a><br>
         <strong>Compliance:</strong> This notice is compliant with the Digital Personal Data Protection Act, 2023 (DPDPA)
       </p>
     </div>
@@ -1087,7 +1091,7 @@ export default function DPDPAWidgetPage() {
     }
 
     const selectedActivitiesData = activities.filter(a => config.selectedActivities.includes(a.id));
-    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com');
+    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com', config.dpoEmail || 'dpo@consently.in');
 
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -2677,6 +2681,24 @@ export default function DPDPAWidgetPage() {
 
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  DPO Email
+                  <Tooltip content="Data Protection Officer contact email. This will be shown in the privacy notice and used for data subject requests." />
+                </label>
+                <Input
+                  type="email"
+                  value={config.dpoEmail || ''}
+                  onChange={(e) => setConfig({ ...config, dpoEmail: e.target.value })}
+                  placeholder="dpo@consently.in"
+                  className="transition-all focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                />
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  Contact email for data protection inquiries (defaults to dpo@consently.in)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   Title
                 </label>
                 <Input
@@ -3771,7 +3793,7 @@ export default function DPDPAWidgetPage() {
                       toast.error('Please select at least one processing activity first');
                       return;
                     }
-                    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com');
+                    const html = generatePrivacyNoticeHTML(selectedActivitiesData, config.domain || 'your-domain.com', config.dpoEmail || 'dpo@consently.in');
                     setGeneratedPrivacyNotice(html);
                     setShowPrivacyNoticeModal(true);
                   }}

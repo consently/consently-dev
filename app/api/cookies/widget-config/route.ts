@@ -285,6 +285,57 @@ export async function GET() {
     if (error) {
       if (error.code === 'PGRST116') {
         console.log('No configuration found for user:', user.id);
+
+        // Check for onboarding data in cookie_banners
+        const { data: onboardingData, error: onboardingError } = await supabase
+          .from('cookie_banners')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (onboardingData && !onboardingError) {
+          console.log('Found onboarding data, returning virtual config');
+
+          // Map onboarding data to widget config structure
+          const virtualConfig = {
+            // No widgetId yet
+            name: 'My Cookie Widget',
+            domain: onboardingData.website_url || '',
+            categories: Array.isArray(onboardingData.categories) ? onboardingData.categories : ['necessary'],
+            behavior: 'explicit',
+            consentDuration: 365,
+            showBrandingLink: true,
+            blockScripts: true,
+            respectDNT: false,
+            gdprApplies: true,
+            autoBlock: [],
+            bannerTemplateId: null,
+            language: onboardingData.language || 'en',
+            theme: {
+              primaryColor: onboardingData.primary_color || '#3b82f6',
+              backgroundColor: '#ffffff',
+              textColor: '#1f2937',
+              borderRadius: 12
+            },
+            supportedLanguages: ['en'],
+            autoShow: true,
+            showAfterDelay: 1000,
+            position: 'bottom',
+            layout: onboardingData.banner_style === 'floating' ? 'modal' : 'bar',
+            bannerContent: {
+              title: '🍪 We value your privacy',
+              message: 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.',
+              acceptButtonText: 'Accept All',
+              rejectButtonText: 'Reject All',
+              settingsButtonText: 'Cookie Settings'
+            }
+          };
+
+          return NextResponse.json(virtualConfig);
+        }
+
         return NextResponse.json(
           { error: 'No configuration found' },
           { status: 404 }

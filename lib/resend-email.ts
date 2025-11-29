@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import crypto from 'crypto';
+import { logger } from './logger';
 
 /**
  * Resend Email Service
@@ -14,18 +15,19 @@ function getResendClient(): Resend | null {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
-    console.error('❌ RESEND_API_KEY not configured. Email sending will fail.');
-    console.error('   Please check:');
-    console.error('   1. .env.local file has RESEND_API_KEY set');
-    console.error('   2. Vercel environment variables are configured');
-    console.error('   3. The variable name is exactly RESEND_API_KEY (case-sensitive)');
+    logger.error('RESEND_API_KEY not configured. Email sending will fail.', undefined, {
+      check1: '.env.local file has RESEND_API_KEY set',
+      check2: 'Vercel environment variables are configured',
+      check3: 'The variable name is exactly RESEND_API_KEY (case-sensitive)'
+    });
     return null;
   }
 
   // Validate API key format
   if (!resendApiKey.startsWith('re_')) {
-    console.error('❌ RESEND_API_KEY format is invalid. Should start with "re_"');
-    console.error(`   Current value starts with: ${resendApiKey.substring(0, 3)}`);
+    logger.error('RESEND_API_KEY format is invalid. Should start with "re_"', undefined, {
+      currentPrefix: resendApiKey.substring(0, 3)
+    });
     return null;
   }
 
@@ -33,9 +35,9 @@ function getResendClient(): Resend | null {
   if (!resendClient) {
     try {
       resendClient = new Resend(resendApiKey);
-      console.log('✅ Resend client initialized successfully');
+      logger.info('Resend client initialized successfully');
     } catch (error: any) {
-      console.error('❌ Failed to initialize Resend client:', error?.message || error);
+      logger.error('Failed to initialize Resend client', error);
       return null;
     }
   }
@@ -68,7 +70,7 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
         ? 'Resend client initialization failed. Check RESEND_API_KEY format.'
         : 'RESEND_API_KEY environment variable is not set.';
 
-      console.error('❌ Email send failed:', errorMsg);
+      logger.error('Email send failed', undefined, { reason: errorMsg });
       return {
         success: false,
         error: 'Email service not configured. Please check RESEND_API_KEY environment variable.'
@@ -78,9 +80,7 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     const { to, subject, html, text, replyTo } = options;
     const fromEmail = getFromEmail();
 
-    console.log(`📧 Attempting to send email to: ${to}`);
-    console.log(`   From: ${fromEmail}`);
-    console.log(`   Subject: ${subject}`);
+    logger.debug('Attempting to send email', { to, from: fromEmail, subject });
 
     const { data, error } = await resend.emails.send({
       from: fromEmail,
@@ -92,8 +92,7 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     });
 
     if (error) {
-      console.error('❌ Resend API error:', error);
-      console.error('   Error details:', JSON.stringify(error, null, 2));
+      logger.error('Resend API error', error, { errorDetails: error });
       return {
         success: false,
         error: error.message || 'Failed to send email via Resend API'
@@ -101,20 +100,20 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     }
 
     if (!data?.id) {
-      console.error('❌ Resend API returned no email ID');
+      logger.error('Resend API returned no email ID');
       return {
         success: false,
         error: 'Email send completed but no email ID returned'
       };
     }
 
-    console.log('✅ Email sent successfully via Resend:', data.id);
+    logger.info('Email sent successfully via Resend', { emailId: data.id });
     return { success: true, id: data.id };
   } catch (error: any) {
-    console.error('❌ Exception while sending email:', error);
-    console.error('   Error type:', error?.constructor?.name);
-    console.error('   Error message:', error?.message);
-    console.error('   Error stack:', error?.stack);
+    logger.error('Exception while sending email', error, {
+      errorType: error?.constructor?.name,
+      errorMessage: error?.message
+    });
 
     return {
       success: false,
@@ -131,7 +130,10 @@ export async function sendOTPEmail(
   otp: string,
   expiresInMinutes: number = 10
 ): Promise<{ success: boolean; error?: string }> {
-  const subject = 'Verify Your Email - Consently Privacy Centre';
+  const subject = `${otp} is your Consently verification code`;
+
+  // Split OTP into individual digits for better mobile display
+  const otpDigits = otp.split('');
 
   const html = `
 <!DOCTYPE html>
@@ -139,79 +141,131 @@ export async function sendOTPEmail(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your Email</title>
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <title>Your Verification Code: ${otp}</title>
+  <!--[if mso]>
+  <style type="text/css">
+    table { border-collapse: collapse; }
+    .otp-digit { width: 40px !important; }
+  </style>
+  <![endif]-->
+  <style>
+    @media only screen and (max-width: 600px) {
+      .email-container { width: 100% !important; padding: 16px !important; }
+      .content-padding { padding: 24px 20px !important; }
+      .header-padding { padding: 28px 20px !important; }
+      .otp-container { padding: 20px 12px !important; }
+      .otp-digit { width: 36px !important; height: 48px !important; font-size: 24px !important; margin: 0 3px !important; }
+      .otp-label { font-size: 12px !important; }
+      .main-text { font-size: 15px !important; }
+      .footer-text { font-size: 11px !important; }
+    }
+    @media only screen and (max-width: 380px) {
+      .otp-digit { width: 32px !important; height: 44px !important; font-size: 20px !important; margin: 0 2px !important; }
+    }
+  </style>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f7fa; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f0f4f8; -webkit-font-smoothing: antialiased;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f4f8; padding: 32px 16px;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
-          <!-- Header with gradient -->
+        <!-- Main Container -->
+        <table class="email-container" width="520" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 20px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08); overflow: hidden; max-width: 520px;">
+          
+          <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
-                🔐 Verify Your Email
-              </h1>
+            <td class="header-padding" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 36px 32px; text-align: center;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <div style="width: 56px; height: 56px; background: rgba(255,255,255,0.2); border-radius: 16px; margin: 0 auto 16px; display: inline-block; line-height: 56px;">
+                      <span style="font-size: 28px;">🔐</span>
+                    </div>
+                    <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">
+                      Verification Code
+                    </h1>
+                    <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.85); font-size: 14px;">
+                      Enter this code to verify your email
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- OTP Display -->
+          <tr>
+            <td class="otp-container" style="padding: 32px 24px; text-align: center; background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);">
+              <p class="otp-label" style="margin: 0 0 16px 0; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
+                Your Code
+              </p>
+              <!-- OTP Digits as separate boxes for better mobile display -->
+              <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  ${otpDigits.map(digit => `
+                    <td>
+                      <div class="otp-digit" style="width: 44px; height: 56px; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; margin: 0 4px; display: inline-block; line-height: 56px; text-align: center; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                        <span style="color: #ffffff; font-size: 28px; font-weight: 800; font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;">${digit}</span>
+                      </div>
+                    </td>
+                  `).join('')}
+                </tr>
+              </table>
+              <p style="margin: 20px 0 0 0; font-size: 13px; color: #94a3b8;">
+                ⏱️ Expires in <strong style="color: #475569;">${expiresInMinutes} minutes</strong>
+              </p>
             </td>
           </tr>
           
           <!-- Content -->
           <tr>
-            <td style="padding: 40px 30px;">
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                Hello,
-              </p>
-              
-              <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                You requested to link your privacy preferences across devices. To verify your email address, please use the following One-Time Password (OTP):
-              </p>
-              
-              <!-- OTP Box -->
-              <div style="background-color: #f0f9ff; border: 3px solid #3b82f6; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
-                <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e40af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
-                  Your OTP Code
-                </p>
-                <p style="margin: 0; font-size: 48px; font-weight: 700; color: #1e3a8a; letter-spacing: 8px; font-family: 'Courier New', monospace;">
-                  ${otp}
-                </p>
-              </div>
-              
-              <p style="margin: 30px 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                <strong>⏰ This code will expire in ${expiresInMinutes} minutes.</strong>
-              </p>
-              
-              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
-                If you didn't request this verification, you can safely ignore this email. Your privacy preferences remain secure.
+            <td class="content-padding" style="padding: 28px 32px;">
+              <p class="main-text" style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.7; color: #475569;">
+                You're linking your privacy preferences to <strong style="color: #1e293b;">${email}</strong>. This allows you to manage your consent choices across all your devices.
               </p>
               
               <!-- Security Notice -->
-              <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; margin-top: 30px;">
-                <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #1e40af;">
-                  <strong>🔒 Security Tip:</strong> Never share this code with anyone. Consently will never ask for your OTP.
-                </p>
+              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%); border-radius: 12px; padding: 16px; margin-top: 20px;">
+                <table cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td width="32" valign="top">
+                      <span style="font-size: 18px;">🔒</span>
+                    </td>
+                    <td style="padding-left: 8px;">
+                      <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #92400e;">
+                        <strong>Security Tip:</strong> Never share this code. Consently will never ask for your OTP via phone or chat.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
               </div>
+              
+              <p style="margin: 20px 0 0 0; font-size: 13px; line-height: 1.6; color: #94a3b8;">
+                Didn't request this? You can safely ignore this email.
+              </p>
             </td>
           </tr>
           
           <!-- Footer -->
           <tr>
-            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280;">
-                This email was sent by <strong>Consently</strong>
+            <td style="background-color: #f8fafc; padding: 24px 32px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p class="footer-text" style="margin: 0 0 8px 0; font-size: 13px; color: #64748b;">
+                Sent by <strong style="color: #3b82f6;">Consently</strong>
               </p>
-              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                Protecting your privacy under the Digital Personal Data Protection Act, 2023
+              <p class="footer-text" style="margin: 0; font-size: 11px; color: #94a3b8;">
+                Protecting your privacy under DPDPA 2023
               </p>
             </td>
           </tr>
         </table>
         
-        <!-- Footer links -->
-        <table width="600" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+        <!-- Copyright -->
+        <table width="520" cellpadding="0" cellspacing="0" style="margin-top: 16px; max-width: 520px;">
           <tr>
-            <td style="text-align: center; padding: 20px;">
-              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                © ${new Date().getFullYear()} Consently. All rights reserved.
+            <td style="text-align: center; padding: 8px;">
+              <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                © ${new Date().getFullYear()} Consently • <a href="https://consently.in" style="color: #64748b; text-decoration: none;">consently.in</a>
               </p>
             </td>
           </tr>
@@ -224,21 +278,21 @@ export async function sendOTPEmail(
   `;
 
   const text = `
-Verify Your Email - Consently Privacy Centre
+Your Consently Verification Code: ${otp}
 
-You requested to link your privacy preferences across devices.
+You're linking your privacy preferences to ${email}.
 
-Your OTP Code: ${otp}
+YOUR CODE: ${otp}
 
-This code will expire in ${expiresInMinutes} minutes.
+This code expires in ${expiresInMinutes} minutes.
 
-If you didn't request this verification, you can safely ignore this email.
+Security Tip: Never share this code. Consently will never ask for your OTP via phone or chat.
 
-Security Tip: Never share this code with anyone. Consently will never ask for your OTP.
+Didn't request this? You can safely ignore this email.
 
 ---
-© ${new Date().getFullYear()} Consently
-Protected under the Digital Personal Data Protection Act, 2023
+© ${new Date().getFullYear()} Consently | consently.in
+Protected under DPDPA 2023
   `.trim();
 
   return sendEmail({

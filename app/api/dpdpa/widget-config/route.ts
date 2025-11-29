@@ -16,6 +16,11 @@ const widgetConfigSchema = z.object({
   domain: z.string()
     .min(3, 'Domain is required')
     .max(255, 'Domain must not exceed 255 characters'),
+  dpoEmail: z.string()
+    .email('Invalid email format')
+    .max(255, 'Email must not exceed 255 characters')
+    .optional()
+    .or(z.literal('')),
   position: z.enum(['top', 'bottom', 'center', 'bottom-left', 'bottom-right', 'modal']).optional(),
   layout: z.enum(['modal', 'slide-in', 'banner']).optional(),
   theme: z.any().optional(),
@@ -107,6 +112,54 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // If no DPDPA widget configs found, check for onboarding data in cookie_banners
+      if (!data || data.length === 0) {
+        const { data: onboardingData, error: onboardingError } = await supabase
+          .from('cookie_banners')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (onboardingData && !onboardingError) {
+          // Map onboarding data to widget config structure
+          // This creates a "virtual" config that hasn't been saved to dpdpa_widget_configs yet
+          const virtualConfig = {
+            // Don't set widget_id so the frontend treats it as a new widget
+            name: 'My DPDPA Widget',
+            domain: onboardingData.website_url || '',
+            position: 'bottom-right',
+            layout: onboardingData.banner_style === 'floating' ? 'modal' : 'banner',
+            theme: {
+              primaryColor: onboardingData.primary_color || '#3b82f6',
+              backgroundColor: '#ffffff',
+              textColor: '#1f2937',
+              borderRadius: 12
+            },
+            title: 'Your Data Privacy Rights',
+            message: 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+            accept_button_text: 'Accept All',
+            reject_button_text: 'Reject All',
+            customize_button_text: 'Manage Preferences',
+            selected_activities: [], // User will need to select these
+            auto_show: true,
+            show_after_delay: 1000,
+            consent_duration: 365,
+            respect_dnt: false,
+            require_explicit_consent: true,
+            show_data_subjects_rights: true,
+            show_branding: true,
+            is_active: true,
+            language: onboardingData.language || 'en',
+            supported_languages: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as'],
+            display_rules: []
+          };
+          
+          return NextResponse.json({ data: [virtualConfig] });
+        }
+      }
+
       return NextResponse.json({ data: data || [] });
     }
   } catch (error) {
@@ -178,6 +231,7 @@ export async function POST(request: NextRequest) {
       widget_id: widgetId,
       name: configData.name,
       domain: configData.domain,
+      dpo_email: configData.dpoEmail || null,
       position: configData.position || 'bottom-right',
       layout: configData.layout || 'modal',
       theme: configData.theme,
@@ -312,6 +366,7 @@ export async function PUT(request: NextRequest) {
 
     if (configData.name !== undefined) updatePayload.name = configData.name;
     if (configData.domain !== undefined) updatePayload.domain = configData.domain;
+    if (configData.dpoEmail !== undefined) updatePayload.dpo_email = configData.dpoEmail || null;
     if (configData.position !== undefined) updatePayload.position = configData.position;
     if (configData.layout !== undefined) updatePayload.layout = configData.layout;
     if (configData.theme !== undefined) updatePayload.theme = configData.theme;

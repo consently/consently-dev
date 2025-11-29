@@ -20,6 +20,7 @@ import {
   XCircle,
   AlertCircle,
   RefreshCw,
+  Mail,
 } from 'lucide-react';
 
 interface RightsRequest {
@@ -250,6 +251,19 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
                 Exercise your rights under the Digital Personal Data Protection Act (DPDP) 2023. 
                 Request access, correction, erasure, or file grievances about your personal data.
               </p>
+              {/* DPO Contact */}
+              <div className="mt-4 pt-4 border-t border-blue-100">
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-blue-600" />
+                  <span className="text-gray-600">Data Protection Officer:</span>
+                  <a 
+                    href="mailto:dpo@consently.in" 
+                    className="text-blue-600 hover:text-blue-800 font-medium underline underline-offset-2"
+                  >
+                    dpo@consently.in
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -86,17 +86,17 @@ export async function POST(request: NextRequest) {
     // Also check visitor_consent_preferences if not found in records
     // This handles cases where they might have preferences but no specific consent record for this session yet
     const { data: existingPref, error: prefError } = await supabase
-        .from('visitor_consent_preferences')
-        .select('visitor_id')
-        .eq('widget_id', widgetId)
-        .eq('visitor_email_hash', emailHash)
-        .single();
-    
+      .from('visitor_consent_preferences')
+      .select('visitor_id')
+      .eq('widget_id', widgetId)
+      .eq('visitor_email_hash', emailHash)
+      .single();
+
     if (existingPref) {
-         return NextResponse.json({
-            status: 'verified',
-            hasConsent: true
-          });
+      return NextResponse.json({
+        status: 'verified',
+        hasConsent: true
+      });
     }
 
     // User not found

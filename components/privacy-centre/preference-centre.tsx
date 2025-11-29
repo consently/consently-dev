@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Modal } from '@/components/ui/modal';
 import { toast } from 'sonner';
 import {
   Check,
@@ -24,6 +25,7 @@ import {
   Sparkles,
   Lock,
   History,
+  AlertTriangle,
 } from 'lucide-react';
 import { EmailLinkCard } from './email-link-card';
 
@@ -66,6 +68,10 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Revocation warning modal state
+  const [showRevocationWarning, setShowRevocationWarning] = useState(false);
+  const [pendingRevocation, setPendingRevocation] = useState<{ activityId: string; activityName: string } | null>(null);
 
   useEffect(() => {
     fetchPreferences();
@@ -125,7 +131,18 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
     }
   };
 
-  const handlePreferenceChange = (activityId: string, isAccepted: boolean) => {
+  const handlePreferenceChange = (activityId: string, isAccepted: boolean, skipWarning = false) => {
+    // If turning OFF and was previously accepted, show warning modal first
+    if (!isAccepted && !skipWarning) {
+      const wasAccepted = originalStatus[activityId] === 'accepted' || preferences[activityId] === 'accepted';
+      if (wasAccepted) {
+        const activity = activities.find(a => a.id === activityId);
+        setPendingRevocation({ activityId, activityName: activity?.name || 'this activity' });
+        setShowRevocationWarning(true);
+        return; // Don't proceed until user confirms
+      }
+    }
+
     setPreferences((prev) => {
       // Determine the correct status based on:
       // 1. If toggling ON -> 'accepted'
@@ -156,6 +173,27 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
 
       return updated;
     });
+  };
+
+  // Handle confirming the revocation after warning
+  const handleConfirmRevocation = async () => {
+    if (pendingRevocation) {
+      if (pendingRevocation.activityId === '__ALL__') {
+        // Handle reject all case
+        await executeRejectAll();
+      } else {
+        // Handle single activity revocation
+        handlePreferenceChange(pendingRevocation.activityId, false, true); // skipWarning = true
+      }
+    }
+    setShowRevocationWarning(false);
+    setPendingRevocation(null);
+  };
+
+  // Handle canceling the revocation
+  const handleCancelRevocation = () => {
+    setShowRevocationWarning(false);
+    setPendingRevocation(null);
   };
 
   const handleSavePreferences = async () => {
@@ -353,6 +391,28 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
   };
 
   const handleRejectAll = async () => {
+    // Check if any activities were previously accepted (will be withdrawn)
+    const hasAcceptedActivities = activities.some(
+      (activity) => originalStatus[activity.id] === 'accepted' || preferences[activity.id] === 'accepted'
+    );
+
+    if (hasAcceptedActivities) {
+      // Show warning modal for reject all
+      setPendingRevocation({ activityId: '__ALL__', activityName: 'all activities' });
+      setShowRevocationWarning(true);
+      return;
+    }
+
+    // No previously accepted activities, proceed directly
+    const allRejected: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
+    activities.forEach((activity) => {
+      allRejected[activity.id] = 'rejected';
+    });
+    await savePreferencesDirect(allRejected, 'reject_all');
+  };
+
+  // Execute reject all after confirmation
+  const executeRejectAll = async () => {
     const allRejected: Record<string, 'accepted' | 'rejected' | 'withdrawn'> = {};
     activities.forEach((activity) => {
       // If previously accepted, mark as withdrawn; otherwise rejected
@@ -856,6 +916,59 @@ export function PreferenceCentre({ visitorId, widgetId }: PreferenceCentreProps)
           </div>
         </div>
       )}
+
+      {/* Revocation Warning Modal */}
+      <Modal
+        open={showRevocationWarning}
+        onClose={handleCancelRevocation}
+        title="Withdraw Consent?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-amber-900 mb-1">Important Warning</h4>
+              <p className="text-sm text-amber-800">
+                You are about to withdraw your consent for <strong>{pendingRevocation?.activityName}</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-sm text-gray-600">
+            <p className="font-medium text-gray-900">This may affect:</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Your personalized experience on this website</li>
+              <li>Features that rely on this data processing activity</li>
+              <li>Services that require your consent to function properly</li>
+            </ul>
+          </div>
+
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-800">
+              <strong>Note:</strong> Under DPDPA 2023, you have the right to withdraw consent at any time. 
+              However, this withdrawal will not affect the lawfulness of processing based on consent before its withdrawal.
+            </p>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelRevocation}
+              className="flex-1"
+            >
+              Keep Consent
+            </Button>
+            <Button
+              onClick={handleConfirmRevocation}
+              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Yes, Withdraw Consent
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

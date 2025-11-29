@@ -31,7 +31,7 @@ export async function GET(
         // First, get the user's widget IDs to verify ownership
         const { data: userWidgets, error: widgetsError } = await supabase
             .from('dpdpa_widget_configs')
-            .select('widget_id, domain')
+            .select('widget_id, domain, dpo_email')
             .eq('user_id', user.id);
 
         if (widgetsError) {
@@ -85,9 +85,10 @@ export async function GET(
 
         const record = records[0];
         
-        // Get the widget domain for this record
+        // Get the widget domain and DPO email for this record
         const widgetInfo = userWidgets.find(w => w.widget_id === record.widget_id);
         const domain = widgetInfo?.domain || '';
+        const dpoEmail = widgetInfo?.dpo_email || 'dpo@consently.in';
 
         // Lookup visitor email if not present in the record
         let visitorEmail = record.visitor_email;
@@ -190,7 +191,7 @@ export async function GET(
                         })),
                     }));
 
-                    const generatedHTML = generatePrivacyNoticeHTML(activities, domain);
+                    const generatedHTML = generatePrivacyNoticeHTML(activities, domain, dpoEmail);
                     privacyNoticeHTML = sanitizeHTML(generatedHTML);
                 }
             }

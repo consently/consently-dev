@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -39,12 +40,12 @@ export async function middleware(request: NextRequest) {
       const trialCheck = await checkAndExpireTrial(user.id);
 
       if (trialCheck.expired) {
-        console.log('[Middleware] Trial expired for user:', user.id);
+        logger.info('Trial expired for user', { userId: user.id });
         // Note: User is downgraded to free plan automatically
         // They can continue using the app with free tier features
       }
     } catch (error) {
-      console.error('[Middleware] Error checking trial expiration:', error);
+      logger.error('Error checking trial expiration', error);
       // Don't block the request if trial check fails
     }
   }
@@ -67,17 +68,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Log API requests
+  // Log API requests (debug level only)
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    const startTime = Date.now();
-    const logData = {
-      timestamp: new Date().toISOString(),
+    logger.debug('API request', {
       method: request.method,
       path: request.nextUrl.pathname,
       query: Object.fromEntries(request.nextUrl.searchParams),
-      userAgent: request.headers.get('user-agent'),
-    };
-    console.log(JSON.stringify(logData));
+    });
   }
 
   return supabaseResponse;

@@ -173,7 +173,7 @@ export async function GET(
     // Generate privacy notice HTML (with sanitization)
     let privacyNoticeHTML = '<p style="color:#6b7280;">Privacy notice content...</p>';
     if (activities && activities.length > 0) {
-      const generatedHTML = generatePrivacyNoticeHTML(activities, widgetConfig.domain);
+      const generatedHTML = generatePrivacyNoticeHTML(activities, widgetConfig.domain, widgetConfig.dpo_email || 'dpo@consently.in');
       privacyNoticeHTML = sanitizeHTML(generatedHTML);
     }
 

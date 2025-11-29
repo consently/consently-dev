@@ -6,11 +6,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Building2, 
   Globe, 
-  Shield, 
   Palette, 
   CheckCircle,
   ChevronRight,
@@ -28,13 +26,6 @@ const INDUSTRIES = [
   'Real Estate',
   'Government',
   'Other'
-];
-
-const CONSENT_CATEGORIES = [
-  { id: 'necessary', name: 'Necessary', required: true },
-  { id: 'analytics', name: 'Analytics', required: false },
-  { id: 'marketing', name: 'Marketing', required: false },
-  { id: 'preferences', name: 'Preferences', required: false }
 ];
 
 const BANNER_STYLES = [
@@ -61,7 +52,6 @@ type StepData = {
   websiteUrl: string;
   companyName: string;
   language: string;
-  categories: string[];
   bannerStyle: string;
   primaryColor: string;
 };
@@ -75,12 +65,11 @@ export default function OnboardingPage() {
     websiteUrl: '',
     companyName: '',
     language: 'en',
-    categories: ['necessary'],
     bannerStyle: 'minimal',
     primaryColor: '#3b82f6'
   });
 
-  const totalSteps = 4;
+  const totalSteps = 3;
 
   const updateFormData = (updates: Partial<StepData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -110,8 +99,15 @@ export default function OnboardingPage() {
 
       if (!response.ok) throw new Error('Failed to save onboarding data');
 
-      // Redirect to dashboard
-      router.push('/dashboard?onboarding=complete');
+      const result = await response.json();
+      
+      // Store widget IDs in session for welcome message
+      if (result.data) {
+        sessionStorage.setItem('onboarding_result', JSON.stringify(result.data));
+      }
+
+      // Redirect to DPDPA dashboard to see the newly created widget
+      router.push('/dashboard/dpdpa?onboarding=complete');
     } catch (error) {
       console.error('Error completing onboarding:', error);
       alert('Failed to complete onboarding. Please try again.');
@@ -127,8 +123,6 @@ export default function OnboardingPage() {
       case 2:
         return formData.websiteUrl;
       case 3:
-        return formData.categories.length > 0;
-      case 4:
         return formData.bannerStyle;
       default:
         return false;
@@ -151,7 +145,7 @@ export default function OnboardingPage() {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            {[1, 2, 3, 4].map((step) => (
+            {[1, 2, 3].map((step) => (
               <div key={step} className="flex flex-1 items-center">
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full ${
@@ -166,7 +160,7 @@ export default function OnboardingPage() {
                     step
                   )}
                 </div>
-                {step < 4 && (
+                {step < 3 && (
                   <div
                     className={`h-1 flex-1 ${
                       step < currentStep ? 'bg-blue-600' : 'bg-gray-200'
@@ -179,7 +173,6 @@ export default function OnboardingPage() {
           <div className="mt-2 flex justify-between text-xs text-gray-600">
             <span>Business Info</span>
             <span>Website</span>
-            <span>Consent</span>
             <span>Customize</span>
           </div>
         </div>
@@ -281,58 +274,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 3: Consent Preferences */}
+          {/* Step 3: Customize Banner */}
           {currentStep === 3 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 text-blue-600">
-                <Shield className="h-8 w-8" />
-                <h2 className="text-2xl font-semibold">Consent Categories</h2>
-              </div>
-
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Select which consent categories you want to offer to your visitors
-                </p>
-
-                {CONSENT_CATEGORIES.map((category) => (
-                  <div
-                    key={category.id}
-                    className="flex items-start gap-3 rounded-lg border border-gray-200 p-4"
-                  >
-                    <Checkbox
-                      id={category.id}
-                      checked={formData.categories.includes(category.id)}
-                      disabled={category.required}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        updateFormData({
-                          categories: checked
-                            ? [...formData.categories, category.id]
-                            : formData.categories.filter((c) => c !== category.id)
-                        });
-                      }}
-                    />
-                    <div className="flex-1">
-                      <label
-                        htmlFor={category.id}
-                        className="block font-medium text-gray-900"
-                      >
-                        {category.name}
-                        {category.required && (
-                          <span className="ml-2 text-xs text-blue-600">
-                            (Required)
-                          </span>
-                        )}
-                      </label>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Customize Banner */}
-          {currentStep === 4 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 text-blue-600">
                 <Palette className="h-8 w-8" />
@@ -388,9 +331,17 @@ export default function OnboardingPage() {
                   <h3 className="mb-2 font-medium text-green-900">
                     🎉 You're all set!
                   </h3>
-                  <p className="text-sm text-green-700">
-                    Click "Complete Setup" to finish onboarding and access your
-                    dashboard. You can customize everything later.
+                  <p className="mb-3 text-sm text-green-700">
+                    Click "Complete Setup" and we'll create everything you need:
+                  </p>
+                  <ul className="space-y-1 text-sm text-green-700">
+                    <li>✓ Cookie Consent Widget for your website</li>
+                    <li>✓ DPDPA Consent Widget (India's privacy law)</li>
+                    <li>✓ Default processing activities for {formData.industry || 'your industry'}</li>
+                    <li>✓ Privacy Centre for your visitors</li>
+                  </ul>
+                  <p className="mt-3 text-xs text-green-600">
+                    You can customize everything later in the dashboard.
                   </p>
                 </div>
               </div>

@@ -1,5 +1,73 @@
 import { z } from 'zod';
 
+// List of personal/free email domains that are not allowed for signup
+const PERSONAL_EMAIL_DOMAINS = [
+  // Google
+  'gmail.com',
+  'googlemail.com',
+  // Yahoo
+  'yahoo.com',
+  'yahoo.co.in',
+  'yahoo.co.uk',
+  'yahoo.ca',
+  'yahoo.com.au',
+  'ymail.com',
+  'rocketmail.com',
+  // Microsoft
+  'hotmail.com',
+  'hotmail.co.uk',
+  'hotmail.fr',
+  'outlook.com',
+  'outlook.in',
+  'live.com',
+  'live.co.uk',
+  'msn.com',
+  // Apple
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  // AOL
+  'aol.com',
+  'aim.com',
+  // Proton
+  'protonmail.com',
+  'proton.me',
+  'pm.me',
+  // Other popular free email providers
+  'mail.com',
+  'email.com',
+  'zoho.com',
+  'yandex.com',
+  'yandex.ru',
+  'gmx.com',
+  'gmx.net',
+  'gmx.de',
+  'web.de',
+  'fastmail.com',
+  'tutanota.com',
+  'tutamail.com',
+  'rediffmail.com',
+  'inbox.com',
+  'mail.ru',
+  'rambler.ru',
+  'qq.com',
+  '163.com',
+  '126.com',
+  'sina.com',
+  'naver.com',
+  'daum.net',
+  'hanmail.net',
+];
+
+/**
+ * Check if an email is a work email (not from personal/free email providers)
+ */
+export function isWorkEmail(email: string): boolean {
+  const domain = email.toLowerCase().split('@')[1];
+  if (!domain) return false;
+  return !PERSONAL_EMAIL_DOMAINS.includes(domain);
+}
+
 // Auth Schemas
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -9,7 +77,12 @@ export const loginSchema = z.object({
 
 export const signupSchema = z
   .object({
-    email: z.string().email('Invalid email address'),
+    email: z.string()
+      .email('Invalid email address')
+      .refine(
+        (email) => isWorkEmail(email),
+        { message: 'Please use your work email address. Personal email addresses (Gmail, Yahoo, Hotmail, etc.) are not allowed.' }
+      ),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
     fullName: z.string().min(2, 'Full name must be at least 2 characters'),

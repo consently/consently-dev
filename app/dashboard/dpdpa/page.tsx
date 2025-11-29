@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,10 @@ import {
   Download,
   Calendar,
   BarChart3,
+  PartyPopper,
+  X,
+  Rocket,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -64,11 +69,37 @@ interface RecentConsent {
   isVerified?: boolean;
 }
 
-export default function DPDPADashboardPage() {
+function DPDPADashboardContent() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activityCards, setActivityCards] = useState<ActivityCard[]>([]);
   const [recentConsents, setRecentConsents] = useState<RecentConsent[]>([]);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [onboardingData, setOnboardingData] = useState<{
+    cookieWidgetId?: string;
+    dpdpaWidgetId?: string;
+    activitiesCreated?: number;
+    industry?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    // Check if user just completed onboarding
+    const isOnboardingComplete = searchParams.get('onboarding') === 'complete';
+    if (isOnboardingComplete) {
+      setShowWelcome(true);
+      // Try to get onboarding result from session storage
+      try {
+        const storedData = sessionStorage.getItem('onboarding_result');
+        if (storedData) {
+          setOnboardingData(JSON.parse(storedData));
+          sessionStorage.removeItem('onboarding_result');
+        }
+      } catch (e) {
+        console.error('Error reading onboarding data:', e);
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -226,6 +257,62 @@ export default function DPDPADashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Banner for new users */}
+      {showWelcome && (
+        <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-24 -translate-x-24" />
+          <button 
+            onClick={() => setShowWelcome(false)}
+            className="absolute top-4 right-4 p-1 hover:bg-white/20 rounded-full transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <CardContent className="pt-6 pb-6 relative">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-white/20 rounded-xl">
+                <PartyPopper className="h-8 w-8" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold mb-2">Welcome to Consently! 🎉</h2>
+                <p className="text-blue-100 mb-4">
+                  Your consent management is all set up! Here's what we've created for you:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="font-semibold">DPDPA Widget</div>
+                    <div className="text-sm text-blue-100">Ready to embed on your site</div>
+                  </div>
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="font-semibold">Cookie Widget</div>
+                    <div className="text-sm text-blue-100">GDPR-compliant consent banner</div>
+                  </div>
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="font-semibold">
+                      {onboardingData?.activitiesCreated || 3} Activities
+                    </div>
+                    <div className="text-sm text-blue-100">Pre-configured for your industry</div>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Link href="/dashboard/dpdpa/widget">
+                    <Button className="bg-white text-blue-600 hover:bg-blue-50">
+                      <Rocket className="h-4 w-4 mr-2" />
+                      Configure Your Widget
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/dpdpa/activities">
+                    <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                      View Activities
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -596,5 +683,17 @@ export default function DPDPADashboardPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function DPDPADashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    }>
+      <DPDPADashboardContent />
+    </Suspense>
   );
 }

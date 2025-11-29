@@ -18,9 +18,13 @@ export function escapeHtml(text: string): string {
 
 /**
  * Helper function to generate privacy notice HTML
+ * @param activities - Array of processing activities
+ * @param domain - The domain/company name
+ * @param dpoEmail - Data Protection Officer email (defaults to dpo@consently.in)
  */
-export function generatePrivacyNoticeHTML(activities: any[], domain: string): string {
+export function generatePrivacyNoticeHTML(activities: any[], domain: string, dpoEmail?: string): string {
     const companyName = domain || '[Your Company Name]';
+    const contactEmail = dpoEmail || 'dpo@consently.in';
 
     const activitySections = activities.map((activity, index) => {
         // Use new purposes structure (ONLY structure now - no legacy fallback)
@@ -118,7 +122,7 @@ export function generatePrivacyNoticeHTML(activities: any[], domain: string): st
     <p style="color: #6b7280; margin-top: 24px;">
       <strong>How to Exercise Your Rights:</strong><br>
       You can manage your consent preferences or raise a grievance through our consent widget on ${escapeHtml(domain)}, 
-      or contact us at [contact-email@${escapeHtml(domain)}].
+      or contact our Data Protection Officer at <a href="mailto:${escapeHtml(contactEmail)}" style="color: #3b82f6;">${escapeHtml(contactEmail)}</a>.
     </p>
 
     <p style="color: #6b7280; margin-top: 16px;">
@@ -129,7 +133,7 @@ export function generatePrivacyNoticeHTML(activities: any[], domain: string): st
   <div style="margin-top: 32px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
     <p style="margin: 0; color: #6b7280; font-size: 14px;">
       <strong>Last Updated:</strong> ${new Date().toLocaleDateString()}<br>
-      <strong>Contact:</strong> [contact-email@${escapeHtml(domain)}]<br>
+      <strong>Data Protection Officer:</strong> <a href="mailto:${escapeHtml(contactEmail)}" style="color: #3b82f6;">${escapeHtml(contactEmail)}</a><br>
       <strong>Compliance:</strong> This notice is compliant with the Digital Personal Data Protection Act, 2023 (DPDPA)
     </p>
   </div>

@@ -20,12 +20,17 @@ interface LogContext {
 class Logger {
   private isProduction: boolean;
   private minLevel: LogLevel;
+  private silent: boolean;
   
   constructor() {
     this.isProduction = process.env.NODE_ENV === 'production';
     // In production, only log warnings and errors by default
     // Can be overridden with LOG_LEVEL environment variable
     this.minLevel = (process.env.LOG_LEVEL as LogLevel) || (this.isProduction ? 'warn' : 'debug');
+    // Completely silence console output in production unless LOG_LEVEL is explicitly set
+    // Set DISABLE_LOGGING=true to completely disable all logging
+    this.silent = process.env.DISABLE_LOGGING === 'true' || 
+                  (this.isProduction && !process.env.LOG_LEVEL && process.env.DISABLE_LOGGING !== 'false');
   }
 
   /**
@@ -77,6 +82,7 @@ class Logger {
    * Debug level logging (only in development)
    */
   debug(message: string, context?: LogContext): void {
+    if (this.silent) return;
     if (this.shouldLog('debug')) {
       console.debug(`[DEBUG] ${this.formatMessage(message, context)}`);
     }
@@ -86,6 +92,7 @@ class Logger {
    * Info level logging
    */
   info(message: string, context?: LogContext): void {
+    if (this.silent) return;
     if (this.shouldLog('info')) {
       console.log(`[INFO] ${this.formatMessage(message, context)}`);
     }
@@ -95,15 +102,17 @@ class Logger {
    * Warning level logging
    */
   warn(message: string, context?: LogContext): void {
+    if (this.silent) return;
     if (this.shouldLog('warn')) {
       console.warn(`[WARN] ${this.formatMessage(message, context)}`);
     }
   }
 
   /**
-   * Error level logging (always logged)
+   * Error level logging (always logged unless completely silent)
    */
   error(message: string, error?: Error | unknown, context?: LogContext): void {
+    if (this.silent) return;
     if (this.shouldLog('error')) {
       const errorContext = {
         ...context,
@@ -144,36 +153,32 @@ class Logger {
    * Performance timing utility
    */
   time(label: string): void {
-    if (!this.isProduction) {
-      console.time(label);
-    }
+    if (this.silent || this.isProduction) return;
+    console.time(label);
   }
 
   /**
    * End performance timing
    */
   timeEnd(label: string): void {
-    if (!this.isProduction) {
-      console.timeEnd(label);
-    }
+    if (this.silent || this.isProduction) return;
+    console.timeEnd(label);
   }
 
   /**
    * Group logs together (development only)
    */
   group(label: string): void {
-    if (!this.isProduction) {
-      console.group(label);
-    }
+    if (this.silent || this.isProduction) return;
+    console.group(label);
   }
 
   /**
    * End log group
    */
   groupEnd(): void {
-    if (!this.isProduction) {
-      console.groupEnd();
-    }
+    if (this.silent || this.isProduction) return;
+    console.groupEnd();
   }
 }
 

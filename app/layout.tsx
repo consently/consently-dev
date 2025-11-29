@@ -5,6 +5,8 @@ import "./globals.css";
 import ConsentlyCookieWidget from "@/components/cookie/ConsentlyCookieWidget";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SkipLink } from "@/components/ui/SkipLink";
+// Suppress console output in production (client-side)
+import '@/lib/console-suppress';
 
 const inter = Inter({ subsets: ["latin"] });
 

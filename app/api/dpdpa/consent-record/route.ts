@@ -766,7 +766,7 @@ export async function POST(request: NextRequest) {
             })),
           }));
 
-          const generatedHTML = generatePrivacyNoticeHTML(activities, widgetConfigData.domain);
+          const generatedHTML = generatePrivacyNoticeHTML(activities, widgetConfigData.domain, widgetConfigData.dpo_email || 'dpo@consently.in');
           privacyNoticeSnapshot = sanitizeHTML(generatedHTML);
         }
       }

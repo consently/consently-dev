@@ -203,15 +203,20 @@ export default function SignupPage() {
               required
             />
 
-            <Input
-              {...register('email')}
-              type="email"
-              label="Work Email"
-              placeholder="you@company.com"
-              error={errors.email?.message}
-              disabled={isLoading}
-              required
-            />
+            <div>
+              <Input
+                {...register('email')}
+                type="email"
+                label="Work Email"
+                placeholder="you@company.com"
+                error={errors.email?.message}
+                disabled={isLoading}
+                required
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Personal emails (Gmail, Yahoo, etc.) are not accepted
+              </p>
+            </div>
 
             <PasswordInput
               {...register('password')}
