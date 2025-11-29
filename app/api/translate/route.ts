@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { translate, translateBatch, isLanguageSupported, getCacheStats } from '@/lib/translation-service';
+import { permissiveCorsHeaders } from '@/lib/cors';
 
 /**
  * Translation API Endpoint
@@ -21,6 +22,17 @@ import { translate, translateBatch, isLanguageSupported, getCacheStats } from '@
  * Dogri (doi), Konkani (kok), Manipuri (mni), Bodo (brx), Santhali (sat)
  */
 
+// CORS headers for widget cross-origin requests
+const corsHeaders = permissiveCorsHeaders();
+
+/**
+ * OPTIONS /api/translate
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -30,14 +42,14 @@ export async function POST(request: NextRequest) {
     if (!target) {
       return NextResponse.json(
         { error: 'Target language is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     if (!text && !texts) {
       return NextResponse.json(
         { error: 'Text or texts array is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -52,7 +64,7 @@ export async function POST(request: NextRequest) {
             all: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'ne', 'sa', 'ks', 'sd', 'mai', 'doi', 'en']
           }
         },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -69,7 +81,7 @@ export async function POST(request: NextRequest) {
         provider: results[0]?.provider || 'none',
         cached: results[0]?.cached || false,
         count: results.length,
-      });
+      }, { headers: corsHeaders });
     }
 
     // Handle single text translation
@@ -85,12 +97,12 @@ export async function POST(request: NextRequest) {
         provider: result.provider,
         cached: result.cached,
         error: result.error,
-      });
+      }, { headers: corsHeaders });
     }
 
     return NextResponse.json(
       { error: 'Invalid request' },
-      { status: 400 }
+      { status: 400, headers: corsHeaders }
     );
   } catch (error) {
     console.error('Translation API error:', error);
@@ -99,7 +111,7 @@ export async function POST(request: NextRequest) {
         error: 'Translation failed',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -135,12 +147,12 @@ export async function GET() {
         all: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'ne', 'sa', 'ks', 'sd', 'mai', 'doi'],
         total_count: 19 // 18 Indian languages + English
       },
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Translation status error:', error);
     return NextResponse.json(
       { error: 'Failed to get translation status' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
