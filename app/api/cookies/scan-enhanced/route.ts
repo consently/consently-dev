@@ -17,8 +17,30 @@ import { z } from 'zod';
  * - Compliance scoring
  */
 
+// Custom URL validation that accepts all common TLDs including .co, .in, .co.in, .shop, .live, .ai, .io, etc.
+const validateUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    // Must be http or https
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return false;
+    }
+    // Hostname must have at least one dot (e.g., example.com, example.co.in)
+    if (!parsed.hostname.includes('.')) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const scanRequestSchema = z.object({
-  url: z.string().url('Invalid website URL'),
+  url: z.string()
+    .min(1, 'URL is required')
+    .refine(validateUrl, {
+      message: 'Please enter a valid URL (e.g., https://example.com, https://example.co.in)',
+    }),
   scanDepth: z.enum(['shallow', 'medium', 'deep']),
   autoImport: z.boolean().optional().default(true),
   webhookUrl: z.string().url().optional(),

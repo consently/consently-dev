@@ -166,8 +166,32 @@ export const changePasswordSchema = z
   });
 
 // Cookie Scan Schema
+// Custom URL validation that accepts all common TLDs including .co, .in, .co.in, .shop, .live, .ai, .io, etc.
+const urlRegex = /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}(?:\.[a-zA-Z0-9()]{1,63})*\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
+
 export const cookieScanSchema = z.object({
-  url: z.string().url('Invalid URL'),
+  url: z.string()
+    .min(1, 'URL is required')
+    .refine((url) => {
+      // First try native URL parsing
+      try {
+        const parsed = new URL(url);
+        // Must be http or https
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return false;
+        }
+        // Hostname must have at least one dot (e.g., example.com, example.co.in)
+        if (!parsed.hostname.includes('.')) {
+          return false;
+        }
+        return true;
+      } catch {
+        // If native parsing fails, try regex for edge cases
+        return urlRegex.test(url);
+      }
+    }, {
+      message: 'Please enter a valid URL (e.g., https://example.com, https://example.co.in)',
+    }),
   scanDepth: z.enum(['shallow', 'medium', 'deep']),
 });
 
