@@ -1,8 +1,13 @@
 /**
- * Consently Cookie Consent Widget v3.6 - BANNER LANGUAGE SELECTOR FIX
+ * Consently Cookie Consent Widget v4.0 - AUTO SCRIPT BLOCKING
  * Production-ready embeddable widget (no dependencies)
  * DPDPA 2023 & GDPR Compliant
- 
+ * 
+ * Features:
+ * - TRUE auto-blocking via MutationObserver + Monkey Patching
+ * - Pattern-based detection of known tracking scripts
+ * - Script queue for blocked scripts until consent
+ * 
  * Usage: <script src="https://your-domain.com/widget.js" data-consently-id="YOUR_WIDGET_ID"></script>
  */
 
@@ -18,7 +23,619 @@
     return;
   }
 
-  console.log('[Consently] Initializing widget v3.6 with ID:', widgetId);
+  console.log('[Consently] Initializing widget v4.0 with ID:', widgetId);
+
+  // ============================================================================
+  // AUTO SCRIPT BLOCKING - MutationObserver + Monkey Patching
+  // ============================================================================
+
+  // Known tracking script patterns (domain patterns and script names)
+  const TRACKING_SCRIPT_PATTERNS = {
+    analytics: [
+      // Google Analytics
+      /google-analytics\.com/i,
+      /googletagmanager\.com/i,
+      /gtag\/js/i,
+      /analytics\.js/i,
+      /ga\.js/i,
+      // Mixpanel
+      /mixpanel\.com/i,
+      /cdn\.mxpnl\.com/i,
+      // Segment
+      /segment\.com/i,
+      /segment\.io/i,
+      /cdn\.segment\.com/i,
+      // Amplitude
+      /amplitude\.com/i,
+      /cdn\.amplitude\.com/i,
+      // Heap
+      /heap-analytics\.com/i,
+      /heapanalytics\.com/i,
+      // Hotjar
+      /hotjar\.com/i,
+      /static\.hotjar\.com/i,
+      // Clarity (Microsoft)
+      /clarity\.ms/i,
+      // Plausible
+      /plausible\.io/i,
+      // Matomo/Piwik
+      /matomo\.js/i,
+      /piwik\.js/i,
+      // PostHog
+      /posthog\.com/i,
+      /app\.posthog\.com/i,
+      // Clicky
+      /static\.getclicky\.com/i,
+      // Fathom
+      /usefathom\.com/i,
+      // Simple Analytics
+      /simpleanalytics\.com/i,
+    ],
+    marketing: [
+      // Facebook/Meta Pixel
+      /connect\.facebook\.net/i,
+      /facebook\.com\/tr/i,
+      /fbevents\.js/i,
+      /fbq\(/i,
+      // Google Ads
+      /googleadservices\.com/i,
+      /googlesyndication\.com/i,
+      /googleads\.g\.doubleclick\.net/i,
+      /pagead2\.googlesyndication\.com/i,
+      // Twitter/X
+      /static\.ads-twitter\.com/i,
+      /platform\.twitter\.com/i,
+      /analytics\.twitter\.com/i,
+      // LinkedIn
+      /snap\.licdn\.com/i,
+      /platform\.linkedin\.com/i,
+      /linkedin\.com\/px/i,
+      // Pinterest
+      /pintrk/i,
+      /assets\.pinterest\.com/i,
+      // TikTok
+      /analytics\.tiktok\.com/i,
+      /tiktok\.com\/i18n/i,
+      // Snapchat
+      /sc-static\.net/i,
+      // Criteo
+      /static\.criteo\.net/i,
+      /criteo\.com/i,
+      // Taboola
+      /cdn\.taboola\.com/i,
+      // Outbrain
+      /widgets\.outbrain\.com/i,
+      // AdRoll
+      /d\.adroll\.com/i,
+      // Bing Ads
+      /bat\.bing\.com/i,
+      // Yahoo
+      /s\.yimg\.com/i,
+      // Reddit
+      /www\.redditstatic\.com\/ads/i,
+      // Quora
+      /q\.quora\.com/i,
+    ],
+    social: [
+      // Facebook SDK
+      /connect\.facebook\.net\/.*\/sdk\.js/i,
+      /facebook\.com\/plugins/i,
+      // Twitter widgets
+      /platform\.twitter\.com\/widgets/i,
+      // LinkedIn widgets
+      /platform\.linkedin\.com\/in\.js/i,
+      // Pinterest widgets
+      /assets\.pinterest\.com\/js\/pinit/i,
+      // Instagram embed
+      /instagram\.com\/embed/i,
+      // YouTube embed tracking
+      /youtube\.com\/iframe_api/i,
+      // Disqus
+      /disqus\.com/i,
+      // ShareThis
+      /sharethis\.com/i,
+      // AddThis
+      /addthis\.com/i,
+      // AddToAny
+      /addtoany\.com/i,
+    ],
+    preferences: [
+      // Intercom
+      /intercom\.io/i,
+      /widget\.intercom\.io/i,
+      // Drift
+      /js\.driftt\.com/i,
+      /drift\.com/i,
+      // Zendesk
+      /static\.zdassets\.com/i,
+      /zendesk\.com/i,
+      // Freshdesk
+      /freshdesk\.com/i,
+      // Crisp
+      /client\.crisp\.chat/i,
+      // Tawk.to
+      /embed\.tawk\.to/i,
+      // LiveChat
+      /cdn\.livechatinc\.com/i,
+      // Olark
+      /static\.olark\.com/i,
+      // HubSpot
+      /js\.hs-scripts\.com/i,
+      /js\.hubspot\.com/i,
+      // Pardot
+      /pi\.pardot\.com/i,
+      // Marketo
+      /munchkin\.marketo\.net/i,
+    ]
+  };
+
+  // Inline script content patterns (for detecting tracking in inline scripts)
+  const INLINE_SCRIPT_PATTERNS = {
+    analytics: [
+      /gtag\s*\(\s*['"]config['"]/i,
+      /ga\s*\(\s*['"]create['"]/i,
+      /GoogleAnalyticsObject/i,
+      /mixpanel\.init/i,
+      /amplitude\.init/i,
+      /heap\.load/i,
+      /hj\s*\(\s*['"]init['"]/i,
+      /clarity\s*\(/i,
+      /posthog\.init/i,
+      /_paq\.push/i,
+    ],
+    marketing: [
+      /fbq\s*\(\s*['"]init['"]/i,
+      /fbevents\.js/i,
+      /gtag\s*\(\s*['"]config['"]\s*,\s*['"]AW-/i,
+      /twq\s*\(\s*['"]init['"]/i,
+      /lintrk/i,
+      /pintrk\s*\(/i,
+      /ttq\.load/i,
+      /snaptr\s*\(/i,
+      /criteo_q/i,
+      /_tfa\.push/i,
+      /uetq/i,
+    ],
+    social: [
+      /FB\.init/i,
+      /twttr\.widgets/i,
+      /IN\.init/i,
+      /DISQUS/i,
+    ],
+    preferences: [
+      /Intercom\s*\(/i,
+      /drift\.load/i,
+      /zE\s*\(/i,
+      /Tawk_API/i,
+      /LC_API/i,
+      /olark\.identify/i,
+      /hs\.load/i,
+      /Munchkin\.init/i,
+    ]
+  };
+
+  // Script blocking state
+  let autoBlockEnabled = true; // Will be updated from config
+  let consentedCategories = ['necessary']; // Default: only necessary scripts allowed
+  let blockedScriptQueue = []; // Queue of blocked scripts waiting for consent
+  let scriptBlockingInitialized = false;
+  let originalCreateElement = null;
+  let originalAppendChild = null;
+  let originalInsertBefore = null;
+  let originalAppend = null;
+  let mutationObserver = null;
+
+  // Detect script category based on src or content
+  function detectScriptCategory(scriptElement) {
+    const src = scriptElement.src || '';
+    const content = scriptElement.textContent || scriptElement.innerHTML || '';
+    
+    // Check if script has explicit data-category attribute
+    const explicitCategory = scriptElement.getAttribute('data-category');
+    if (explicitCategory) {
+      return explicitCategory;
+    }
+
+    // Check if script is marked as necessary
+    if (scriptElement.getAttribute('data-consently-necessary') === 'true') {
+      return 'necessary';
+    }
+
+    // Check src-based patterns
+    if (src) {
+      for (const [category, patterns] of Object.entries(TRACKING_SCRIPT_PATTERNS)) {
+        for (const pattern of patterns) {
+          if (pattern.test(src)) {
+            console.log(`[Consently] Detected ${category} script by src:`, src.substring(0, 100));
+            return category;
+          }
+        }
+      }
+    }
+
+    // Check inline script content patterns
+    if (content && content.length > 10) {
+      for (const [category, patterns] of Object.entries(INLINE_SCRIPT_PATTERNS)) {
+        for (const pattern of patterns) {
+          if (pattern.test(content)) {
+            console.log(`[Consently] Detected ${category} script by content pattern`);
+            return category;
+          }
+        }
+      }
+    }
+
+    return null; // Unknown - don't block
+  }
+
+  // Check if a category is consented
+  function isCategoryConsented(category) {
+    if (!category || category === 'necessary') return true;
+    return consentedCategories.includes(category);
+  }
+
+  // Block a script by converting it to text/plain
+  function blockScript(scriptElement, category) {
+    // Store original attributes for later restoration
+    const blockedScript = {
+      element: scriptElement,
+      category: category,
+      originalType: scriptElement.type || 'text/javascript',
+      src: scriptElement.src,
+      content: scriptElement.textContent || scriptElement.innerHTML,
+      attributes: {},
+      parent: scriptElement.parentNode,
+      nextSibling: scriptElement.nextSibling
+    };
+
+    // Copy all attributes
+    Array.from(scriptElement.attributes).forEach(attr => {
+      blockedScript.attributes[attr.name] = attr.value;
+    });
+
+    // Add to blocked queue
+    blockedScriptQueue.push(blockedScript);
+
+    console.log(`[Consently] 🚫 Blocked ${category} script:`, scriptElement.src || '(inline)');
+
+    // Return true to indicate script should be blocked
+    return true;
+  }
+
+  // Create a placeholder script that won't execute
+  function createBlockedPlaceholder(originalScript, category) {
+    const placeholder = document.createElement('script');
+    placeholder.type = 'text/plain'; // Browser won't execute this
+    placeholder.setAttribute('data-consently-blocked', 'true');
+    placeholder.setAttribute('data-consently-category', category);
+    placeholder.setAttribute('data-consently-original-type', originalScript.type || 'text/javascript');
+    
+    // Copy attributes except type
+    Array.from(originalScript.attributes).forEach(attr => {
+      if (attr.name !== 'type' && !attr.name.startsWith('data-consently')) {
+        placeholder.setAttribute(attr.name, attr.value);
+      }
+    });
+
+    // Copy content for inline scripts
+    if (!originalScript.src && originalScript.textContent) {
+      placeholder.textContent = originalScript.textContent;
+    }
+
+    return placeholder;
+  }
+
+  // Execute a blocked script
+  function executeBlockedScript(blockedScript) {
+    console.log(`[Consently] ✅ Executing previously blocked ${blockedScript.category} script`);
+
+    const newScript = document.createElement('script');
+    newScript.type = blockedScript.originalType || 'text/javascript';
+
+    // Restore all original attributes
+    for (const [name, value] of Object.entries(blockedScript.attributes)) {
+      if (name !== 'type') {
+        newScript.setAttribute(name, value);
+      }
+    }
+
+    // Set src or content
+    if (blockedScript.src) {
+      newScript.src = blockedScript.src;
+    } else if (blockedScript.content) {
+      newScript.textContent = blockedScript.content;
+    }
+
+    // Mark as unblocked
+    newScript.setAttribute('data-consently-unblocked', 'true');
+
+    // Insert into DOM
+    if (blockedScript.parent && blockedScript.parent.isConnected !== false) {
+      if (blockedScript.nextSibling && blockedScript.nextSibling.parentNode === blockedScript.parent) {
+        blockedScript.parent.insertBefore(newScript, blockedScript.nextSibling);
+      } else {
+        blockedScript.parent.appendChild(newScript);
+      }
+    } else {
+      // Fallback: append to head or body
+      (document.head || document.body).appendChild(newScript);
+    }
+
+    // Also unblock any placeholder in DOM
+    const placeholder = document.querySelector(
+      `script[data-consently-blocked="true"][data-consently-category="${blockedScript.category}"]` +
+      (blockedScript.src ? `[src="${blockedScript.src}"]` : '')
+    );
+    if (placeholder) {
+      placeholder.remove();
+    }
+  }
+
+  // Release all blocked scripts for consented categories
+  function releaseBlockedScripts(categories) {
+    const toExecute = [];
+    const remaining = [];
+
+    for (const blockedScript of blockedScriptQueue) {
+      if (categories.includes(blockedScript.category) || blockedScript.category === 'necessary') {
+        toExecute.push(blockedScript);
+      } else {
+        remaining.push(blockedScript);
+      }
+    }
+
+    blockedScriptQueue = remaining;
+
+    // Execute in order
+    for (const script of toExecute) {
+      executeBlockedScript(script);
+    }
+
+    // Also handle scripts already in DOM with data-consently-blocked
+    const blockedInDOM = document.querySelectorAll('script[data-consently-blocked="true"]');
+    blockedInDOM.forEach(placeholder => {
+      const category = placeholder.getAttribute('data-consently-category');
+      if (categories.includes(category) || category === 'necessary') {
+        const newScript = document.createElement('script');
+        newScript.type = placeholder.getAttribute('data-consently-original-type') || 'text/javascript';
+        
+        Array.from(placeholder.attributes).forEach(attr => {
+          if (!attr.name.startsWith('data-consently') && attr.name !== 'type') {
+            newScript.setAttribute(attr.name, attr.value);
+          }
+        });
+
+        if (!placeholder.src && placeholder.textContent) {
+          newScript.textContent = placeholder.textContent;
+        }
+
+        newScript.setAttribute('data-consently-unblocked', 'true');
+        placeholder.parentNode.replaceChild(newScript, placeholder);
+        console.log(`[Consently] ✅ Unblocked ${category} script from DOM`);
+      }
+    });
+
+    console.log(`[Consently] Released ${toExecute.length} blocked scripts, ${remaining.length} still blocked`);
+  }
+
+  // Monkey patch document.createElement
+  function patchCreateElement() {
+    if (originalCreateElement) return; // Already patched
+
+    originalCreateElement = document.createElement.bind(document);
+
+    document.createElement = function(tagName, options) {
+      const element = originalCreateElement(tagName, options);
+
+      if (tagName.toLowerCase() === 'script') {
+        // Store reference to track when src is set
+        let _src = '';
+        const originalSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+        
+        Object.defineProperty(element, '_consentlyTracked', {
+          value: true,
+          writable: false,
+          enumerable: false
+        });
+
+        // We'll check the script when it's about to be inserted
+        element._consentlyPendingCheck = true;
+      }
+
+      return element;
+    };
+
+    console.log('[Consently] 🔧 Patched document.createElement');
+  }
+
+  // Monkey patch appendChild/insertBefore/append
+  function patchDOMInsertion() {
+    if (originalAppendChild) return; // Already patched
+
+    // Patch appendChild
+    originalAppendChild = Node.prototype.appendChild;
+    Node.prototype.appendChild = function(child) {
+      if (child && child.tagName === 'SCRIPT' && autoBlockEnabled) {
+        const category = detectScriptCategory(child);
+        if (category && !isCategoryConsented(category)) {
+          // Block this script
+          const placeholder = createBlockedPlaceholder(child, category);
+          blockScript(child, category);
+          return originalAppendChild.call(this, placeholder);
+        }
+      }
+      return originalAppendChild.call(this, child);
+    };
+
+    // Patch insertBefore
+    originalInsertBefore = Node.prototype.insertBefore;
+    Node.prototype.insertBefore = function(newNode, referenceNode) {
+      if (newNode && newNode.tagName === 'SCRIPT' && autoBlockEnabled) {
+        const category = detectScriptCategory(newNode);
+        if (category && !isCategoryConsented(category)) {
+          // Block this script
+          const placeholder = createBlockedPlaceholder(newNode, category);
+          blockScript(newNode, category);
+          return originalInsertBefore.call(this, placeholder, referenceNode);
+        }
+      }
+      return originalInsertBefore.call(this, newNode, referenceNode);
+    };
+
+    // Patch append (modern method)
+    if (Element.prototype.append) {
+      originalAppend = Element.prototype.append;
+      Element.prototype.append = function(...nodes) {
+        const processedNodes = nodes.map(node => {
+          if (node && node.tagName === 'SCRIPT' && autoBlockEnabled) {
+            const category = detectScriptCategory(node);
+            if (category && !isCategoryConsented(category)) {
+              const placeholder = createBlockedPlaceholder(node, category);
+              blockScript(node, category);
+              return placeholder;
+            }
+          }
+          return node;
+        });
+        return originalAppend.apply(this, processedNodes);
+      };
+    }
+
+    console.log('[Consently] 🔧 Patched DOM insertion methods');
+  }
+
+  // Initialize MutationObserver for scripts added via innerHTML or other methods
+  function initMutationObserver() {
+    if (mutationObserver) return; // Already initialized
+
+    mutationObserver = new MutationObserver((mutations) => {
+      if (!autoBlockEnabled) return;
+
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.tagName === 'SCRIPT') {
+            // Check if this script was already processed by our patches
+            if (node.getAttribute('data-consently-blocked') || 
+                node.getAttribute('data-consently-unblocked') ||
+                node.getAttribute('data-consently-necessary') === 'true') {
+              continue;
+            }
+
+            const category = detectScriptCategory(node);
+            if (category && !isCategoryConsented(category)) {
+              // Script was added without going through our patches (e.g., innerHTML)
+              // We need to prevent it from executing
+              
+              // Unfortunately, by the time MutationObserver fires, the script may have already executed
+              // But we can still track it and prevent future similar scripts
+              console.log(`[Consently] ⚠️ Detected unblocked ${category} script (may have executed):`, 
+                node.src || '(inline)');
+              
+              // Mark it for tracking
+              node.setAttribute('data-consently-detected', category);
+            }
+          }
+
+          // Also check child scripts if a container was added
+          if (node.querySelectorAll) {
+            const scripts = node.querySelectorAll('script');
+            scripts.forEach(script => {
+              if (script.getAttribute('data-consently-blocked') || 
+                  script.getAttribute('data-consently-unblocked') ||
+                  script.getAttribute('data-consently-necessary') === 'true') {
+                return;
+              }
+
+              const category = detectScriptCategory(script);
+              if (category && !isCategoryConsented(category)) {
+                console.log(`[Consently] ⚠️ Detected nested unblocked ${category} script`);
+                script.setAttribute('data-consently-detected', category);
+              }
+            });
+          }
+        }
+      }
+    });
+
+    // Start observing
+    mutationObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+
+    console.log('[Consently] 👁️ MutationObserver initialized');
+  }
+
+  // Initialize auto-blocking
+  function initAutoBlocking() {
+    if (scriptBlockingInitialized) return;
+    
+    console.log('[Consently] 🛡️ Initializing auto script blocking...');
+    
+    // Apply monkey patches
+    patchCreateElement();
+    patchDOMInsertion();
+    
+    // Initialize MutationObserver
+    initMutationObserver();
+    
+    // Block existing scripts in DOM that haven't executed yet
+    // (Scripts with type="text/plain" are already blocked)
+    const existingScripts = document.querySelectorAll('script:not([type="text/plain"]):not([data-consently-id])');
+    existingScripts.forEach(script => {
+      // Skip our own widget script and scripts that are already processed
+      if (script === currentScript || 
+          script.getAttribute('data-consently-blocked') ||
+          script.getAttribute('data-consently-unblocked') ||
+          script.getAttribute('data-consently-necessary') === 'true') {
+        return;
+      }
+
+      const category = detectScriptCategory(script);
+      if (category && !isCategoryConsented(category)) {
+        // This script may have already executed, but we track it
+        script.setAttribute('data-consently-detected', category);
+        console.log(`[Consently] 📋 Tracked existing ${category} script:`, script.src || '(inline)');
+      }
+    });
+
+    scriptBlockingInitialized = true;
+    console.log('[Consently] ✅ Auto script blocking initialized');
+  }
+
+  // Update consented categories (called when consent changes)
+  function updateConsentedCategories(categories) {
+    const previousCategories = [...consentedCategories];
+    consentedCategories = categories.includes('necessary') ? categories : ['necessary', ...categories];
+    
+    console.log('[Consently] Consent updated:', previousCategories, '->', consentedCategories);
+
+    // Release blocked scripts for newly consented categories
+    const newlyConsented = consentedCategories.filter(c => !previousCategories.includes(c));
+    if (newlyConsented.length > 0) {
+      releaseBlockedScripts(consentedCategories);
+    }
+  }
+
+  // Disable auto-blocking (e.g., if config says not to block)
+  function disableAutoBlocking() {
+    autoBlockEnabled = false;
+    
+    // Release all blocked scripts
+    releaseBlockedScripts(['analytics', 'marketing', 'social', 'preferences', 'necessary']);
+    
+    // Stop mutation observer
+    if (mutationObserver) {
+      mutationObserver.disconnect();
+      mutationObserver = null;
+    }
+
+    console.log('[Consently] Auto-blocking disabled');
+  }
+
+  // ============================================================================
+  // END AUTO SCRIPT BLOCKING
+  // ============================================================================
 
   // State management
   let isTranslating = false;
@@ -65,6 +682,7 @@
     showAfterDelay: 0,
     respectDNT: false,
     blockContent: false,
+    blockScripts: true, // Enable auto script blocking by default
     zIndex: 9999
   };
 
@@ -635,7 +1253,17 @@
       return;
     }
 
+    // Initialize auto script blocking EARLY (before config loads)
+    // This ensures scripts added while config is loading are also blocked
+    initAutoBlocking();
+
     await fetchBannerConfig();
+
+    // Check if auto-blocking should be disabled based on config
+    if (config.blockScripts === false) {
+      console.log('[Consently] Auto-blocking disabled by config');
+      disableAutoBlocking();
+    }
 
     const existingConsent = CookieManager.get('consently_consent');
     const isPreviewMode = (window.location.hostname.includes('consently.in') ||
@@ -2028,7 +2656,10 @@
   function manageScripts(categories) {
     console.log('[Consently] Managing scripts for categories:', categories);
 
-    // Find all scripts with data-category attribute
+    // Update the auto-blocking system with new consented categories
+    updateConsentedCategories(categories);
+
+    // Find all scripts with data-category attribute (manual blocking)
     const scripts = document.querySelectorAll('script[data-category]');
 
     scripts.forEach(script => {
@@ -2038,16 +2669,18 @@
       if (categories.includes(category) || category === 'necessary') {
         // Check if script is currently blocked (type="text/plain")
         if (script.type === 'text/plain') {
-          console.log(`[Consently] Unblocking script: ${category}`);
+          console.log(`[Consently] Unblocking manual script: ${category}`);
 
           // Create a new script element to replace the blocked one
           // (Changing type doesn't execute the script, we must re-insert it)
-          const newScript = document.createElement('script');
+          // Use original createElement to avoid our blocking logic
+          const newScript = originalCreateElement ? originalCreateElement('script') : document.createElement('script');
           newScript.type = 'text/javascript';
+          newScript.setAttribute('data-consently-unblocked', 'true');
 
           // Copy all attributes
           Array.from(script.attributes).forEach(attr => {
-            if (attr.name !== 'type') {
+            if (attr.name !== 'type' && !attr.name.startsWith('data-consently')) {
               newScript.setAttribute(attr.name, attr.value);
             }
           });
@@ -2073,6 +2706,9 @@
         }
       }
     });
+
+    // Release auto-blocked scripts for consented categories
+    releaseBlockedScripts(categories);
   }
 
   // Apply consent

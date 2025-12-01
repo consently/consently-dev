@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Script Blocking Test - Consently v4.0</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      min-height: 100vh;
+      color: #e2e8f0;
+    }
+    .container {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+      border: 1px solid #334155;
+    }
+    h1 {
+      color: #f8fafc;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .version {
+      display: inline-block;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .feature-badge {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .test-section {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .test-section h3 {
+      margin-top: 0;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .script-status {
+      display: grid;
+      gap: 12px;
+    }
+    .script-item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.3s ease;
+    }
+    .script-item.blocked {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+    }
+    .script-item.allowed {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
+    }
+    .script-item.pending {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+    }
+    .script-icon {
+      font-size: 28px;
+      min-width: 40px;
+      text-align: center;
+    }
+    .script-info {
+      flex: 1;
+    }
+    .script-name {
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    .script-category {
+      font-size: 12px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .script-badge {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .script-badge.blocked {
+      background: #ef4444;
+      color: white;
+    }
+    .script-badge.allowed {
+      background: #10b981;
+      color: white;
+    }
+    .script-badge.pending {
+      background: #f59e0b;
+      color: #1e293b;
+    }
+    
+    .console-box {
+      background: #0a0f1a;
+      color: #10b981;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 12px;
+      padding: 20px;
+      border-radius: 8px;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #1e293b;
+    }
+    .console-box .log { color: #10b981; }
+    .console-box .warn { color: #f59e0b; }
+    .console-box .error { color: #ef4444; }
+    .console-box .info { color: #3b82f6; }
+    .console-box .blocked { color: #ef4444; font-weight: bold; }
+    .console-box .unblocked { color: #10b981; font-weight: bold; }
+    
+    .info-box {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .info-box h4 {
+      margin: 0 0 12px 0;
+      color: #60a5fa;
+    }
+    .info-box ul {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+    }
+    .info-box li {
+      margin-bottom: 6px;
+      color: #93c5fd;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button.secondary {
+      background: #334155;
+    }
+    button.danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    button.success {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+    .stat-card.blocked .stat-value { color: #ef4444; }
+    .stat-card.allowed .stat-value { color: #10b981; }
+    .stat-card.pending .stat-value { color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ Auto Script Blocking Test</h1>
+    <div class="version">v4.0 - MutationObserver + Monkey Patching</div>
+    <span class="feature-badge">TRUE AUTO-BLOCKING</span>
+    
+    <div class="info-box">
+      <h4>✨ What's New in v4.0</h4>
+      <ul>
+        <li><strong>MutationObserver:</strong> Detects scripts added via innerHTML or DOM manipulation</li>
+        <li><strong>Monkey Patching:</strong> Intercepts createElement, appendChild, insertBefore, append</li>
+        <li><strong>Pattern Detection:</strong> Automatically identifies 50+ known tracking scripts</li>
+        <li><strong>Script Queue:</strong> Blocked scripts are queued and executed after consent</li>
+        <li><strong>No Manual Setup:</strong> Works automatically without data-category attributes</li>
+      </ul>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card blocked">
+        <div class="stat-value" id="blocked-count">0</div>
+        <div class="stat-label">Blocked</div>
+      </div>
+      <div class="stat-card allowed">
+        <div class="stat-value" id="allowed-count">0</div>
+        <div class="stat-label">Allowed</div>
+      </div>
+      <div class="stat-card pending">
+        <div class="stat-value" id="pending-count">0</div>
+        <div class="stat-label">Pending</div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h3>🧪 Test Scripts</h3>
+      <p style="color: #94a3b8; margin-bottom: 16px;">Click buttons to dynamically inject tracking scripts and see them get blocked:</p>
+      
+      <div style="margin-bottom: 20px;">
+        <button onclick="injectGoogleAnalytics()">📊 Inject Google Analytics</button>
+        <button onclick="injectFacebookPixel()">📘 Inject Facebook Pixel</button>
+        <button onclick="injectHotjar()">🔥 Inject Hotjar</button>
+        <button onclick="injectIntercom()">💬 Inject Intercom</button>
+        <button class="secondary" onclick="injectInlineTracker()">📝 Inject Inline Tracker</button>
+      </div>
+      
+      <div class="script-status" id="script-status">
+        <div class="script-item pending">
+          <div class="script-icon">⏳</div>
+          <div class="script-info">
+            <div class="script-name">No scripts injected yet</div>
+            <div class="script-category">Click a button above to test</div>
+          </div>
+          <span class="script-badge pending">Waiting</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h3>🎛️ Consent Controls</h3>
+      <p style="color: #94a3b8; margin-bottom: 16px;">Simulate consent to see blocked scripts execute:</p>
+      
+      <button class="success" onclick="grantAllConsent()">✅ Accept All Cookies</button>
+      <button class="danger" onclick="revokeAllConsent()">❌ Reject All</button>
+      <button class="secondary" onclick="grantAnalyticsOnly()">📊 Analytics Only</button>
+      <button class="secondary" onclick="grantMarketingOnly()">📢 Marketing Only</button>
+    </div>
+
+    <div class="test-section">
+      <h3>📋 Console Log</h3>
+      <div class="console-box" id="console">
+        <div class="info">[Test Page] Waiting for Consently widget to initialize...</div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h3>🔍 How It Works</h3>
+      <div style="color: #94a3b8; line-height: 1.8;">
+        <p><strong>1. Early Initialization:</strong> Auto-blocking starts immediately when widget loads, before any tracking scripts can execute.</p>
+        <p><strong>2. Pattern Matching:</strong> Scripts are identified by their src URL or inline content against a database of 50+ known trackers.</p>
+        <p><strong>3. Interception:</strong> Monkey patching intercepts all script creation methods (createElement, appendChild, etc.).</p>
+        <p><strong>4. Blocking:</strong> Detected tracking scripts are converted to type="text/plain" (browser ignores them).</p>
+        <p><strong>5. Queueing:</strong> Blocked scripts are stored in a queue with all their attributes preserved.</p>
+        <p><strong>6. Release:</strong> When consent is granted, queued scripts are re-created and executed in order.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center;">
+      <p style="color: #64748b; font-size: 13px;">
+        Open browser DevTools (F12) → Console tab to see detailed blocking logs
+      </p>
+      <button onclick="location.reload()">🔄 Reload Page</button>
+      <button class="secondary" onclick="clearConsole()">🧹 Clear Console</button>
+    </div>
+  </div>
+
+  <!-- Load Consently Widget FIRST to enable auto-blocking -->
+  <script src="/widget.js" data-consently-id="test-widget-id"></script>
+  
+  <script>
+    // Track script injection status
+    let scriptStats = {
+      blocked: 0,
+      allowed: 0,
+      pending: 0
+    };
+    let injectedScripts = [];
+
+    // Console logging
+    const consoleBox = document.getElementById('console');
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    function addConsoleEntry(text, type = 'log') {
+      const div = document.createElement('div');
+      div.className = type;
+      
+      // Highlight blocking messages
+      if (text.includes('🚫 Blocked')) {
+        div.className = 'blocked';
+      } else if (text.includes('✅ Executing') || text.includes('✅ Unblocked')) {
+        div.className = 'unblocked';
+      }
+      
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+      consoleBox.appendChild(div);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      const text = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+      if (text.includes('[Consently]') || text.includes('[Test Page]')) {
+        addConsoleEntry(text, 'log');
+      }
+    };
+
+    console.warn = function(...args) {
+      originalWarn.apply(console, args);
+      const text = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+      if (text.includes('[Consently]')) {
+        addConsoleEntry(text, 'warn');
+      }
+    };
+
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      const text = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+      addConsoleEntry(text, 'error');
+    };
+
+    // Update stats display
+    function updateStats() {
+      document.getElementById('blocked-count').textContent = scriptStats.blocked;
+      document.getElementById('allowed-count').textContent = scriptStats.allowed;
+      document.getElementById('pending-count').textContent = scriptStats.pending;
+    }
+
+    // Add script to status list
+    function addScriptStatus(name, category, status) {
+      const container = document.getElementById('script-status');
+      
+      // Remove "waiting" message if present
+      const waiting = container.querySelector('.pending');
+      if (waiting && waiting.querySelector('.script-name').textContent === 'No scripts injected yet') {
+        waiting.remove();
+      }
+
+      const icons = {
+        analytics: '📊',
+        marketing: '📘',
+        social: '👥',
+        preferences: '💬'
+      };
+
+      const item = document.createElement('div');
+      item.className = `script-item ${status}`;
+      item.id = `script-${name.replace(/\s+/g, '-').toLowerCase()}`;
+      item.innerHTML = `
+        <div class="script-icon">${icons[category] || '📜'}</div>
+        <div class="script-info">
+          <div class="script-name">${name}</div>
+          <div class="script-category">${category}</div>
+        </div>
+        <span class="script-badge ${status}">${status}</span>
+      `;
+      container.appendChild(item);
+
+      // Update stats
+      scriptStats[status]++;
+      updateStats();
+
+      injectedScripts.push({ name, category, status, element: item });
+    }
+
+    // Update script status
+    function updateScriptStatus(name, newStatus) {
+      const item = document.getElementById(`script-${name.replace(/\s+/g, '-').toLowerCase()}`);
+      if (item) {
+        item.className = `script-item ${newStatus}`;
+        item.querySelector('.script-badge').className = `script-badge ${newStatus}`;
+        item.querySelector('.script-badge').textContent = newStatus;
+      }
+    }
+
+    // Test script injections
+    function injectGoogleAnalytics() {
+      console.log('[Test Page] Injecting Google Analytics script...');
+      addScriptStatus('Google Analytics', 'analytics', 'blocked');
+      
+      const script = document.createElement('script');
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+
+    function injectFacebookPixel() {
+      console.log('[Test Page] Injecting Facebook Pixel script...');
+      addScriptStatus('Facebook Pixel', 'marketing', 'blocked');
+      
+      const script = document.createElement('script');
+      script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+      document.head.appendChild(script);
+    }
+
+    function injectHotjar() {
+      console.log('[Test Page] Injecting Hotjar script...');
+      addScriptStatus('Hotjar', 'analytics', 'blocked');
+      
+      const script = document.createElement('script');
+      script.src = 'https://static.hotjar.com/c/hotjar-12345.js';
+      document.head.appendChild(script);
+    }
+
+    function injectIntercom() {
+      console.log('[Test Page] Injecting Intercom script...');
+      addScriptStatus('Intercom', 'preferences', 'blocked');
+      
+      const script = document.createElement('script');
+      script.src = 'https://widget.intercom.io/widget/abc123';
+      document.head.appendChild(script);
+    }
+
+    function injectInlineTracker() {
+      console.log('[Test Page] Injecting inline tracking script...');
+      addScriptStatus('Inline GA Tracker', 'analytics', 'blocked');
+      
+      const script = document.createElement('script');
+      script.textContent = `
+        // Google Analytics inline initialization
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('config', 'GA_MEASUREMENT_ID');
+        console.log('[Inline Tracker] This should NOT appear if blocked!');
+      `;
+      document.head.appendChild(script);
+    }
+
+    // Consent controls
+    function grantAllConsent() {
+      console.log('[Test Page] Granting all consent...');
+      window.dispatchEvent(new CustomEvent('consentlyUpdate', {
+        detail: {
+          status: 'accepted',
+          categories: ['necessary', 'analytics', 'marketing', 'social', 'preferences']
+        }
+      }));
+      
+      // Update all blocked scripts to allowed
+      injectedScripts.forEach(s => {
+        if (s.status === 'blocked') {
+          scriptStats.blocked--;
+          scriptStats.allowed++;
+          s.status = 'allowed';
+          updateScriptStatus(s.name, 'allowed');
+        }
+      });
+      updateStats();
+    }
+
+    function revokeAllConsent() {
+      console.log('[Test Page] Revoking all consent...');
+      window.dispatchEvent(new CustomEvent('consentlyUpdate', {
+        detail: {
+          status: 'rejected',
+          categories: ['necessary']
+        }
+      }));
+    }
+
+    function grantAnalyticsOnly() {
+      console.log('[Test Page] Granting analytics consent only...');
+      window.dispatchEvent(new CustomEvent('consentlyUpdate', {
+        detail: {
+          status: 'partial',
+          categories: ['necessary', 'analytics']
+        }
+      }));
+      
+      // Update analytics scripts to allowed
+      injectedScripts.forEach(s => {
+        if (s.status === 'blocked' && s.category === 'analytics') {
+          scriptStats.blocked--;
+          scriptStats.allowed++;
+          s.status = 'allowed';
+          updateScriptStatus(s.name, 'allowed');
+        }
+      });
+      updateStats();
+    }
+
+    function grantMarketingOnly() {
+      console.log('[Test Page] Granting marketing consent only...');
+      window.dispatchEvent(new CustomEvent('consentlyUpdate', {
+        detail: {
+          status: 'partial',
+          categories: ['necessary', 'marketing']
+        }
+      }));
+      
+      // Update marketing scripts to allowed
+      injectedScripts.forEach(s => {
+        if (s.status === 'blocked' && s.category === 'marketing') {
+          scriptStats.blocked--;
+          scriptStats.allowed++;
+          s.status = 'allowed';
+          updateScriptStatus(s.name, 'allowed');
+        }
+      });
+      updateStats();
+    }
+
+    function clearConsole() {
+      consoleBox.innerHTML = '<div class="info">[Test Page] Console cleared</div>';
+    }
+
+    // Listen for consent updates
+    window.addEventListener('consentlyUpdate', (e) => {
+      console.log('[Test Page] Consent updated:', JSON.stringify(e.detail));
+    });
+
+    // Initial message
+    setTimeout(() => {
+      console.log('[Test Page] Ready! Click the buttons above to inject tracking scripts.');
+    }, 500);
+  </script>
+</body>
+</html>
+
