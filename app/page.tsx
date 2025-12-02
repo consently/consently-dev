@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/ui/footer';
 import { ScrollingBanner } from '@/components/ui/scrolling-banner';
+import { HeroCarousel, ProductShowcase } from '@/components/ui/product-showcase';
 import {
   Shield,
   Lock,
@@ -209,119 +210,15 @@ export default function Home() {
               </span>
             </div>
 
-            {/* Product Preview - Real Dashboard Screenshot */}
+            {/* Product Preview - Real Dashboard Screenshots Carousel */}
             <div className="mt-8 sm:mt-12 px-4 max-w-6xl mx-auto">
-              <div className="rounded-2xl border-4 border-blue-200 shadow-2xl overflow-hidden bg-white">
-                <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 sm:p-8">
-                  <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-                    {/* Browser Chrome */}
-                    <div className="bg-gray-100 px-4 py-3 flex items-center gap-3 border-b border-gray-200">
-                      <div className="flex gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                      </div>
-                      <div className="flex-1 bg-white rounded-lg px-4 py-1.5 text-xs sm:text-sm text-gray-600 flex items-center gap-2">
-                        <Lock className="h-3 w-3 text-green-600" />
-                        consently.in/dashboard
-                      </div>
-                    </div>
-
-                    {/* Dashboard Content */}
-                    <div className="p-4 sm:p-6 bg-gradient-to-b from-white to-gray-50">
-                      {/* Header */}
-                      <div className="mb-6">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Shield className="h-6 w-6 text-blue-600" />
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Consent Dashboard</h3>
-                        </div>
-                        <p className="text-xs sm:text-sm text-gray-500">Real-time compliance monitoring</p>
-                      </div>
-
-                      {/* Stats Cards */}
-                      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
-                        {/* Total Consents */}
-                        <div className="bg-white rounded-lg border-2 border-blue-100 p-4 sm:p-5 hover:shadow-lg transition-shadow">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="text-xs text-gray-500 font-medium">Total Consents</div>
-                            <Users className="h-5 w-5 text-blue-500" />
-                          </div>
-                          <div className="text-2xl sm:text-3xl font-bold text-gray-900">12,847</div>
-                          <div className="flex items-center gap-1 mt-1">
-                            <div className="text-xs text-green-600 font-medium flex items-center">
-                              <ArrowRight className="h-3 w-3 rotate-[-45deg]" />
-                              23.5%
-                            </div>
-                            <div className="text-xs text-gray-400">vs last week</div>
-                          </div>
-                        </div>
-
-                        {/* Acceptance Rate */}
-                        <div className="bg-white rounded-lg border-2 border-green-100 p-4 sm:p-5 hover:shadow-lg transition-shadow">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="text-xs text-gray-500 font-medium">Acceptance Rate</div>
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                          </div>
-                          <div className="text-2xl sm:text-3xl font-bold text-green-600">87.3%</div>
-                          <div className="text-xs text-gray-500 mt-1">11,213 accepted</div>
-                        </div>
-                      </div>
-
-                      {/* Chart Preview */}
-                      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-sm font-semibold text-gray-700">Consent Trends</h4>
-                          <Badge className="text-xs bg-blue-100 text-blue-700 border-0">Last 7 Days</Badge>
-                        </div>
-                        <div className="h-24 sm:h-32 flex items-end justify-between gap-2">
-                          {[65, 78, 82, 71, 88, 92, 87].map((height, i) => (
-                            <div key={i} className="flex-1 bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg hover:from-blue-600 hover:to-blue-500 transition-all cursor-pointer" style={{ height: `${height}%` }}></div>
-                          ))}
-                        </div>
-                        <div className="flex justify-between mt-2 text-xs text-gray-400">
-                          <span>Mon</span>
-                          <span>Tue</span>
-                          <span>Wed</span>
-                          <span>Thu</span>
-                          <span>Fri</span>
-                          <span>Sat</span>
-                          <span>Sun</span>
-                        </div>
-                      </div>
-
-                      {/* Recent Activity Table */}
-                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                          <h4 className="text-sm font-semibold text-gray-700">Recent Consents</h4>
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                          {[
-                            { status: 'Accepted', country: 'India', time: '2 min ago', color: 'green' },
-                            { status: 'Partial', country: 'India', time: '5 min ago', color: 'yellow' },
-                            { status: 'Accepted', country: 'India', time: '8 min ago', color: 'green' },
-                          ].map((item, i) => (
-                            <div key={i} className="px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${item.color === 'green' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                                <span className="text-xs sm:text-sm font-medium text-gray-700">{item.status}</span>
-                                <span className="text-xs text-gray-400">• {item.country}</span>
-                              </div>
-                              <span className="text-xs text-gray-400">{item.time}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Feature Tags */}
-                      <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs">
-                        <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium">📊 Real-time Analytics</span>
-                        <span className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium">🔍 Cookie Scanner</span>
-                        <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full font-medium">🗣️ 22 Languages</span>
-                        <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full font-medium">📝 Audit Reports</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <HeroCarousel />
+              {/* Feature Tags */}
+              <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs">
+                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full font-medium shadow-sm">📊 Real-time Analytics</span>
+                <span className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full font-medium shadow-sm">🔍 Cookie Scanner</span>
+                <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-full font-medium shadow-sm">🗣️ 22 Languages</span>
+                <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full font-medium shadow-sm">📝 Audit Reports</span>
               </div>
             </div>
           </div>
@@ -465,6 +362,28 @@ export default function Home() {
               description="Complete audit logs with timestamps, IP addresses, and exportable compliance reports (CSV/JSON/PDF)."
               gradient="from-green-500 to-green-600"
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Product Gallery Section */}
+      <section className="py-16 sm:py-20 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10 sm:mb-12">
+            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white mb-6 shadow-lg">
+              <Sparkles className="h-4 w-4 mr-2" />
+              See It In Action
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+              Explore the Platform
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+              Browse through our features by category — cookie consent, DPDPA compliance, and analytics
+            </p>
+          </div>
+
+          <div className="max-w-5xl mx-auto">
+            <ProductShowcase />
           </div>
         </div>
       </section>
