@@ -82,6 +82,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/cookies" className="hover:text-white transition-colors inline-block py-1 touch-manipulation">
+                  Cookie Policy
+                </Link>
+              </li>
+              <li>
                 <Link href="/terms" className="hover:text-white transition-colors inline-block py-1 touch-manipulation">
                   Terms of Service
                 </Link>
