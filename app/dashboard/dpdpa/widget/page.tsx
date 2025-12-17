@@ -873,115 +873,211 @@ export default function DPDPAWidgetPage() {
     setShowPrivacyNoticeModal(true);
   };
 
-  // Privacy notice HTML generator (matches backend logic)
+  // Privacy notice HTML generator - styled to match preview UI
   const generatePrivacyNoticeHTML = (activities: ProcessingActivity[], domain: string, dpoEmail: string): string => {
-    const companyName = domain || '[Your Company Name]';
+    const companyName = config.name || domain || '[Your Company Name]';
     const contactEmail = dpoEmail || 'dpo@consently.in';
+    const currentDate = new Date().toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
 
+    // Generate activity sections with enhanced styling matching preview UI
     const activitySections = activities.map((activity, index) => {
       const purposes = activity.purposes || [];
-      const purposesList = purposes.length > 0
-        ? purposes.map(p => `<li>${escapeHtml(p.purposeName || 'Unknown Purpose')} (${escapeHtml((p.legalBasis || 'consent').replace('-', ' '))})</li>`).join('')
-        : '<li>No purposes defined</li>';
 
-      const allDataCategories = purposes.flatMap(p =>
-        (p.dataCategories || []).map(cat => cat.categoryName)
-      );
-      const dataCategoriesText = allDataCategories.length > 0
+      // Build purposes list with legal basis tags
+      const purposesHtml = purposes.length > 0
+        ? purposes.map(p => {
+          const legalBasis = (p.legalBasis || 'consent').replace('-', ' ');
+          return `
+              <div style="margin-bottom: 8px; padding-left: 16px;">
+                <span style="color: #374151;">${escapeHtml(p.purposeName || 'Unknown Purpose')}</span>
+                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: #e0e7ff; color: #4338ca; font-size: 12px; border-radius: 4px; font-weight: 500;">${escapeHtml(legalBasis)}</span>
+              </div>
+            `;
+        }).join('')
+        : '<div style="padding-left: 16px; color: #9ca3af;">No purposes defined</div>';
+
+      // Get unique data categories across all purposes
+      const allDataCategories = [...new Set(
+        purposes.flatMap(p => (p.dataCategories || []).map(cat => cat.categoryName))
+      )];
+      const dataCategoriesHtml = allDataCategories.length > 0
         ? allDataCategories.map(c => escapeHtml(c)).join(', ')
-        : 'N/A';
+        : 'Not specified';
 
-      const retentionPeriods = purposes.flatMap(p =>
-        (p.dataCategories || []).map(cat => `${cat.categoryName}: ${cat.retentionPeriod || 'N/A'}`)
-      );
-      const retentionText = retentionPeriods.length > 0
-        ? retentionPeriods.map(r => escapeHtml(r)).join(', ')
-        : 'N/A';
+      // Get retention periods with category names
+      const retentionMap = new Map<string, string>();
+      purposes.forEach(p => {
+        (p.dataCategories || []).forEach(cat => {
+          if (cat.retentionPeriod) {
+            retentionMap.set(cat.categoryName, cat.retentionPeriod);
+          }
+        });
+      });
+      const retentionHtml = retentionMap.size > 0
+        ? Array.from(retentionMap.entries()).map(([cat, period]) => `${escapeHtml(cat)}: ${escapeHtml(period)}`).join(', ')
+        : 'As required by law';
 
       return `
-      <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 8px;">
-        <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 600;">
-          ${index + 1}. ${escapeHtml(activity.activityName)}
-        </h3>
-        
-        <div style="margin-bottom: 12px;">
-          <strong style="color: #374151;">Purposes:</strong>
-          <ul style="margin: 4px 0 0 0; color: #6b7280; padding-left: 20px;">
-            ${purposesList}
-          </ul>
-        </div>
+        <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-left: 4px solid #3b82f6; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 600; display: flex; align-items: center;">
+            <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #3b82f6; color: white; border-radius: 50%; font-size: 14px; margin-right: 12px;">${index + 1}</span>
+            ${escapeHtml(activity.activityName)}
+          </h3>
+          
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">Purposes:</div>
+            ${purposesHtml}
+          </div>
 
-        <div style="margin-bottom: 12px;">
-          <strong style="color: #374151;">Data Categories:</strong>
-          <p style="margin: 4px 0 0 0; color: #6b7280;">${dataCategoriesText}</p>
-        </div>
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; color: #374151; margin-bottom: 4px; font-size: 14px;">Data Categories:</div>
+            <div style="padding-left: 16px; color: #6b7280;">${dataCategoriesHtml}</div>
+          </div>
 
-        <div>
-          <strong style="color: #374151;">Retention Periods:</strong>
-          <p style="margin: 4px 0 0 0; color: #6b7280;">${retentionText}</p>
+          <div style="background: #f0f9ff; padding: 12px 16px; border-radius: 8px; border: 1px solid #bae6fd;">
+            <div style="font-weight: 600; color: #0369a1; margin-bottom: 4px; font-size: 14px;">Retention Period:</div>
+            <div style="color: #0c4a6e;">${retentionHtml}</div>
+          </div>
         </div>
-      </div>
       `;
     }).join('');
 
+    // Rights section with styled cards
+    const rightsHtml = `
+      <div style="display: grid; gap: 16px;">
+        <div style="padding: 16px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #22c55e;">
+          <div style="font-weight: 600; color: #166534; margin-bottom: 4px;">Right to Access:</div>
+          <div style="color: #6b7280; font-size: 14px;">You can request information about what personal data we hold about you.</div>
+        </div>
+        <div style="padding: 16px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #3b82f6;">
+          <div style="font-weight: 600; color: #1e40af; margin-bottom: 4px;">Right to Correction:</div>
+          <div style="color: #6b7280; font-size: 14px;">You can request correction of inaccurate or incomplete data.</div>
+        </div>
+        <div style="padding: 16px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #f59e0b;">
+          <div style="font-weight: 600; color: #b45309; margin-bottom: 4px;">Right to Erasure:</div>
+          <div style="color: #6b7280; font-size: 14px;">You can request deletion of your personal data in certain circumstances.</div>
+        </div>
+        <div style="padding: 16px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #8b5cf6;">
+          <div style="font-weight: 600; color: #6d28d9; margin-bottom: 4px;">Right to Withdraw Consent:</div>
+          <div style="color: #6b7280; font-size: 14px;">You can withdraw your consent at any time.</div>
+        </div>
+        <div style="padding: 16px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #ec4899;">
+          <div style="font-weight: 600; color: #be185d; margin-bottom: 4px;">Right to Grievance Redressal:</div>
+          <div style="color: #6b7280; font-size: 14px;">You can raise concerns or complaints about data processing.</div>
+        </div>
+      </div>
+    `;
+
     return `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Notice - Data Processing Activities</title>
-  </head>
-  <body style="font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1f2937; max-width: 800px; margin: 0 auto; padding: 32px 16px;">
-    
-    <h1 style="color: #111827; font-size: 32px; margin-bottom: 16px;">Privacy Notice</h1>
-    
-    <div style="background: #dbeafe; padding: 16px; border-radius: 8px; margin-bottom: 32px;">
-      <p style="margin: 0; color: #1e40af; font-weight: 500;">
-        This notice explains how ${escapeHtml(companyName)} processes your personal data in compliance with the Digital Personal Data Protection Act, 2023 (DPDPA).
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Notice - ${escapeHtml(companyName)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6; 
+      color: #1f2937; 
+      max-width: 800px; 
+      margin: 0 auto; 
+      padding: 32px 24px;
+      background: #ffffff;
+    }
+    @media print {
+      body { padding: 16px; }
+    }
+    a { color: #3b82f6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div style="text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb;">
+    <h1 style="color: #111827; font-size: 32px; margin: 0 0 8px 0; font-weight: 700;">Privacy Notice</h1>
+    <p style="color: #6b7280; margin: 0; font-size: 16px;">${escapeHtml(companyName)}</p>
+  </div>
+
+  <!-- DPDPA Compliance Notice -->
+  <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%); padding: 20px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #bfdbfe;">
+    <div style="display: flex; align-items: flex-start; gap: 12px;">
+      <div style="flex-shrink: 0; width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+        <span style="color: white; font-size: 14px;">ℹ</span>
+      </div>
+      <p style="margin: 0; color: #1e40af; font-weight: 500; font-size: 15px;">
+        This notice explains how we process your personal data in compliance with the Digital Personal Data Protection Act, 2023 (DPDPA).
       </p>
     </div>
+  </div>
 
-    <h2 style="color: #1f2937; font-size: 24px; margin-top: 32px; margin-bottom: 16px;">Data Processing Activities</h2>
-    
-    <p style="color: #6b7280; margin-bottom: 24px;">
+  <!-- Data Processing Activities Section -->
+  <div style="margin-bottom: 40px;">
+    <h2 style="color: #111827; font-size: 22px; margin: 0 0 8px 0; font-weight: 600;">Data Processing Activities</h2>
+    <p style="color: #6b7280; margin: 0 0 24px 0; font-size: 15px;">
       We process your personal data for the following purposes. You have the right to provide or withdraw consent for each activity.
     </p>
+    ${activitySections || '<div style="padding: 24px; background: #f9fafb; border-radius: 8px; text-align: center; color: #9ca3af;">No processing activities configured</div>'}
+  </div>
 
-    ${activitySections}
+  <!-- Divider -->
+  <div style="height: 2px; background: linear-gradient(90deg, #e5e7eb 0%, #d1d5db 50%, #e5e7eb 100%); margin: 40px 0;"></div>
 
-    <div style="margin-top: 48px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
-      <h2 style="color: #1f2937; font-size: 20px; margin-bottom: 16px;">Your Rights Under DPDPA 2023</h2>
-      
-      <ul style="color: #6b7280; line-height: 1.8;">
-        <li><strong>Right to Access:</strong> You can request information about what personal data we hold about you.</li>
-        <li><strong>Right to Correction:</strong> You can request correction of inaccurate or incomplete data.</li>
-        <li><strong>Right to Erasure:</strong> You can request deletion of your personal data in certain circumstances.</li>
-        <li><strong>Right to Withdraw Consent:</strong> You can withdraw your consent at any time.</li>
-        <li><strong>Right to Grievance Redressal:</strong> You can raise concerns or complaints about data processing.</li>
-      </ul>
+  <!-- Your Rights Section -->
+  <div style="margin-bottom: 40px;">
+    <h2 style="color: #111827; font-size: 22px; margin: 0 0 20px 0; font-weight: 600;">Your Rights Under DPDPA 2023</h2>
+    ${rightsHtml}
+  </div>
 
-      <p style="color: #6b7280; margin-top: 24px;">
-        <strong>How to Exercise Your Rights:</strong><br>
-        You can manage your consent preferences or raise a grievance through our consent widget on ${escapeHtml(domain)}, 
-        or contact our Data Protection Officer at <a href="mailto:${escapeHtml(contactEmail)}" style="color: #3b82f6;">${escapeHtml(contactEmail)}</a>.
-      </p>
+  <!-- How to Exercise Rights -->
+  <div style="background: #fefce8; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #fde047;">
+    <h3 style="margin: 0 0 12px 0; color: #854d0e; font-size: 16px; font-weight: 600;">How to Exercise Your Rights</h3>
+    <p style="margin: 0 0 8px 0; color: #713f12; font-size: 14px;">
+      You can manage your consent preferences or raise a grievance through our consent widget on <strong>${escapeHtml(domain || 'our website')}</strong>, 
+      or contact our Data Protection Officer.
+    </p>
+    <p style="margin: 0; color: #713f12; font-size: 14px;">
+      <strong>Response Time:</strong> We will respond to your requests within 72 hours as required by DPDPA 2023.
+    </p>
+  </div>
 
-      <p style="color: #6b7280; margin-top: 16px;">
-        <strong>Response Time:</strong> We will respond to your requests within 72 hours as required by DPDPA 2023.
-      </p>
+  <!-- Footer -->
+  <div style="margin-top: 40px; padding: 24px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border-radius: 12px;">
+    <div style="display: grid; gap: 12px;">
+      <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <span style="color: #64748b; font-size: 14px;"><strong>Last Updated:</strong> ${currentDate}</span>
+        <span style="color: #64748b; font-size: 14px;"><strong>Version:</strong> ${config.privacyNoticeVersion || 'v1.0'}</span>
+      </div>
+      <div style="color: #64748b; font-size: 14px;">
+        <strong>Data Protection Officer:</strong> 
+        <a href="mailto:${escapeHtml(contactEmail)}" style="color: #3b82f6; font-weight: 500;">${escapeHtml(contactEmail)}</a>
+      </div>
+      <div style="padding-top: 12px; border-top: 1px solid #cbd5e1;">
+        <span style="display: inline-block; padding: 4px 12px; background: #dcfce7; color: #166534; font-size: 12px; border-radius: 999px; font-weight: 500;">
+          ✓ DPDPA 2023 Compliant
+        </span>
+      </div>
     </div>
+  </div>
 
-    <div style="margin-top: 32px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
-      <p style="margin: 0; color: #6b7280; font-size: 14px;">
-        <strong>Last Updated:</strong> ${new Date().toLocaleDateString()}<br>
-        <strong>Data Protection Officer:</strong> <a href="mailto:${escapeHtml(contactEmail)}" style="color: #3b82f6;">${escapeHtml(contactEmail)}</a><br>
-        <strong>Compliance:</strong> This notice is compliant with the Digital Personal Data Protection Act, 2023 (DPDPA)
-      </p>
-    </div>
-
-  </body>
-  </html>
+  <!-- Print Button (hidden when printing) -->
+  <div style="margin-top: 24px; text-align: center;" class="no-print">
+    <button onclick="window.print()" style="padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s;">
+      🖨️ Print This Notice
+    </button>
+  </div>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+    }
+  </style>
+</body>
+</html>
     `.trim();
   };
 
