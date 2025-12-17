@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,13 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
 import {
   ArrowLeft,
   Globe,
@@ -45,6 +39,14 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Dynamic imports for heavy components
+const Sheet = dynamic(() => import('@/components/ui/sheet').then(mod => mod.Sheet), { ssr: false });
+const SheetContent = dynamic(() => import('@/components/ui/sheet').then(mod => mod.SheetContent), { ssr: false });
+const SheetDescription = dynamic(() => import('@/components/ui/sheet').then(mod => mod.SheetDescription), { ssr: false });
+const SheetHeader = dynamic(() => import('@/components/ui/sheet').then(mod => mod.SheetHeader), { ssr: false });
+const SheetTitle = dynamic(() => import('@/components/ui/sheet').then(mod => mod.SheetTitle), { ssr: false });
+
 
 interface ActivityStats {
   activityInfo: {
@@ -503,8 +505,16 @@ export default function ActivityStatsPage() {
                           {record.reason || '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" title="Lock / Suppress">
-                            <Lock className="h-4 w-4 text-gray-600" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedRecordId(record.principalId);
+                              fetchRecordDetails(record.principalId);
+                            }}
+                            title="View consent details"
+                          >
+                            <Eye className="h-4 w-4 text-blue-600" />
                           </Button>
                         </TableCell>
                       </TableRow>

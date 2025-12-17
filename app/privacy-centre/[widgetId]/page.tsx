@@ -2,16 +2,48 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { PrivacyCentre } from '@/components/privacy-centre/privacy-centre';
+import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Shield, Loader2 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+
+// Dynamic import for heavy component
+const PrivacyCentre = dynamic(
+  () => import('@/components/privacy-centre/privacy-centre').then(mod => ({ default: mod.PrivacyCentre })),
+  {
+    loading: () => (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-12 text-center">
+            <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Privacy Centre</h2>
+            <p className="text-gray-600">Please wait...</p>
+          </CardContent>
+        </Card>
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+// Generate UUID without external dependency
+function generateVisitorId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 
 function PrivacyCentreContent() {
   const params = useParams();
   const widgetId = params.widgetId as string;
-  
+
   const [visitorId, setVisitorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +99,7 @@ function PrivacyCentreContent() {
           console.warn('Failed to parse URL params:', e);
         }
       }
-      
+
       if (urlVisitorId) {
         // Store in localStorage for future visits (both formats for compatibility)
         if (typeof window !== 'undefined') {
@@ -107,7 +139,7 @@ function PrivacyCentreContent() {
           console.warn('Failed to read from localStorage:', e);
         }
       }
-      
+
       // Fallback: Check widget's consent ID format for synchronization
       if (!storedVisitorId && typeof window !== 'undefined') {
         try {
@@ -126,7 +158,7 @@ function PrivacyCentreContent() {
           console.warn('Failed to read consent ID from localStorage:', e);
         }
       }
-      
+
       if (storedVisitorId) {
         setVisitorId(storedVisitorId);
         setLoading(false);
@@ -134,7 +166,7 @@ function PrivacyCentreContent() {
       }
 
       // Generate new visitor ID
-      const newVisitorId = uuidv4();
+      const newVisitorId = generateVisitorId();
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(`consently_visitor_${widgetId}`, newVisitorId);
