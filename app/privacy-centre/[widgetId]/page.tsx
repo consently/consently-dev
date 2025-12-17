@@ -150,7 +150,9 @@ function PrivacyCentreContent() {
             if (expiresAt > new Date() && parsed.value) {
               storedVisitorId = parsed.value;
               // Sync to Privacy Centre format
-              localStorage.setItem(`consently_visitor_${widgetId}`, storedVisitorId);
+              if (storedVisitorId) {
+                localStorage.setItem(`consently_visitor_${widgetId}`, storedVisitorId);
+              }
             }
           }
         } catch (e) {
