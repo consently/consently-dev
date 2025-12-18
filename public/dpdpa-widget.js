@@ -1829,7 +1829,7 @@
     renderModal();
   }
 
-  // Show Consent Success Modal with ID Display (Compact Version - No Backdrop)
+  // Show Consent Success Modal with Email Display (Compact Version - No Backdrop)
   function showConsentSuccessModal(consentID) {
     const modal = document.createElement('div');
     modal.id = 'dpdpa-success-modal';
@@ -1844,6 +1844,18 @@
       pointer-events: none;
     `;
 
+    // Determine what to display - email if verified, otherwise consent ID
+    const displayEmail = verifiedEmail;
+    const displayValue = displayEmail || consentID;
+    const displayLabel = displayEmail ? 'Your Verified Email' : 'Your Consent ID';
+    const displayIcon = displayEmail 
+      ? `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+           <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         </svg>`
+      : `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+           <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         </svg>`;
+
     modal.innerHTML = `
       <div style="background:white;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.3);text-align:center;animation:slideUp 0.3s ease-out;pointer-events: auto;">
         <!-- Success Icon -->
@@ -1856,62 +1868,51 @@
         <h2 style="margin:0 0 8px 0;font-size:24px;font-weight:700;color:#059669;">Consent Saved!</h2>
         <p style="color:#64748b;font-size:14px;margin:0 0 24px 0;line-height:1.5;">Your privacy preferences have been securely recorded.</p>
         
-        <!-- Compact Consent ID Card -->
+        <!-- Email/ID Display Card -->
         <div style="background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 8px 20px rgba(79,118,246,0.25);">
-          <label style="display:block;color:rgba(255,255,255,0.9);font-size:11px;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:1.2px;">Your Consent ID</label>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;">
+            <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">
+              ${displayIcon.replace('width="32" height="32"', 'width="18" height="18"')}
+            </div>
+            <label style="color:rgba(255,255,255,0.9);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;">${displayLabel}</label>
+          </div>
           
           <div style="background:white;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-            <div id="consent-id-display" style="font-size:18px;font-weight:700;color:#1e293b;font-family:ui-monospace,monospace;letter-spacing:2px;word-break:break-all;">
-              ${consentID}
+            <div style="font-size:${displayEmail ? '16px' : '18px'};font-weight:700;color:#1e293b;font-family:${displayEmail ? '-apple-system, BlinkMacSystemFont, sans-serif' : 'ui-monospace, monospace'};letter-spacing:${displayEmail ? '0' : '2px'};word-break:break-all;">
+              ${escapeHtml(displayValue)}
             </div>
           </div>
           
-          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-            <button 
-              onclick="window.copyConsentID('${consentID}')"
-              style="flex:1;min-width:100px;padding:10px 12px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px;"
-              onmouseover="this.style.background='rgba(255,255,255,0.35)'"
-              onmouseout="this.style.background='rgba(255,255,255,0.25)'"
-              title="Copy Consent ID to clipboard"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Copy ID
-            </button>
-            <button 
-              onclick="window.downloadConsentReceipt('${consentID}')"
-              style="flex:1;min-width:100px;padding:10px 12px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px;"
-              onmouseover="this.style.background='rgba(255,255,255,0.35)'"
-              onmouseout="this.style.background='rgba(255,255,255,0.25)'"
-              title="Download your consent receipt"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Receipt
-            </button>
-            <button 
-              onclick="window.downloadPrivacyNotice()"
-              style="flex:1;min-width:100px;padding:10px 12px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px;"
-              onmouseover="this.style.background='rgba(255,255,255,0.35)'"
-              onmouseout="this.style.background='rgba(255,255,255,0.25)'"
-              title="Download the full Privacy Notice"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Notice
-            </button>
-          </div>
+          <!-- Only Privacy Notice Download Button -->
+          <button 
+            onclick="window.downloadPrivacyNotice()"
+            style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;"
+            onmouseover="this.style.background='rgba(255,255,255,0.35)'"
+            onmouseout="this.style.background='rgba(255,255,255,0.25)'"
+            title="Download the full Privacy Notice"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Download Privacy Notice
+          </button>
         </div>
         
-        <!-- Compact Notice -->
+        ${displayEmail ? `
+        <!-- Email Confirmation Notice -->
+        <div style="background:#ecfdf5;border-left:3px solid #10b981;padding:12px;border-radius:8px;margin-bottom:16px;text-align:left;">
+          <p style="color:#065f46;font-size:12px;margin:0;line-height:1.5;">
+            <strong style="color:#047857;">Email linked!</strong> You can manage your preferences anytime using this email.
+          </p>
+        </div>
+        ` : `
+        <!-- Consent ID Notice -->
         <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:12px;border-radius:8px;margin-bottom:16px;text-align:left;">
           <p style="color:#78350f;font-size:12px;margin:0;line-height:1.5;">
             <strong style="color:#92400e;">Keep this ID safe!</strong> Use it to manage your preferences across devices.
           </p>
         </div>
+        `}
         
         <!-- Action Button -->
         <button 
@@ -4115,11 +4116,11 @@
       // Show floating preference centre button
       showFloatingPreferenceButton();
 
-      // Show premium notification
-      showPremiumNotification(finalStatus, storageData);
-
       // Hide widget immediately
       hideWidget(overlay);
+
+      // Show success modal with email/ID display and privacy notice download
+      showConsentSuccessModal(consentID);
 
       console.log('[Consently DPDPA] Consent saved successfully');
     } catch (error) {
