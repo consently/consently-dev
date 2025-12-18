@@ -1866,28 +1866,42 @@
             </div>
           </div>
           
-          <div style="display:flex;gap:8px;justify-content:center;">
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
             <button 
               onclick="window.copyConsentID('${consentID}')"
-              style="flex:1;padding:10px 16px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;"
+              style="flex:1;min-width:100px;padding:10px 12px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px;"
               onmouseover="this.style.background='rgba(255,255,255,0.35)'"
               onmouseout="this.style.background='rgba(255,255,255,0.25)'"
+              title="Copy Consent ID to clipboard"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               Copy ID
             </button>
             <button 
               onclick="window.downloadConsentReceipt('${consentID}')"
-              style="flex:1;padding:10px 16px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;"
+              style="flex:1;min-width:100px;padding:10px 12px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px;"
               onmouseover="this.style.background='rgba(255,255,255,0.35)'"
               onmouseout="this.style.background='rgba(255,255,255,0.25)'"
+              title="Download your consent receipt"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Receipt
+            </button>
+            <button 
+              onclick="window.downloadPrivacyNotice()"
+              style="flex:1;min-width:100px;padding:10px 12px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.35)'"
+              onmouseout="this.style.background='rgba(255,255,255,0.25)'"
+              title="Download the full Privacy Notice"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              Download
+              Notice
             </button>
           </div>
         </div>
@@ -1934,6 +1948,119 @@
       document.body.removeChild(textarea);
       showToast('📋 Consent ID copied!', 'success');
     });
+  };
+
+  // Download Privacy Notice - generates an HTML file from the privacy notice content
+  window.downloadPrivacyNotice = function () {
+    if (!config || !config.privacyNoticeHTML) {
+      showToast('⚠️ Privacy Notice not available', 'error');
+      console.warn('[Consently DPDPA] No privacy notice HTML found in config');
+      return;
+    }
+
+    const domain = config.domain || window.location.hostname;
+    const date = new Date();
+    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const fileName = `privacy-notice-${domain.replace(/[^a-zA-Z0-9]/g, '-')}-${dateStr}.html`;
+
+    // Wrap the privacy notice HTML in a complete HTML document for better display
+    const fullHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Notice - ${escapeHtml(domain)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .header h1 {
+      color: #0f172a;
+      margin: 0 0 8px 0;
+      font-size: 28px;
+    }
+    .header .domain {
+      color: #64748b;
+      font-size: 14px;
+    }
+    .header .date {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    .content {
+      background: white;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .footer {
+      text-align: center;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    .footer a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+    h1, h2, h3 { color: #0f172a; }
+    a { color: #3b82f6; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f8fafc; font-weight: 600; }
+    @media print {
+      body { background: white; padding: 20px; }
+      .content { box-shadow: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Privacy Notice</h1>
+    <div class="domain">${escapeHtml(domain)}</div>
+    <div class="date">Downloaded on ${date.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  </div>
+  <div class="content">
+    ${config.privacyNoticeHTML}
+  </div>
+  <div class="footer">
+    <p>This Privacy Notice was generated in compliance with the Digital Personal Data Protection Act, 2023 (India).</p>
+    <p>Powered by <a href="https://www.consently.in" target="_blank">Consently.in</a></p>
+  </div>
+</body>
+</html>`;
+
+    // Create blob and trigger download
+    const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast('📄 Privacy Notice downloaded!', 'success');
+    console.log('[Consently DPDPA] Privacy Notice downloaded:', fileName);
   };
 
   // Download consent receipt - generates a beautiful HTML receipt matching the preview
@@ -4298,6 +4425,11 @@
     downloadReceipt: () => {
       const consent = ConsentStorage.get('consently_dpdpa_consent_' + widgetId);
       if (consent) downloadConsentReceipt(consent);
+    },
+    downloadPrivacyNotice: () => {
+      if (window.downloadPrivacyNotice) {
+        window.downloadPrivacyNotice();
+      }
     }
   };
 
