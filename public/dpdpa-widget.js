@@ -2939,10 +2939,26 @@
             <!-- Processing Activities Table View - Enhanced Design -->
             <div style="margin-bottom: 20px;">
           <!-- Table Header -->
-          <!-- Consent Categories Header -->
-          <div style="margin-bottom: 16px;">
-            <h3 style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px 0;">CONSENT CATEGORIES</h3>
+          <!-- Consent Categories Header with Download Button -->
+          <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">CONSENT CATEGORIES</h3>
+            <button 
+              id="dpdpa-download-notice-btn"
+              onclick="window.downloadPrivacyNotice()"
+              style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: linear-gradient(135deg, ${primaryColor}15, ${primaryColor}08); color: ${primaryColor}; border: 1px solid ${primaryColor}30; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s; white-space: nowrap;"
+              onmouseover="this.style.background='linear-gradient(135deg, ${primaryColor}25, ${primaryColor}15)'; this.style.borderColor='${primaryColor}50'; this.style.transform='translateY(-1px)'"
+              onmouseout="this.style.background='linear-gradient(135deg, ${primaryColor}15, ${primaryColor}08)'; this.style.borderColor='${primaryColor}30'; this.style.transform='translateY(0)'"
+              title="Download the full Privacy Notice as HTML"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download Notice
+            </button>
           </div>
+
           
           <!-- Table Body -->
           <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
