@@ -1,12 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import Script from "next/script";
 import "./globals.css";
 import ConsentlyCookieWidget from "@/components/cookie/ConsentlyCookieWidget";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SkipLink } from "@/components/ui/SkipLink";
 // Suppress console output in production (client-side)
 import '@/lib/console-suppress';
+
+const GA_TRACKING_ID = "G-T3M4ZEDZF7";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -56,6 +59,19 @@ export default function RootLayout({
 
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+      {/* Google Analytics */}
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_TRACKING_ID}');
+        `}
+      </Script>
       <body className={`${inter.className} antialiased`}>
         <ThemeProvider
           attribute="class"
