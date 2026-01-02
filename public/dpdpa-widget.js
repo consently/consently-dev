@@ -1848,7 +1848,7 @@
     const displayEmail = verifiedEmail;
     const displayValue = displayEmail || consentID;
     const displayLabel = displayEmail ? 'Your Verified Email' : 'Your Consent ID';
-    const displayIcon = displayEmail 
+    const displayIcon = displayEmail
       ? `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
            <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
          </svg>`
@@ -1951,11 +1951,120 @@
     });
   };
 
+  // Generate privacy notice HTML from activities (fallback when config.privacyNoticeHTML is not available)
+  function generatePrivacyNoticeFromActivities(activitiesList, domainName) {
+    const companyName = domainName || window.location.hostname;
+
+    const activitySections = activitiesList.map((activity, index) => {
+      let purposesList = '';
+      let allDataCategories = [];
+      let retentionText = 'N/A';
+
+      if (activity.purposes && activity.purposes.length > 0) {
+        purposesList = activity.purposes.map(p => {
+          const dataCategories = p.dataCategories?.map(cat => cat.categoryName) || [];
+          allDataCategories.push(...dataCategories);
+
+          const retentionPeriods = p.dataCategories?.map(cat =>
+            `${cat.categoryName}: ${cat.retentionPeriod}`
+          ) || [];
+
+          if (retentionPeriods.length > 0) {
+            retentionText = retentionPeriods.join(', ');
+          }
+
+          return `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis?.replace('-', ' ') || 'consent')})</li>`;
+        }).join('');
+      } else {
+        purposesList = '<li>No purposes defined</li>';
+      }
+
+      const dataCategoriesText = allDataCategories.length > 0
+        ? allDataCategories.map(c => escapeHtml(c)).join(', ')
+        : 'N/A';
+
+      return `
+    <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 8px;">
+      <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 600;">
+        ${index + 1}. ${escapeHtml(activity.activity_name || activity.activityName || 'Activity')}
+      </h3>
+      
+      <div style="margin-bottom: 12px;">
+        <strong style="color: #374151;">Purposes:</strong>
+        <ul style="margin: 4px 0 0 0; color: #6b7280; padding-left: 20px;">
+          ${purposesList}
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <strong style="color: #374151;">Data Categories:</strong>
+        <p style="margin: 4px 0 0 0; color: #6b7280;">${dataCategoriesText}</p>
+      </div>
+
+      <div>
+        <strong style="color: #374151;">Retention Period:</strong>
+        <p style="margin: 4px 0 0 0; color: #6b7280;">${escapeHtml(retentionText)}</p>
+      </div>
+    </div>
+  `;
+    }).join('');
+
+    return `
+<h1 style="color: #111827; font-size: 32px; margin-bottom: 16px;">Privacy Notice</h1>
+
+<div style="background: #dbeafe; padding: 16px; border-radius: 8px; margin-bottom: 32px;">
+  <p style="margin: 0; color: #1e40af; font-weight: 500;">
+    This notice explains how ${escapeHtml(companyName)} processes your personal data in compliance with the Digital Personal Data Protection Act, 2023 (DPDPA).
+  </p>
+</div>
+
+<h2 style="color: #1f2937; font-size: 24px; margin-top: 32px; margin-bottom: 16px;">Data Processing Activities</h2>
+
+<p style="color: #6b7280; margin-bottom: 24px;">
+  We process your personal data for the following purposes. You have the right to provide or withdraw consent for each activity.
+</p>
+
+${activitySections}
+
+<div style="margin-top: 48px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
+  <h2 style="color: #1f2937; font-size: 20px; margin-bottom: 16px;">Your Rights Under DPDPA 2023</h2>
+  
+  <ul style="color: #6b7280; line-height: 1.8;">
+    <li><strong>Right to Access:</strong> You can request information about what personal data we hold about you.</li>
+    <li><strong>Right to Correction:</strong> You can request correction of inaccurate or incomplete data.</li>
+    <li><strong>Right to Erasure:</strong> You can request deletion of your personal data in certain circumstances.</li>
+    <li><strong>Right to Withdraw Consent:</strong> You can withdraw your consent at any time.</li>
+    <li><strong>Right to Grievance Redressal:</strong> You can raise concerns or complaints about data processing.</li>
+  </ul>
+</div>
+
+<div style="margin-top: 32px; padding: 16px; background: #f3f4f6; border-radius: 8px;">
+  <p style="margin: 0; color: #6b7280; font-size: 14px;">
+    <strong>Compliance:</strong> This notice is compliant with the Digital Personal Data Protection Act, 2023 (DPDPA)
+  </p>
+</div>
+`.trim();
+  }
+
   // Download Privacy Notice - generates an HTML file from the privacy notice content
   window.downloadPrivacyNotice = function () {
-    if (!config || !config.privacyNoticeHTML) {
-      showToast('⚠️ Privacy Notice not available', 'error');
-      console.warn('[Consently DPDPA] No privacy notice HTML found in config');
+    console.log('[Consently DPDPA] Download Privacy Notice clicked');
+    console.log('[Consently DPDPA] Config available:', !!config);
+    console.log('[Consently DPDPA] Privacy notice HTML available:', !!(config && config.privacyNoticeHTML));
+
+    // Try to get privacy notice HTML from config, or generate it from activities
+    let noticeHTML = config?.privacyNoticeHTML;
+
+    // Fallback: Generate privacy notice from activities if not in config
+    if (!noticeHTML && config && activities && activities.length > 0) {
+      console.log('[Consently DPDPA] Generating privacy notice from activities...');
+      noticeHTML = generatePrivacyNoticeFromActivities(activities, config.domain || window.location.hostname);
+    }
+
+    if (!noticeHTML) {
+      showToast('⚠️ Privacy Notice not available. No activities configured.', 'error');
+      console.warn('[Consently DPDPA] No privacy notice HTML found in config and no activities to generate from');
+      console.warn('[Consently DPDPA] Config keys:', config ? Object.keys(config) : 'config is null');
       return;
     }
 
@@ -2039,7 +2148,7 @@
     <div class="date">Downloaded on ${date.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
   </div>
   <div class="content">
-    ${config.privacyNoticeHTML}
+    ${noticeHTML}
   </div>
   <div class="footer">
     <p>This Privacy Notice was generated in compliance with the Digital Personal Data Protection Act, 2023 (India).</p>
@@ -2051,7 +2160,7 @@
     // Create blob and trigger download
     const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName;
@@ -2069,17 +2178,17 @@
     const theme = config.theme || {};
     const primaryColor = theme.primaryColor || '#3b82f6';
     const date = new Date();
-    const dateFormatted = date.toLocaleDateString('en-IN', { 
-      year: 'numeric', 
-      month: 'long', 
+    const dateFormatted = date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
-    
+
     // Handle both string ID and full consent data object
     let consentID, acceptedActivities = [], rejectedActivities = [], email = null;
-    
+
     if (typeof consentDataOrID === 'string') {
       consentID = consentDataOrID;
     } else if (consentDataOrID && typeof consentDataOrID === 'object') {
@@ -2104,19 +2213,19 @@
     }
 
     // Build accepted activities HTML
-    const acceptedHTML = acceptedActivities.length > 0 
+    const acceptedHTML = acceptedActivities.length > 0
       ? acceptedActivities.map(id => {
-          const name = activityMap[id] || id;
-          return `<li style="padding: 8px 12px; background: #dcfce7; border-radius: 6px; margin-bottom: 6px; color: #166534; font-weight: 500;">✓ ${escapeHtml(name)}</li>`;
-        }).join('')
+        const name = activityMap[id] || id;
+        return `<li style="padding: 8px 12px; background: #dcfce7; border-radius: 6px; margin-bottom: 6px; color: #166534; font-weight: 500;">✓ ${escapeHtml(name)}</li>`;
+      }).join('')
       : '<li style="padding: 8px 12px; color: #6b7280; font-style: italic;">No activities accepted</li>';
 
     // Build rejected activities HTML
     const rejectedHTML = rejectedActivities.length > 0
       ? rejectedActivities.map(id => {
-          const name = activityMap[id] || id;
-          return `<li style="padding: 8px 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 6px; color: #991b1b; font-weight: 500;">✗ ${escapeHtml(name)}</li>`;
-        }).join('')
+        const name = activityMap[id] || id;
+        return `<li style="padding: 8px 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 6px; color: #991b1b; font-weight: 500;">✗ ${escapeHtml(name)}</li>`;
+      }).join('')
       : '';
 
     const domain = config.domain || window.location.hostname;

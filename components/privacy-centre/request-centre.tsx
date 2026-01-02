@@ -91,7 +91,7 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
   const [loading, setLoading] = useState(true);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedRightType, setSelectedRightType] = useState<string | null>(null);
-  
+
   // Form state
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -175,9 +175,9 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
       }
 
       const data = await response.json();
-      
+
       toast.success('Request submitted successfully! Check your email for verification.');
-      
+
       // Show verification code in development
       if (data.data.verificationCode) {
         toast.info(`Verification code (dev only): ${data.data.verificationCode}`);
@@ -248,7 +248,7 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
                 Data Subject Rights
               </h2>
               <p className="text-gray-600 text-sm md:text-base leading-relaxed">
-                Exercise your rights under the Digital Personal Data Protection Act (DPDP) 2023. 
+                Exercise your rights under the Digital Personal Data Protection Act (DPDP) 2023.
                 Request access, correction, erasure, or file grievances about your personal data.
               </p>
               {/* DPO Contact */}
@@ -256,8 +256,8 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4 text-blue-600" />
                   <span className="text-gray-600">Data Protection Officer:</span>
-                  <a 
-                    href="mailto:dpo@consently.in" 
+                  <a
+                    href="mailto:dpo@consently.in"
                     className="text-blue-600 hover:text-blue-800 font-medium underline underline-offset-2"
                   >
                     dpo@consently.in
@@ -302,8 +302,8 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="text-xs text-gray-500 mb-4 font-medium">{right.section}</p>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="w-full bg-gradient-to-r from-gray-900 to-gray-700 hover:from-gray-800 hover:to-gray-600 text-white shadow-md hover:shadow-lg transition-all"
                 >
                   <Send className="h-4 w-4 mr-2" />
@@ -354,26 +354,24 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
               const isRejected = request.status === 'rejected';
 
               return (
-                <Card 
-                  key={request.id} 
-                  className={`border-0 shadow-lg transition-all duration-300 overflow-hidden ${
-                    isCompleted
+                <Card
+                  key={request.id}
+                  className={`border-0 shadow-lg transition-all duration-300 overflow-hidden ${isCompleted
                       ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 ring-2 ring-green-200'
                       : isRejected
-                      ? 'bg-gradient-to-br from-red-50 via-pink-50 to-rose-50 ring-2 ring-red-200'
-                      : 'bg-gradient-to-br from-white to-gray-50 hover:from-blue-50/30'
-                  }`}
+                        ? 'bg-gradient-to-br from-red-50 via-pink-50 to-rose-50 ring-2 ring-red-200'
+                        : 'bg-gradient-to-br from-white to-gray-50 hover:from-blue-50/30'
+                    }`}
                 >
                   <CardHeader className="pb-4 md:pb-5">
                     <div className="flex items-start justify-between gap-3 md:gap-4">
                       <div className="flex items-start gap-3 md:gap-4 flex-1 min-w-0">
-                        <div className={`h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-br ${
-                          isCompleted 
-                            ? 'from-green-500 to-emerald-600' 
+                        <div className={`h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-br ${isCompleted
+                            ? 'from-green-500 to-emerald-600'
                             : isRejected
-                            ? 'from-red-500 to-pink-600'
-                            : 'from-blue-500 to-indigo-600'
-                        } flex items-center justify-center flex-shrink-0 shadow-lg`}>
+                              ? 'from-red-500 to-pink-600'
+                              : 'from-blue-500 to-indigo-600'
+                          } flex items-center justify-center flex-shrink-0 shadow-lg`}>
                           <Icon className="h-5 w-5 md:h-6 md:w-6 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -424,20 +422,20 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
                           <div className="flex items-center gap-2 text-gray-600">
                             <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
                             <span className="font-medium">Submitted:</span>
-                            <span className="text-gray-700">{new Date(request.createdAt).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'short', 
-                              day: 'numeric' 
+                            <span className="text-gray-700">{new Date(request.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
                             })}</span>
                           </div>
                           {request.dueDate && (
                             <div className="flex items-center gap-2 text-gray-600">
                               <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
                               <span className="font-medium">Due:</span>
-                              <span className="text-gray-700">{new Date(request.dueDate).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric' 
+                              <span className="text-gray-700">{new Date(request.dueDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
                               })}</span>
                             </div>
                           )}
@@ -445,10 +443,10 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
                             <div className="flex items-center gap-2 text-gray-600">
                               <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                               <span className="font-medium">Completed:</span>
-                              <span className="text-gray-700">{new Date(request.completedAt).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric' 
+                              <span className="text-gray-700">{new Date(request.completedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
                               })}</span>
                             </div>
                           )}
@@ -474,7 +472,7 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
       </div>
 
       {/* Request Modal */}
-      <Modal isOpen={showRequestModal} onClose={handleCloseRequestModal} title={`Submit ${getRightInfo(selectedRightType || '')?.title || 'Request'}`}>
+      <Modal open={showRequestModal} onClose={handleCloseRequestModal} title={`Submit ${getRightInfo(selectedRightType || '')?.title || 'Request'}`}>
         <div className="space-y-5 md:space-y-6">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
             <p className="text-sm md:text-base text-gray-700 leading-relaxed">
@@ -555,8 +553,8 @@ export function RequestCentre({ visitorId, widgetId }: RequestCentreProps) {
             <Button variant="outline" onClick={handleCloseRequestModal} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button 
-              onClick={handleSubmitRequest} 
+            <Button
+              onClick={handleSubmitRequest}
               disabled={submitting}
               className="w-full sm:w-auto bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all"
             >

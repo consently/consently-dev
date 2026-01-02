@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
 
     if (recordsWithoutEmail.length > 0) {
       console.log('[Consent Record API] Found', recordsWithoutEmail.length, 'records without email, attempting to fetch from other sources');
-      
+
       // First, try to get emails from visitor_consent_preferences
       if (widgetIdsForEmailLookup.length > 0) {
         const { data: preferencesWithEmail } = await supabase
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
         const emailHashes = [...new Set(recordsWithHashButNoEmail.map((r: any) => r.visitor_email_hash))];
         console.log('[Consent Record API] Found', recordsWithHashButNoEmail.length, 'records with email_hash but no email');
         console.log('[Consent Record API] Looking up', emailHashes.length, 'unique email hashes in email_verification_otps');
-        
+
         const { data: verifiedEmails, error: emailLookupError } = await supabase
           .from('email_verification_otps')
           .select('email_hash, email')
@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
 
         if (verifiedEmails && verifiedEmails.length > 0) {
           console.log('[Consent Record API] Found', verifiedEmails.length, 'verified emails from email_verification_otps');
-          
+
           // Create a hash-to-email map
           const hashToEmailMap = new Map<string, string>();
           verifiedEmails.forEach((e: any) => {
@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
               console.log('[Consent Record API] Mapped email for visitor', r.visitor_id.substring(0, 10) + '...');
             }
           });
-          
+
           console.log('[Consent Record API] Successfully mapped', emailMap.size, 'emails total');
         } else {
           console.log('[Consent Record API] No verified emails found in email_verification_otps');
@@ -984,14 +984,16 @@ export async function POST(request: NextRequest) {
     try {
       // Handle revoked status - mark all existing preferences as withdrawn
       if (finalConsentStatus === 'revoked') {
-        const { error: revokeError } = await supabase
+        // First, try to update existing preferences to withdrawn
+        const { data: updateResult, error: revokeError } = await supabase
           .from('visitor_consent_preferences')
           .update({
             consent_status: 'withdrawn',
             last_updated: new Date().toISOString(),
           })
           .eq('visitor_id', body.visitorId)
-          .eq('widget_id', body.widgetId);
+          .eq('widget_id', body.widgetId)
+          .select();
 
         if (revokeError) {
           console.error('[Consent Record API] Error withdrawing preferences:', {
@@ -1000,8 +1002,54 @@ export async function POST(request: NextRequest) {
             widgetId: body.widgetId,
             visitorId: body.visitorId,
           });
+        } else if (!updateResult || updateResult.length === 0) {
+          // No rows were updated - visitor had no prior preferences stored
+          // Insert new withdrawn records so revocation appears in dashboard
+          console.log('[Consent Record API] No existing preferences to withdraw, inserting new withdrawn records');
+
+          // Get activities to insert - use rejectedActivities (all activities being revoked)
+          // Fall back to acceptedActivities if rejectedActivities is empty (edge case)
+          const activitiesToWithdraw = validatedRejectedActivities.length > 0
+            ? validatedRejectedActivities
+            : validatedAcceptedActivities;
+
+          if (activitiesToWithdraw.length > 0) {
+            const withdrawnRecords = activitiesToWithdraw.map(activityId => ({
+              visitor_id: body.visitorId,
+              widget_id: body.widgetId,
+              activity_id: activityId,
+              consent_status: 'withdrawn' as const,
+              visitor_email_hash: visitorEmailHash,
+              visitor_email: visitorEmail,
+              ip_address: ipAddress || null,
+              user_agent: userAgent || null,
+              device_type: deviceType || null,
+              language: language || null,
+              expires_at: expiresAt.toISOString(),
+              consent_version: '1.0',
+              consent_given_at: new Date().toISOString(),
+              last_updated: new Date().toISOString(),
+            }));
+
+            const { error: insertError } = await supabase
+              .from('visitor_consent_preferences')
+              .insert(withdrawnRecords);
+
+            if (insertError) {
+              console.error('[Consent Record API] Error inserting withdrawn preferences:', {
+                error: insertError.message,
+                code: insertError.code,
+                widgetId: body.widgetId,
+                visitorId: body.visitorId,
+              });
+            } else {
+              console.log('[Consent Record API] Successfully inserted withdrawn preferences:', withdrawnRecords.length);
+            }
+          } else {
+            console.warn('[Consent Record API] No activities to withdraw - revocation may not appear in dashboard');
+          }
         } else {
-          console.log('[Consent Record API] Successfully withdrew all preferences');
+          console.log('[Consent Record API] Successfully withdrew all preferences:', updateResult.length, 'records');
         }
       } else {
         // For accepted/rejected/partial status, sync individual activities
@@ -1018,6 +1066,7 @@ export async function POST(request: NextRequest) {
           language: string | null;
           expires_at: string;
           consent_version: string;
+          consent_given_at: string;
         }> = [];
 
         // Add accepted activities
@@ -1035,6 +1084,7 @@ export async function POST(request: NextRequest) {
             language: language || null,
             expires_at: expiresAt.toISOString(),
             consent_version: '1.0',
+            consent_given_at: new Date().toISOString(),
           });
         }
 
@@ -1053,6 +1103,7 @@ export async function POST(request: NextRequest) {
             language: language || null,
             expires_at: expiresAt.toISOString(),
             consent_version: '1.0',
+            consent_given_at: new Date().toISOString(),
           });
         }
 
