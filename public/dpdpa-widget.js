@@ -39,7 +39,7 @@
   const BASE_TRANSLATIONS = {
     consentManager: 'Consent Manager',
     compliantWith: 'Fully compliant with Digital Personal Data Protection Act, 2023',
-    requirementsTitle: 'DPDPA 2023 requires you to read and download the privacy notice',
+    requirementsTitle: 'DPDPA 2023 requires you to read the privacy notice',
     scrollInstruction: 'Scroll down to read the privacy notice',
     downloadButton: 'Download Privacy Notice',
     proceedButton: 'Proceed to Consent',
@@ -1250,7 +1250,19 @@
     if (notice) {
       if (notice.title) config.title = notice.title;
       if (notice.message) config.message = notice.message;
-      if (notice.html) config.privacyNoticeHTML = notice.html;
+      
+      // If rule has HTML, use it, but only if it's not the generic placeholder
+      // Otherwise, we'll regenerate it from the filtered activities below
+      if (notice.html && !notice.html.includes('By submitting this form')) {
+        config.privacyNoticeHTML = notice.html;
+      } else {
+        // Regenerate detailed notice based on the activities filtered by this rule
+        config.privacyNoticeHTML = generatePrivacyNoticeFromActivities(activities, config.domain || window.location.hostname);
+      }
+    } else {
+      // No notice content in rule, but activities might have been filtered
+      // Regenerate to reflect only the activities matched by this rule
+      config.privacyNoticeHTML = generatePrivacyNoticeFromActivities(activities, config.domain || window.location.hostname);
     }
   }
 
@@ -1882,21 +1894,21 @@
               ${escapeHtml(displayValue)}
             </div>
           </div>
-          
-          <!-- Only Privacy Notice Download Button -->
-          <button 
-            onclick="window.downloadPrivacyNotice()"
-            style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.8);color:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;backdrop-filter:blur(10px);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;"
-            onmouseover="this.style.background='rgba(255,255,255,0.35)'"
-            onmouseout="this.style.background='rgba(255,255,255,0.25)'"
-            title="Download the full Privacy Notice"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Download Privacy Notice
-          </button>
         </div>
+        
+        <!-- Download Privacy Notice Button -->
+        <button 
+          onclick="window.downloadPrivacyNotice()"
+          style="width:100%;padding:12px 16px;background:rgba(79,118,246,0.1);border:2px solid rgba(79,118,246,0.3);color:#4F76F6;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;"
+          onmouseover="this.style.background='rgba(79,118,246,0.2)';this.style.borderColor='rgba(79,118,246,0.5)'"
+          onmouseout="this.style.background='rgba(79,118,246,0.1)';this.style.borderColor='rgba(79,118,246,0.3)'"
+          title="Download the full Privacy Notice"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke="#4F76F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Download Privacy Notice
+        </button>
         
         ${displayEmail ? `
         <!-- Email Confirmation Notice -->
@@ -2094,45 +2106,46 @@ ${activitySections}
     }
     .header {
       text-align: center;
-      margin-bottom: 32px;
-      padding-bottom: 24px;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
       border-bottom: 2px solid #e2e8f0;
     }
     .header h1 {
-      color: #0f172a;
       margin: 0 0 8px 0;
-      font-size: 28px;
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
     }
-    .header .domain {
+    .domain {
+      font-size: 18px;
       color: #64748b;
-      font-size: 14px;
+      margin-bottom: 4px;
     }
-    .header .date {
+    .date {
+      font-size: 14px;
       color: #94a3b8;
-      font-size: 12px;
-      margin-top: 8px;
     }
     .content {
       background: white;
-      padding: 32px;
+      padding: 40px;
       border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
     }
     .footer {
       text-align: center;
-      margin-top: 32px;
-      padding-top: 24px;
-      border-top: 1px solid #e2e8f0;
-      color: #94a3b8;
+      padding: 20px;
       font-size: 12px;
+      color: #64748b;
     }
     .footer a {
       color: #3b82f6;
       text-decoration: none;
     }
-    h1, h2, h3 { color: #0f172a; }
-    a { color: #3b82f6; }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    h1 { color: #111827; font-size: 32px; margin-bottom: 16px; }
+    h2 { color: #1f2937; font-size: 24px; margin-top: 32px; margin-bottom: 16px; }
+    h3 { color: #374151; font-size: 18px; margin-top: 24px; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
     th { background: #f8fafc; font-weight: 600; }
     @media print {
@@ -2344,13 +2357,6 @@ ${activitySections}
       <p style="margin: 0; font-size: 11px; color: #94a3b8;">
         Compliant with Digital Personal Data Protection Act, 2023
       </p>
-    </div>
-
-    <!-- Print Button (no-print) -->
-    <div class="no-print" style="padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-      <button onclick="window.print()" style="padding: 12px 24px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;">
-        🖨️ Print Receipt
-      </button>
     </div>
   </div>
 </body>
@@ -2928,7 +2934,16 @@ ${activitySections}
     prefetchTranslations();
 
     // Get privacy notice HTML from config
-    const noticeHTML = config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
+    const fullNoticeHTML = config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
+    
+    // Extract just the body content from the full HTML document
+    let noticeHTML = fullNoticeHTML;
+    if (fullNoticeHTML.includes('<body')) {
+      const bodyMatch = fullNoticeHTML.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      if (bodyMatch) {
+        noticeHTML = bodyMatch[1];
+      }
+    }
 
     // Create overlay
     const overlay = document.createElement('div');
@@ -3043,29 +3058,22 @@ ${activitySections}
             </p>
         </div>
 
+        <!-- Privacy Notice Section -->
+        <div id="dpdpa-privacy-notice" style="margin-bottom: 24px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: ${textColor};">Privacy Notice</h3>
+          <div style="color: #6b7280; font-size: 13px; line-height: 1.6;">
+            ${noticeHTML}
+          </div>
+        </div>
+
         <!-- Preferences Container (Hidden until verified) -->
         <div id="dpdpa-preferences-container" style="display: ${userStatus === 'verified' ? 'block' : 'none'}; animation: fadeIn 0.5s ease;">
             <!-- Processing Activities Table View - Enhanced Design -->
             <div style="margin-bottom: 20px;">
           <!-- Table Header -->
-          <!-- Consent Categories Header with Download Button -->
+          <!-- Consent Categories Header -->
           <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
             <h3 style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">CONSENT CATEGORIES</h3>
-            <button 
-              id="dpdpa-download-notice-btn"
-              onclick="window.downloadPrivacyNotice()"
-              style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: linear-gradient(135deg, ${primaryColor}15, ${primaryColor}08); color: ${primaryColor}; border: 1px solid ${primaryColor}30; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s; white-space: nowrap;"
-              onmouseover="this.style.background='linear-gradient(135deg, ${primaryColor}25, ${primaryColor}15)'; this.style.borderColor='${primaryColor}50'; this.style.transform='translateY(-1px)'"
-              onmouseout="this.style.background='linear-gradient(135deg, ${primaryColor}15, ${primaryColor}08)'; this.style.borderColor='${primaryColor}30'; this.style.transform='translateY(0)'"
-              title="Download the full Privacy Notice as HTML"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Download Notice
-            </button>
           </div>
 
           
@@ -3828,38 +3836,6 @@ ${activitySections}
         }
       });
     });
-
-    // Download icon button
-    const downloadIcon = widget.querySelector('#dpdpa-download-icon');
-    if (downloadIcon) {
-      downloadIcon.addEventListener('click', () => {
-        try {
-          const noticeHTML = config.privacyNoticeHTML || '<p>Privacy notice</p>';
-          const blob = new Blob([noticeHTML], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `privacy-notice-${new Date().toISOString().split('T')[0]}.html`;
-          a.click();
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          console.error('Download failed:', e);
-        }
-      });
-      // Enhanced hover effects
-      downloadIcon.addEventListener('mouseenter', () => {
-        downloadIcon.style.background = '#f0f9ff';
-        downloadIcon.style.borderColor = primaryColor;
-        downloadIcon.style.transform = 'translateY(-2px)';
-        downloadIcon.style.boxShadow = '0 4px 8px rgba(59,130,246,0.2)';
-      });
-      downloadIcon.addEventListener('mouseleave', () => {
-        downloadIcon.style.background = 'white';
-        downloadIcon.style.borderColor = '#e5e7eb';
-        downloadIcon.style.transform = 'translateY(0)';
-        downloadIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-      });
-    }
 
     // Confirm & Submit Button
     const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
