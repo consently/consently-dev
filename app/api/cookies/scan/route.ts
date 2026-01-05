@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply rate limiting - 10 scans per hour per user (expensive operation)
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 10,
       window: 3600000, // 1 hour
       identifier: getUserIdentifier(user.id),

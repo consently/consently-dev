@@ -21,7 +21,7 @@ const requestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // 1. Rate Limiting
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 60, // 60 checks per minute per IP
       window: 60000, // 1 minute
       identifier: getClientIdentifier(request.headers),

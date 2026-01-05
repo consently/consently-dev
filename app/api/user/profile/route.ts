@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply rate limiting - 100 requests per minute (lenient for profile viewing)
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 100,
       window: 60000, // 1 minute
       identifier: getUserIdentifier(user.id),

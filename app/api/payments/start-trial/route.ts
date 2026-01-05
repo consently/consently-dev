@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply rate limiting - 5 attempts per hour per user (prevent abuse)
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 5,
       window: 3600000, // 1 hour
       identifier: getUserIdentifier(user.id),

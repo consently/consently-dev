@@ -270,7 +270,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Apply rate limiting to prevent abuse
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 100, // 100 consent records per minute per IP
       window: 60000, // 1 minute
       identifier: getClientIdentifier(request.headers),
@@ -711,7 +711,7 @@ export async function POST(request: NextRequest) {
       // Fetch widget configuration and activities to generate the notice
       const { data: widgetConfigData, error: widgetConfigError } = await supabase
         .from('dpdpa_widget_configs')
-        .select('selected_activities, domain')
+        .select('selected_activities, domain, dpo_email')
         .eq('widget_id', body.widgetId)
         .eq('is_active', true)
         .single();

@@ -11,7 +11,7 @@ import type { ConsentEvent } from '@/types/dpdpa-widget.types';
 export async function POST(request: NextRequest) {
   try {
     // Apply rate limiting to prevent abuse
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 100, // 100 consent events per minute per IP
       window: 60000, // 1 minute
       identifier: getClientIdentifier(request.headers),

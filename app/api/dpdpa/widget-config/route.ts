@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limiting: 30 requests per minute for creating widgets
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 30,
       window: 60000,
       identifier: getUserIdentifier(user.id),
@@ -320,7 +320,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Rate limiting: 30 requests per minute for updating widgets
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 30,
       window: 60000,
       identifier: getUserIdentifier(user.id),
@@ -550,7 +550,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Rate limiting: 30 requests per minute for deleting widgets
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 30,
       window: 60000,
       identifier: getUserIdentifier(user.id),

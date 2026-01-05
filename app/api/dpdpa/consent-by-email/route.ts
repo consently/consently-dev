@@ -27,7 +27,7 @@ function hashEmail(email: string): string {
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting (prevent email enumeration attacks)
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 10, // 10 lookups per hour
       window: 3600000, // 1 hour
       identifier: getClientIdentifier(request.headers),
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Apply stricter rate limiting for revocation (irreversible action)
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 5, // 5 revocations per hour
       window: 3600000, // 1 hour
       identifier: getClientIdentifier(request.headers),

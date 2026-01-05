@@ -12,7 +12,7 @@ import { logger } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   try {
     // Apply rate limiting
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 50, // 50 verifications per minute per IP
       window: 60000, // 1 minute
       identifier: getClientIdentifier(request.headers),

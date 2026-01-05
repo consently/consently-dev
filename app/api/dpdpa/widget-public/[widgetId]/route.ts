@@ -16,7 +16,7 @@ export async function GET(
 ) {
   try {
     // Apply rate limiting for widget config fetching
-    const rateLimitResult = checkRateLimit({
+    const rateLimitResult = await checkRateLimit({
       max: 200, // 200 requests per minute per IP (lenient for public widget)
       window: 60000, // 1 minute
       identifier: getClientIdentifier(request.headers),

@@ -40,13 +40,13 @@ export default function Home() {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'INR',
-      name: 'Pre-Launch Offer - 1 Month Free Trial',
-      description: 'Pre-launch special: Get 1 month free trial on all plans. No credit card required.',
+      name: 'Get Started with Consently',
+      description: 'Achieve DPDPA 2023 compliance for your business.',
       availability: 'https://schema.org/InStock',
       url: 'https://www.consently.in/signup',
     },
     description:
-      'DPDPA 2023 compliant consent management platform for Indian businesses. Pre-launch offer: 1 month free trial - no credit card required. Automate cookie consent, data processing consent, and compliance reporting.',
+      'DPDPA 2023 compliant consent management platform for Indian businesses. Automate cookie consent, data processing consent, and compliance reporting.',
     url: 'https://www.consently.in',
     inLanguage: ['en', 'hi'],
     featureList: [
@@ -55,8 +55,6 @@ export default function Home() {
       '22 Indian Languages Support',
       'Real-time Analytics',
       'Audit Trail & Reports',
-      '1 Month Free Trial',
-      'No Credit Card Required',
     ],
     aggregateRating: {
       '@type': 'AggregateRating',
@@ -121,8 +119,8 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
               <Link href="/signup" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-8 py-5 sm:py-6 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all">
-                  <span className="hidden sm:inline">🚀 Start 1-Month Free Trial — No Credit Card Required</span>
-                  <span className="sm:hidden">Start Free Trial — No Card Required</span>
+                  <span className="hidden sm:inline">🚀 Get Started with Consently</span>
+                  <span className="sm:hidden">Get Started</span>
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </Link>
@@ -801,12 +799,12 @@ export default function Home() {
             <div className="bg-gradient-to-br from-green-50 to-white rounded-xl p-6 border-2 border-green-100 hover:border-green-300 transition-all">
               <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-start gap-2">
                 <span className="text-green-600 flex-shrink-0">Q:</span>
-                What happens after the 1-month free trial?
+                How much does Consently cost?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> After your free month, you only pay ₹0.01 per consent recorded—no fixed monthly fees,
-                no plan lock-in. If you collect 10,000 consents in a month, you pay only ₹100. If you collect 0 consents,
-                you pay ₹0. Cancel anytime with zero penalties.
+                <strong>A:</strong> Consently offers flexible plans designed to scale with your business. 
+                You can get started immediately and only pay for the features and volume you need. 
+                Contact our sales team for custom enterprise pricing or high-volume requirements.
               </p>
             </div>
 
@@ -819,7 +817,7 @@ export default function Home() {
               <p className="text-gray-700 leading-relaxed pl-6">
                 <strong>A:</strong> No! Consently is designed for non-technical users. Our automated cookie scanner analyzes your
                 website and generates a ready-to-use consent banner. You just copy one line of JavaScript code and paste it into
-                your website. We provide step-by-step guides and priority support during your trial.
+                your website. We provide step-by-step guides and priority support to ensure you are up and running quickly.
               </p>
             </div>
 
@@ -869,11 +867,11 @@ export default function Home() {
             Ready to Achieve DPDPA Compliance?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Join 1000+ Indian businesses ensuring data protection compliance. Get <strong className="text-white">1 month free</strong> during our pre-launch!
+            Join 1000+ Indian businesses ensuring data protection compliance.
           </p>
           <Link href="/signup">
             <Button size="lg" variant="secondary" className="text-blue-600">
-              Claim Your Free Month
+              Get Started Now
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
