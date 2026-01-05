@@ -377,18 +377,6 @@ export default function Home() {
                   <td className="py-4 px-6 text-center text-gray-600">Partial</td>
                 </tr>
                 <tr className="hover:bg-blue-50 transition-colors">
-                  <td className="py-4 px-6 font-semibold text-gray-900">Pricing</td>
-                  <td className="py-4 px-6 text-center bg-blue-50">
-                    <div className="font-bold text-green-600">₹0.01/consent</div>
-                  </td>
-                  <td className="py-4 px-6 text-center text-gray-600">
-                    <div className="text-sm">Fixed Plans</div>
-                  </td>
-                  <td className="py-4 px-6 text-center text-gray-600">
-                    <div className="text-sm">Enterprise Only</div>
-                  </td>
-                </tr>
-                <tr className="hover:bg-blue-50 transition-colors">
                   <td className="py-4 px-6 font-semibold text-gray-900">Setup Time</td>
                   <td className="py-4 px-6 text-center bg-blue-50">
                     <div className="font-bold text-blue-600">5 mins</div>
@@ -397,7 +385,7 @@ export default function Home() {
                   <td className="py-4 px-6 text-center text-gray-600">2+ hours</td>
                 </tr>
                 <tr className="hover:bg-blue-50 transition-colors">
-                  <td className="py-4 px-6 font-semibold text-gray-900">No Plan Lock-in</td>
+                  <td className="py-4 px-6 font-semibold text-gray-900">Audit Reports</td>
                   <td className="py-4 px-6 text-center bg-blue-50">
                     <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
                   </td>
@@ -405,7 +393,7 @@ export default function Home() {
                     <X className="h-6 w-6 text-red-500 mx-auto" />
                   </td>
                   <td className="py-4 px-6 text-center">
-                    <X className="h-6 w-6 text-red-500 mx-auto" />
+                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
                   </td>
                 </tr>
               </tbody>
