@@ -2058,132 +2058,54 @@ ${activitySections}
 `.trim();
   }
 
-  // Download Privacy Notice - generates an HTML file from the privacy notice content
-  window.downloadPrivacyNotice = function () {
+  // Download Privacy Notice - triggers a PDF download from the API
+  window.downloadPrivacyNotice = async function () {
     console.log('[Consently DPDPA] Download Privacy Notice clicked');
-    console.log('[Consently DPDPA] Config available:', !!config);
-    console.log('[Consently DPDPA] Privacy notice HTML available:', !!(config && config.privacyNoticeHTML));
-
-    // Try to get privacy notice HTML from config, or generate it from activities
-    let noticeHTML = config?.privacyNoticeHTML;
-
-    // Fallback: Generate privacy notice from activities if not in config
-    if (!noticeHTML && config && activities && activities.length > 0) {
-      console.log('[Consently DPDPA] Generating privacy notice from activities...');
-      noticeHTML = generatePrivacyNoticeFromActivities(activities, config.domain || window.location.hostname);
-    }
-
-    if (!noticeHTML) {
+    
+    if (!activities || activities.length === 0) {
       showToast('⚠️ Privacy Notice not available. No activities configured.', 'error');
-      console.warn('[Consently DPDPA] No privacy notice HTML found in config and no activities to generate from');
-      console.warn('[Consently DPDPA] Config keys:', config ? Object.keys(config) : 'config is null');
       return;
     }
 
-    const domain = config.domain || window.location.hostname;
-    const date = new Date();
-    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
-    const fileName = `privacy-notice-${domain.replace(/[^a-zA-Z0-9]/g, '-')}-${dateStr}.html`;
+    try {
+      showToast('⏳ Generating PDF...', 'info');
+      
+      const apiBase = getApiUrl();
+      const domain = config.domain || window.location.hostname;
+      
+      const response = await fetch(`${apiBase}/api/dpdpa/privacy-notice`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          activities: activities,
+          domain: domain,
+          companyName: config.name || domain
+        }),
+      });
 
-    // Wrap the privacy notice HTML in a complete HTML document for better display
-    const fullHTML = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Notice - ${escapeHtml(domain)}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      background: #f8fafc;
-      color: #1e293b;
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
-      padding-bottom: 20px;
-      border-bottom: 2px solid #e2e8f0;
-    }
-    .header h1 {
-      margin: 0 0 8px 0;
-      font-size: 32px;
-      font-weight: 700;
-      color: #1e293b;
-    }
-    .domain {
-      font-size: 18px;
-      color: #64748b;
-      margin-bottom: 4px;
-    }
-    .date {
-      font-size: 14px;
-      color: #94a3b8;
-    }
-    .content {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
-    .footer {
-      text-align: center;
-      padding: 20px;
-      font-size: 12px;
-      color: #64748b;
-    }
-    .footer a {
-      color: #3b82f6;
-      text-decoration: none;
-    }
-    h1 { color: #111827; font-size: 32px; margin-bottom: 16px; }
-    h2 { color: #1f2937; font-size: 24px; margin-top: 32px; margin-bottom: 16px; }
-    h3 { color: #374151; font-size: 18px; margin-top: 24px; margin-bottom: 12px; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-    th { background: #f8fafc; font-weight: 600; }
-    @media print {
-      body { background: white; padding: 20px; }
-      .content { box-shadow: none; padding: 0; }
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Privacy Notice</h1>
-    <div class="domain">${escapeHtml(domain)}</div>
-    <div class="date">Downloaded on ${date.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-  </div>
-  <div class="content">
-    ${noticeHTML}
-  </div>
-  <div class="footer">
-    <p>This Privacy Notice was generated in compliance with the Digital Personal Data Protection Act, 2023 (India).</p>
-    <p>Powered by <a href="https://www.consently.in" target="_blank">Consently.in</a></p>
-  </div>
-</body>
-</html>`;
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
 
-    // Create blob and trigger download
-    const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    showToast('📄 Privacy Notice downloaded!', 'success');
-    console.log('[Consently DPDPA] Privacy Notice downloaded:', fileName);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().split('T')[0];
+      
+      a.href = url;
+      a.download = `privacy-notice-${domain.replace(/[^a-zA-Z0-9]/g, '-')}-${dateStr}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      showToast('📄 Privacy Notice downloaded!', 'success');
+    } catch (error) {
+      console.error('[Consently DPDPA] PDF download error:', error);
+      showToast('❌ Failed to download Privacy Notice.', 'error');
+    }
   };
 
   // Download consent receipt - generates a beautiful HTML receipt matching the preview
@@ -3056,14 +2978,6 @@ ${activitySections}
             <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
                 Please verify your email below to view and manage your consent preferences.
             </p>
-        </div>
-
-        <!-- Privacy Notice Section -->
-        <div id="dpdpa-privacy-notice" style="margin-bottom: 24px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
-          <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: ${textColor};">Privacy Notice</h3>
-          <div style="color: #6b7280; font-size: 13px; line-height: 1.6;">
-            ${noticeHTML}
-          </div>
         </div>
 
         <!-- Preferences Container (Hidden until verified) -->
