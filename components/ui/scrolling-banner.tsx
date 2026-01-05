@@ -9,11 +9,6 @@ const taglines = [
     gradient: 'from-orange-500 to-orange-600',
   },
   {
-    text: '🚀 1 Month Free Trial • No Credit Card Required',
-    icon: <Sparkles className="h-5 w-5" />,
-    gradient: 'from-purple-500 to-purple-600',
-  },
-  {
     text: '⚡ Setup in 5 Minutes • Live Instantly',
     icon: <Zap className="h-5 w-5" />,
     gradient: 'from-green-500 to-green-600',

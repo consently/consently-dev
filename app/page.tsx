@@ -403,7 +403,7 @@ export default function Home() {
           <div className="mt-8 text-center">
             <Link href="/signup">
               <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-blue-500/30">
-                Choose Consently — Start Free
+                Get Started with Consently
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
