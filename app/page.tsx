@@ -1,11 +1,10 @@
-'use client';
-
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/ui/footer';
 import { ScrollingBanner } from '@/components/ui/scrolling-banner';
 import { HeroCarousel, ProductShowcase } from '@/components/ui/product-showcase';
+import { Navigation } from '@/components/ui/navigation';
 import {
   Shield,
   Lock,
@@ -20,17 +19,17 @@ import {
   FileText,
   Database,
   Layers,
-  Menu,
-  X,
   Briefcase,
   Target,
   Users,
   Cookie,
+  X,
 } from 'lucide-react';
-import { useState } from 'react';
+
+export const dynamic = 'force-static';
+export const revalidate = 3600; // Revalidate every hour
 
 export default function Home() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -73,80 +72,9 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <ScrollingBanner />
-      {/* Navigation */}
-      <nav className="border-b border-blue-100 bg-white/80 dark:bg-gray-900/80 dark:border-gray-700 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center space-x-2">
-              <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600" />
-              <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Consently</span>
-            </Link>
+      <Navigation />
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
-              <Link href="/pricing">
-                <Button variant="ghost" size="sm" className="text-sm">Pricing</Button>
-              </Link>
-              <Link href="/consulting" className="relative inline-flex items-center">
-                <Button variant="ghost" size="sm" className="text-sm">Consulting</Button>
-                <Badge className="absolute -top-0.5 -right-0.5 h-4 px-1.5 text-[10px] bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-md shadow-blue-500/20">
-                  NEW
-                </Badge>
-              </Link>
-              <Link href="/login">
-                <Button variant="ghost" size="sm" className="text-sm">Login</Button>
-              </Link>
-              <Link href="/signup">
-                <Button size="sm" className="text-sm">Get Started</Button>
-              </Link>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 touch-manipulation"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6 text-gray-700" />
-              ) : (
-                <Menu className="h-6 w-6 text-gray-700" />
-              )}
-            </button>
-          </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
-              <div className="flex flex-col space-y-2">
-                <Link href="/pricing" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start text-left">
-                    Pricing
-                  </Button>
-                </Link>
-                <Link href="/consulting" onClick={() => setMobileMenuOpen(false)} className="relative inline-flex items-center w-full">
-                  <Button variant="ghost" className="w-full justify-start text-left">
-                    Consulting Services
-                  </Button>
-                  <Badge className="ml-auto h-4 px-1.5 text-[10px] bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-md shadow-blue-500/20">
-                    NEW
-                  </Badge>
-                </Link>
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start text-left">
-                    Login
-                  </Button>
-                </Link>
-                <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full">
-                    Get Started
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+      {/* Hero Section */}
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-12 sm:py-20 lg:py-32">
@@ -241,9 +169,9 @@ export default function Home() {
                 <p className="text-base sm:text-lg lg:text-xl text-blue-50 mb-6 sm:mb-8 leading-relaxed">
                   From quick homepage scans to deep crawls of 50+ pages, discover all cookies across your site automatically. Get instant compliance reports and auto-generated consent banners.
                 </p>
-                <Link href="/pricing">
+                <Link href="/signup">
                   <Button size="lg" variant="secondary" className="text-blue-600 w-full sm:w-auto">
-                    Learn More
+                    Start Free Trial
                     <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                 </Link>
@@ -496,47 +424,7 @@ export default function Home() {
       </section>
 
       {/* Pricing Preview Section */}
-      <section className="py-16 sm:py-20 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-gradient-to-r from-green-600 to-green-500 text-white mb-6 shadow-lg">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Simple, Fair Pricing
-            </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Pay Only for What You Use
-            </h2>
-            <div className="bg-white rounded-2xl shadow-2xl border-2 border-blue-200 p-8 sm:p-12 mt-8">
-              <div className="text-center">
-                <div className="text-6xl sm:text-7xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-                  ₹0.01
-                </div>
-                <div className="text-xl sm:text-2xl text-gray-600 mb-6">per consent recorded</div>
-                <div className="space-y-3 mb-8">
-                  <div className="flex items-center justify-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="text-gray-700">No plan lock-in • Pay as you grow</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="text-gray-700">Unlimited domains • Unlimited scans</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="text-gray-700">All features included • No hidden fees</span>
-                  </div>
-                </div>
-                <Link href="/pricing">
-                  <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
-                    View Full Pricing
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      null
 
       {/* DPDPA Compliance Highlight */}
       <section className="py-20 bg-white">
@@ -554,9 +442,9 @@ export default function Home() {
                 <p className="text-xl text-blue-50 mb-8 leading-relaxed">
                   Comprehensive DPDPA 2023 compliance platform with industry templates, granular consent management, data subject rights handling, and complete audit trails. Get started in minutes with pre-loaded templates.
                 </p>
-                <Link href="/pricing">
+                <Link href="/signup">
                   <Button size="lg" variant="secondary" className="text-blue-600">
-                    Learn More
+                    Get Started Free
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>

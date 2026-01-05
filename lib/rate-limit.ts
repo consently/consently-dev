@@ -1,8 +1,64 @@
+import { redis } from './redis';
+
 /**
  * Rate limiting middleware for API routes
- * Uses in-memory storage for simplicity (for production, use Redis)
+ * Uses Upstash Redis for distributed performance and scalability
  */
 
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+  retryAfter?: number;
+}
+
+export interface RateLimitConfig {
+  max: number;
+  window?: number;
+  identifier: string;
+}
+
+/**
+ * Check if a request should be rate limited using Redis
+ */
+export async function checkRateLimit(config: RateLimitConfig): Promise<RateLimitResult> {
+  const { max, window = 60000, identifier } = config;
+  const key = `ratelimit:${identifier}`;
+
+  if (!redis) {
+    // Fallback for development if Redis is not configured
+    console.warn('Redis not configured, using legacy in-memory rate limiting');
+    return checkRateLimitInMemory(config);
+  }
+
+  try {
+    const now = Date.now();
+    const windowSeconds = Math.ceil(window / 1000);
+    
+    // Use Redis INCR and EXPIRE for atomic rate limiting
+    const count = await redis.incr(key);
+    
+    if (count === 1) {
+      await redis.expire(key, windowSeconds);
+    }
+    
+    const ttl = await redis.ttl(key);
+    const remaining = Math.max(0, max - count);
+    const allowed = count <= max;
+
+    return {
+      allowed,
+      remaining,
+      limit: max,
+      retryAfter: !allowed ? ttl : undefined,
+    };
+  } catch (error) {
+    console.error('Redis rate limit error:', error);
+    return { allowed: true, remaining: max, limit: max }; // Fail open
+  }
+}
+
+// Legacy in-memory store for fallback
 interface RateLimitStore {
   [key: string]: {
     count: number;
@@ -12,59 +68,11 @@ interface RateLimitStore {
 
 const store: RateLimitStore = {};
 
-// Clean up old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  Object.keys(store).forEach((key) => {
-    if (store[key].resetTime < now) {
-      delete store[key];
-    }
-  });
-}, 5 * 60 * 1000);
-
-export interface RateLimitConfig {
-  /**
-   * Maximum number of requests allowed within the window
-   */
-  max: number;
-  /**
-   * Time window in milliseconds (default: 60000ms = 1 minute)
-   */
-  window?: number;
-  /**
-   * Unique identifier for the client (e.g., IP address, user ID)
-   */
-  identifier: string;
-}
-
-export interface RateLimitResult {
-  /**
-   * Whether the request is allowed
-   */
-  allowed: boolean;
-  /**
-   * Remaining requests in the current window
-   */
-  remaining: number;
-  /**
-   * Total limit
-   */
-  limit: number;
-  /**
-   * Time until reset (in seconds)
-   */
-  retryAfter?: number;
-}
-
-/**
- * Check if a request should be rate limited
- */
-export function checkRateLimit(config: RateLimitConfig): RateLimitResult {
+function checkRateLimitInMemory(config: RateLimitConfig): RateLimitResult {
   const { max, window = 60000, identifier } = config;
   const now = Date.now();
   const key = identifier;
 
-  // Get or create entry
   if (!store[key] || store[key].resetTime < now) {
     store[key] = {
       count: 0,
@@ -73,26 +81,13 @@ export function checkRateLimit(config: RateLimitConfig): RateLimitResult {
   }
 
   const entry = store[key];
-
-  // Check if limit exceeded
   if (entry.count >= max) {
     const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
-    return {
-      allowed: false,
-      remaining: 0,
-      limit: max,
-      retryAfter,
-    };
+    return { allowed: false, remaining: 0, limit: max, retryAfter };
   }
 
-  // Increment counter
   entry.count++;
-
-  return {
-    allowed: true,
-    remaining: max - entry.count,
-    limit: max,
-  };
+  return { allowed: true, remaining: max - entry.count, limit: max };
 }
 
 /**
@@ -132,7 +127,7 @@ export function withRateLimit(
       ? await options.getIdentifier(request)
       : getClientIdentifier(request.headers);
 
-    const result = checkRateLimit({
+    const result = await checkRateLimit({
       max: options.max,
       window: options.window,
       identifier,

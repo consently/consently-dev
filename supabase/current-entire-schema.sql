@@ -13,6 +13,19 @@ CREATE TABLE public.activity_purposes (
   CONSTRAINT activity_purposes_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES public.processing_activities(id),
   CONSTRAINT activity_purposes_purpose_id_fkey FOREIGN KEY (purpose_id) REFERENCES public.purposes(id)
 );
+CREATE TABLE public.admin_otps (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  otp_code character varying NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  verified boolean DEFAULT false,
+  verified_at timestamp with time zone,
+  attempts integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT admin_otps_pkey PRIMARY KEY (id),
+  CONSTRAINT admin_otps_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.audit_logs (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid,
@@ -506,6 +519,7 @@ CREATE TABLE public.dpdpa_widget_configs (
   requires_reconsent boolean DEFAULT false,
   display_rules jsonb DEFAULT '[]'::jsonb,
   otp_expiration_minutes integer DEFAULT 10 CHECK (otp_expiration_minutes >= 1 AND otp_expiration_minutes <= 60),
+  dpo_email text,
   CONSTRAINT dpdpa_widget_configs_pkey PRIMARY KEY (id),
   CONSTRAINT dpdpa_widget_configs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -682,6 +696,8 @@ CREATE TABLE public.widget_configs (
   banner_content jsonb DEFAULT '{"title": "🍪 We value your privacy", "message": "We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking \"Accept All\", you consent to our use of cookies.", "acceptButtonText": "Accept All", "rejectButtonText": "Reject All", "settingsButtonText": "Cookie Settings"}'::jsonb,
   name text DEFAULT 'My Cookie Widget'::text,
   is_active boolean DEFAULT true,
+  enable_smart_prefill boolean DEFAULT true,
+  email_field_selectors text DEFAULT 'input[type="email"], input[name*="email" i]'::text,
   CONSTRAINT widget_configs_pkey PRIMARY KEY (id),
   CONSTRAINT widget_configs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT widget_configs_banner_template_id_fkey FOREIGN KEY (banner_template_id) REFERENCES public.banner_configs(id)

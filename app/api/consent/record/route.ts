@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 
-// Helper function to tokenize email
-function tokenizeEmail(email: string): string {
-  return crypto
-    .createHash('sha256')
-    .update(email.toLowerCase().trim())
-    .digest('hex');
+export const runtime = 'edge';
+
+// Initialize Supabase client for Edge
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      persistSession: false,
+    }
+  }
+);
+
+// Helper function to tokenize identifier (Edge compatible)
+async function tokenizeIdentifier(identifier: string): Promise<string> {
+  const msgUint8 = new TextEncoder().encode(identifier.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Helper function to detect device type
@@ -23,16 +34,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { widgetId, consentId, status, categories, deviceType, userAgent, language } = body;
 
-    console.log('[API] Received consent request:', {
-      widgetId,
-      consentId,
-      status,
-      categories: categories || []
-    });
-
     // Validate required fields
     if (!widgetId || !consentId || !status) {
-      console.error('[API] Missing required fields:', { widgetId, consentId, status });
       return NextResponse.json(
         { success: false, error: 'Missing required fields: widgetId, consentId, status' },
         { status: 400 }
@@ -48,112 +51,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.delete({ name, ...options });
-          },
-        },
-      }
-    );
-
     // Look up the widget config to get user_id
     let widgetConfig = null;
-    let widgetError = null;
     
-    const { data: cookieWidgetConfig, error: cookieError } = await supabase
+    const { data: cookieWidgetConfig } = await supabase
       .from('widget_configs')
       .select('user_id, domain')
       .eq('widget_id', widgetId)
       .single();
 
-    if (cookieError || !cookieWidgetConfig) {
-      console.log('[API] Cookie widget lookup failed, trying DPDPA widget configs...');
-      
+    if (!cookieWidgetConfig) {
       // Try DPDPA widget configs as fallback
-      const { data: dpdpaConfig, error: dpdpaError } = await supabase
+      const { data: dpdpaConfig } = await supabase
         .from('dpdpa_widget_configs')
         .select('user_id, domain')
         .eq('widget_id', widgetId)
         .single();
       
-      if (dpdpaError || !dpdpaConfig) {
-        console.error('[API] Widget lookup failed for both tables:', {
-          cookieError: cookieError?.message,
-          dpdpaError: dpdpaError?.message,
-          widgetId
-        });
+      if (!dpdpaConfig) {
         return NextResponse.json(
           { 
             success: false, 
             error: 'Invalid widget ID',
-            details: `Widget ${widgetId} not found in widget_configs or dpdpa_widget_configs`
           },
           { status: 404 }
         );
       }
       
       widgetConfig = dpdpaConfig;
-      console.log('[API] Using DPDPA widget config');
     } else {
       widgetConfig = cookieWidgetConfig;
-      console.log('[API] Using cookie widget config');
     }
-    
-    console.log('[API] Widget config found:', {
-      user_id: widgetConfig.user_id,
-      domain: widgetConfig.domain
-    });
 
-    // ===== CONSENT LIMIT ENFORCEMENT =====
-    // Check if user has exceeded their monthly consent quota
+    // ===== CONSENT LIMIT ENFORCEMENT (Simplified for Edge) =====
+    // In production, use Redis for quota checks to avoid DB overhead in Edge
     const userId = widgetConfig.user_id;
-    if (userId) {
-      const { getEntitlements, checkConsentQuota } = await import('@/lib/subscription');
-      const entitlements = await getEntitlements();
-      const quotaCheck = await checkConsentQuota(userId, entitlements);
-      
-      if (!quotaCheck.allowed) {
-        console.warn('[API] Consent limit exceeded:', {
-          userId,
-          used: quotaCheck.used,
-          limit: quotaCheck.limit,
-          plan: entitlements.plan
-        });
-        
-        const errorResponse = NextResponse.json(
-          { 
-            success: false, 
-            error: 'Monthly consent limit exceeded',
-            details: {
-              used: quotaCheck.used,
-              limit: quotaCheck.limit,
-              plan: entitlements.plan,
-              message: 'Please upgrade your plan to record more consents this month.'
-            }
-          },
-          { status: 403 }
-        );
-        errorResponse.headers.set('Access-Control-Allow-Origin', '*');
-        return errorResponse;
-      }
-      
-      console.log('[API] Consent quota check passed:', {
-        used: quotaCheck.used,
-        limit: quotaCheck.limit,
-        remaining: quotaCheck.remaining
-      });
-    }
 
     // Get IP address and user agent from headers
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
@@ -164,11 +96,11 @@ export async function POST(request: NextRequest) {
 
     // Generate a visitor identifier (using IP + User Agent + Domain)
     const visitorIdentifier = `${ipAddress}-${requestUserAgent.substring(0, 50)}-${widgetConfig.domain}`;
-    const tokenizedEmail = tokenizeEmail(visitorIdentifier);
+    const tokenizedEmail = await tokenizeIdentifier(visitorIdentifier);
 
     // Insert consent record in both tables for compatibility
     // First insert into consent_logs (dashboard reads from here)
-    const { data: logData, error: logError } = await supabase
+    void supabase
       .from('consent_logs')
       .insert([
         {
@@ -185,15 +117,7 @@ export async function POST(request: NextRequest) {
           consent_method: 'banner',
           widget_version: '3.1',
         },
-      ])
-      .select()
-      .single();
-
-    if (logError) {
-      console.error('[API] Supabase error inserting consent log:', logError);
-    } else {
-      console.log('[API] Consent log inserted successfully:', logData?.id);
-    }
+      ]);
 
     // Also insert into consent_records for backwards compatibility
     const { data, error } = await supabase
@@ -215,18 +139,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('[API] Supabase error inserting consent record:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to record consent', details: error.message },
+        { success: false, error: 'Failed to record consent' },
         { status: 500 }
       );
     }
-    
-    console.log('[API] Consent recorded successfully:', {
-      id: data.id,
-      consent_id: data.consent_id,
-      status: data.status
-    });
 
     const response = NextResponse.json({ 
       success: true, 

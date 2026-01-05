@@ -22,11 +22,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/pricing" className="hover:text-white transition-colors inline-block py-1 touch-manipulation">
-                  Pricing
-                </Link>
-              </li>
-              <li>
                 <Link href="/consulting" className="hover:text-white transition-colors inline-block py-1 touch-manipulation">
                   Consulting Services
                 </Link>

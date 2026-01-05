@@ -28,31 +28,21 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired
+  // Protected and Public routes
+  const protectedPaths = ['/dashboard', '/setup', '/settings'];
+  const publicPaths = ['/', '/pricing', '/login', '/signup', '/guides'];
+  const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
+  const isPublicPath = publicPaths.some((path) => path === request.nextUrl.pathname || (path !== '/' && request.nextUrl.pathname.startsWith(path)));
+
+  // Skip auth checks for public routes to reduce latency
+  if (isPublicPath && !isProtectedPath) {
+    return supabaseResponse;
+  }
+
+  // Refresh session if expired (only for non-public or explicitly protected routes)
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  // Check and expire trial if applicable (only for authenticated users)
-  if (user) {
-    try {
-      const { checkAndExpireTrial } = await import('@/lib/subscription');
-      const trialCheck = await checkAndExpireTrial(user.id);
-
-      if (trialCheck.expired) {
-        logger.info('Trial expired for user', { userId: user.id });
-        // Note: User is downgraded to free plan automatically
-        // They can continue using the app with free tier features
-      }
-    } catch (error) {
-      logger.error('Error checking trial expiration', error);
-      // Don't block the request if trial check fails
-    }
-  }
-
-  // Protected routes
-  const protectedPaths = ['/dashboard', '/setup', '/settings'];
-  const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
 
   // Redirect to login if accessing protected route without auth
   if (isProtectedPath && !user) {

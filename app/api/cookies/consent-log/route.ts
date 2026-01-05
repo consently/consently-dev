@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { CookieService } from '@/lib/cookies/cookie-service';
-import { sendEmail } from '@/lib/email';
+import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+
+export const runtime = 'edge';
+
+// Initialize Supabase client for Edge
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      persistSession: false,
+    }
+  }
+);
 
 /**
  * Enhanced Consent Logging API
@@ -62,22 +73,11 @@ type ConsentLogInput = z.infer<typeof consentLogSchema>;
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
 
     // Check if batch operation
     if (body.logs && Array.isArray(body.logs)) {
-      return await handleBatchConsent(user.id, body, request);
+      return await handleBatchConsent(body, request);
     }
 
     // Single consent log
@@ -95,38 +95,42 @@ export async function POST(request: NextRequest) {
 
     const logData = validationResult.data;
 
-    // Create consent log
-    const consentLog = await CookieService.logConsent({
-      user_id: user.id,
-      ...logData,
-    });
+    // Verify widget exists and get owner user_id
+    const { data: widget, error: widgetError } = await supabase
+      .from('widget_configs')
+      .select('user_id')
+      .eq('widget_id', logData.widget_id)
+      .single();
 
-    // Generate receipt if requested
-    let receipt = null;
-    if (logData.send_receipt && logData.visitor_email) {
-      receipt = await generateConsentReceipt(
-        user.id,
-        logData.consent_id,
-        logData.visitor_email,
-        logData
-      );
-
-      // Send email with receipt
-      await sendConsentReceiptEmail(
-        logData.visitor_email,
-        receipt,
-        logData
-      );
+    if (widgetError || !widget) {
+      return NextResponse.json({ error: 'Invalid widget_id' }, { status: 404 });
     }
+
+    // Create consent log
+    const { data: consentLog, error: logError } = await supabase
+      .from('consent_logs')
+      .insert({
+        user_id: widget.user_id,
+        ...logData,
+      })
+      .select()
+      .single();
+
+    if (logError) throw logError;
+
+    // Trigger analytics aggregation asynchronously (Edge-friendly)
+    const today = new Date().toISOString().split('T')[0];
+    // In Edge, we fire and forget
+    // supabase.rpc returns a promise-like object
+    void supabase.rpc('aggregate_consent_analytics', {
+      p_user_id: widget.user_id,
+      p_date: today,
+    });
 
     return NextResponse.json({
       success: true,
       data: {
         consentLog,
-        receipt: receipt ? {
-          receiptNumber: receipt.receipt_number,
-          receiptUrl: `/api/cookies/consent-log/receipt?id=${receipt.receipt_number}`,
-        } : null,
       },
     });
 
@@ -145,18 +149,13 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const searchParams = request.nextUrl.searchParams;
+    const widgetId = searchParams.get('widget_id');
+
+    if (!widgetId) {
+      return NextResponse.json({ error: 'widget_id is required' }, { status: 400 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || undefined;
     const consentType = searchParams.get('consent_type') || undefined;
     const visitorToken = searchParams.get('visitor_token') || undefined;
@@ -165,21 +164,27 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Get consent logs
-    const result = await CookieService.getConsentLogs(user.id, {
-      status,
-      consent_type: consentType,
-      visitor_token: visitorToken,
-      start_date: startDate,
-      end_date: endDate,
-      limit,
-      offset,
-    });
+    let query = supabase
+      .from('consent_logs')
+      .select('*', { count: 'exact' })
+      .eq('widget_id', widgetId)
+      .order('created_at', { ascending: false });
+
+    if (status) query = query.eq('status', status);
+    if (consentType) query = query.eq('consent_type', consentType);
+    if (visitorToken) query = query.eq('visitor_token', visitorToken);
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
+
+    const { data: logs, error, count } = await query
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
 
     return NextResponse.json({
       success: true,
-      data: result.logs,
-      total: result.total,
+      data: logs || [],
+      total: count || 0,
       limit,
       offset,
     });
@@ -209,8 +214,6 @@ export async function receiptGET(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-
     const { data: receipt, error } = await supabase
       .from('consent_receipts')
       .select('*')
@@ -224,8 +227,8 @@ export async function receiptGET(request: NextRequest) {
       );
     }
 
-    // Update viewed timestamp
-    await supabase
+    // Update viewed timestamp (Fire and forget)
+    void supabase
       .from('consent_receipts')
       .update({ viewed_at: new Date().toISOString() })
       .eq('receipt_number', receiptId);
@@ -248,7 +251,6 @@ export async function receiptGET(request: NextRequest) {
  * Handle batch consent logging
  */
 async function handleBatchConsent(
-  userId: string,
   body: any,
   request: NextRequest
 ) {
@@ -268,15 +270,32 @@ async function handleBatchConsent(
   const results = [];
   const errors = [];
 
-  // Process each log
+  // Process each log (Optimized for Edge)
   for (let i = 0; i < logs.length; i++) {
     try {
       const logData = logs[i];
       
-      const consentLog = await CookieService.logConsent({
-        user_id: userId,
-        ...logData,
-      });
+      // Verify widget
+      const { data: widget } = await supabase
+        .from('widget_configs')
+        .select('user_id')
+        .eq('widget_id', logData.widget_id)
+        .single();
+
+      if (!widget) {
+        throw new Error('Invalid widget_id');
+      }
+
+      const { data: consentLog, error: logError } = await supabase
+        .from('consent_logs')
+        .insert({
+          user_id: widget.user_id,
+          ...logData,
+        })
+        .select()
+        .single();
+
+      if (logError) throw logError;
 
       results.push({
         index: i,
@@ -300,133 +319,4 @@ async function handleBatchConsent(
     results,
     errors: errors.length > 0 ? errors : undefined,
   });
-}
-
-/**
- * Generate consent receipt
- */
-async function generateConsentReceipt(
-  userId: string,
-  consentId: string,
-  visitorEmail: string,
-  consentData: any
-) {
-  const supabase = await createClient();
-
-  // Generate receipt number
-  const { data: receiptNumber } = await supabase
-    .rpc('generate_consent_receipt', { p_consent_id: consentId });
-
-  // Create receipt HTML
-  const receiptHtml = generateReceiptHtml(receiptNumber, consentData);
-
-  // Store receipt
-  const { data: receipt, error } = await supabase
-    .from('consent_receipts')
-    .insert({
-      user_id: userId,
-      consent_id: consentId,
-      visitor_email: visitorEmail,
-      receipt_number: receiptNumber,
-      consent_data: consentData,
-      receipt_html: receiptHtml,
-      created_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return receipt;
-}
-
-/**
- * Generate receipt HTML
- */
-function generateReceiptHtml(receiptNumber: string, consentData: any): string {
-  const date = new Date().toLocaleString();
-  
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Consent Receipt - ${receiptNumber}</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
-    .header { background: #3b82f6; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-    .content { border: 1px solid #e5e7eb; padding: 20px; border-radius: 0 0 8px 8px; }
-    .field { margin: 15px 0; }
-    .label { font-weight: bold; color: #374151; }
-    .value { color: #6b7280; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1 style="margin: 0;">Consent Receipt</h1>
-    <p style="margin: 5px 0 0 0;">Receipt #${receiptNumber}</p>
-  </div>
-  <div class="content">
-    <div class="field">
-      <div class="label">Date:</div>
-      <div class="value">${date}</div>
-    </div>
-    <div class="field">
-      <div class="label">Consent ID:</div>
-      <div class="value">${consentData.consent_id}</div>
-    </div>
-    <div class="field">
-      <div class="label">Status:</div>
-      <div class="value">${consentData.status}</div>
-    </div>
-    <div class="field">
-      <div class="label">Consent Type:</div>
-      <div class="value">${consentData.consent_type}</div>
-    </div>
-    <div class="field">
-      <div class="label">Categories:</div>
-      <div class="value">${consentData.categories?.join(', ') || 'None'}</div>
-    </div>
-    ${consentData.page_url ? `
-    <div class="field">
-      <div class="label">Website:</div>
-      <div class="value">${consentData.page_url}</div>
-    </div>
-    ` : ''}
-    <div class="footer">
-      <p>This is an automated receipt for your consent preferences. You can update your preferences at any time by visiting the website.</p>
-      <p>Powered by Consently - DPDPA 2023 & GDPR Compliant</p>
-    </div>
-  </div>
-</body>
-</html>
-  `.trim();
-}
-
-/**
- * Send consent receipt email
- */
-async function sendConsentReceiptEmail(
-  email: string,
-  receipt: any,
-  consentData: any
-) {
-  try {
-    await sendEmail(
-      'consent_receipt',
-      email,
-      {
-        receipt_number: receipt.receipt_number,
-        consent_id: consentData.consent_id,
-        status: consentData.status,
-        categories: consentData.categories?.join(', ') || 'None',
-        date: new Date().toLocaleString(),
-        website: consentData.page_url || 'N/A',
-      }
-    );
-  } catch (error) {
-    console.error('Failed to send consent receipt email:', error);
-    // Don't throw - email failures shouldn't fail the consent log
-  }
 }

@@ -150,7 +150,7 @@ export function TrialBanner({ className = '' }: TrialBannerProps) {
 
           {/* CTA */}
           <Link
-            href="/pricing"
+            href="/dashboard"
             className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium rounded-lg transition-all ${
               urgencyLevel === 'urgent'
                 ? 'bg-red-600 hover:bg-red-700 text-white'
@@ -159,7 +159,7 @@ export function TrialBanner({ className = '' }: TrialBannerProps) {
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
-            <span>{urgencyLevel === 'urgent' ? 'Upgrade Now' : 'View Plans'}</span>
+            <span>{urgencyLevel === 'urgent' ? 'Upgrade Now' : 'Go to Dashboard'}</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
