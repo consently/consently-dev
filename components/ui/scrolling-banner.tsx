@@ -4,11 +4,6 @@ import { Sparkles, Zap, Shield, Rocket, Star, TrendingUp } from 'lucide-react';
 
 const taglines = [
   {
-    text: '🎉 Pre-Launch: ₹0.01 per consent — Limited Time Only',
-    icon: <Rocket className="h-5 w-5" />,
-    gradient: 'from-blue-500 to-blue-600',
-  },
-  {
     text: '🇮🇳 The ONLY DPDP-Compliant Tool with 22 Indian Languages',
     icon: <Shield className="h-5 w-5" />,
     gradient: 'from-orange-500 to-orange-600',
@@ -27,11 +22,6 @@ const taglines = [
     text: '🎯 Trusted by 1000+ Indian Businesses',
     icon: <Star className="h-5 w-5" />,
     gradient: 'from-orange-500 to-orange-600',
-  },
-  {
-    text: '💰 Save 70% vs CookieYes & OneTrust',
-    icon: <TrendingUp className="h-5 w-5" />,
-    gradient: 'from-pink-500 to-pink-600',
   },
   {
     text: '🔍 100% Automated Cookie Scanning',
