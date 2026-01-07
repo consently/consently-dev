@@ -10,11 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cookieScanSchema, type CookieScanInput } from '@/lib/schemas';
-import { Search, Loader2, CheckCircle, AlertCircle, Download, Sparkles } from 'lucide-react';
+import { Search, Loader2, CheckCircle, AlertCircle, Download, Sparkles, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BannerCustomizationModal } from '@/components/cookie/BannerCustomizationModal';
+import { CookiePolicyGenerator } from '@/components/cookie/CookiePolicyGenerator';
 
 interface ScannedCookie {
   id: string;
@@ -71,6 +72,7 @@ export default function CookieScanPage() {
   const [scanHistory, setScanHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
+  const [showPolicyGenerator, setShowPolicyGenerator] = useState(false);
   const [scanMetrics, setScanMetrics] = useState<{
     pagesScanned: number;
     complianceScore: number;
@@ -612,6 +614,21 @@ export default function CookieScanPage() {
         scannedUrl={scannedUrl}
         scannedCookies={scannedCookies}
       />
+
+      {/* Cookie Policy Generator Modal */}
+      {showPolicyGenerator && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+          <div className="min-h-screen px-4 py-8">
+            <div className="max-w-4xl mx-auto">
+              <CookiePolicyGenerator
+                scannedCookies={scannedCookies}
+                scannedUrl={scannedUrl}
+                onClose={() => setShowPolicyGenerator(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Cookie Scanner</h1>
@@ -913,6 +930,16 @@ export default function CookieScanPage() {
                           Customize & Generate Banner
                         </>
                       )}
+                    </Button>
+                    <Button 
+                      onClick={() => setShowPolicyGenerator(true)}
+                      disabled={scannedCookies.length === 0}
+                      size="lg"
+                      variant="outline"
+                      className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Generate Cookie Policy
                     </Button>
                     <Button 
                       variant="outline" 
