@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "build:widget": "node scripts/build-widget.js",
+    "build:widget": "node scripts/build-widgets.js",
+    "deploy": "./scripts/deploy.sh",
     "test:widget": "npm run dev",
     "organize-docs": "tsx scripts/organize-docs.ts"
   },

@@ -779,7 +779,8 @@ export default function DPDPAWidgetPage() {
     if (!config.widgetId) return '';
     // Always use production URL for widget script
     const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
-    return `<!-- Consently DPDPA Widget -->\n<script defer src="${widgetUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${config.widgetId}"></script>`;
+    const version = Date.now(); // Cache-busting timestamp
+    return `<!-- Consently DPDPA Widget -->\n<script defer src="${widgetUrl}/dpdpa-widget.js?v=${version}" data-dpdpa-widget-id="${config.widgetId}"></script>`;
   };
 
   const getPlatformSpecificCode = (platform: string) => {
@@ -787,22 +788,23 @@ export default function DPDPAWidgetPage() {
     // Always use production URL for widget script
     const widgetUrl = process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
     const widgetId = config.widgetId;
+    const version = Date.now(); // Cache-busting timestamp
 
     switch (platform) {
       case 'html':
-        return `<!-- Consently DPDPA Widget -->\n<script defer src="${widgetUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+        return `<!-- Consently DPDPA Widget -->\n<script defer src="${widgetUrl}/dpdpa-widget.js?v=${version}" data-dpdpa-widget-id="${widgetId}"></script>`;
 
       case 'wordpress':
-        return `<!-- Add to your theme's footer.php before </body> or use "Insert Headers and Footers" plugin -->\n<!-- Go to Settings → Insert Headers and Footers → Footer section -->\n<script defer src="${widgetUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+        return `<!-- Add to your theme's footer.php before </body> or use "Insert Headers and Footers" plugin -->\n<!-- Go to Settings → Insert Headers and Footers → Footer section -->\n<script defer src="${widgetUrl}/dpdpa-widget.js?v=${version}" data-dpdpa-widget-id="${widgetId}"></script>`;
 
       case 'shopify':
-        return `<!-- Add to: Online Store > Themes > Actions > Edit Code > theme.liquid -->\n<!-- Place before </body> tag -->\n<script defer src="${widgetUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>\n\n<!-- Production Option: Upload to Shopify CDN -->\n<!-- 1. Download widget: curl -o dpdpa-widget.js ${widgetUrl}/dpdpa-widget.js -->\n<!-- 2. Upload at: Settings > Files -->\n<!-- 3. Replace src with Shopify CDN URL -->`;
+        return `<!-- Add to: Online Store > Themes > Actions > Edit Code > theme.liquid -->\n<!-- Place before </body> tag -->\n<script defer src="${widgetUrl}/dpdpa-widget.js?v=${version}" data-dpdpa-widget-id="${widgetId}"></script>\n\n<!-- Production Option: Upload to Shopify CDN -->\n<!-- 1. Download widget: curl -o dpdpa-widget.js ${widgetUrl}/dpdpa-widget.js -->\n<!-- 2. Upload at: Settings > Files -->\n<!-- 3. Replace src with Shopify CDN URL -->`;
 
       case 'wix':
-        return `<!-- Wix Installation:\n1. Go to Settings > Custom Code\n2. Click "+ Add Custom Code"\n3. Paste the code below\n4. Set to load on "All Pages" in the "Body - end" section\n5. Publish your site\n-->\n<script defer src="${widgetUrl}/dpdpa-widget.js" data-dpdpa-widget-id="${widgetId}"></script>`;
+        return `<!-- Wix Installation:\n1. Go to Settings > Custom Code\n2. Click "+ Add Custom Code"\n3. Paste the code below\n4. Set to load on "All Pages" in the "Body - end" section\n5. Publish your site\n-->\n<script defer src="${widgetUrl}/dpdpa-widget.js?v=${version}" data-dpdpa-widget-id="${widgetId}"></script>`;
 
       case 'react':
-        return `// React/Next.js Installation\n'use client';\n\nimport { useEffect } from 'react';\n\nfunction ConsentlyWidget() {\n  useEffect(() => {\n    // Check if script is already loaded\n    const existingScript = document.querySelector('script[data-dpdpa-widget-id="${widgetId}"]');\n    if (existingScript) {\n      console.log('[Consently] Widget script already loaded');\n      return;\n    }\n\n    const script = document.createElement('script');\n    script.src = '${widgetUrl}/dpdpa-widget.js';\n    script.setAttribute('data-dpdpa-widget-id', '${widgetId}');\n    script.defer = true;\n    document.body.appendChild(script);\n\n    return () => {\n      // Safely remove script if it exists\n      if (script.parentNode) {\n        script.parentNode.removeChild(script);\n      }\n    };\n  }, []);\n\n  return null;\n}\n\nexport default ConsentlyWidget;`;
+        return `// Import the widget (use npm package or download the file)\n// For development: <script src="${widgetUrl}/dpdpa-widget.js?v=${version}" data-dpdpa-widget-id="${widgetId}"></script>\n// For production: Download and host the widget file yourself\n\n// React component example:\nimport { useEffect } from 'react';\n\nexport const ConsentlyDPDPAWidget = ({ widgetId }) => {\n  useEffect(() => {\n    const script = document.createElement('script');\n    script.src = '${widgetUrl}/dpdpa-widget.js?v=${version}';\n    script.setAttribute('data-dpdpa-widget-id', widgetId);\n    script.async = true;\n    document.body.appendChild(script);\n  }, [widgetId]);\n  \n  return null;\n};\n\n// Usage in your app:\n// <ConsentlyDPDPAWidget widgetId="${widgetId}" />`;
 
       default:
         return getEmbedCode();
