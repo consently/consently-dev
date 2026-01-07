@@ -1,9 +1,13 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { buttonVariants, cardVariants, inputVariants } from './ui/variants';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+// Export mobile-first UI variants
+export { buttonVariants, cardVariants, inputVariants };
 
 /**
  * Format Indian currency

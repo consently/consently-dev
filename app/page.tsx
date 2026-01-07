@@ -5,6 +5,7 @@ import { Footer } from '@/components/ui/footer';
 import { ScrollingBanner } from '@/components/ui/scrolling-banner';
 import { HeroCarousel, ProductShowcase } from '@/components/ui/product-showcase';
 import { Navigation } from '@/components/ui/navigation';
+import { ComparisonTable } from '@/components/ui/comparison-table';
 import {
   Shield,
   Lock,
@@ -326,77 +327,41 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse bg-white rounded-2xl shadow-xl overflow-hidden">
-              <thead>
-                <tr className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                  <th className="py-4 px-6 text-left font-bold text-base sm:text-lg">Feature</th>
-                  <th className="py-4 px-6 text-center font-bold text-base sm:text-lg bg-gradient-to-r from-blue-700 to-purple-700">
-                    <div className="flex flex-col items-center">
-                      <span>Consently</span>
-                      <Badge className="mt-2 bg-yellow-400 text-yellow-900 border-0">BEST</Badge>
-                    </div>
-                  </th>
-                  <th className="py-4 px-6 text-center font-bold text-base sm:text-lg">CookieYes</th>
-                  <th className="py-4 px-6 text-center font-bold text-base sm:text-lg">OneTrust</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                <tr className="hover:bg-blue-50 transition-colors">
-                  <td className="py-4 px-6 font-semibold text-gray-900">DPDP 2023 Compliant</td>
-                  <td className="py-4 px-6 text-center bg-blue-50">
-                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <X className="h-6 w-6 text-red-500 mx-auto" />
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <X className="h-6 w-6 text-red-500 mx-auto" />
-                  </td>
-                </tr>
-                <tr className="hover:bg-blue-50 transition-colors">
-                  <td className="py-4 px-6 font-semibold text-gray-900">22 Indian Languages</td>
-                  <td className="py-4 px-6 text-center bg-blue-50">
-                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <X className="h-6 w-6 text-red-500 mx-auto" />
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <X className="h-6 w-6 text-red-500 mx-auto" />
-                  </td>
-                </tr>
-                <tr className="hover:bg-blue-50 transition-colors">
-                  <td className="py-4 px-6 font-semibold text-gray-900">Automated Cookie Scan</td>
-                  <td className="py-4 px-6 text-center bg-blue-50">
-                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
-                  </td>
-                  <td className="py-4 px-6 text-center text-gray-600">Partial</td>
-                  <td className="py-4 px-6 text-center text-gray-600">Partial</td>
-                </tr>
-                <tr className="hover:bg-blue-50 transition-colors">
-                  <td className="py-4 px-6 font-semibold text-gray-900">Setup Time</td>
-                  <td className="py-4 px-6 text-center bg-blue-50">
-                    <div className="font-bold text-blue-600">5 mins</div>
-                  </td>
-                  <td className="py-4 px-6 text-center text-gray-600">30 mins</td>
-                  <td className="py-4 px-6 text-center text-gray-600">2+ hours</td>
-                </tr>
-                <tr className="hover:bg-blue-50 transition-colors">
-                  <td className="py-4 px-6 font-semibold text-gray-900">Audit Reports</td>
-                  <td className="py-4 px-6 text-center bg-blue-50">
-                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <X className="h-6 w-6 text-red-500 mx-auto" />
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ComparisonTable 
+            data={[
+              {
+                feature: 'DPDP 2023 Compliant',
+                consciously: <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />,
+                cookieYes: <X className="h-6 w-6 text-red-500 mx-auto" />,
+                oneTrust: <X className="h-6 w-6 text-red-500 mx-auto" />,
+              },
+              {
+                feature: '22 Indian Languages',
+                consciously: <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />,
+                cookieYes: <X className="h-6 w-6 text-red-500 mx-auto" />,
+                oneTrust: <X className="h-6 w-6 text-red-500 mx-auto" />,
+              },
+              {
+                feature: 'Automated Cookie Scan',
+                consciously: <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />,
+                cookieYes: <span className="text-gray-600">Partial</span>,
+                oneTrust: <span className="text-gray-600">Partial</span>,
+              },
+              {
+                feature: 'Setup Time',
+                consciously: <div className="font-bold text-blue-600">5 mins</div>,
+                cookieYes: <span className="text-gray-600">30 mins</span>,
+                oneTrust: <span className="text-gray-600">2+ hours</span>,
+              },
+              {
+                feature: 'Audit Reports',
+                consciously: <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />,
+                cookieYes: <X className="h-6 w-6 text-red-500 mx-auto" />,
+                oneTrust: <CheckCircle2 className="h-6 w-6 text-green-600 mx-auto" />,
+              },
+            ]}
+            bestChoiceColumn="consciously"
+          />
 
           <div className="mt-8 text-center">
             <Link href="/signup">

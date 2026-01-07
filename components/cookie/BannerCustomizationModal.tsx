@@ -244,25 +244,26 @@ export function BannerCustomizationModal({
       size="xl"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Tabs */}
-        <div className="flex gap-2 border-b border-gray-200">
+        {/* Tabs - Mobile Scrollable */}
+        <div className="flex gap-2 border-b border-gray-200 overflow-x-auto scrollbar-hide">
           {[
             { id: 'content', label: 'Content', icon: Type },
-            { id: 'theme', label: 'Theme & Appearance', icon: Palette },
-            { id: 'layout', label: 'Layout & Position', icon: Layout },
+            { id: 'theme', label: 'Theme', icon: Palette },
+            { id: 'layout', label: 'Layout', icon: Layout },
           ].map(tab => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors min-w-fit touch-manipulation ${
                 activeTab === tab.id
                   ? 'border-blue-600 text-blue-600 font-medium'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
               <tab.icon className="h-4 w-4" />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>
@@ -302,7 +303,7 @@ export function BannerCustomizationModal({
                   </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Accept Button
@@ -364,7 +365,7 @@ export function BannerCustomizationModal({
                       Supported Languages *
                     </div>
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {LANGUAGE_OPTIONS.map(lang => (
                       <button
                         key={lang.code}
@@ -418,7 +419,7 @@ export function BannerCustomizationModal({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Theme Presets
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {THEME_PRESETS.map(preset => (
                       <button
                         key={preset.name}
@@ -442,7 +443,7 @@ export function BannerCustomizationModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Primary Color
@@ -525,7 +526,7 @@ export function BannerCustomizationModal({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Position
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {[
                       { value: 'top', label: 'Top', icon: '↑' },
                       { value: 'bottom', label: 'Bottom', icon: '↓' },
@@ -677,12 +678,22 @@ export function BannerCustomizationModal({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+        {/* Action Buttons - Mobile Stack */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={saving}
+            className="w-full sm:w-auto order-2 sm:order-1"
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+          <Button 
+            type="submit" 
+            disabled={saving} 
+            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto order-1 sm:order-2"
+          >
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -691,7 +702,8 @@ export function BannerCustomizationModal({
             ) : (
               <>
                 <Sparkles className="mr-2 h-4 w-4" />
-                Save & Generate Widget
+                <span className="hidden sm:inline">Save & Generate Widget</span>
+                <span className="sm:hidden">Save Widget</span>
               </>
             )}
           </Button>
