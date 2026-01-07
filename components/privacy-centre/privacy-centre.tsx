@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { PreferenceCentre } from './preference-centre';
 import { RequestCentre } from './request-centre';
-import { Shield, FileText } from 'lucide-react';
+import { CookieDetails } from './cookie-details';
+import { Shield, FileText, Cookie } from 'lucide-react';
 
 interface PrivacyCentreProps {
   visitorId: string;
@@ -12,6 +13,9 @@ interface PrivacyCentreProps {
 }
 
 export function PrivacyCentre({ visitorId, widgetId }: PrivacyCentreProps) {
+  // Extract domain from widget or use a default
+  const domain = typeof window !== 'undefined' ? window.location.hostname : 'example.com';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-6 md:py-12 px-3 md:px-4">
       <div className="max-w-6xl mx-auto">
@@ -29,11 +33,16 @@ export function PrivacyCentre({ visitorId, widgetId }: PrivacyCentreProps) {
         {/* Main Content Card */}
         <Card className="p-3 md:p-6 shadow-lg">
           <Tabs defaultValue="preferences" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4 md:mb-6 h-auto">
+            <TabsList className="grid w-full grid-cols-3 mb-4 md:mb-6 h-auto">
               <TabsTrigger value="preferences" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm py-2 px-1">
                 <Shield className="h-3 w-3 md:h-4 md:w-4" />
                 <span className="hidden sm:inline">Preference Centre</span>
                 <span className="sm:hidden">Preferences</span>
+              </TabsTrigger>
+              <TabsTrigger value="cookies" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm py-2 px-1">
+                <Cookie className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Cookie Details</span>
+                <span className="sm:hidden">Cookies</span>
               </TabsTrigger>
               <TabsTrigger value="requests" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm py-2 px-1">
                 <FileText className="h-3 w-3 md:h-4 md:w-4" />
@@ -44,6 +53,10 @@ export function PrivacyCentre({ visitorId, widgetId }: PrivacyCentreProps) {
 
             <TabsContent value="preferences">
               <PreferenceCentre visitorId={visitorId} widgetId={widgetId} />
+            </TabsContent>
+
+            <TabsContent value="cookies">
+              <CookieDetails widgetId={widgetId} domain={domain} />
             </TabsContent>
 
             <TabsContent value="requests">

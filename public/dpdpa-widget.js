@@ -3080,21 +3080,21 @@ ${activitySections}
         </div>
 
         <!-- View Cookies Section -->
-        <div style="padding: 14px; background: linear-gradient(to right, #f8fafc, #f1f5f9); border-radius: 10px; margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="padding: 16px; background: linear-gradient(135deg, ${primaryColor}08, ${primaryColor}04); border-radius: 12px; margin-bottom: 16px; border: 1px solid ${primaryColor}20; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
             <div style="flex: 1;">
-              <p style="margin: 0 0 4px 0; font-size: 13px; color: #475569; font-weight: 600; line-height: 1.4;">
-                View Cookie Details
+              <p style="margin: 0 0 4px 0; font-size: 14px; color: #1a1a1a; font-weight: 600; line-height: 1.4; display: flex; align-items: center; gap: 6px;">
+                🍪 Cookie Settings
               </p>
-              <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.4;">
-                See all cookies used on this website
+              <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
+                Manage cookie categories and view detailed information
               </p>
             </div>
-            <button id="dpdpa-view-cookies" style="padding: 10px 18px; background: white; color: ${primaryColor}; border: 2px solid ${primaryColor}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            <button id="dpdpa-view-cookies" style="padding: 10px 20px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block;">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
               </svg>
-              View Cookies
+              Configure Cookies
             </button>
           </div>
         </div>
@@ -3921,16 +3921,14 @@ ${activitySections}
     if (viewCookiesBtn) {
       // Enhanced hover effects
       viewCookiesBtn.addEventListener('mouseenter', () => {
-        viewCookiesBtn.style.background = primaryColor;
-        viewCookiesBtn.style.color = 'white';
+        viewCookiesBtn.style.background = primaryColor + 'dd';
         viewCookiesBtn.style.transform = 'translateY(-2px)';
-        viewCookiesBtn.style.boxShadow = '0 6px 12px rgba(59,130,246,0.4)';
+        viewCookiesBtn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
       });
       viewCookiesBtn.addEventListener('mouseleave', () => {
-        viewCookiesBtn.style.background = 'white';
-        viewCookiesBtn.style.color = primaryColor;
+        viewCookiesBtn.style.background = primaryColor;
         viewCookiesBtn.style.transform = 'translateY(0)';
-        viewCookiesBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
+        viewCookiesBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
       });
 
       viewCookiesBtn.addEventListener('click', () => {
@@ -4478,17 +4476,17 @@ ${activitySections}
       `;
 
       modalOverlay.innerHTML = `
-        <div style="background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 80vh; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: scale(0.9); transition: transform 0.3s ease;">
+        <div style="background: white; border-radius: 12px; max-width: 800px; width: 95%; max-height: 90vh; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15); transform: scale(0.95); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
           <!-- Header -->
-          <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between;">
+          <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; background: #fafbfc;">
             <div>
-              <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #1f2937;">Cookie Details</h2>
-              <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">
-                ${cookieData.domain} - ${cookieData.totalCookies} cookies found
-                ${cookieData.lastScanned ? `• Scanned on ${new Date(cookieData.lastScanned).toLocaleDateString()}` : ''}
+              <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #1a1a1a;">Cookie Preferences</h2>
+              <p style="margin: 4px 0 0 0; font-size: 13px; color: #6b7280;">
+                ${cookieData.domain} • ${cookieData.totalCookies} cookies
+                ${cookieData.lastScanned ? `• Scanned ${new Date(cookieData.lastScanned).toLocaleDateString()}` : ''}
               </p>
             </div>
-            <button id="close-cookie-modal" style="background: none; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+            <button id="close-cookie-modal" style="background: none; border: none; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: #6b7280;">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -4496,83 +4494,161 @@ ${activitySections}
             </button>
           </div>
 
+          <!-- Description -->
+          <div style="padding: 16px 24px; background: #f8f9fa; border-bottom: 1px solid #e5e7eb;">
+            <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.5;">
+              We use cookies to enhance your experience, analyze site traffic, and personalize content. 
+              You can choose which categories of cookies you allow. Learn more in our 
+              <a href="#" style="color: ${primaryColor}; text-decoration: none;">Privacy Policy</a>.
+            </p>
+          </div>
+
           <!-- Content -->
-          <div style="padding: 24px; overflow-y: auto; max-height: calc(80vh - 140px);">
-            ${Object.entries(cookieData.categories).map(([category, cookies]) => {
-              const categoryColors = {
-                necessary: '#10b981',
-                functional: '#3b82f6',
-                analytics: '#f59e0b',
-                advertising: '#ef4444',
-                social: '#8b5cf6',
-                preferences: '#6b7280'
-              };
-
-              const categoryIcons = {
-                necessary: '✓',
-                functional: '⚙',
-                analytics: '📊',
-                advertising: '📢',
-                social: '👥',
-                preferences: '⚡'
-              };
-
-              const categoryNames = {
-                necessary: 'Necessary Cookies',
-                functional: 'Functional Cookies',
-                analytics: 'Analytics Cookies',
-                advertising: 'Marketing Cookies',
-                social: 'Social Media Cookies',
-                preferences: 'Preference Cookies'
-              };
-
-              if (cookies.length === 0) return '';
-
-              return `
-                <div style="margin-bottom: 24px;">
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 20px;">${categoryIcons[category]}</span>
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: ${categoryColors[category]};">
-                      ${categoryNames[category]} (${cookies.length})
-                    </h3>
-                  </div>
-                  <div style="background: #f9fafb; border-radius: 8px; padding: 12px;">
-                    ${cookies.map(cookie => `
-                      <div style="padding: 12px; background: white; border-radius: 6px; margin-bottom: 8px; border: 1px solid #e5e7eb;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                          <div style="flex: 1;">
-                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">${cookie.name}</div>
-                            <div style="font-size: 12px; color: #6b7280;">
-                              <span style="color: #9ca3af;">Host:</span> ${cookie.domain}
-                              ${cookie.isThirdParty ? '<span style="margin-left: 8px; padding: 2px 6px; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 11px;">Third-party</span>' : ''}
-                            </div>
-                          </div>
-                          <div style="font-size: 12px; color: #6b7280; text-align: right;">
-                            <span style="color: #9ca3af;">Expires:</span><br>${cookie.expiry}
-                          </div>
-                        </div>
-                        <div style="font-size: 13px; color: #4b5563; line-height: 1.5;">
-                          <span style="color: #9ca3af;">Purpose:</span> ${cookie.purpose}
-                        </div>
-                        ${cookie.provider ? `
-                          <div style="font-size: 13px; color: #4b5563; margin-top: 4px;">
-                            <span style="color: #9ca3af;">Provider:</span> ${cookie.provider}
-                          </div>
-                        ` : ''}
-                      </div>
-                    `).join('')}
-                  </div>
-                </div>
-              `;
-            }).join('')}
-            
+          <div style="padding: 20px 24px; overflow-y: auto; max-height: calc(90vh - 200px);">
             ${cookieData.totalCookies === 0 ? `
-              <div style="text-align: center; padding: 40px; color: #6b7280;">
+              <div style="text-align: center; padding: 60px 20px; color: #6b7280;">
                 <div style="font-size: 48px; margin-bottom: 16px;">🍪</div>
-                <p style="margin: 0; font-size: 16px;">No cookies have been scanned for this website yet.</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 500;">No cookies scanned</p>
                 <p style="margin: 8px 0 0 0; font-size: 14px;">Please run a cookie scan to see the details.</p>
               </div>
-            ` : ''}
+            ` : `
+              ${Object.entries(cookieData.categories).map(([category, cookies]) => {
+                const categoryInfo = {
+                  necessary: { 
+                    color: '#10b981', 
+                    icon: '🔒', 
+                    name: 'Necessary Cookies', 
+                    description: 'Essential for the website to function properly',
+                    alwaysOn: true 
+                  },
+                  functional: { 
+                    color: '#3b82f6', 
+                    icon: '⚙️', 
+                    name: 'Functional Cookies', 
+                    description: 'Enable enhanced functionality and personalization',
+                    alwaysOn: false 
+                  },
+                  analytics: { 
+                    color: '#f59e0b', 
+                    icon: '📊', 
+                    name: 'Analytics Cookies', 
+                    description: 'Help us understand how visitors interact with our site',
+                    alwaysOn: false 
+                  },
+                  advertising: { 
+                    color: '#ef4444', 
+                    icon: '📢', 
+                    name: 'Marketing Cookies', 
+                    description: 'Used to deliver personalized advertisements',
+                    alwaysOn: false 
+                  },
+                  social: { 
+                    color: '#8b5cf6', 
+                    icon: '👥', 
+                    name: 'Social Media Cookies', 
+                    description: 'Enable social media features and sharing',
+                    alwaysOn: false 
+                  },
+                  preferences: { 
+                    color: '#6b7280', 
+                    icon: '⚡', 
+                    name: 'Preference Cookies', 
+                    description: 'Remember your settings and preferences',
+                    alwaysOn: false 
+                  }
+                };
+
+                if (cookies.length === 0) return '';
+
+                const info = categoryInfo[category] || categoryInfo.functional;
+                const isExpanded = true; // Default to expanded for better UX
+
+                return `
+                  <div style="margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: white;">
+                    <!-- Category Header -->
+                    <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; 
+                                background: ${isExpanded ? info.color + '08' : 'white'}; 
+                                border-bottom: ${isExpanded ? '1px solid #e5e7eb' : 'none'};">
+                      <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        <span style="font-size: 24px;">${info.icon}</span>
+                        <div style="flex: 1;">
+                          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #1a1a1a; display: flex; align-items: center; gap: 8px;">
+                            ${info.name}
+                            ${info.alwaysOn ? '<span style="font-size: 11px; padding: 2px 6px; background: #e5e7eb; color: #6b7280; border-radius: 4px; font-weight: 500;">Always Active</span>' : ''}
+                          </h3>
+                          <p style="margin: 2px 0 0 0; font-size: 12px; color: #6b7280; line-height: 1.4;">${info.description}</p>
+                        </div>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 12px; color: #6b7280; font-weight: 500;">${cookies.length} cookies</span>
+                        <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                          <input type="checkbox" ${info.alwaysOn || isExpanded ? 'checked' : ''} 
+                                 ${info.alwaysOn ? 'disabled' : ''} 
+                                 style="opacity: 0; width: 0; height: 0;">
+                          <span style="position: absolute; cursor: ${info.alwaysOn ? 'not-allowed' : 'pointer'}; 
+                                       top: 0; left: 0; right: 0; bottom: 0; 
+                                       background-color: ${info.alwaysOn || isExpanded ? info.color : '#ccc'}; 
+                                       transition: .3s; border-radius: 24px;">
+                            <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; 
+                                        background-color: white; transition: .3s; border-radius: 50%; 
+                                        transform: translateX(${info.alwaysOn || isExpanded ? '20px' : '0'});"></span>
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Cookie List -->
+                    ${isExpanded ? `
+                      <div style="padding: 16px; background: #fafbfc;">
+                        ${cookies.map(cookie => `
+                          <div style="padding: 12px; background: white; border-radius: 6px; margin-bottom: 8px; 
+                                      border: 1px solid #e5e7eb; font-size: 12px; line-height: 1.5;
+                                      transition: all 0.2s; cursor: default;"
+                               onmouseover="this.style.borderColor='${info.color}30'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)'"
+                               onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                              <div style="flex: 1;">
+                                <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 2px; font-size: 13px;">${cookie.name}</div>
+                                <div style="color: #6b7280;">
+                                  <span style="color: #9ca3af;">Host:</span> ${cookie.domain || cookie.host}
+                                  ${cookie.isThirdParty ? '<span style="margin-left: 8px; padding: 2px 6px; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 11px; font-weight: 500;">Third-party</span>' : ''}
+                                </div>
+                              </div>
+                              <div style="color: #6b7280; text-align: right; font-size: 11px;">
+                                <span style="color: #9ca3af;">Expires:</span><br>${cookie.expiry || 'Session'}
+                              </div>
+                            </div>
+                            ${cookie.purpose ? `
+                              <div style="color: #4b5563; margin-top: 6px;">
+                                <span style="color: #9ca3af;">Purpose:</span> ${cookie.purpose}
+                              </div>
+                            ` : ''}
+                            ${cookie.provider ? `
+                              <div style="color: #4b5563; margin-top: 4px;">
+                                <span style="color: #9ca3af;">Provider:</span> ${cookie.provider}
+                              </div>
+                            ` : ''}
+                          </div>
+                        `).join('')}
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            `}
+
+            <!-- Footer Actions -->
+            <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; display: flex; gap: 12px; justify-content: flex-end;">
+              <button id="reject-all-cookies" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #6b7280; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                Reject All
+              </button>
+              <button id="accept-all-cookies" style="padding: 10px 20px; border: none; background: ${primaryColor}; color: white; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                Accept All
+              </button>
+              <button id="save-cookie-preferences" style="padding: 10px 20px; border: none; background: ${primaryColor}; color: white; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                Save Preferences
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -4588,7 +4664,7 @@ ${activitySections}
       // Close modal handlers
       const closeModal = () => {
         modalOverlay.style.opacity = '0';
-        modalOverlay.querySelector('div').style.transform = 'scale(0.9)';
+        modalOverlay.querySelector('div').style.transform = 'scale(0.95)';
         setTimeout(() => {
           document.body.removeChild(modalOverlay);
         }, 300);
@@ -4599,6 +4675,96 @@ ${activitySections}
         if (e.target === modalOverlay) {
           closeModal();
         }
+      });
+
+      // Handle cookie preference buttons
+      document.getElementById('accept-all-cookies')?.addEventListener('click', () => {
+        // Enable all toggles except necessary (which is always on)
+        const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]:not([disabled])');
+        toggles.forEach(toggle => {
+          toggle.checked = true;
+          updateToggleVisual(toggle, true);
+        });
+      });
+
+      document.getElementById('reject-all-cookies')?.addEventListener('click', () => {
+        // Disable all toggles except necessary (which is always on)
+        const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]:not([disabled])');
+        toggles.forEach(toggle => {
+          toggle.checked = false;
+          updateToggleVisual(toggle, false);
+        });
+      });
+
+      document.getElementById('save-cookie-preferences')?.addEventListener('click', async () => {
+        const preferences = {};
+        const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]');
+        
+        const categoryInfo = {
+          necessary: 'Necessary Cookies',
+          functional: 'Functional Cookies',
+          analytics: 'Analytics Cookies',
+          advertising: 'Marketing Cookies',
+          social: 'Social Media Cookies',
+          preferences: 'Preference Cookies'
+        };
+        
+        toggles.forEach(toggle => {
+          const categoryElement = toggle.closest('[style*="border"]');
+          if (categoryElement) {
+            const categoryName = Object.keys(categoryInfo).find(key => 
+              categoryInfo[key] === categoryElement.querySelector('h3')?.textContent?.split(' (')[0]
+            );
+            if (categoryName) {
+              preferences[categoryName] = toggle.checked;
+            }
+          }
+        });
+
+        // Save preferences to localStorage
+        ConsentStorage.set(`consently_cookie_preferences_${widgetId}`, preferences, 365);
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: #10b981;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          z-index: 1000000;
+          font-size: 14px;
+          font-weight: 500;
+        `;
+        successMsg.textContent = 'Cookie preferences saved successfully';
+        document.body.appendChild(successMsg);
+        
+        setTimeout(() => {
+          successMsg.remove();
+        }, 3000);
+      });
+
+      // Helper function to update toggle visual state
+      function updateToggleVisual(toggle, isChecked) {
+        const span = toggle.nextElementSibling;
+        if (span) {
+          span.style.backgroundColor = isChecked ? primaryColor : '#ccc';
+          const innerSpan = span.querySelector('span');
+          if (innerSpan) {
+            innerSpan.style.transform = `translateX(${isChecked ? '20px' : '0'})`;
+          }
+        }
+      }
+
+      // Add toggle change listeners
+      const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]:not([disabled])');
+      toggles.forEach(toggle => {
+        toggle.addEventListener('change', (e) => {
+          updateToggleVisual(e.target, e.target.checked);
+        });
       });
 
     } catch (error) {
