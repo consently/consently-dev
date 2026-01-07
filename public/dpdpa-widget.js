@@ -3078,6 +3078,26 @@ ${activitySections}
             </button>
           </div>
         </div>
+
+        <!-- View Cookies Section -->
+        <div style="padding: 14px; background: linear-gradient(to right, #f8fafc, #f1f5f9); border-radius: 10px; margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="flex: 1;">
+              <p style="margin: 0 0 4px 0; font-size: 13px; color: #475569; font-weight: 600; line-height: 1.4;">
+                View Cookie Details
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.4;">
+                See all cookies used on this website
+              </p>
+            </div>
+            <button id="dpdpa-view-cookies" style="padding: 10px 18px; background: white; color: ${primaryColor}; border: 2px solid ${primaryColor}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              View Cookies
+            </button>
+          </div>
+        </div>
         
       </div>
 
@@ -3896,6 +3916,28 @@ ${activitySections}
       });
     }
 
+    // View Cookies button
+    const viewCookiesBtn = widget.querySelector('#dpdpa-view-cookies');
+    if (viewCookiesBtn) {
+      // Enhanced hover effects
+      viewCookiesBtn.addEventListener('mouseenter', () => {
+        viewCookiesBtn.style.background = primaryColor;
+        viewCookiesBtn.style.color = 'white';
+        viewCookiesBtn.style.transform = 'translateY(-2px)';
+        viewCookiesBtn.style.boxShadow = '0 6px 12px rgba(59,130,246,0.4)';
+      });
+      viewCookiesBtn.addEventListener('mouseleave', () => {
+        viewCookiesBtn.style.background = 'white';
+        viewCookiesBtn.style.color = primaryColor;
+        viewCookiesBtn.style.transform = 'translateY(0)';
+        viewCookiesBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
+      });
+
+      viewCookiesBtn.addEventListener('click', () => {
+        showCookieDetails();
+      });
+    }
+
 
     // Enhanced hover effects for activity table rows
     const activityItems = widget.querySelectorAll('.dpdpa-activity-item');
@@ -4368,6 +4410,201 @@ ${activitySections}
   function openPrivacyCentre() {
     const visitorId = consentID || getConsentID();
     window.open(window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId, '_blank');
+  }
+
+  // Show cookie details modal
+  async function showCookieDetails() {
+    try {
+      // Show loading state
+      const loadingOverlay = document.createElement('div');
+      loadingOverlay.id = 'consently-cookie-details-loading';
+      loadingOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      loadingOverlay.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 16px; text-align: center;">
+          <div style="width: 40px; height: 40px; border: 4px solid #f3f4f6; border-top-color: ${primaryColor}; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p style="margin: 0; color: #6b7280; font-weight: 500;">Loading cookie details...</p>
+        </div>
+        <style>
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+      `;
+      document.body.appendChild(loadingOverlay);
+
+      // Fetch cookie data
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/cookies/domain-cookies?widgetId=${widgetId}`);
+      const data = await response.json();
+
+      // Remove loading overlay
+      loadingOverlay.remove();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load cookie data');
+      }
+
+      const cookieData = data.data;
+      
+      // Create cookie details modal
+      const modalOverlay = document.createElement('div');
+      modalOverlay.id = 'consently-cookie-details-modal';
+      modalOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      `;
+
+      modalOverlay.innerHTML = `
+        <div style="background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 80vh; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: scale(0.9); transition: transform 0.3s ease;">
+          <!-- Header -->
+          <div style="padding: 24px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #1f2937;">Cookie Details</h2>
+              <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">
+                ${cookieData.domain} - ${cookieData.totalCookies} cookies found
+                ${cookieData.lastScanned ? `• Scanned on ${new Date(cookieData.lastScanned).toLocaleDateString()}` : ''}
+              </p>
+            </div>
+            <button id="close-cookie-modal" style="background: none; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 24px; overflow-y: auto; max-height: calc(80vh - 140px);">
+            ${Object.entries(cookieData.categories).map(([category, cookies]) => {
+              const categoryColors = {
+                necessary: '#10b981',
+                functional: '#3b82f6',
+                analytics: '#f59e0b',
+                advertising: '#ef4444',
+                social: '#8b5cf6',
+                preferences: '#6b7280'
+              };
+
+              const categoryIcons = {
+                necessary: '✓',
+                functional: '⚙',
+                analytics: '📊',
+                advertising: '📢',
+                social: '👥',
+                preferences: '⚡'
+              };
+
+              const categoryNames = {
+                necessary: 'Necessary Cookies',
+                functional: 'Functional Cookies',
+                analytics: 'Analytics Cookies',
+                advertising: 'Marketing Cookies',
+                social: 'Social Media Cookies',
+                preferences: 'Preference Cookies'
+              };
+
+              if (cookies.length === 0) return '';
+
+              return `
+                <div style="margin-bottom: 24px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <span style="font-size: 20px;">${categoryIcons[category]}</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: ${categoryColors[category]};">
+                      ${categoryNames[category]} (${cookies.length})
+                    </h3>
+                  </div>
+                  <div style="background: #f9fafb; border-radius: 8px; padding: 12px;">
+                    ${cookies.map(cookie => `
+                      <div style="padding: 12px; background: white; border-radius: 6px; margin-bottom: 8px; border: 1px solid #e5e7eb;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                          <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">${cookie.name}</div>
+                            <div style="font-size: 12px; color: #6b7280;">
+                              <span style="color: #9ca3af;">Host:</span> ${cookie.domain}
+                              ${cookie.isThirdParty ? '<span style="margin-left: 8px; padding: 2px 6px; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 11px;">Third-party</span>' : ''}
+                            </div>
+                          </div>
+                          <div style="font-size: 12px; color: #6b7280; text-align: right;">
+                            <span style="color: #9ca3af;">Expires:</span><br>${cookie.expiry}
+                          </div>
+                        </div>
+                        <div style="font-size: 13px; color: #4b5563; line-height: 1.5;">
+                          <span style="color: #9ca3af;">Purpose:</span> ${cookie.purpose}
+                        </div>
+                        ${cookie.provider ? `
+                          <div style="font-size: 13px; color: #4b5563; margin-top: 4px;">
+                            <span style="color: #9ca3af;">Provider:</span> ${cookie.provider}
+                          </div>
+                        ` : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+            
+            ${cookieData.totalCookies === 0 ? `
+              <div style="text-align: center; padding: 40px; color: #6b7280;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🍪</div>
+                <p style="margin: 0; font-size: 16px;">No cookies have been scanned for this website yet.</p>
+                <p style="margin: 8px 0 0 0; font-size: 14px;">Please run a cookie scan to see the details.</p>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modalOverlay);
+
+      // Animate in
+      requestAnimationFrame(() => {
+        modalOverlay.style.opacity = '1';
+        modalOverlay.querySelector('div').style.transform = 'scale(1)';
+      });
+
+      // Close modal handlers
+      const closeModal = () => {
+        modalOverlay.style.opacity = '0';
+        modalOverlay.querySelector('div').style.transform = 'scale(0.9)';
+        setTimeout(() => {
+          document.body.removeChild(modalOverlay);
+        }, 300);
+      };
+
+      document.getElementById('close-cookie-modal').addEventListener('click', closeModal);
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+          closeModal();
+        }
+      });
+
+    } catch (error) {
+      console.error('Error showing cookie details:', error);
+      alert('Failed to load cookie details. Please try again later.');
+    }
   }
 
   function showFloatingPreferenceButton() {

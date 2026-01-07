@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Cookie Details Feature - Consently</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .feature-list li:before {
+            content: "✓";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        .info-box h3 {
+            margin: 0 0 8px 0;
+            color: #1e40af;
+            font-size: 16px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cookie Details Feature Test</h1>
+        
+        <div class="info-box">
+            <h3>🚀 New Feature: View Cookie Details</h3>
+            <p>This page demonstrates the new "View Cookies" feature in the DPDPA consent widget that shows detailed cookie information similar to Privy.</p>
+        </div>
+
+        <h2>Features Implemented:</h2>
+        <ul class="feature-list">
+            <li>View Cookies button in the consent widget</li>
+            <li>Displays cookies grouped by category (Necessary, Functional, Analytics, Marketing, Social, Preferences)</li>
+            <li>Shows detailed information for each cookie:
+                <ul style="margin-left: 36px; margin-top: 8px; color: #6b7280;">
+                    <li>Cookie name</li>
+                    <li>Host/domain</li>
+                    <li>Third-party indicator</li>
+                    <li>Expiration period</li>
+                    <li>Purpose description</li>
+                    <li>Provider information</li>
+                </ul>
+            </li>
+            <li>Modal popup with scrollable content</li>
+            <li>Loading state while fetching cookie data</li>
+            <li>Graceful handling when no cookies have been scanned</li>
+            <li>Cached API responses for performance</li>
+        </ul>
+
+        <h2>How to Test:</h2>
+        <ol style="line-height: 1.8;">
+            <li>Click the button below to trigger the consent widget</li>
+            <li>In the consent widget, click the "View Cookies" button</li>
+            <li>The modal will display detailed cookie information (if available)</li>
+            <li>If no cookies have been scanned yet, you'll see a friendly message</li>
+        </ol>
+
+        <button class="button" onclick="showConsentWidget()">Show Consent Widget</button>
+
+        <div style="margin-top: 40px; padding: 20px; background: #f9fafb; border-radius: 8px;">
+            <h3 style="margin-top: 0;">Technical Details:</h3>
+            <p style="margin-bottom: 12px;">The feature uses the following components:</p>
+            <ul style="margin: 0; padding-left: 20px; color: #6b7280;">
+                <li>New API endpoint: <code>/api/cookies/domain-cookies</code></li>
+                <li>Modified DPDPA widget with View Cookies button</li>
+                <li>Modal popup with categorized cookie display</li>
+                <li>Integration with existing cookie scan data</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Load the DPDPA Widget -->
+    <script src="/dpdpa-widget.js" data-dpdpa-widget-id="cnsty_mhnhhg68_map2kra3v"></script>
+    
+    <script>
+        function showConsentWidget() {
+            // Trigger the widget to show
+            if (window.consentlyDPDPA && window.consentlyDPDPA.show) {
+                window.consentlyDPDPA.show();
+            } else {
+                // Fallback: reload the page to trigger the widget
+                alert('Widget will appear on page load. Please refresh the page.');
+            }
+        }
+
+        // Auto-show widget after 2 seconds for demonstration
+        setTimeout(() => {
+            console.log('Auto-triggering consent widget for demonstration...');
+            // The widget should auto-load based on its configuration
+        }, 2000);
+    </script>
+</body>
+</html>
