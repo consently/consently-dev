@@ -237,6 +237,7 @@ export default function CookieWidgetPage() {
     fetchLinkedBanner();
   }, [config.bannerTemplateId]);
 
+  
   // Auto-save functionality
   useEffect(() => {
     if (!hasUnsavedChanges || !config.widgetId) return;
@@ -1136,30 +1137,6 @@ export default function CookieWidgetPage() {
                         </div>
                       </div>
                       
-                      {/* View Cookies Section - New Feature */}
-                      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-gray-700">
-                              View Cookie Details
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              See all cookies used on this website
-                            </p>
-                          </div>
-                          <button 
-                            className="px-3 py-1.5 text-xs font-medium transition-all hover:opacity-90 border-2"
-                            style={{
-                              backgroundColor: 'white',
-                              color: config.theme?.primaryColor || '#3b82f6',
-                              borderColor: config.theme?.primaryColor || '#3b82f6',
-                              borderRadius: `${config.theme?.borderRadius || 8}px`
-                            }}
-                          >
-                            View Cookies
-                          </button>
-                        </div>
-                      </div>
                       {config.showBrandingLink && (
                         <div className="mt-4 pt-4 border-t text-center">
                           <a 
