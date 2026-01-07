@@ -65,7 +65,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-b from-white to-blue-50 dark:from-gray-900 dark:to-gray-800 overflow-x-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -100,21 +100,21 @@ export default function Home() {
 
             {/* 4 Key USP Badges */}
             <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-4 max-w-5xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl shadow-md hover:shadow-lg transition-all">
                 <Shield className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">Cookie consent + DPDPA consent + Data Principal Requests Manager</span>
+                <span className="text-xs sm:text-sm md:text-base font-semibold text-gray-900">Cookie + DPDPA Consent + Requests Manager</span>
               </div>
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl shadow-md hover:shadow-lg transition-all">
                 <Globe className="h-5 w-5 text-green-600 flex-shrink-0" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">22 Indian languages - Built for Bharat</span>
+                <span className="text-xs sm:text-sm md:text-base font-semibold text-gray-900">22 Indian Languages</span>
               </div>
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl shadow-md hover:shadow-lg transition-all">
                 <Zap className="h-5 w-5 text-purple-600 flex-shrink-0" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">1 day setup</span>
+                <span className="text-xs sm:text-sm md:text-base font-semibold text-gray-900">1 Day Setup</span>
               </div>
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl shadow-md hover:shadow-lg transition-all">
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 rounded-xl shadow-md hover:shadow-lg transition-all">
                 <Briefcase className="h-5 w-5 text-orange-600 flex-shrink-0" />
-                <span className="text-sm sm:text-base font-semibold text-gray-900">Consulting support</span>
+                <span className="text-xs sm:text-sm md:text-base font-semibold text-gray-900">Consulting Support</span>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
@@ -327,7 +327,7 @@ export default function Home() {
             </p>
           </div>
 
-          <ComparisonTable 
+          <ComparisonTable
             data={[
               {
                 feature: 'DPDP 2023 Compliant',
@@ -380,7 +380,7 @@ export default function Home() {
       {/* DPDPA Compliance Highlight */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 rounded-3xl p-12 text-white shadow-2xl">
+          <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 text-white shadow-2xl">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
                 <div className="inline-flex items-center rounded-full px-4 py-1.5 text-sm bg-white/20 backdrop-blur-sm mb-6">
@@ -767,8 +767,8 @@ export default function Home() {
                 How much does Consently cost?
               </h3>
               <p className="text-gray-700 leading-relaxed pl-6">
-                <strong>A:</strong> Consently offers flexible plans designed to scale with your business. 
-                You can get started immediately and only pay for the features and volume you need. 
+                <strong>A:</strong> Consently offers flexible plans designed to scale with your business.
+                You can get started immediately and only pay for the features and volume you need.
                 Contact our sales team for custom enterprise pricing or high-volume requirements.
               </p>
             </div>
