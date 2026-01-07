@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { Database } from '@/types/database.types';
 import { cache } from '@/lib/cache';
 import { AppError, handleApiError } from '@/lib/api-error';
+import { unstable_cache } from 'next/cache';
 
 // Initialize Supabase client
 const supabase = createClient<Database>(
@@ -10,8 +11,13 @@ const supabase = createClient<Database>(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Cache TTL in seconds (1 hour)
-const CACHE_TTL = 3600;
+// Cache TTL in seconds (1 minute for faster updates)
+const CACHE_TTL = 60;
+
+// Cache tag for revalidation
+function getCacheTag(widgetId: string) {
+  return `widget-config:${widgetId}`;
+}
 
 export async function GET(
   request: Request,
@@ -27,9 +33,10 @@ export async function GET(
     if (cachedConfig) {
       // Return data directly for widget compatibility
       const response = NextResponse.json(cachedConfig);
-      response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
       response.headers.set('X-Cache', 'HIT');
       response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('Cache-Tag', getCacheTag(widgetId));
       return response;
     }
 
@@ -125,9 +132,10 @@ export async function GET(
 
     // Return data directly for widget compatibility
     const response = NextResponse.json(responseData);
-    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
     response.headers.set('X-Cache', 'MISS');
     response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Cache-Tag', getCacheTag(widgetId));
 
     return response;
 

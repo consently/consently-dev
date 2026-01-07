@@ -300,7 +300,11 @@ export default function CookieWidgetPage() {
     
     try {
       setLoadingPreview(true);
-      const response = await fetch(`/api/cookies/widget-public/${widgetId}`);
+      // Add cache-buster to get fresh data
+      const cacheBuster = Date.now();
+      const response = await fetch(`/api/cookies/widget-public/${widgetId}?_t=${cacheBuster}`, {
+        cache: 'no-store' // Bypass browser cache
+      });
       
       if (response.ok) {
         const mergedConfig = await response.json();
@@ -583,6 +587,27 @@ export default function CookieWidgetPage() {
         setConfig(prev => ({ ...prev, bannerTemplateId }));
       }
 
+      // Clear server cache for this widget to ensure immediate updates
+      try {
+        // Clear Next.js cache
+        await fetch(`/api/revalidate?path=/api/cookies/widget-public/${config.widgetId}`, {
+          method: 'POST'
+        });
+        
+        // Clear Redis cache directly
+        await fetch('/api/cache/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            keys: [`widget-config:${config.widgetId}`] 
+          })
+        });
+        
+        console.log('Cache cleared for widget:', config.widgetId);
+      } catch (cacheError) {
+        console.warn('Failed to clear cache, changes will appear within 1 minute:', cacheError);
+      }
+
       // Refresh preview config to show the updated/newly created banner
       await fetchPreviewConfig(config.widgetId);
 
@@ -595,9 +620,9 @@ export default function CookieWidgetPage() {
         toast.success('Configuration saved successfully!');
         
         // Show informative message about settings propagation
-        toast.info('Settings will be reflected in the live widget immediately', {
-          duration: 3000,
-          description: 'Theme, language, and behavior settings are now active'
+        toast.success('Live preview updated immediately! Changes will appear on your website within 1 minute', {
+          duration: 5000,
+          description: 'Cache has been cleared for instant updates'
         });
       }
       
