@@ -229,7 +229,7 @@
   function detectScriptCategory(scriptElement) {
     const src = scriptElement.src || '';
     const content = scriptElement.textContent || scriptElement.innerHTML || '';
-    
+
     // Check if script has explicit data-category attribute
     const explicitCategory = scriptElement.getAttribute('data-category');
     if (explicitCategory) {
@@ -309,7 +309,7 @@
     placeholder.setAttribute('data-consently-blocked', 'true');
     placeholder.setAttribute('data-consently-category', category);
     placeholder.setAttribute('data-consently-original-type', originalScript.type || 'text/javascript');
-    
+
     // Copy attributes except type
     Array.from(originalScript.attributes).forEach(attr => {
       if (attr.name !== 'type' && !attr.name.startsWith('data-consently')) {
@@ -398,7 +398,7 @@
       if (categories.includes(category) || category === 'necessary') {
         const newScript = document.createElement('script');
         newScript.type = placeholder.getAttribute('data-consently-original-type') || 'text/javascript';
-        
+
         Array.from(placeholder.attributes).forEach(attr => {
           if (!attr.name.startsWith('data-consently') && attr.name !== 'type') {
             newScript.setAttribute(attr.name, attr.value);
@@ -424,14 +424,14 @@
 
     originalCreateElement = document.createElement.bind(document);
 
-    document.createElement = function(tagName, options) {
+    document.createElement = function (tagName, options) {
       const element = originalCreateElement(tagName, options);
 
       if (tagName.toLowerCase() === 'script') {
         // Store reference to track when src is set
         let _src = '';
         const originalSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
-        
+
         Object.defineProperty(element, '_consentlyTracked', {
           value: true,
           writable: false,
@@ -454,7 +454,7 @@
 
     // Patch appendChild
     originalAppendChild = Node.prototype.appendChild;
-    Node.prototype.appendChild = function(child) {
+    Node.prototype.appendChild = function (child) {
       if (child && child.tagName === 'SCRIPT' && autoBlockEnabled) {
         const category = detectScriptCategory(child);
         if (category && !isCategoryConsented(category)) {
@@ -469,7 +469,7 @@
 
     // Patch insertBefore
     originalInsertBefore = Node.prototype.insertBefore;
-    Node.prototype.insertBefore = function(newNode, referenceNode) {
+    Node.prototype.insertBefore = function (newNode, referenceNode) {
       if (newNode && newNode.tagName === 'SCRIPT' && autoBlockEnabled) {
         const category = detectScriptCategory(newNode);
         if (category && !isCategoryConsented(category)) {
@@ -485,7 +485,7 @@
     // Patch append (modern method)
     if (Element.prototype.append) {
       originalAppend = Element.prototype.append;
-      Element.prototype.append = function(...nodes) {
+      Element.prototype.append = function (...nodes) {
         const processedNodes = nodes.map(node => {
           if (node && node.tagName === 'SCRIPT' && autoBlockEnabled) {
             const category = detectScriptCategory(node);
@@ -515,9 +515,9 @@
         for (const node of mutation.addedNodes) {
           if (node.tagName === 'SCRIPT') {
             // Check if this script was already processed by our patches
-            if (node.getAttribute('data-consently-blocked') || 
-                node.getAttribute('data-consently-unblocked') ||
-                node.getAttribute('data-consently-necessary') === 'true') {
+            if (node.getAttribute('data-consently-blocked') ||
+              node.getAttribute('data-consently-unblocked') ||
+              node.getAttribute('data-consently-necessary') === 'true') {
               continue;
             }
 
@@ -525,12 +525,12 @@
             if (category && !isCategoryConsented(category)) {
               // Script was added without going through our patches (e.g., innerHTML)
               // We need to prevent it from executing
-              
+
               // Unfortunately, by the time MutationObserver fires, the script may have already executed
               // But we can still track it and prevent future similar scripts
-              console.log(`[Consently] ⚠️ Detected unblocked ${category} script (may have executed):`, 
+              console.log(`[Consently] ⚠️ Detected unblocked ${category} script (may have executed):`,
                 node.src || '(inline)');
-              
+
               // Mark it for tracking
               node.setAttribute('data-consently-detected', category);
             }
@@ -540,9 +540,9 @@
           if (node.querySelectorAll) {
             const scripts = node.querySelectorAll('script');
             scripts.forEach(script => {
-              if (script.getAttribute('data-consently-blocked') || 
-                  script.getAttribute('data-consently-unblocked') ||
-                  script.getAttribute('data-consently-necessary') === 'true') {
+              if (script.getAttribute('data-consently-blocked') ||
+                script.getAttribute('data-consently-unblocked') ||
+                script.getAttribute('data-consently-necessary') === 'true') {
                 return;
               }
 
@@ -569,25 +569,25 @@
   // Initialize auto-blocking
   function initAutoBlocking() {
     if (scriptBlockingInitialized) return;
-    
+
     console.log('[Consently] 🛡️ Initializing auto script blocking...');
-    
+
     // Apply monkey patches
     patchCreateElement();
     patchDOMInsertion();
-    
+
     // Initialize MutationObserver
     initMutationObserver();
-    
+
     // Block existing scripts in DOM that haven't executed yet
     // (Scripts with type="text/plain" are already blocked)
     const existingScripts = document.querySelectorAll('script:not([type="text/plain"]):not([data-consently-id])');
     existingScripts.forEach(script => {
       // Skip our own widget script and scripts that are already processed
-      if (script === currentScript || 
-          script.getAttribute('data-consently-blocked') ||
-          script.getAttribute('data-consently-unblocked') ||
-          script.getAttribute('data-consently-necessary') === 'true') {
+      if (script === currentScript ||
+        script.getAttribute('data-consently-blocked') ||
+        script.getAttribute('data-consently-unblocked') ||
+        script.getAttribute('data-consently-necessary') === 'true') {
         return;
       }
 
@@ -607,7 +607,7 @@
   function updateConsentedCategories(categories) {
     const previousCategories = [...consentedCategories];
     consentedCategories = categories.includes('necessary') ? categories : ['necessary', ...categories];
-    
+
     console.log('[Consently] Consent updated:', previousCategories, '->', consentedCategories);
 
     // Release blocked scripts for newly consented categories
@@ -620,10 +620,10 @@
   // Disable auto-blocking (e.g., if config says not to block)
   function disableAutoBlocking() {
     autoBlockEnabled = false;
-    
+
     // Release all blocked scripts
     releaseBlockedScripts(['analytics', 'marketing', 'social', 'preferences', 'necessary']);
-    
+
     // Stop mutation observer
     if (mutationObserver) {
       mutationObserver.disconnect();
@@ -2841,11 +2841,11 @@
         'Cancel',
         'Required',
         // Category texts (8 items)
-        'Strictly necessary cookies',
+        'Essential Cookies',
         'Essential for website functionality',
-        'Performance',
+        'Analytics Cookies',
         'Help us understand visitor behavior',
-        'Targeting',
+        'Advertising Cookies',
         'Used for targeted advertising',
         'Social Media',
         'Cookies from social media platforms for sharing content'
@@ -2904,9 +2904,61 @@
       let categoriesHTML = '';
       const availableCategories = config.categories || ['necessary', 'analytics', 'marketing', 'social'];
 
+      // Get scanned cookies from config
+      const scannedCookies = config.scannedCookies || { hasScannedCookies: false, categories: {} };
+      const hasScannedCookies = scannedCookies.hasScannedCookies;
+
+      // Map category IDs to scannedCookies category keys
+      const categoryKeyMap = {
+        'necessary': 'necessary',
+        'analytics': 'analytics',
+        'marketing': 'advertising',
+        'social': 'social',
+        'preferences': 'preferences',
+        'functional': 'functional'
+      };
+
       categories.forEach(cat => {
         if (availableCategories.includes(cat.id) || cat.required) {
           const isChecked = cat.required || existingCategories.includes(cat.id);
+
+          // Get cookies for this category
+          const categoryKey = categoryKeyMap[cat.id] || cat.id;
+          const categoryCookies = scannedCookies.categories && scannedCookies.categories[categoryKey]
+            ? scannedCookies.categories[categoryKey]
+            : [];
+          const cookieCount = categoryCookies.length;
+
+          // Build cookie list HTML
+          let cookieListHTML = '';
+          if (hasScannedCookies && cookieCount > 0) {
+            cookieListHTML = `
+              <div id="cookie-list-${cat.id}" style="margin-top: 12px; display: none; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+                <div style="font-size: 11px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Cookies in this category:</div>
+                ${categoryCookies.slice(0, 5).map(cookie => `
+                  <div style="background: #f9fafb; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-size: 12px;">
+                    <div style="font-weight: 600; color: #374151; margin-bottom: 2px;">${cookie.name}</div>
+                    <div style="color: #6b7280; font-size: 11px;">
+                      ${cookie.provider && cookie.provider !== 'Unknown' ? `<span>Provider: ${cookie.provider}</span> • ` : ''}
+                      <span>Expires: ${cookie.expiry || 'Session'}</span>
+                    </div>
+                    ${cookie.purpose && cookie.purpose !== 'Unknown' ? `<div style="color: #9ca3af; font-size: 10px; margin-top: 2px;">${cookie.purpose}</div>` : ''}
+                  </div>
+                `).join('')}
+                ${cookieCount > 5 ? `<div style="font-size: 11px; color: #6b7280; text-align: center;">+ ${cookieCount - 5} more cookies</div>` : ''}
+              </div>
+            `;
+          } else if (!hasScannedCookies && cat.id !== 'necessary') {
+            cookieListHTML = `
+              <div id="cookie-list-${cat.id}" style="margin-top: 12px; display: none; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+                <div style="background: #fef3c7; padding: 12px; border-radius: 6px; font-size: 11px; color: #92400e;">
+                  <strong>⚠️ No cookies scanned yet</strong><br>
+                  Scan your website in the Consently dashboard to see detailed cookie information.
+                </div>
+              </div>
+            `;
+          }
+
           categoriesHTML += `
           <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
             <label style="display: flex; align-items: start; gap: 12px; cursor: ${cat.required ? 'not-allowed' : 'pointer'};">
@@ -2917,8 +2969,13 @@
                 <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                   ${CONSENTLY_LOGO_SVG}
                   <span>${cat.name} ${cat.required ? '<span style="color: #3b82f6; font-size: 12px;">(' + requiredLabel + ')</span>' : ''}</span>
+                  ${cookieCount > 0 ? `<span style="background: #e5e7eb; color: #374151; font-size: 10px; padding: 2px 6px; border-radius: 10px;">${cookieCount} cookies</span>` : ''}
                 </div>
                 <div style="font-size: 13px; color: #6b7280;">${cat.description}</div>
+                ${cookieListHTML ? `
+                  <button type="button" onclick="(function(e){e.preventDefault();e.stopPropagation();var list=document.getElementById('cookie-list-${cat.id}');var btn=e.target;if(list){list.style.display=list.style.display==='none'?'block':'none';btn.textContent=list.style.display==='none'?'View cookies ▼':'Hide cookies ▲';}})(event)" style="background: none; border: none; color: #3b82f6; font-size: 11px; cursor: pointer; padding: 4px 0; margin-top: 4px;">View cookies ▼</button>
+                ` : ''}
+                ${cookieListHTML}
               </div>
             </label>
           </div>
@@ -3228,11 +3285,11 @@
               'Save Preferences',
               'Cancel',
               'Required',
-              'Strictly necessary cookies',
+              'Essential Cookies',
               'Essential for website functionality',
-              'Performance',
+              'Analytics Cookies',
               'Help us understand visitor behavior',
-              'Targeting',
+              'Advertising Cookies',
               'Used for targeted advertising',
               'Social Media',
               'Cookies from social media platforms for sharing content'

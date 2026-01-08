@@ -11,12 +11,12 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Loader2, 
-  Sparkles, 
-  Palette, 
-  Layout, 
-  Type, 
+import {
+  Loader2,
+  Sparkles,
+  Palette,
+  Layout,
+  Type,
   Globe,
   Eye,
   CheckCircle,
@@ -29,29 +29,29 @@ const bannerCustomizationSchema = z.object({
   // Content
   title: z.string().min(5, 'Title must be at least 5 characters').max(100, 'Title too long'),
   message: z.string().min(20, 'Message must be at least 20 characters').max(500, 'Message too long'),
-  
+
   // Button Labels
   acceptButtonText: z.string().min(2, 'Button text required').max(30),
   rejectButtonText: z.string().min(2, 'Button text required').max(30),
   settingsButtonText: z.string().min(2, 'Button text required').max(30),
-  
+
   // Categories (consent chips)
   categories: z.array(z.string()).min(1, 'At least one category required'),
-  
+
   // Theme
   primaryColor: z.string().regex(/^#([0-9A-Fa-f]{6})$/, 'Must be valid hex color'),
   backgroundColor: z.string().regex(/^#([0-9A-Fa-f]{6})$/, 'Must be valid hex color'),
   textColor: z.string().regex(/^#([0-9A-Fa-f]{6})$/, 'Must be valid hex color'),
   fontFamily: z.string(),
   borderRadius: z.number().min(0).max(50),
-  
+
   // Layout
   position: z.enum(['top', 'bottom', 'center']),
   layout: z.enum(['bar', 'box', 'modal']),
-  
+
   // Language
   languages: z.array(z.string()).min(1, 'At least one language required'),
-  
+
   // Privacy Links (optional)
   privacyPolicyUrl: z.string().url('Must be valid URL').optional().or(z.literal('')),
   privacyPolicyText: z.string().optional(),
@@ -73,7 +73,7 @@ interface BannerCustomizationModalProps {
 }
 
 const CATEGORY_OPTIONS = [
-  { id: 'necessary', name: 'Necessary', description: 'Required for website functionality', color: 'green' },
+  { id: 'necessary', name: 'Essential', description: 'Required for website functionality', color: 'green' },
   { id: 'functional', name: 'Functional', description: 'Enhance user experience', color: 'blue' },
   { id: 'analytics', name: 'Analytics', description: 'Track usage and performance', color: 'yellow' },
   { id: 'advertising', name: 'Advertising', description: 'Targeted marketing', color: 'red' },
@@ -109,14 +109,14 @@ function getHostname(url: string): string {
   if (!url || url.trim() === '') {
     return 'your website';
   }
-  
+
   try {
     // Add protocol if missing
     let urlToParse = url.trim();
     if (!urlToParse.startsWith('http://') && !urlToParse.startsWith('https://')) {
       urlToParse = `https://${urlToParse}`;
     }
-    
+
     const urlObj = new URL(urlToParse);
     return urlObj.hostname;
   } catch (error) {
@@ -191,7 +191,7 @@ export function BannerCustomizationModal({
     const current = formValues.categories;
     if (current.includes(categoryId)) {
       if (categoryId === 'necessary') {
-        toast.error('Necessary cookies cannot be removed');
+        toast.error('Essential cookies cannot be removed');
         return;
       }
       setValue('categories', current.filter(c => c !== categoryId));
@@ -222,8 +222,8 @@ export function BannerCustomizationModal({
       onClose();
     } catch (error) {
       console.error('Error saving banner config:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Failed to save configuration. Please check the console for details.';
       toast.error(errorMessage, {
         duration: 5000,
@@ -255,11 +255,10 @@ export function BannerCustomizationModal({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors min-w-fit touch-manipulation ${
-                activeTab === tab.id
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors min-w-fit touch-manipulation ${activeTab === tab.id
                   ? 'border-blue-600 text-blue-600 font-medium'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               <tab.icon className="h-4 w-4" />
               <span className="hidden sm:inline">{tab.label}</span>
@@ -333,11 +332,10 @@ export function BannerCustomizationModal({
                       <div
                         key={cat.id}
                         onClick={() => toggleCategory(cat.id)}
-                        className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                          formValues.categories.includes(cat.id)
+                        className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${formValues.categories.includes(cat.id)
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-blue-300'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start justify-between">
                           <div>
@@ -371,11 +369,10 @@ export function BannerCustomizationModal({
                         key={lang.code}
                         type="button"
                         onClick={() => toggleLanguage(lang.code)}
-                        className={`flex items-center gap-2 p-2 border-2 rounded-lg transition-all text-left ${
-                          formValues.languages.includes(lang.code)
+                        className={`flex items-center gap-2 p-2 border-2 rounded-lg transition-all text-left ${formValues.languages.includes(lang.code)
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-blue-300'
-                        }`}
+                          }`}
                       >
                         <span className="text-lg">{lang.flag}</span>
                         <span className="text-xs font-medium flex-1">{lang.name}</span>
@@ -536,11 +533,10 @@ export function BannerCustomizationModal({
                         key={pos.value}
                         type="button"
                         onClick={() => setValue('position', pos.value as any)}
-                        className={`p-4 border-2 rounded-lg transition-all ${
-                          formValues.position === pos.value
+                        className={`p-4 border-2 rounded-lg transition-all ${formValues.position === pos.value
                             ? 'border-blue-600 bg-blue-50'
                             : 'border-gray-200 hover:border-blue-300'
-                        }`}
+                          }`}
                       >
                         <div className="text-2xl mb-1">{pos.icon}</div>
                         <div className="text-sm font-medium">{pos.label}</div>
@@ -563,11 +559,10 @@ export function BannerCustomizationModal({
                         key={layout.value}
                         type="button"
                         onClick={() => setValue('layout', layout.value as any)}
-                        className={`w-full p-3 border-2 rounded-lg transition-all text-left ${
-                          formValues.layout === layout.value
+                        className={`w-full p-3 border-2 rounded-lg transition-all text-left ${formValues.layout === layout.value
                             ? 'border-blue-600 bg-blue-50'
                             : 'border-gray-200 hover:border-blue-300'
-                        }`}
+                          }`}
                       >
                         <div className="font-medium text-sm">{layout.label}</div>
                         <div className="text-xs text-gray-600">{layout.desc}</div>
@@ -611,7 +606,7 @@ export function BannerCustomizationModal({
                 <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
                   <div className="text-xs text-gray-400">Your Website Content</div>
                 </div>
-                
+
                 {/* Live Banner Preview */}
                 <div
                   className="p-4 shadow-lg"
@@ -680,18 +675,18 @@ export function BannerCustomizationModal({
 
         {/* Action Buttons - Mobile Stack */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onClose} 
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
             disabled={saving}
             className="w-full sm:w-auto order-2 sm:order-1"
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            disabled={saving} 
+          <Button
+            type="submit"
+            disabled={saving}
             className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto order-1 sm:order-2"
           >
             {saving ? (

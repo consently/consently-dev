@@ -69,6 +69,75 @@ export async function GET(
     const bannerContent = widgetConfig.banner_content || {};
     const theme = widgetConfig.theme || {};
 
+    // Fetch scanned cookies for this widget's domain
+    let scannedCookies: any = {
+      cookies: [],
+      categories: {
+        necessary: [],
+        functional: [],
+        analytics: [],
+        advertising: [],
+        social: [],
+        preferences: []
+      },
+      totalCookies: 0,
+      lastScanned: null,
+      hasScannedCookies: false
+    };
+
+    if (widgetConfig.domain) {
+      const websiteUrl = widgetConfig.domain;
+
+      // Get the most recent successful scan for this domain
+      const { data: scanData, error: scanError } = await supabase
+        .from('cookie_scan_history')
+        .select('cookies_data, classification, completed_at')
+        .eq('website_url', websiteUrl)
+        .eq('scan_status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Type assertion for JSON data
+      const scanResult = scanData as any;
+
+      if (!scanError && scanResult && scanResult.cookies_data) {
+        // Group cookies by category
+        const cookiesByCategory: Record<string, any[]> = {
+          necessary: [],
+          functional: [],
+          analytics: [],
+          advertising: [],
+          social: [],
+          preferences: []
+        };
+
+        // Process and categorize cookies
+        scanResult.cookies_data.forEach((cookie: any) => {
+          const category = cookie.category || 'functional';
+          if (cookiesByCategory[category]) {
+            cookiesByCategory[category].push({
+              name: cookie.name,
+              domain: cookie.domain || widgetConfig.domain,
+              purpose: cookie.purpose || cookie.description || 'Unknown',
+              provider: cookie.provider || 'Unknown',
+              expiry: cookie.expiry || 'Session',
+              description: cookie.description || '',
+              isThirdParty: cookie.is_third_party || false
+            });
+          }
+        });
+
+        scannedCookies = {
+          cookies: scanResult.cookies_data,
+          categories: cookiesByCategory,
+          totalCookies: scanResult.cookies_data.length,
+          lastScanned: scanResult.completed_at,
+          hasScannedCookies: true
+        };
+      }
+    }
+
     // Construct response - flattened structure for widget compatibility
     const responseData = {
       // Widget identifiers (required for widget.js validation)
@@ -124,7 +193,10 @@ export async function GET(
       showSettingsButton: true,
       privacyPolicyUrl: bannerContent.privacyPolicyUrl || bannerContent.cookiePolicyUrl || '#',
       cookiePolicyUrl: bannerContent.cookiePolicyUrl || '#',
-      supportedLanguages: widgetConfig.supported_languages || ['en']
+      supportedLanguages: widgetConfig.supported_languages || ['en'],
+
+      // Scanned cookies data for detailed preferences modal
+      scannedCookies: scannedCookies
     };
 
     // Cache the response

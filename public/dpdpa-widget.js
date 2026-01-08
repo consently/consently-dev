@@ -1250,7 +1250,7 @@
     if (notice) {
       if (notice.title) config.title = notice.title;
       if (notice.message) config.message = notice.message;
-      
+
       // If rule has HTML, use it, but only if it's not the generic placeholder
       // Otherwise, we'll regenerate it from the filtered activities below
       if (notice.html && !notice.html.includes('By submitting this form')) {
@@ -2061,7 +2061,7 @@ ${activitySections}
   // Download Privacy Notice - triggers a PDF download from the API
   window.downloadPrivacyNotice = async function () {
     console.log('[Consently DPDPA] Download Privacy Notice clicked');
-    
+
     if (!activities || activities.length === 0) {
       showToast('⚠️ Privacy Notice not available. No activities configured.', 'error');
       return;
@@ -2069,10 +2069,10 @@ ${activitySections}
 
     try {
       showToast('⏳ Generating PDF...', 'info');
-      
+
       const apiBase = getApiUrl();
       const domain = config.domain || window.location.hostname;
-      
+
       const response = await fetch(`${apiBase}/api/dpdpa/privacy-notice`, {
         method: 'POST',
         headers: {
@@ -2093,14 +2093,14 @@ ${activitySections}
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       const dateStr = new Date().toISOString().split('T')[0];
-      
+
       a.href = url;
       a.download = `privacy-notice-${domain.replace(/[^a-zA-Z0-9]/g, '-')}-${dateStr}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       showToast('📄 Privacy Notice downloaded!', 'success');
     } catch (error) {
       console.error('[Consently DPDPA] PDF download error:', error);
@@ -2857,7 +2857,7 @@ ${activitySections}
 
     // Get privacy notice HTML from config
     const fullNoticeHTML = config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
-    
+
     // Extract just the body content from the full HTML document
     let noticeHTML = fullNoticeHTML;
     if (fullNoticeHTML.includes('<body')) {
@@ -4455,7 +4455,7 @@ ${activitySections}
       }
 
       const cookieData = data.data;
-      
+
       // Create cookie details modal
       const modalOverlay = document.createElement('div');
       modalOverlay.id = 'consently-cookie-details-modal';
@@ -4513,57 +4513,57 @@ ${activitySections}
               </div>
             ` : `
               ${Object.entries(cookieData.categories).map(([category, cookies]) => {
-                const categoryInfo = {
-                  necessary: { 
-                    color: '#10b981', 
-                    icon: '🔒', 
-                    name: 'Necessary Cookies', 
-                    description: 'Essential for the website to function properly',
-                    alwaysOn: true 
-                  },
-                  functional: { 
-                    color: '#3b82f6', 
-                    icon: '⚙️', 
-                    name: 'Functional Cookies', 
-                    description: 'Enable enhanced functionality and personalization',
-                    alwaysOn: false 
-                  },
-                  analytics: { 
-                    color: '#f59e0b', 
-                    icon: '📊', 
-                    name: 'Analytics Cookies', 
-                    description: 'Help us understand how visitors interact with our site',
-                    alwaysOn: false 
-                  },
-                  advertising: { 
-                    color: '#ef4444', 
-                    icon: '📢', 
-                    name: 'Marketing Cookies', 
-                    description: 'Used to deliver personalized advertisements',
-                    alwaysOn: false 
-                  },
-                  social: { 
-                    color: '#8b5cf6', 
-                    icon: '👥', 
-                    name: 'Social Media Cookies', 
-                    description: 'Enable social media features and sharing',
-                    alwaysOn: false 
-                  },
-                  preferences: { 
-                    color: '#6b7280', 
-                    icon: '⚡', 
-                    name: 'Preference Cookies', 
-                    description: 'Remember your settings and preferences',
-                    alwaysOn: false 
-                  }
-                };
+        const categoryInfo = {
+          necessary: {
+            color: '#10b981',
+            icon: '🔒',
+            name: 'Essential Cookies',
+            description: 'Essential for the website to function properly',
+            alwaysOn: true
+          },
+          functional: {
+            color: '#3b82f6',
+            icon: '⚙️',
+            name: 'Functional Cookies',
+            description: 'Enable enhanced functionality and personalization',
+            alwaysOn: false
+          },
+          analytics: {
+            color: '#f59e0b',
+            icon: '📊',
+            name: 'Analytics Cookies',
+            description: 'Help us understand how visitors interact with our site',
+            alwaysOn: false
+          },
+          advertising: {
+            color: '#ef4444',
+            icon: '📢',
+            name: 'Marketing Cookies',
+            description: 'Used to deliver personalized advertisements',
+            alwaysOn: false
+          },
+          social: {
+            color: '#8b5cf6',
+            icon: '👥',
+            name: 'Social Media Cookies',
+            description: 'Enable social media features and sharing',
+            alwaysOn: false
+          },
+          preferences: {
+            color: '#6b7280',
+            icon: '⚡',
+            name: 'Preference Cookies',
+            description: 'Remember your settings and preferences',
+            alwaysOn: false
+          }
+        };
 
-                if (cookies.length === 0) return '';
+        if (cookies.length === 0) return '';
 
-                const info = categoryInfo[category] || categoryInfo.functional;
-                const isExpanded = true; // Default to expanded for better UX
+        const info = categoryInfo[category] || categoryInfo.functional;
+        const isExpanded = true; // Default to expanded for better UX
 
-                return `
+        return `
                   <div style="margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: white;">
                     <!-- Category Header -->
                     <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; 
@@ -4634,7 +4634,7 @@ ${activitySections}
                     ` : ''}
                   </div>
                 `;
-              }).join('')}
+      }).join('')}
             `}
 
             <!-- Footer Actions -->
@@ -4699,20 +4699,20 @@ ${activitySections}
       document.getElementById('save-cookie-preferences')?.addEventListener('click', async () => {
         const preferences = {};
         const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]');
-        
+
         const categoryInfo = {
-          necessary: 'Necessary Cookies',
+          necessary: 'Essential Cookies',
           functional: 'Functional Cookies',
           analytics: 'Analytics Cookies',
           advertising: 'Marketing Cookies',
           social: 'Social Media Cookies',
           preferences: 'Preference Cookies'
         };
-        
+
         toggles.forEach(toggle => {
           const categoryElement = toggle.closest('[style*="border"]');
           if (categoryElement) {
-            const categoryName = Object.keys(categoryInfo).find(key => 
+            const categoryName = Object.keys(categoryInfo).find(key =>
               categoryInfo[key] === categoryElement.querySelector('h3')?.textContent?.split(' (')[0]
             );
             if (categoryName) {
@@ -4723,7 +4723,7 @@ ${activitySections}
 
         // Save preferences to localStorage
         ConsentStorage.set(`consently_cookie_preferences_${widgetId}`, preferences, 365);
-        
+
         // Show success message
         const successMsg = document.createElement('div');
         successMsg.style.cssText = `
@@ -4741,7 +4741,7 @@ ${activitySections}
         `;
         successMsg.textContent = 'Cookie preferences saved successfully';
         document.body.appendChild(successMsg);
-        
+
         setTimeout(() => {
           successMsg.remove();
         }, 3000);

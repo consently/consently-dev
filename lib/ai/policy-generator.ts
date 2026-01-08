@@ -32,10 +32,10 @@ export class AIPolicyGenerator {
     try {
       // Prepare cookie summary for the AI
       const cookieSummary = this.prepareCookieSummary(cookies);
-      
+
       // Create the prompt for AI
       const prompt = this.createPolicyPrompt(cookieSummary, options);
-      
+
       // Call AI API
       const response = await fetch(`${this.API_URL}?key=${this.API_KEY}`, {
         method: 'POST',
@@ -62,7 +62,7 @@ export class AIPolicyGenerator {
       }
 
       const data = await response.json();
-      
+
       if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
         return data.candidates[0].content.parts[0].text;
       } else {
@@ -88,7 +88,7 @@ export class AIPolicyGenerator {
     }, {} as Record<string, CookieData[]>);
 
     let summary = `Cookie Analysis Summary:\n\n`;
-    
+
     Object.entries(cookiesByCategory).forEach(([category, cookieList]) => {
       summary += `${category.toUpperCase()} Cookies (${cookieList.length}):\n`;
       cookieList.slice(0, 10).forEach(cookie => {
@@ -107,10 +107,10 @@ export class AIPolicyGenerator {
    * Create comprehensive prompt for AI
    */
   private static createPolicyPrompt(cookieSummary: string, options: PolicyGenerationOptions): string {
-    const currentDate = new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
 
     return `As a legal content expert, generate a comprehensive cookie policy for ${options.companyName} based on the following cookie analysis.
@@ -140,10 +140,10 @@ Generate the complete cookie policy now:`;
    * Fallback policy generation when AI fails
    */
   private static generateFallbackPolicy(cookies: CookieData[], options: PolicyGenerationOptions): string {
-    const currentDate = new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
 
     const cookiesByCategory = cookies.reduce((acc, cookie) => {
@@ -184,7 +184,7 @@ Based on our analysis, we use the following cookies:
       const categoryInfo = {
         necessary: {
           title: 'Essential Cookies',
-          description: 'These cookies are strictly necessary for the website to function.'
+          description: 'These cookies are essential for the website to function.'
         },
         functional: {
           title: 'Functional Cookies',
@@ -294,7 +294,7 @@ Return the enhanced policy:`;
       }
 
       const data = await response.json();
-      
+
       if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
         return data.candidates[0].content.parts[0].text;
       } else {
