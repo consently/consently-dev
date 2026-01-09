@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { translate, translateBatch, isLanguageSupported, getCacheStats } from '@/lib/translation-service';
-import { permissiveCorsHeaders } from '@/lib/cors';
+import { getCorsHeaders } from '@/lib/cors';
 
 /**
  * Translation API Endpoint
@@ -23,7 +23,11 @@ import { permissiveCorsHeaders } from '@/lib/cors';
  */
 
 // CORS headers for widget cross-origin requests
-const corsHeaders = permissiveCorsHeaders();
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
 /**
  * OPTIONS /api/translate

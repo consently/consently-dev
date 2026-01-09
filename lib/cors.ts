@@ -1,217 +1,191 @@
 /**
- * CORS Configuration Utility
- * Provides secure CORS handling with domain validation
+ * CORS Configuration and Utilities
  * 
- * Usage:
- * import { handleCors, corsHeaders } from '@/lib/cors';
- * 
- * // In API route:
- * if (!handleCors(request)) {
- *   return NextResponse.json({ error: 'CORS not allowed' }, { status: 403 });
- * }
- * 
- * return NextResponse.json(data, { headers: corsHeaders(request) });
+ * Provides secure CORS handling with origin validation
+ * for public widget endpoints
  */
 
-import { NextRequest } from 'next/server';
-
 /**
- * Allowed origins configuration
- * In production, this should be loaded from environment variables or database
+ * Get allowed origins from environment variable or use defaults
  */
-const ALLOWED_ORIGINS = [
-  'https://www.consently.in',
-  'https://consently.in',
-  'https://consently-dev.vercel.app',
-  // Add more origins as needed
-];
+export function getAllowedOrigins(): string[] {
+  const envOrigins = process.env.ALLOWED_ORIGINS;
+  
+  if (envOrigins) {
+    return envOrigins.split(',').map(origin => origin.trim()).filter(Boolean);
+  }
+  
+  // Default allowed origins (should be configured in production)
+  return [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://www.consently.in',
+    'https://consently.in',
+  ];
+}
 
 /**
- * Development origins (localhost and local IPs)
- */
-const isDevelopment = process.env.NODE_ENV === 'development';
-const DEVELOPMENT_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001',
-];
-
-/**
- * Check if an origin is allowed
+ * Check if an origin is allowed based on configuration
+ * 
+ * @param origin - The origin to check
+ * @returns true if origin is allowed
  */
 export function isOriginAllowed(origin: string | null): boolean {
-  if (!origin) return false;
-
-  // In development, allow all localhost origins
-  if (isDevelopment) {
-    if (DEVELOPMENT_ORIGINS.some(devOrigin => origin.startsWith(devOrigin))) {
-      return true;
-    }
-  }
-
-  // Check against whitelist
-  if (ALLOWED_ORIGINS.includes(origin)) {
+  if (!origin) {
+    // Allow requests with no origin (same-origin, Postman, curl, etc.)
     return true;
   }
-
-  // Check if origin matches a customer domain pattern
-  // Format: https://customer-domain.com
-  // This can be extended to check against database of customer domains
-  if (process.env.ALLOW_CUSTOMER_DOMAINS === 'true') {
-    try {
-      const url = new URL(origin);
-      // Only allow HTTPS for customer domains in production
-      if (!isDevelopment && url.protocol !== 'https:') {
-        return false;
+  
+  const allowedOrigins = getAllowedOrigins();
+  
+  // Check exact match
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+  
+  // Check wildcard patterns
+  for (const allowed of allowedOrigins) {
+    if (allowed.includes('*')) {
+      const pattern = allowed.replace(/\*/g, '.*');
+      const regex = new RegExp(`^${pattern}$`);
+      if (regex.test(origin)) {
+        return true;
       }
-      
-      // Additional validation: check against database of registered customer domains
-      // This would require a database lookup, which can be implemented later
-      // For now, we'll use a more restrictive approach
-      return false; // Don't allow arbitrary customer domains yet
-    } catch (e) {
-      return false;
     }
   }
-
+  
   return false;
 }
 
 /**
- * Handle CORS validation
- * Returns true if the origin is allowed, false otherwise
+ * Get CORS headers for a given origin
+ * 
+ * @param origin - The request origin
+ * @param allowCredentials - Whether to allow credentials
+ * @returns Headers object with CORS configuration
  */
-export function handleCors(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  return isOriginAllowed(origin);
-}
-
-/**
- * Get CORS headers for response
- * If origin is allowed, returns headers with that origin
- * Otherwise, returns empty headers (no CORS)
- */
-export function corsHeaders(request: NextRequest, additionalHeaders?: Record<string, string>): Record<string, string> {
-  const origin = request.headers.get('origin');
-  const headers: Record<string, string> = additionalHeaders || {};
-
+export function getCorsHeaders(
+  origin: string | null,
+  allowCredentials: boolean = false
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+  
   if (isOriginAllowed(origin)) {
     headers['Access-Control-Allow-Origin'] = origin || '*';
     headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-    headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Cache-Control';
+    headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Cache-Control, If-None-Match';
     headers['Access-Control-Max-Age'] = '86400'; // 24 hours
+    
+    if (allowCredentials && origin) {
+      headers['Access-Control-Allow-Credentials'] = 'true';
+    }
   }
-
+  
   return headers;
 }
 
 /**
- * Handle OPTIONS preflight request
- * Returns a NextResponse with appropriate CORS headers
+ * Helper to create a CORS-enabled Response
+ * 
+ * @param data - Response data
+ * @param origin - Request origin
+ * @param status - HTTP status code
+ * @returns Response with CORS headers
  */
-export function handlePreflightRequest(request: NextRequest) {
-  const { NextResponse } = require('next/server');
+export function corsResponse(
+  data: any,
+  origin: string | null,
+  status: number = 200
+): Response {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...getCorsHeaders(origin),
+  };
   
-  if (isOriginAllowed(request.headers.get('origin'))) {
-    return NextResponse.json(
-      {},
-      {
-        status: 200,
-        headers: corsHeaders(request),
-      }
-    );
-  }
-
-  return NextResponse.json(
-    { error: 'Origin not allowed' },
-    { status: 403 }
-  );
+  return new Response(JSON.stringify(data), {
+    status,
+    headers,
+  });
 }
 
 /**
- * Permissive CORS (for public widgets)
- * Allows all origins - use only for truly public endpoints like widget scripts
+ * Helper for OPTIONS preflight requests
+ * 
+ * @param origin - Request origin
+ * @returns Response for OPTIONS request
  */
-export function permissiveCorsHeaders(): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Cache-Control',
-    'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
+export function corsPreflightResponse(origin: string | null): Response {
+  return new Response(null, {
+    status: 204,
+    headers: getCorsHeaders(origin),
+  });
+}
+
+/**
+ * Middleware-style CORS handler
+ * Wraps an API handler with CORS support
+ * 
+ * @param handler - The API route handler
+ * @returns Wrapped handler with CORS support
+ */
+export function withCors(
+  handler: (request: Request) => Promise<Response>
+) {
+  return async (request: Request): Promise<Response> => {
+    const origin = request.headers.get('origin');
+    
+    // Handle preflight
+    if (request.method === 'OPTIONS') {
+      return corsPreflightResponse(origin);
+    }
+    
+    // Check if origin is allowed
+    if (origin && !isOriginAllowed(origin)) {
+      return new Response(
+        JSON.stringify({ error: 'Origin not allowed' }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // Execute handler
+    const response = await handler(request);
+    
+    // Add CORS headers to response
+    const corsHeaders = getCorsHeaders(origin);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    
+    return response;
   };
 }
 
 /**
- * Load allowed origins from environment or database
- * Can be called at startup to load dynamic origin list
+ * Validate widget origin
+ * Checks if a widget's configured domain matches the request origin
+ * 
+ * @param widgetDomain - The widget's configured domain
+ * @param requestOrigin - The request origin
+ * @returns true if valid
  */
-export async function loadAllowedOrigins(): Promise<string[]> {
-  // Load from environment variable (comma-separated list)
-  const envOrigins = process.env.ALLOWED_ORIGINS;
-  if (envOrigins) {
-    return envOrigins.split(',').map(origin => origin.trim());
+export function isValidWidgetOrigin(
+  widgetDomain: string | null,
+  requestOrigin: string | null
+): boolean {
+  if (!widgetDomain || !requestOrigin) {
+    return false;
   }
-
-  // TODO: Load from database
-  // const { createClient } = await import('@/lib/supabase/server');
-  // const supabase = await createClient();
-  // const { data } = await supabase.from('widget_configs').select('domain');
-  // return data?.map(d => `https://${d.domain}`) || [];
-
-  return ALLOWED_ORIGINS;
-}
-
-/**
- * Middleware helper for CORS
- * Can be used in Next.js middleware to apply CORS globally
- */
-export function applyCorsMiddleware(request: NextRequest, response: Response): Response {
-  const origin = request.headers.get('origin');
   
-  if (isOriginAllowed(origin)) {
-    response.headers.set('Access-Control-Allow-Origin', origin || '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cache-Control');
+  try {
+    const widgetUrl = new URL(widgetDomain.startsWith('http') ? widgetDomain : `https://${widgetDomain}`);
+    const requestUrl = new URL(requestOrigin);
+    
+    // Compare hostname (domain)
+    return widgetUrl.hostname === requestUrl.hostname;
+  } catch (error) {
+    return false;
   }
-
-  return response;
 }
-
-/**
- * Example usage in API route:
- * 
- * ```typescript
- * import { handleCors, corsHeaders, permissiveCorsHeaders } from '@/lib/cors';
- * 
- * export async function GET(request: NextRequest) {
- *   // For protected endpoints (check origin)
- *   if (!handleCors(request)) {
- *     return NextResponse.json(
- *       { error: 'Origin not allowed' },
- *       { status: 403 }
- *     );
- *   }
- * 
- *   const data = await fetchData();
- *   return NextResponse.json(data, {
- *     headers: corsHeaders(request)
- *   });
- * }
- * 
- * export async function POST(request: NextRequest) {
- *   // For public widget endpoints (allow all origins)
- *   const data = await request.json();
- *   const result = await saveData(data);
- *   
- *   return NextResponse.json(result, {
- *     headers: permissiveCorsHeaders()
- *   });
- * }
- * 
- * export async function OPTIONS(request: NextRequest) {
- *   return handlePreflightRequest(request);
- * }
- * ```
- */
-
