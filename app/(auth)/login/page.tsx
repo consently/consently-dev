@@ -50,15 +50,11 @@ function LoginContent() {
     setLoginError(null); // Clear any previous errors
 
     try {
-      // Use 'local' persistence for remember me, 'session' for temporary sessions
+      // Note: persistSession is handled automatically by Supabase
+      // rememberMe would need to be implemented via cookies if needed
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
-        options: {
-          // If remember me is checked, use 'local' storage (persists across browser restarts)
-          // Otherwise use 'session' storage (cleared when browser closes)
-          persistSession: data.rememberMe !== false, // Default to true if not specified
-        },
       });
 
       if (error) {
@@ -269,15 +265,7 @@ function LoginContent() {
               required
             />
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  {...register('rememberMe')}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-gray-600">Remember me</span>
-              </label>
+            <div className="flex items-center justify-end text-sm">
               <Link
                 href="/reset-password"
                 className="text-blue-600 hover:text-blue-700 font-medium"

@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       let previous7DaysRejected = 0;
 
       consents?.forEach(consent => {
-        const consentDate = new Date(consent.consent_given_at || consent.consent_timestamp);
+        const consentDate = new Date(consent.consent_given_at);
         const isAccepted = consent.consented_activities?.includes(activity.id);
         const isRejected = consent.rejected_activities?.includes(activity.id);
 

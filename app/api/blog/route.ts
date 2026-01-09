@@ -34,8 +34,7 @@ export async function GET(request: Request) {
     const to = from + limit - 1;
 
     const { data: posts, error, count } = await query
-      .range(from, to)
-      .select('*', { count: 'exact' });
+      .range(from, to);
 
     if (error) {
       console.error('Error fetching blog posts:', error);

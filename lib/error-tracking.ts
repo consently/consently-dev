@@ -275,6 +275,5 @@ export function addBreadcrumb(message: string, data?: Record<string, any>) {
   }
 }
 
-// Export types
-export type { ErrorContext, ErrorOptions };
+// Types are already exported above
 

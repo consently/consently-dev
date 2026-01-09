@@ -237,7 +237,7 @@ export function PurposeManager({
                       Purpose {purposeIndex + 1}: {purposeName}
                     </span>
                     {hasErrors && (
-                      <AlertCircle className="h-4 w-4 text-red-500" title="Incomplete purpose configuration" />
+                      <AlertCircle className="h-4 w-4 text-red-500" aria-label="Incomplete purpose configuration" />
                     )}
                   </button>
                   <Button

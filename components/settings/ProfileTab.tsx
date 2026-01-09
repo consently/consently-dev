@@ -10,7 +10,7 @@ import type { UserProfileData } from '@/types/settings';
 
 interface ProfileTabProps {
   data: UserProfileData;
-  onUpdate: (data: { full_name?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
+  onUpdate: (data: { full_name?: string; avatar_url?: string; company_name?: string; phone?: string; website?: string }) => Promise<{ success: boolean; error?: string }>;
   updating: boolean;
 }
 

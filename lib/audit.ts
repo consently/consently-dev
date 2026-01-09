@@ -37,7 +37,8 @@ export type AuditAction =
   | 'activity.create'
   | 'activity.update'
   | 'activity.delete'
-  | 'email.send';
+  | 'email.send'
+  | 'email.export';
 
 export type AuditStatus = 'success' | 'failure';
 

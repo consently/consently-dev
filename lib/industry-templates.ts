@@ -179,6 +179,8 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'Account Opening',
+        purposes: [],
+        data_sources: ['Branch Application', 'Digital Onboarding Portal', 'Mobile Banking App'],
         purpose: 'To verify customer identity, establish banking relationships, and create customer accounts in compliance with regulatory requirements',
         data_attributes: ['Full Name', 'Date of Birth', 'Address', 'Phone Number', 'Email', 'PAN Card', 'Aadhaar Number', 'Photograph', 'Signature'],
         retention_period: '10 years after account closure',
@@ -189,6 +191,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'KYC Verification',
+        purposes: [],
+        data_sources: [],
         purpose: 'To verify customer identity, prevent fraud, comply with anti-money laundering regulations, and maintain updated customer records',
         data_attributes: ['Identity Documents', 'Address Proof', 'PAN Card', 'Aadhaar', 'Biometric Data', 'Income Details', 'Source of Funds'],
         retention_period: '10 years after relationship ends',
@@ -199,6 +203,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Transaction Processing',
+        purposes: [],
+        data_sources: [],
         purpose: 'To execute financial transactions, maintain account balances, generate statements, and provide banking services',
         data_attributes: ['Account Number', 'Transaction Amount', 'Date & Time', 'Transaction Type', 'Beneficiary Details', 'Location', 'Device Information'],
         retention_period: '10 years for regulatory compliance',
@@ -209,6 +215,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Credit Assessment',
+        purposes: [],
+        data_sources: [],
         purpose: 'To evaluate creditworthiness, determine loan eligibility, set credit limits, and make informed lending decisions',
         data_attributes: ['Income Details', 'Employment Information', 'Credit Score', 'Credit History', 'Assets', 'Liabilities', 'Bank Statements', 'Tax Returns'],
         retention_period: '7 years after loan settlement',
@@ -219,6 +227,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Fraud Detection & Prevention',
+        purposes: [],
+        data_sources: [],
         purpose: 'To identify suspicious activities, prevent fraudulent transactions, protect customer accounts, and comply with security regulations',
         data_attributes: ['Transaction Patterns', 'Device Information', 'IP Address', 'Location Data', 'Biometric Data', 'Behavioral Analytics'],
         retention_period: '5 years from detection',
@@ -229,6 +239,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Customer Communication',
+        purposes: [],
+        data_sources: [],
         purpose: 'To send account alerts, transaction notifications, promotional offers, and important updates to customers',
         data_attributes: ['Name', 'Email', 'Phone Number', 'Account Details', 'Communication Preferences', 'Transaction History'],
         retention_period: '3 years from last communication',
@@ -247,6 +259,8 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'Patient Registration',
+        purposes: [],
+        data_sources: [],
         purpose: 'To register patients, create medical records, verify insurance eligibility, and establish patient-provider relationships',
         data_attributes: ['Full Name', 'Date of Birth', 'Gender', 'Address', 'Phone Number', 'Email', 'Emergency Contact', 'Insurance Details', 'Medical History'],
         retention_period: '10 years or as per medical regulations',
@@ -257,6 +271,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Medical Records Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To maintain comprehensive medical records, track treatment history, enable continuity of care, and comply with healthcare regulations',
         data_attributes: ['Medical History', 'Diagnoses', 'Test Results', 'Prescriptions', 'Treatment Plans', 'Imaging Records', 'Physician Notes', 'Vital Signs'],
         retention_period: 'Lifetime or as per medical regulations',
@@ -267,6 +283,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Appointment Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To schedule patient appointments, send reminders, manage doctor availability, and optimize healthcare facility operations',
         data_attributes: ['Patient Name', 'Phone Number', 'Email', 'Appointment Date & Time', 'Doctor Name', 'Reason for Visit', 'Appointment Type'],
         retention_period: '5 years from appointment date',
@@ -277,6 +295,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Prescription Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To generate, track, and manage patient prescriptions, ensure medication safety, and maintain prescription records',
         data_attributes: ['Patient Name', 'Date of Birth', 'Medication Name', 'Dosage', 'Duration', 'Doctor Name', 'Pharmacy Details', 'Allergies'],
         retention_period: '10 years from prescription date',
@@ -287,6 +307,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Billing & Insurance Claims',
+        purposes: [],
+        data_sources: [],
         purpose: 'To process medical bills, submit insurance claims, manage payments, and maintain financial records for healthcare services',
         data_attributes: ['Patient Name', 'Insurance Details', 'Treatment Codes', 'Billing Amount', 'Payment Status', 'Invoice Details', 'Claim Status'],
         retention_period: '7 years for tax and accounting purposes',
@@ -297,6 +319,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Telemedicine Services',
+        purposes: [],
+        data_sources: [],
         purpose: 'To provide remote healthcare consultations, enable virtual doctor visits, and deliver healthcare services digitally',
         data_attributes: ['Patient Name', 'Contact Details', 'Medical History', 'Video Consultation Records', 'Chat Transcripts', 'Digital Prescriptions'],
         retention_period: '10 years from consultation date',
@@ -315,6 +339,8 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'Student Enrollment',
+        purposes: [],
+        data_sources: [],
         purpose: 'To register students, verify eligibility, create student profiles, and maintain enrollment records',
         data_attributes: ['Full Name', 'Date of Birth', 'Address', 'Phone Number', 'Email', 'Parent/Guardian Details', 'Previous Education Records', 'Photograph'],
         retention_period: '10 years after graduation',
@@ -325,6 +351,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Academic Records Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To maintain student grades, attendance records, transcripts, and academic performance data',
         data_attributes: ['Student ID', 'Course Enrollment', 'Grades', 'Attendance', 'Test Scores', 'Assignment Submissions', 'Academic Achievements'],
         retention_period: 'Permanently or as per education regulations',
@@ -335,6 +363,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Online Learning Platform',
+        purposes: [],
+        data_sources: [],
         purpose: 'To deliver educational content, track learning progress, facilitate online courses, and provide interactive learning experiences',
         data_attributes: ['Name', 'Email', 'Learning Progress', 'Course Completion', 'Quiz Results', 'Discussion Forum Posts', 'Video Watch History'],
         retention_period: '3 years from course completion',
@@ -345,6 +375,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Fee Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To collect tuition fees, process payments, generate receipts, and maintain financial records for educational services',
         data_attributes: ['Student Name', 'Fee Structure', 'Payment Amount', 'Payment Method', 'Receipt Number', 'Due Dates', 'Payment Status'],
         retention_period: '7 years for accounting purposes',
@@ -355,6 +387,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Parent-Teacher Communication',
+        purposes: [],
+        data_sources: [],
         purpose: 'To facilitate communication between parents and teachers, share student progress updates, and coordinate parent meetings',
         data_attributes: ['Student Name', 'Parent Name', 'Contact Details', 'Progress Reports', 'Meeting Schedules', 'Communication History'],
         retention_period: '5 years from student graduation',
@@ -365,6 +399,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Library Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To manage library resources, track book borrowing, maintain member records, and provide library services',
         data_attributes: ['Student ID', 'Books Borrowed', 'Due Dates', 'Fine Status', 'Library Card Number', 'Reading History'],
         retention_period: '3 years after membership ends',
@@ -383,6 +419,8 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'Property Listing Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To create and manage property listings, showcase properties to potential buyers/renters, and maintain property databases',
         data_attributes: ['Property Address', 'Property Type', 'Area', 'Price', 'Photos', 'Floor Plans', 'Amenities', 'Owner Contact'],
         retention_period: '2 years after listing removal',
@@ -393,6 +431,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Lead Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To capture and manage potential buyer/renter leads, track interactions, and facilitate property sales/rentals',
         data_attributes: ['Name', 'Phone Number', 'Email', 'Property Interest', 'Budget Range', 'Preferred Location', 'Communication History'],
         retention_period: '3 years from last contact',
@@ -403,6 +443,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Property Viewing Scheduling',
+        purposes: [],
+        data_sources: [],
         purpose: 'To schedule property viewings, coordinate with buyers and property owners, and manage viewing appointments',
         data_attributes: ['Viewer Name', 'Contact Details', 'Property ID', 'Viewing Date & Time', 'Agent Details', 'Feedback'],
         retention_period: '1 year from viewing date',
@@ -413,6 +455,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Tenant Screening',
+        purposes: [],
+        data_sources: [],
         purpose: 'To verify tenant background, assess creditworthiness, check references, and make informed rental decisions',
         data_attributes: ['Full Name', 'ID Proof', 'Employment Details', 'Income Verification', 'Credit Score', 'Rental History', 'References'],
         retention_period: '7 years from application date',
@@ -423,6 +467,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Lease Agreement Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To create, execute, and manage rental agreements, track lease terms, and maintain legal documentation',
         data_attributes: ['Tenant Name', 'Property Address', 'Lease Term', 'Rent Amount', 'Deposit', 'Agreement Copy', 'Signatures', 'Renewal Status'],
         retention_period: '10 years after lease expiry',
@@ -433,6 +479,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Maintenance Requests',
+        purposes: [],
+        data_sources: [],
         purpose: 'To handle property maintenance requests, coordinate repairs, track service providers, and ensure property upkeep',
         data_attributes: ['Tenant Name', 'Property Address', 'Issue Description', 'Request Date', 'Priority', 'Service Provider', 'Resolution Status'],
         retention_period: '5 years from resolution',
@@ -451,6 +499,8 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'Hotel Booking',
+        purposes: [],
+        data_sources: [],
         purpose: 'To process hotel reservations, manage room availability, collect guest information, and provide accommodation services',
         data_attributes: ['Guest Name', 'Phone Number', 'Email', 'Check-in Date', 'Check-out Date', 'Room Type', 'Number of Guests', 'Special Requests'],
         retention_period: '3 years from check-out',
@@ -461,6 +511,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Flight Booking',
+        purposes: [],
+        data_sources: [],
         purpose: 'To book flights, process ticketing, collect passenger information, and facilitate air travel arrangements',
         data_attributes: ['Passenger Name', 'Date of Birth', 'Passport Number', 'Nationality', 'Contact Details', 'Flight Details', 'Seat Preference', 'Meal Preference'],
         retention_period: '5 years for travel and tax records',
@@ -471,6 +523,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Travel Package Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To create and sell travel packages, coordinate multiple services, and provide comprehensive travel solutions',
         data_attributes: ['Traveler Name', 'Contact Details', 'Package Details', 'Travel Dates', 'Destination', 'Accommodation', 'Activities', 'Total Cost'],
         retention_period: '5 years from travel completion',
@@ -481,6 +535,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Guest Check-in Process',
+        purposes: [],
+        data_sources: [],
         purpose: 'To verify guest identity, collect required information, assign rooms, and complete the check-in procedure',
         data_attributes: ['Full Name', 'ID Proof', 'Address', 'Passport Details', 'Vehicle Number', 'Signature', 'Photo', 'Companion Details'],
         retention_period: '10 years as per hospitality regulations',
@@ -491,6 +547,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Loyalty Program',
+        purposes: [],
+        data_sources: [],
         purpose: 'To reward frequent travelers, track points and rewards, provide personalized offers, and enhance customer retention',
         data_attributes: ['Membership ID', 'Name', 'Email', 'Phone Number', 'Travel History', 'Points Balance', 'Tier Status', 'Preferences'],
         retention_period: '5 years after membership termination',
@@ -501,6 +559,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Guest Feedback Collection',
+        purposes: [],
+        data_sources: [],
         purpose: 'To collect guest reviews and feedback, improve service quality, and maintain reputation management',
         data_attributes: ['Guest Name', 'Email', 'Booking ID', 'Rating', 'Review Text', 'Service Aspects', 'Response Status'],
         retention_period: '3 years from submission',
@@ -519,6 +579,8 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'Customer Activation',
+        purposes: [],
+        data_sources: [],
         purpose: 'To activate mobile connections, verify customer identity as per DoT regulations, and provide telecom services',
         data_attributes: ['Full Name', 'Date of Birth', 'Address', 'Photo', 'Aadhaar Number', 'Alternative ID', 'Phone Number', 'Biometric Data'],
         retention_period: '10 years from service termination',
@@ -529,6 +591,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Call Detail Records (CDR)',
+        purposes: [],
+        data_sources: [],
         purpose: 'To maintain call records for billing, network management, legal compliance, and service quality monitoring',
         data_attributes: ['Caller Number', 'Receiver Number', 'Call Duration', 'Date & Time', 'Location (Cell Tower)', 'Call Type', 'Cost'],
         retention_period: '1 year as per TRAI regulations',
@@ -539,6 +603,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Data Usage Tracking',
+        purposes: [],
+        data_sources: [],
         purpose: 'To monitor data consumption, provide fair usage policy compliance, and generate accurate bills for data services',
         data_attributes: ['Phone Number', 'Data Volume', 'Session Duration', 'Websites Visited (URL)', 'IP Address', 'Device Information', 'Location'],
         retention_period: '1 year from billing cycle',
@@ -549,6 +615,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Billing & Payments',
+        purposes: [],
+        data_sources: [],
         purpose: 'To generate bills, process payments, manage account balances, and provide financial services to subscribers',
         data_attributes: ['Customer Name', 'Phone Number', 'Bill Amount', 'Payment Method', 'Transaction ID', 'Due Date', 'Payment History'],
         retention_period: '7 years for tax and accounting purposes',
@@ -559,6 +627,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Network Quality Management',
+        purposes: [],
+        data_sources: [],
         purpose: 'To monitor network performance, optimize coverage, troubleshoot issues, and improve service quality',
         data_attributes: ['Phone Number', 'Location Data', 'Signal Strength', 'Network Type', 'Call Drop Data', 'Speed Test Results', 'Device Model'],
         retention_period: '6 months from collection',
@@ -569,6 +639,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Customer Service & Support',
+        purposes: [],
+        data_sources: [],
         purpose: 'To handle customer queries, resolve complaints, provide technical support, and improve customer satisfaction',
         data_attributes: ['Customer Name', 'Phone Number', 'Account Details', 'Issue Description', 'Call Recordings', 'Chat Transcripts', 'Resolution Status'],
         retention_period: '3 years from case closure',
@@ -587,6 +659,8 @@ export const industryTemplates: IndustryTemplate[] = [
     activities: [
       {
         activity_name: 'User Registration',
+        purposes: [],
+        data_sources: [],
         purpose: 'To create user accounts, authenticate users, and provide access to services',
         data_attributes: ['Name', 'Email', 'Phone Number', 'Password Hash', 'Registration Date'],
         retention_period: '3 years from account closure',
@@ -597,6 +671,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Contact Form Submissions',
+        purposes: [],
+        data_sources: [],
         purpose: 'To handle customer inquiries, provide information, and facilitate communication',
         data_attributes: ['Name', 'Email', 'Phone Number', 'Message', 'Submission Date'],
         retention_period: '2 years from submission',
@@ -607,6 +683,8 @@ export const industryTemplates: IndustryTemplate[] = [
       },
       {
         activity_name: 'Newsletter Subscription',
+        purposes: [],
+        data_sources: [],
         purpose: 'To send newsletters, updates, and marketing communications to subscribers',
         data_attributes: ['Email', 'Name', 'Subscription Date', 'Preferences', 'Opt-in Status'],
         retention_period: '2 years or until unsubscribe',
