@@ -8,10 +8,14 @@ const bundleAnalyzer = withBundleAnalyzer({
 const nextConfig: NextConfig = {
   /* config options here */
   eslint: {
-    ignoreDuringBuilds: true,
+    // ✅ PRODUCTION FIX: Enable ESLint checks during builds
+    // This ensures code quality and catches potential bugs before deployment
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // ✅ PRODUCTION FIX: Enable TypeScript type checking during builds
+    // This prevents type errors from reaching production
+    ignoreBuildErrors: false,
   },
   images: {
     remotePatterns: [

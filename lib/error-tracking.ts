@@ -47,8 +47,6 @@ export function initErrorTracking() {
       Promise.resolve().then(async () => {
         try {
           // @ts-expect-error - Optional dependency that may not exist
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           const Sentry = await import(/* webpackIgnore: true */ '@sentry/nextjs');
           if (Sentry?.init) {
             Sentry.init({
@@ -95,7 +93,6 @@ export function captureError(error: Error | unknown, options: ErrorOptions = {})
   if (sentryDSN && sentryInitialized) {
     try {
       // @ts-expect-error - Optional dependency that may not exist
-      // @ts-ignore
       import(/* webpackIgnore: true */ '@sentry/nextjs').then((Sentry: any) => {
         if (Sentry?.withScope) {
           Sentry.withScope((scope: any) => {
@@ -151,7 +148,6 @@ export function captureMessage(message: string, options: ErrorOptions = {}) {
   if (sentryDSN && sentryInitialized) {
     try {
       // @ts-expect-error - Optional dependency that may not exist
-      // @ts-ignore
       import(/* webpackIgnore: true */ '@sentry/nextjs').then((Sentry: any) => {
         if (Sentry?.withScope) {
           Sentry.withScope((scope: any) => {
@@ -191,7 +187,6 @@ export function setUser(user: { id: string; email?: string; username?: string } 
   if (sentryDSN && sentryInitialized) {
     try {
       // @ts-expect-error - Optional dependency that may not exist
-      // @ts-ignore
       import(/* webpackIgnore: true */ '@sentry/nextjs').then((Sentry: any) => {
         if (Sentry?.setUser) {
           if (user) {
@@ -263,7 +258,6 @@ export function addBreadcrumb(message: string, data?: Record<string, any>) {
   if (sentryDSN && sentryInitialized) {
     try {
       // @ts-expect-error - Optional dependency that may not exist
-      // @ts-ignore
       import(/* webpackIgnore: true */ '@sentry/nextjs').then((Sentry: any) => {
         if (Sentry?.addBreadcrumb) {
           Sentry.addBreadcrumb({

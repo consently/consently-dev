@@ -81,10 +81,11 @@ export default function SignupPage() {
         }
 
         // Always redirect to onboarding for new signups
-        toast.success('Account created successfully! Let\'s get you started.');
+        toast.success('Account created successfully! Let&apos;s get you started.');
         router.push('/dashboard/setup/onboarding');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error('Signup error:', error);
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -118,9 +119,10 @@ export default function SignupPage() {
 
       // OAuth redirect will happen automatically, so we don't need to do anything else
       // The loading state will be reset when the page redirects
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('OAuth exception:', error);
-      toast.error(`Failed to sign up with ${provider}. Please try again.`);
+      const errorMessage = error instanceof Error ? error.message : `Failed to sign up with ${provider}. Please try again.`;
+      toast.error(errorMessage);
       setIsLoading(false);
     }
   };

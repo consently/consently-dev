@@ -66,7 +66,7 @@ export default function ResetPasswordPage() {
       toast.success('Password reset email sent! Check your inbox for instructions.', {
         duration: 5000,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password reset error:', error);
       toast.error('An unexpected error occurred. Please try again.', {
         duration: 5000,
@@ -91,7 +91,7 @@ export default function ResetPasswordPage() {
               <div className="text-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h1>
                 <p className="text-gray-600">
-                  Enter your email address and we'll send you instructions to reset your password.
+                  Enter your email address and we&apos;ll send you instructions to reset your password.
                 </p>
               </div>
 
@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
                 <p className="text-gray-600 mb-6">
-                  We've sent password reset instructions to your email address. Please check your
+                  We&apos;ve sent password reset instructions to your email address. Please check your
                   inbox and follow the link to reset your password.
                 </p>
                 <Link href="/login">

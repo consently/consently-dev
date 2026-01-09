@@ -21,7 +21,7 @@ interface PageStats {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { widgetId: string } }
+  { params }: { params: Promise<{ widgetId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -36,7 +36,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { widgetId } = params;
+    // Next.js 15: params is now a Promise
+    const { widgetId } = await params;
 
     // Verify widget belongs to user
     const { data: widgetConfig, error: widgetError } = await supabase

@@ -119,9 +119,9 @@ function LoginContent() {
         }
         router.refresh();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      const errorMessage = error?.message || 'An unexpected error occurred. Please try again.';
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';
       setLoginError(errorMessage);
       toast.error(errorMessage, {
         duration: 5000,
@@ -159,9 +159,10 @@ function LoginContent() {
 
       // OAuth redirect will happen automatically, so we don't need to do anything else
       // The loading state will be reset when the page redirects
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('OAuth exception:', error);
-      toast.error(`Failed to sign in with ${provider}. Please try again.`);
+      const errorMessage = error instanceof Error ? error.message : `Failed to sign in with ${provider}. Please try again.`;
+      toast.error(errorMessage);
       setIsLoading(false);
     }
   };
@@ -298,7 +299,7 @@ function LoginContent() {
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
               Sign up for free
             </Link>
