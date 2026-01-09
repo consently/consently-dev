@@ -1767,8 +1767,8 @@
           necessary: 'Necessary',
           preferences: 'Preferences',
           analytics: 'Analytics',
-          marketing: 'Marketing',
-          social: 'Social'
+          marketing: 'Advertising',
+          social: 'Functional'
         };
 
         return `
@@ -1996,8 +1996,8 @@
           necessary: 'Necessary',
           preferences: 'Preferences',
           analytics: 'Analytics',
-          marketing: 'Marketing',
-          social: 'Social'
+          marketing: 'Advertising',
+          social: 'Functional'
         };
 
         const categoriesHTML = config.categories && config.categories.length > 0 ? `
@@ -2841,14 +2841,14 @@
         'Cancel',
         'Required',
         // Category texts (8 items)
-        'Essential Cookies',
+        'Necessary Cookies',
         'Essential for website functionality',
         'Analytics Cookies',
         'Help us understand visitor behavior',
         'Advertising Cookies',
         'Used for targeted advertising',
-        'Social Media',
-        'Cookies from social media platforms for sharing content'
+        'Functional Cookies',
+        'Enable enhanced functionality and personalization'
       ];
 
       let translations;
@@ -2919,7 +2919,8 @@
       };
 
       categories.forEach(cat => {
-        if (availableCategories.includes(cat.id) || cat.required) {
+        // Always show necessary cookies, show others only if in availableCategories
+        if (cat.id === 'necessary' || availableCategories.includes(cat.id) || cat.required) {
           const isChecked = cat.required || existingCategories.includes(cat.id);
 
           // Get cookies for this category
@@ -2948,15 +2949,18 @@
                 ${cookieCount > 5 ? `<div style="font-size: 11px; color: #6b7280; text-align: center;">+ ${cookieCount - 5} more cookies</div>` : ''}
               </div>
             `;
-          } else if (!hasScannedCookies && cat.id !== 'necessary') {
-            cookieListHTML = `
-              <div id="cookie-list-${cat.id}" style="margin-top: 12px; display: none; border-top: 1px solid #e5e7eb; padding-top: 12px;">
-                <div style="background: #fef3c7; padding: 12px; border-radius: 6px; font-size: 11px; color: #92400e;">
-                  <strong>⚠️ No cookies scanned yet</strong><br>
-                  Scan your website in the Consently dashboard to see detailed cookie information.
+          } else if (!hasScannedCookies) {
+            // Don't show "no cookies" message for necessary category - it should always have cookies
+            if (cat.id !== 'necessary') {
+              cookieListHTML = `
+                <div id="cookie-list-${cat.id}" style="margin-top: 12px; display: none; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+                  <div style="background: #fef3c7; padding: 12px; border-radius: 6px; font-size: 11px; color: #92400e;">
+                    <strong>⚠️ No cookies scanned yet</strong><br>
+                    Scan your website in the Consently dashboard to see detailed cookie information.
+                  </div>
                 </div>
-              </div>
-            `;
+              `;
+            }
           }
 
           categoriesHTML += `

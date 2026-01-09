@@ -74,7 +74,7 @@ const categoryInfo = {
   },
   advertising: {
     icon: Megaphone,
-    name: 'Marketing Cookies',
+    name: 'Advertising Cookies',
     description: 'Used to deliver personalized advertisements',
     color: 'text-red-600',
     bgColor: 'bg-red-50',
@@ -83,8 +83,8 @@ const categoryInfo = {
   },
   social: {
     icon: Users,
-    name: 'Social Media Cookies',
-    description: 'Enable social media features and sharing',
+    name: 'Functional Cookies',
+    description: 'Enable enhanced functionality and personalization',
     color: 'text-purple-600',
     bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200',

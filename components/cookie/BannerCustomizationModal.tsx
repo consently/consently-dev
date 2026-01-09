@@ -73,7 +73,7 @@ interface BannerCustomizationModalProps {
 }
 
 const CATEGORY_OPTIONS = [
-  { id: 'necessary', name: 'Essential', description: 'Required for website functionality', color: 'green' },
+  { id: 'necessary', name: 'Necessary', description: 'Required for website functionality', color: 'green' },
   { id: 'functional', name: 'Functional', description: 'Enhance user experience', color: 'blue' },
   { id: 'analytics', name: 'Analytics', description: 'Track usage and performance', color: 'yellow' },
   { id: 'advertising', name: 'Advertising', description: 'Targeted marketing', color: 'red' },
@@ -145,6 +145,12 @@ export function BannerCustomizationModal({
     new Set(scannedCookies.map(c => c.category))
   );
 
+  // Count cookies per category
+  const cookieCountByCategory = scannedCookies.reduce((acc, cookie) => {
+    acc[cookie.category] = (acc[cookie.category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   // Initialize form with smart defaults
   const {
     register,
@@ -191,7 +197,7 @@ export function BannerCustomizationModal({
     const current = formValues.categories;
     if (current.includes(categoryId)) {
       if (categoryId === 'necessary') {
-        toast.error('Essential cookies cannot be removed');
+        toast.error('Necessary cookies cannot be removed');
         return;
       }
       setValue('categories', current.filter(c => c !== categoryId));
@@ -326,33 +332,50 @@ export function BannerCustomizationModal({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cookie Categories *
+                    {scannedCookies.length > 0 && (
+                      <span className="ml-2 text-xs font-normal text-gray-500">
+                        ({scannedCookies.length} cookies detected)
+                      </span>
+                    )}
                   </label>
                   <div className="space-y-2">
-                    {CATEGORY_OPTIONS.map(cat => (
-                      <div
-                        key={cat.id}
-                        onClick={() => toggleCategory(cat.id)}
-                        className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${formValues.categories.includes(cat.id)
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-blue-300'
-                          }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">{cat.name}</span>
-                              {cat.id === 'necessary' && (
-                                <Badge className="text-xs">Required</Badge>
-                              )}
+                    {CATEGORY_OPTIONS.map(cat => {
+                      const cookieCount = cookieCountByCategory[cat.id] || 0;
+                      const hasDetectedCookies = cookieCount > 0;
+                      
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => toggleCategory(cat.id)}
+                          className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${formValues.categories.includes(cat.id)
+                              ? 'border-blue-500 bg-blue-50'
+                              : hasDetectedCookies
+                                ? 'border-amber-300 bg-amber-50 hover:border-blue-300'
+                                : 'border-gray-200 hover:border-blue-300'
+                            }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{cat.name}</span>
+                                {cat.id === 'necessary' && (
+                                  <Badge className="text-xs">Required</Badge>
+                                )}
+                                {hasDetectedCookies && (
+                                  <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300">
+                                    {cookieCount} cookie{cookieCount !== 1 ? 's' : ''} detected
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1">{cat.description}</p>
                             </div>
-                            <p className="text-xs text-gray-600 mt-1">{cat.description}</p>
+                            {formValues.categories.includes(cat.id) && (
+                              <CheckCircle className="h-5 w-5 text-blue-600" />
+                            )}
                           </div>
-                          {formValues.categories.includes(cat.id) && (
-                            <CheckCircle className="h-5 w-5 text-blue-600" />
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -19,6 +19,63 @@ function getCacheTag(widgetId: string) {
   return `widget-config:${widgetId}`;
 }
 
+// Trigger background scan for domains without scan data
+async function triggerBackgroundScan(domain: string, userId: string) {
+  try {
+    // Check if there's already a pending or in-progress scan
+    const { data: existingScans } = await supabase
+      .from('cookie_scan_history')
+      .select('scan_id, scan_status')
+      .eq('website_url', domain)
+      .in('scan_status', ['pending', 'in_progress'])
+      .limit(1);
+
+    if (existingScans && existingScans.length > 0) {
+      console.log(`[Background Scan] Scan already in progress for ${domain}`);
+      return;
+    }
+
+    // Check if we scanned recently (within last 24 hours)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentScans } = await supabase
+      .from('cookie_scan_history')
+      .select('scan_id')
+      .eq('website_url', domain)
+      .gte('created_at', oneDayAgo)
+      .limit(1);
+
+    if (recentScans && recentScans.length > 0) {
+      console.log(`[Background Scan] Recent scan exists for ${domain}, skipping`);
+      return;
+    }
+
+    console.log(`[Background Scan] Triggering scan for ${domain}`);
+    
+    // Trigger the scan via internal API call
+    const scanUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/cookies/scan`;
+    
+    // Use fetch with no-wait pattern
+    fetch(scanUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Request': 'true'
+      },
+      body: JSON.stringify({
+        url: domain.startsWith('http') ? domain : `https://${domain}`,
+        scanDepth: 'shallow', // Use shallow scan for background scans
+        userId: userId
+      })
+    }).catch(err => {
+      console.error('[Background Scan] Failed to trigger:', err);
+    });
+
+    console.log(`[Background Scan] Scan request sent for ${domain}`);
+  } catch (error) {
+    console.error('[Background Scan] Error:', error);
+  }
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ widgetId: string }> }
@@ -87,21 +144,44 @@ export async function GET(
 
     if (widgetConfig.domain) {
       const websiteUrl = widgetConfig.domain;
+      
+      // Normalize domain for matching (remove www., http://, https://, trailing slashes)
+      const normalizeDomain = (domain: string) => {
+        return domain
+          .toLowerCase()
+          .replace(/^https?:\/\//, '')
+          .replace(/^www\./, '')
+          .replace(/\/$/, '');
+      };
+      
+      const normalizedDomain = normalizeDomain(websiteUrl);
+      console.log(`[Widget API] Looking for scans for domain: ${websiteUrl} (normalized: ${normalizedDomain})`);
 
-      // Get the most recent successful scan for this domain
+      // Get the most recent successful scan for this domain (check both exact and normalized)
       const { data: scanData, error: scanError } = await supabase
         .from('cookie_scan_history')
-        .select('cookies_data, classification, completed_at')
-        .eq('website_url', websiteUrl)
+        .select('cookies_data, classification, completed_at, website_url')
         .eq('scan_status', 'completed')
-        .order('completed_at', { ascending: false })
-        .limit(1)
-        .single();
+        .order('completed_at', { ascending: false });
+      
+      console.log(`[Widget API] Found ${scanData?.length || 0} completed scans`);
+      
+      // Find matching scan by normalized domain
+      const matchingScan = scanData?.find((scan: any) => {
+        const scanDomain = normalizeDomain(scan.website_url);
+        const matches = scanDomain === normalizedDomain || 
+               scanDomain.includes(normalizedDomain) || 
+               normalizedDomain.includes(scanDomain);
+        if (matches) {
+          console.log(`[Widget API] Found matching scan: ${scan.website_url} with ${scan.cookies_data?.length || 0} cookies`);
+        }
+        return matches;
+      });
 
-      // Type assertion for JSON data
-      const scanResult = scanData as any;
+      // Use the matching scan if found
+      const scanResult = matchingScan as any;
 
-      if (!scanError && scanResult && scanResult.cookies_data) {
+      if (scanResult && scanResult.cookies_data && Array.isArray(scanResult.cookies_data) && scanResult.cookies_data.length > 0) {
         // Group cookies by category
         const cookiesByCategory: Record<string, any[]> = {
           necessary: [],
@@ -135,6 +215,14 @@ export async function GET(
           lastScanned: scanResult.completed_at,
           hasScannedCookies: true
         };
+      } else {
+        // No scan found - trigger background scan for this domain
+        console.log(`[Widget API] No scan found for ${websiteUrl}, triggering background scan`);
+        
+        // Trigger async scan without waiting (fire and forget)
+        triggerBackgroundScan(widgetConfig.domain, widgetConfig.user_id).catch(err => {
+          console.error('[Widget API] Background scan trigger failed:', err);
+        });
       }
     }
 

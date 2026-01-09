@@ -35,7 +35,7 @@ export default function CookiePolicyPage() {
 
           <h2 className="text-2xl font-semibold mt-8 mb-4">2. Types of Cookies We Use</h2>
 
-          <h3 className="text-xl font-semibold mt-6 mb-3">a. Essential / Strictly Necessary Cookies</h3>
+          <h3 className="text-xl font-semibold mt-6 mb-3">a. Essential / Necessary Cookies</h3>
           <p className="mb-4">
             These cookies are required for the website or platform to function properly.
           </p>
@@ -51,7 +51,7 @@ export default function CookiePolicyPage() {
 
           <hr className="my-6 border-gray-100" />
 
-          <h3 className="text-xl font-semibold mt-6 mb-3">b. Performance & Analytics Cookies</h3>
+          <h3 className="text-xl font-semibold mt-6 mb-3">b. Analytics Cookies</h3>
           <p className="mb-4">
             These cookies help us understand how users interact with Consently.
           </p>

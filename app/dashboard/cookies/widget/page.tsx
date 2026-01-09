@@ -34,7 +34,8 @@ import {
   FileCode,
   Play,
   Trash2,
-  X
+  X,
+  Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
@@ -43,26 +44,26 @@ import { INDIAN_LANGUAGES } from '@/lib/constants/indian-languages';
 const COOKIE_CATEGORIES = [
   {
     id: 'necessary',
-    name: 'Strictly necessary cookies',
+    name: 'Necessary',
     description: 'Essential cookies required for website functionality',
     required: true
   },
   {
     id: 'analytics',
-    name: 'Performance',
+    name: 'Analytics',
     description: 'Cookies that help us understand how visitors interact with the website',
     required: false
   },
   {
     id: 'marketing',
-    name: 'Targeting',
+    name: 'Advertising',
     description: 'Cookies used to deliver targeted advertising',
     required: false
   },
   {
     id: 'social',
-    name: 'Social Media',
-    description: 'Cookies from social media platforms for sharing content',
+    name: 'Functional',
+    description: 'Cookies that enable enhanced functionality and personalization',
     required: false
   }
 ];
@@ -151,6 +152,12 @@ export default function CookieWidgetPage() {
   const [translatingPreview, setTranslatingPreview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [scannedCookies, setScannedCookies] = useState<{
+    categories: Record<string, Array<{name: string; purpose: string; provider: string; expiry: string}>>;
+    totalCookies: number;
+    lastScanned: string | null;
+  } | null>(null);
+  const [loadingScannedCookies, setLoadingScannedCookies] = useState(false);
   const [config, setConfig] = useState<WidgetConfig>({
     widgetId: '',
     name: 'My Cookie Widget',
@@ -236,6 +243,37 @@ export default function CookieWidgetPage() {
     };
     fetchLinkedBanner();
   }, [config.bannerTemplateId]);
+
+  // Fetch scanned cookies when domain is available
+  useEffect(() => {
+    const fetchScannedCookies = async () => {
+      if (!config.domain) {
+        setScannedCookies(null);
+        return;
+      }
+      
+      setLoadingScannedCookies(true);
+      try {
+        const response = await fetch(`/api/cookies/domain-cookies?domain=${encodeURIComponent(config.domain)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setScannedCookies({
+              categories: data.data.categories,
+              totalCookies: data.data.totalCookies,
+              lastScanned: data.data.lastScanned
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching scanned cookies:', error);
+      } finally {
+        setLoadingScannedCookies(false);
+      }
+    };
+    
+    fetchScannedCookies();
+  }, [config.domain]);
 
   
   // Auto-save functionality
@@ -2299,14 +2337,91 @@ export default function CookieWidgetPage() {
               <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1">
                 {config.categories.length} Selected
               </Badge>
+              {scannedCookies && scannedCookies.totalCookies > 0 && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 px-3 py-1">
+                  {scannedCookies.totalCookies} Cookies Detected
+                </Badge>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-6">
+          {/* Scanned Cookies Summary */}
+          {scannedCookies && scannedCookies.totalCookies > 0 && (
+            <div className="mb-6 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-500 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-amber-900 mb-1">Cookies Detected from Scan</h4>
+                  <p className="text-xs text-amber-700 mb-2">
+                    Last scanned: {scannedCookies.lastScanned ? new Date(scannedCookies.lastScanned).toLocaleDateString() : 'Unknown'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(scannedCookies.categories).map(([catKey, cookies]) => {
+                      if (!Array.isArray(cookies) || cookies.length === 0) return null;
+                      return (
+                        <Badge key={catKey} variant="outline" className="bg-white text-amber-800 border-amber-300 text-xs">
+                          {catKey}: {cookies.length} cookie{cookies.length !== 1 ? 's' : ''}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* No Cookies Detected - Prompt to Scan */}
+          {!loadingScannedCookies && config.domain && (!scannedCookies || scannedCookies.totalCookies === 0) && (
+            <div className="mb-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-blue-900 mb-1">No Cookies Detected Yet</h4>
+                  <p className="text-xs text-blue-700 mb-3">
+                    Scan your website to automatically detect and display cookies in your consent banner. 
+                    This helps visitors understand what cookies are being used.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => window.open('/dashboard/cookies/scan', '_blank')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Search className="h-3 w-3 mr-2" />
+                    Scan Website for Cookies
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {loadingScannedCookies && (
+            <div className="mb-6 flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading detected cookies...
+            </div>
+          )}
+          
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {COOKIE_CATEGORIES.map((category) => {
               const isSelected = config.categories.includes(category.id);
               const isRequired = category.required;
+              
+              // Map category IDs to scanned cookie category keys
+              const categoryKeyMap: Record<string, string> = {
+                necessary: 'necessary',
+                analytics: 'analytics',
+                marketing: 'advertising',
+                social: 'functional',
+                preferences: 'preferences'
+              };
+              const scannedCategoryKey = categoryKeyMap[category.id] || category.id;
+              const detectedCookies = scannedCookies?.categories?.[scannedCategoryKey] || [];
+              const detectedCount = Array.isArray(detectedCookies) ? detectedCookies.length : 0;
               
               const categoryColors = {
                 necessary: { bg: 'from-blue-500 to-blue-600', border: 'border-blue-500', light: 'bg-blue-50' },
@@ -2322,7 +2437,9 @@ export default function CookieWidgetPage() {
                   className={`group relative rounded-xl border-2 p-5 transition-all duration-200 ${
                     isSelected
                       ? `${categoryColors.border} ${categoryColors.light} shadow-lg`
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                      : detectedCount > 0
+                        ? 'border-amber-300 bg-amber-50 hover:border-amber-400 hover:shadow-md'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
                   } ${isRequired ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                   onClick={() => {
                     if (!isRequired) {
@@ -2352,6 +2469,15 @@ export default function CookieWidgetPage() {
                     </div>
                   )}
                   
+                  {/* Show detected cookie count badge */}
+                  {detectedCount > 0 && !isRequired && !isSelected && (
+                    <div className="absolute -top-2 -left-2 z-10">
+                      <Badge className="bg-amber-500 text-white text-xs shadow-lg">
+                        {detectedCount} detected
+                      </Badge>
+                    </div>
+                  )}
+                  
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
                       <Checkbox
@@ -2374,13 +2500,30 @@ export default function CookieWidgetPage() {
                     <div className="flex-1">
                       <label
                         htmlFor={`cat-${category.id}`}
-                        className="block text-base font-bold text-gray-900 mb-2 cursor-pointer"
+                        className="block text-base font-bold text-gray-900 mb-1 cursor-pointer"
                       >
                         {category.name}
+                        {detectedCount > 0 && isSelected && (
+                          <Badge variant="outline" className="ml-2 bg-green-100 text-green-700 border-green-300 text-xs">
+                            {detectedCount} cookie{detectedCount !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
                       </label>
                       <p className="text-sm text-gray-600 leading-relaxed">
                         {category.description}
                       </p>
+                      {/* Show sample detected cookies */}
+                      {detectedCount > 0 && isSelected && Array.isArray(detectedCookies) && (
+                        <div className="mt-2 text-xs text-gray-500">
+                          <span className="font-medium">Detected: </span>
+                          {detectedCookies.slice(0, 3).map((c, i) => (
+                            <span key={i}>
+                              {c.name}{i < Math.min(2, detectedCookies.length - 1) ? ', ' : ''}
+                            </span>
+                          ))}
+                          {detectedCookies.length > 3 && <span> +{detectedCookies.length - 3} more</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

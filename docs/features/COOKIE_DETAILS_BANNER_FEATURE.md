@@ -84,8 +84,8 @@ Each category has:
 | Necessary | #10b981 | ✓ | Necessary Cookies |
 | Functional | #3b82f6 | ⚙ | Functional Cookies |
 | Analytics | #f59e0b | 📊 | Analytics Cookies |
-| Advertising | #ef4444 | 📢 | Marketing Cookies |
-| Social | #8b5cf6 | 👥 | Social Media Cookies |
+| Advertising | #ef4444 | 📢 | Advertising Cookies |
+| Social | #8b5cf6 | 👥 | Functional Cookies |
 | Preferences | #6b7280 | ⚡ | Preference Cookies |
 
 ## Usage

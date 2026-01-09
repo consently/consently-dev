@@ -793,7 +793,7 @@ export default function CookieScanPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{getCategoryCount('advertising')}</div>
-                <p className="text-xs text-gray-500 mt-1">Marketing cookies</p>
+                <p className="text-xs text-gray-500 mt-1">Advertising cookies</p>
               </CardContent>
             </Card>
 

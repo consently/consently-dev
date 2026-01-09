@@ -4517,7 +4517,7 @@ ${activitySections}
           necessary: {
             color: '#10b981',
             icon: '🔒',
-            name: 'Essential Cookies',
+            name: 'Necessary Cookies',
             description: 'Essential for the website to function properly',
             alwaysOn: true
           },
@@ -4538,15 +4538,15 @@ ${activitySections}
           advertising: {
             color: '#ef4444',
             icon: '📢',
-            name: 'Marketing Cookies',
+            name: 'Advertising Cookies',
             description: 'Used to deliver personalized advertisements',
             alwaysOn: false
           },
           social: {
             color: '#8b5cf6',
             icon: '👥',
-            name: 'Social Media Cookies',
-            description: 'Enable social media features and sharing',
+            name: 'Functional Cookies',
+            description: 'Enable enhanced functionality and personalization',
             alwaysOn: false
           },
           preferences: {
@@ -4701,11 +4701,11 @@ ${activitySections}
         const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]');
 
         const categoryInfo = {
-          necessary: 'Essential Cookies',
+          necessary: 'Necessary Cookies',
           functional: 'Functional Cookies',
           analytics: 'Analytics Cookies',
-          advertising: 'Marketing Cookies',
-          social: 'Social Media Cookies',
+          advertising: 'Advertising Cookies',
+          social: 'Functional Cookies',
           preferences: 'Preference Cookies'
         };
 
