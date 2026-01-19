@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search')?.trim() || '';
     const status = searchParams.get('status') || 'all';
+    const source = searchParams.get('source') || 'all';
     const widgetId = searchParams.get('widgetId') || undefined;
 
     const offset = (page - 1) * limit;
@@ -127,6 +128,10 @@ export async function GET(request: NextRequest) {
 
     if (status !== 'all') {
       query = query.eq('consent_status', status);
+    }
+
+    if (source !== 'all') {
+      query = query.eq('consent_source', source);
     }
 
     query = query.range(offset, offset + limit - 1);
@@ -820,6 +825,8 @@ export async function POST(request: NextRequest) {
         revocation_reason: finalConsentStatus === 'revoked'
           ? (body.revocationReason || 'User revoked consent via widget')
           : null,
+        // Track consent source (web_widget, mobile_sdk, api, privacy_centre)
+        consent_source: body.consentSource || 'web_widget',
       };
 
       const { data, error } = await supabase
@@ -898,6 +905,8 @@ export async function POST(request: NextRequest) {
         revocation_reason: finalConsentStatus === 'revoked'
           ? (body.revocationReason || 'User revoked consent via widget')
           : null,
+        // Track consent source (web_widget, mobile_sdk, api, privacy_centre)
+        consent_source: body.consentSource || 'web_widget',
       };
 
       console.log('[Consent Record API] Attempting to insert consent record:', {

@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
+import { CookieMobileIntegration } from '@/components/cookie/CookieMobileIntegration';
 import { INDIAN_LANGUAGES } from '@/lib/constants/indian-languages';
 
 const COOKIE_CATEGORIES = [
@@ -2709,6 +2710,11 @@ export default function CookieWidgetPage() {
 
       {/* No-code Installation Guides */}
       <PlatformInstallCard embedCode={getEmbedCode()} />
+
+      {/* Mobile App SDK Integration */}
+      {config.widgetId && (
+        <CookieMobileIntegration widgetId={config.widgetId} domain={config.domain} />
+      )}
     </div>
   );
 }

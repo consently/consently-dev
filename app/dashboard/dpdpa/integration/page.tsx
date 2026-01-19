@@ -21,6 +21,7 @@ import {
   Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { MobileIntegration } from '@/components/dpdpa/MobileIntegration';
 
 interface WidgetConfig {
   widget_id: string;
@@ -520,6 +521,9 @@ console.assert(window.consentlyDPDPA.getConsent() === null, 'Consent cleared');
               </div>
             </CardContent>
           </Card>
+
+          {/* Mobile App SDK Integration */}
+          <MobileIntegration widgetId={selectedConfig.widget_id} domain={selectedConfig.domain} />
 
           {/* Testing & Verification */}
           <Card>

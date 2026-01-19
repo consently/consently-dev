@@ -235,7 +235,13 @@ export interface ConsentRecordRequest {
   consentDuration?: number;
   revocationReason?: string; // Optional reason for revocation
   visitorEmail?: string | null; // Optional: for cross-device consent management (will be hashed)
+  consentSource?: ConsentSource; // Source of consent: web_widget, mobile_sdk, api, privacy_centre
 }
+
+/**
+ * Consent source types - tracks where consent originated from
+ */
+export type ConsentSource = 'web_widget' | 'mobile_sdk' | 'api' | 'privacy_centre';
 
 /**
  * Consent metadata
@@ -311,6 +317,7 @@ export const consentRecordRequestSchema = z.object({
   consentDuration: z.number().int().min(1).max(3650).optional(),
   revocationReason: z.string().max(500).optional(), // Optional reason for revocation
   visitorEmail: z.string().email().max(255).nullish(), // Optional: for cross-device consent management (will be hashed) - accepts null or undefined
+  consentSource: z.enum(['web_widget', 'mobile_sdk', 'api', 'privacy_centre']).optional(), // Source of consent
 });
 
 /**

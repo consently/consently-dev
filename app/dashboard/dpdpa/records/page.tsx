@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Download, Filter, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Eye, EyeOff, Mail, FileSpreadsheet } from 'lucide-react';
+import { Search, Download, Filter, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Eye, EyeOff, Mail, FileSpreadsheet, Globe, Smartphone } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ExportSecurityModal } from '@/components/security/export-security-modal';
@@ -28,7 +28,22 @@ interface ConsentRecord {
   rejectedActivityNames?: string[]; // Added for display
   visitor_email?: string | null;
   visitor_email_hash?: string | null;
+  consent_source?: 'web_widget' | 'mobile_sdk' | 'api' | 'privacy_centre' | null;
 }
+
+const sourceIcons = {
+  web_widget: <Globe className="h-4 w-4 text-blue-500" />,
+  mobile_sdk: <Smartphone className="h-4 w-4 text-purple-500" />,
+  api: <span className="text-xs font-mono text-gray-500">API</span>,
+  privacy_centre: <Globe className="h-4 w-4 text-green-500" />,
+};
+
+const sourceLabels = {
+  web_widget: 'Web Widget',
+  mobile_sdk: 'Mobile SDK',
+  api: 'API',
+  privacy_centre: 'Privacy Centre',
+};
 
 const statusIcons = {
   accepted: <CheckCircle2 className="h-4 w-4 text-green-500" />,
@@ -50,6 +65,7 @@ export default function ConsentRecordsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [dateRange, setDateRange] = useState('30d'); // 7d, 30d, 90d, all
   const [totalRecords, setTotalRecords] = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -62,7 +78,7 @@ export default function ConsentRecordsPage() {
   // Fetch records on mount and when filters change
   useEffect(() => {
     fetchRecords();
-  }, [searchQuery, statusFilter, typeFilter, dateRange]);
+  }, [searchQuery, statusFilter, typeFilter, sourceFilter, dateRange]);
 
   const fetchRecords = async () => {
     setIsLoading(true);
@@ -74,6 +90,7 @@ export default function ConsentRecordsPage() {
 
       if (searchQuery) params.append('search', searchQuery);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (sourceFilter !== 'all') params.append('source', sourceFilter);
       // dateRange and type are not supported yet in this endpoint
 
       const response = await fetch(`/api/dpdpa/consent-record?${params.toString()}`);
@@ -298,6 +315,7 @@ export default function ConsentRecordsPage() {
                 setSearchQuery('');
                 setStatusFilter('all');
                 setTypeFilter('all');
+                setSourceFilter('all');
                 setDateRange('30d');
               }}
               className="text-xs text-gray-600 hover:text-gray-900"
@@ -322,7 +340,7 @@ export default function ConsentRecordsPage() {
             </div>
 
             {/* Filters Grid - Responsive */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               <Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -333,6 +351,18 @@ export default function ConsentRecordsPage() {
                   { value: 'rejected', label: 'Rejected' },
                   { value: 'partial', label: 'Partial' },
                   { value: 'revoked', label: 'Revoked' },
+                ]}
+              />
+              <Select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                label="Source"
+                options={[
+                  { value: 'all', label: 'All Sources' },
+                  { value: 'web_widget', label: 'Web Widget' },
+                  { value: 'mobile_sdk', label: 'Mobile SDK' },
+                  { value: 'api', label: 'API' },
+                  { value: 'privacy_centre', label: 'Privacy Centre' },
                 ]}
               />
               <Select
@@ -406,6 +436,7 @@ export default function ConsentRecordsPage() {
                 <tr>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">User / ID</th>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">Status</th>
+                  <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">Source</th>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">Timestamp</th>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm min-w-[300px]">Activities</th>
                   <th className="h-11 px-3 text-left align-middle font-semibold text-gray-700 text-sm">Location</th>
@@ -415,7 +446,7 @@ export default function ConsentRecordsPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center">
+                    <td colSpan={7} className="p-8 text-center">
                       <div className="flex justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
@@ -423,7 +454,7 @@ export default function ConsentRecordsPage() {
                   </tr>
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                    <td colSpan={7} className="p-8 text-center text-gray-500">
                       No records found
                     </td>
                   </tr>
@@ -459,6 +490,14 @@ export default function ConsentRecordsPage() {
                                   }`}
                               >
                                 {record.consent_status.charAt(0).toUpperCase() + record.consent_status.slice(1)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 align-middle">
+                            <div className="flex items-center gap-1.5">
+                              {record.consent_source && sourceIcons[record.consent_source]}
+                              <span className="text-sm text-gray-700">
+                                {record.consent_source ? sourceLabels[record.consent_source] : 'Web Widget'}
                               </span>
                             </div>
                           </td>
@@ -573,7 +612,7 @@ export default function ConsentRecordsPage() {
                         </tr>
                         {isExpanded && hasActivities && (
                           <tr key={`${record.id}-expanded`} className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border-b border-gray-100">
-                            <td colSpan={6} className="p-4">
+                            <td colSpan={7} className="p-4">
                               <div className="space-y-4 max-w-4xl">
                                 <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
                                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
