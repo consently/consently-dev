@@ -758,42 +758,42 @@ class CookieConsentSDK private constructor(private val context: Context) {
   };
 
   return (
-    <Card className="border-orange-200 bg-orange-50/30">
+    <Card className="border-blue-200 bg-blue-50/30">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Smartphone className="h-5 w-5 text-orange-600" />
-          <Cookie className="h-4 w-4 text-orange-500" />
-          <CardTitle className="text-orange-900">Mobile App SDK - Cookie Consent</CardTitle>
-          <Badge variant="secondary" className="bg-orange-100 text-orange-700">New</Badge>
+          <Smartphone className="h-5 w-5 text-blue-600" />
+          <Cookie className="h-4 w-4 text-blue-500" />
+          <CardTitle className="text-blue-900">Mobile App SDK - Cookie Consent</CardTitle>
+          <Badge variant="secondary" className="bg-blue-100 text-blue-700">New</Badge>
         </div>
-        <CardDescription className="text-orange-700">
+        <CardDescription className="text-blue-700">
           Integrate cookie consent into your iOS, Android, React Native, or Flutter mobile applications
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* API Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-orange-200">
-            <div className="bg-orange-100 p-2 rounded">
-              <Server className="h-5 w-5 text-orange-600" />
+          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+            <div className="bg-blue-100 p-2 rounded">
+              <Server className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <h4 className="font-medium text-gray-900 text-sm">REST API</h4>
               <p className="text-xs text-gray-600">Simple HTTP endpoints</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-orange-200">
-            <div className="bg-orange-100 p-2 rounded">
-              <Shield className="h-5 w-5 text-orange-600" />
+          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+            <div className="bg-blue-100 p-2 rounded">
+              <Shield className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <h4 className="font-medium text-gray-900 text-sm">CORS Enabled</h4>
               <p className="text-xs text-gray-600">Works from any origin</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-orange-200">
-            <div className="bg-orange-100 p-2 rounded">
-              <Code className="h-5 w-5 text-orange-600" />
+          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+            <div className="bg-blue-100 p-2 rounded">
+              <Code className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <h4 className="font-medium text-gray-900 text-sm">Widget ID</h4>
@@ -814,10 +814,10 @@ class CookieConsentSDK private constructor(private val context: Context) {
 
           {/* React Native */}
           <TabsContent value="react-native">
-            <div className="bg-white rounded-lg p-4 border border-orange-200">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-orange-600" />
+                  <FileCode className="h-4 w-4 text-blue-600" />
                   <h4 className="font-medium text-gray-900">React Native SDK</h4>
                 </div>
                 <Button
@@ -841,10 +841,10 @@ class CookieConsentSDK private constructor(private val context: Context) {
 
           {/* Flutter */}
           <TabsContent value="flutter">
-            <div className="bg-white rounded-lg p-4 border border-orange-200">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-orange-600" />
+                  <FileCode className="h-4 w-4 text-blue-600" />
                   <h4 className="font-medium text-gray-900">Flutter SDK</h4>
                 </div>
                 <Button
@@ -868,10 +868,10 @@ class CookieConsentSDK private constructor(private val context: Context) {
 
           {/* iOS Swift */}
           <TabsContent value="ios">
-            <div className="bg-white rounded-lg p-4 border border-orange-200">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-orange-600" />
+                  <FileCode className="h-4 w-4 text-blue-600" />
                   <h4 className="font-medium text-gray-900">iOS Swift SDK</h4>
                 </div>
                 <Button
@@ -895,10 +895,10 @@ class CookieConsentSDK private constructor(private val context: Context) {
 
           {/* Android Kotlin */}
           <TabsContent value="android">
-            <div className="bg-white rounded-lg p-4 border border-orange-200">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-orange-600" />
+                  <FileCode className="h-4 w-4 text-blue-600" />
                   <h4 className="font-medium text-gray-900">Android Kotlin SDK</h4>
                 </div>
                 <Button
@@ -922,10 +922,10 @@ class CookieConsentSDK private constructor(private val context: Context) {
 
           {/* API Documentation */}
           <TabsContent value="api">
-            <div className="bg-white rounded-lg p-4 border border-orange-200">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-orange-600" />
+                  <Server className="h-4 w-4 text-blue-600" />
                   <h4 className="font-medium text-gray-900">REST API Documentation</h4>
                 </div>
                 <Button
@@ -940,11 +940,11 @@ class CookieConsentSDK private constructor(private val context: Context) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 <div className="p-3 bg-gray-50 rounded border">
                   <p className="text-xs text-gray-500 mb-1">GET Configuration</p>
-                  <code className="text-xs text-orange-700 break-all">{getConfigEndpoint}</code>
+                  <code className="text-xs text-blue-700 break-all">{getConfigEndpoint}</code>
                 </div>
                 <div className="p-3 bg-gray-50 rounded border">
                   <p className="text-xs text-gray-500 mb-1">POST Consent</p>
-                  <code className="text-xs text-orange-700 break-all">{postConsentEndpoint}</code>
+                  <code className="text-xs text-blue-700 break-all">{postConsentEndpoint}</code>
                 </div>
               </div>
               <pre className="text-sm bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto max-h-96">
