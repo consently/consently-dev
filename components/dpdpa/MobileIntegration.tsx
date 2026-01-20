@@ -57,10 +57,12 @@ interface ConsentConfig {
     activity_name: string;
     purposes: Array<{
       id: string;
+      purposeId: string;
       purposeName: string;
       legalBasis: string;
     }>;
   }>;
+  mandatoryPurposes: string[]; // Purpose IDs that cannot be deselected
   privacyNoticeHTML: string;
 }
 
@@ -170,6 +172,25 @@ class ConsentlySDK {
   // Clear consent (for withdrawal)
   async clearConsent(): Promise<void> {
     await AsyncStorage.removeItem('consently_consent');
+  }
+
+  // Check if a purpose is mandatory (cannot be deselected)
+  isMandatoryPurpose(config: ConsentConfig, purposeId: string): boolean {
+    return (config.mandatoryPurposes || []).includes(purposeId);
+  }
+
+  // Get activities with mandatory purposes pre-selected
+  getActivitiesWithMandatory(config: ConsentConfig): { activityId: string; mandatory: boolean }[] {
+    const result: { activityId: string; mandatory: boolean }[] = [];
+    
+    config.activities.forEach(activity => {
+      const hasMandatory = activity.purposes.some(p => 
+        this.isMandatoryPurpose(config, p.purposeId || p.id)
+      );
+      result.push({ activityId: activity.id, mandatory: hasMandatory });
+    });
+    
+    return result;
   }
 }
 
@@ -293,6 +314,29 @@ class ConsentlySDK {
   Future<void> clearConsent() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('consently_consent');
+  }
+
+  // Check if a purpose is mandatory (cannot be deselected)
+  bool isMandatoryPurpose(Map<String, dynamic> config, String purposeId) {
+    final mandatory = config['mandatoryPurposes'] as List<dynamic>? ?? [];
+    return mandatory.contains(purposeId);
+  }
+
+  // Get activities with mandatory flag
+  List<Map<String, dynamic>> getActivitiesWithMandatory(Map<String, dynamic> config) {
+    final activities = config['activities'] as List<dynamic>? ?? [];
+    final mandatory = config['mandatoryPurposes'] as List<dynamic>? ?? [];
+    
+    return activities.map((activity) {
+      final purposes = activity['purposes'] as List<dynamic>? ?? [];
+      final hasMandatory = purposes.any((p) => 
+        mandatory.contains(p['purposeId'] ?? p['id'])
+      );
+      return {
+        'activityId': activity['id'],
+        'mandatory': hasMandatory,
+      };
+    }).toList();
   }
 }
 
@@ -449,6 +493,32 @@ class ConsentlySDK {
     
     func clearConsent() {
         UserDefaults.standard.removeObject(forKey: "consently_consent")
+    }
+    
+    // MARK: - Mandatory Purposes
+    
+    func isMandatoryPurpose(config: [String: Any], purposeId: String) -> Bool {
+        guard let mandatory = config["mandatoryPurposes"] as? [String] else { return false }
+        return mandatory.contains(purposeId)
+    }
+    
+    func getActivitiesWithMandatory(config: [String: Any]) -> [(activityId: String, mandatory: Bool)] {
+        guard let activities = config["activities"] as? [[String: Any]],
+              let mandatory = config["mandatoryPurposes"] as? [String] else { return [] }
+        
+        return activities.compactMap { activity in
+            guard let activityId = activity["id"] as? String,
+                  let purposes = activity["purposes"] as? [[String: Any]] else { return nil }
+            
+            let hasMandatory = purposes.contains { purpose in
+                if let purposeId = purpose["purposeId"] as? String ?? purpose["id"] as? String {
+                    return mandatory.contains(purposeId)
+                }
+                return false
+            }
+            
+            return (activityId: activityId, mandatory: hasMandatory)
+        }
     }
 }`;
   };
@@ -618,6 +688,39 @@ class ConsentlySDK private constructor(private val context: Context) {
         prefs.edit().remove("consently_consent").apply()
     }
     
+    // Check if a purpose is mandatory (cannot be deselected)
+    fun isMandatoryPurpose(config: JSONObject, purposeId: String): Boolean {
+        val mandatory = config.optJSONArray("mandatoryPurposes") ?: return false
+        for (i in 0 until mandatory.length()) {
+            if (mandatory.getString(i) == purposeId) return true
+        }
+        return false
+    }
+    
+    // Get activities with mandatory flag
+    fun getActivitiesWithMandatory(config: JSONObject): List<Pair<String, Boolean>> {
+        val activities = config.optJSONArray("activities") ?: return emptyList()
+        val mandatory = config.optJSONArray("mandatoryPurposes") ?: JSONArray()
+        val mandatorySet = mutableSetOf<String>()
+        for (i in 0 until mandatory.length()) {
+            mandatorySet.add(mandatory.getString(i))
+        }
+        
+        return (0 until activities.length()).mapNotNull { i ->
+            val activity = activities.getJSONObject(i)
+            val activityId = activity.getString("id")
+            val purposes = activity.optJSONArray("purposes") ?: JSONArray()
+            
+            val hasMandatory = (0 until purposes.length()).any { j ->
+                val purpose = purposes.getJSONObject(j)
+                val purposeId = purpose.optString("purposeId") ?: purpose.optString("id")
+                mandatorySet.contains(purposeId)
+            }
+            
+            Pair(activityId, hasMandatory)
+        }
+    }
+    
     private fun isTablet(): Boolean {
         val metrics = context.resources.displayMetrics
         val widthInches = metrics.widthPixels / metrics.xdpi
@@ -647,7 +750,7 @@ class ConsentlySDK private constructor(private val context: Context) {
       "purposes": [
         {
           "id": "uuid-purpose-1",
-          "purposeId": "uuid",
+          "purposeId": "uuid-purpose-ref",
           "purposeName": "Service Improvement",
           "legalBasis": "consent",
           "dataCategories": [
@@ -657,6 +760,7 @@ class ConsentlySDK private constructor(private val context: Context) {
       ]
     }
   ],
+  "mandatoryPurposes": ["uuid-purpose-ref"],  // Purposes that CANNOT be deselected
   "privacyNoticeHTML": "<div>...</div>"
 }
 
@@ -900,9 +1004,10 @@ class ConsentlySDK private constructor(private val context: Context) {
               <li>1. Generate unique Consent ID (CNST-XXXX-XXXX-XXXX)</li>
               <li>2. Fetch widget config on app launch</li>
               <li>3. Display consent UI with activities</li>
-              <li>4. Record consent with proper metadata</li>
-              <li>5. Store consent locally for offline access</li>
-              <li>6. Handle consent expiration</li>
+              <li>4. <strong>Handle mandatory purposes</strong> (pre-select &amp; disable)</li>
+              <li>5. Record consent with proper metadata</li>
+              <li>6. Store consent locally for offline access</li>
+              <li>7. Handle consent expiration</li>
             </ul>
           </div>
 
@@ -913,6 +1018,7 @@ class ConsentlySDK private constructor(private val context: Context) {
             </h4>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>- Consent ID must be persistent across app sessions</li>
+              <li>- <strong>Mandatory purposes</strong> must always be accepted</li>
               <li>- Include device metadata for analytics</li>
               <li>- Email is optional but enables cross-device sync</li>
               <li>- Handle network errors gracefully</li>
