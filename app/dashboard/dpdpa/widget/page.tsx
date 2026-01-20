@@ -50,6 +50,7 @@ import {
 import { toast } from 'sonner';
 import { LogoUploader } from '@/components/ui/logo-uploader';
 import { INDIAN_LANGUAGES } from '@/lib/constants/indian-languages';
+import { MobileIntegration } from '@/components/dpdpa/MobileIntegration';
 
 interface Purpose {
   id: string;
@@ -3829,6 +3830,11 @@ export default function DPDPAWidgetPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Mobile App SDK Integration */}
+          {config.widgetId && (
+            <MobileIntegration widgetId={config.widgetId} domain={config.domain} />
+          )}
 
           {/* Privacy Notice Compliance */}
           <Card className="shadow-sm border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
