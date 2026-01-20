@@ -122,6 +122,7 @@ interface WidgetConfig {
   rejectButtonText: string;
   customizeButtonText: string;
   selectedActivities: string[];
+  mandatoryPurposes?: string[]; // Purpose IDs that cannot be deselected by users
   autoShow: boolean;
   showAfterDelay: number;
   consentDuration: number;
@@ -163,6 +164,7 @@ export default function DPDPAWidgetPage() {
     rejectButtonText: 'Reject All',
     customizeButtonText: 'Manage Preferences',
     selectedActivities: [],
+    mandatoryPurposes: [],
     autoShow: true,
     showAfterDelay: 1000,
     consentDuration: 365,
@@ -341,6 +343,7 @@ export default function DPDPAWidgetPage() {
             rejectButtonText: existingConfig.reject_button_text,
             customizeButtonText: existingConfig.customize_button_text,
             selectedActivities: existingConfig.selected_activities || [],
+            mandatoryPurposes: existingConfig.mandatory_purposes || [],
             autoShow: existingConfig.auto_show,
             showAfterDelay: existingConfig.show_after_delay,
             consentDuration: existingConfig.consent_duration,
@@ -2435,6 +2438,106 @@ export default function DPDPAWidgetPage() {
             </CardContent>
           </Card>
 
+          {/* Mandatory Purposes Section */}
+          {config.selectedActivities.length > 0 && (
+            <Card className="shadow-sm hover:shadow-md transition-shadow border-amber-200">
+              <CardHeader className="border-b bg-gradient-to-r from-amber-50 to-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <div className="p-2 bg-amber-100 rounded-lg">
+                        <Shield className="h-5 w-5 text-amber-600" />
+                      </div>
+                      Mandatory Purposes
+                    </CardTitle>
+                    <CardDescription>
+                      Select purposes that users cannot deselect in the consent widget. These are typically required for essential functionality.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {(() => {
+                  // Get all purposes from selected activities
+                  const allPurposes: { activityId: string; activityName: string; purposeId: string; purposeName: string }[] = [];
+                  activities
+                    .filter(a => config.selectedActivities.includes(a.id))
+                    .forEach(activity => {
+                      activity.purposes.forEach(purpose => {
+                        allPurposes.push({
+                          activityId: activity.id,
+                          activityName: activity.activityName,
+                          purposeId: purpose.purposeId || purpose.id,
+                          purposeName: purpose.purposeName
+                        });
+                      });
+                    });
+
+                  if (allPurposes.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No purposes found in selected activities.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-600 mb-4">
+                        Users will not be able to deselect these purposes. The checkbox will be disabled and marked as &quot;Required&quot;.
+                      </p>
+                      <div className="grid gap-3">
+                        {allPurposes.map(({ activityId, activityName, purposeId, purposeName }) => {
+                          const isMandatory = (config.mandatoryPurposes || []).includes(purposeId);
+                          return (
+                            <div
+                              key={`${activityId}-${purposeId}`}
+                              className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                                isMandatory
+                                  ? 'border-amber-400 bg-amber-50'
+                                  : 'border-gray-200 hover:border-amber-300 hover:bg-amber-50/50'
+                              }`}
+                              onClick={() => {
+                                setConfig(prev => ({
+                                  ...prev,
+                                  mandatoryPurposes: isMandatory
+                                    ? (prev.mandatoryPurposes || []).filter(id => id !== purposeId)
+                                    : [...(prev.mandatoryPurposes || []), purposeId]
+                                }));
+                              }}
+                            >
+                              <Checkbox
+                                checked={isMandatory}
+                                onChange={() => {}}
+                                className="h-5 w-5"
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900">{purposeName}</p>
+                                <p className="text-sm text-gray-500">Activity: {activityName}</p>
+                              </div>
+                              {isMandatory && (
+                                <span className="text-xs font-semibold text-amber-700 bg-amber-200 px-2 py-1 rounded">
+                                  REQUIRED
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {(config.mandatoryPurposes || []).length > 0 && (
+                        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-sm text-amber-800">
+                            <strong>{(config.mandatoryPurposes || []).length}</strong> purpose(s) marked as mandatory. Users will not be able to reject these.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Display Rules Management - NEW SECTION */}
           <Card className="shadow-sm hover:shadow-md transition-shadow border-blue-200">
             <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-white">
@@ -3191,8 +3294,8 @@ export default function DPDPAWidgetPage() {
                           </div>
                         )}
                         <div>
-                          <h2 className="font-extrabold text-xl m-0 mb-0.5" style={{ letterSpacing: '-0.02em' }}>Your Data Permissions</h2>
-                          <p className="text-[11px] text-gray-500 font-medium m-0">To proceed with your request, we need your consent under DPDP Act 2023. Please review your choices below.</p>
+                          <h2 className="font-extrabold text-xl m-0 mb-0.5" style={{ letterSpacing: '-0.02em' }}>{translatingPreview ? 'Translating...' : (translatedPreviewContent?.title || config.title)}</h2>
+                          <p className="text-[11px] text-gray-500 font-medium m-0">Fully compliant with Digital Personal Data Protection Act, 2023</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -3312,35 +3415,6 @@ export default function DPDPAWidgetPage() {
                         </button>
                       </div>
                     </div>
-
-                    {/* View Cookies Section - New Feature */}
-                    <div className="p-3.5 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl mb-3 border border-gray-300 shadow-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                          <p className="text-[11px] text-gray-700 m-0 mb-1 leading-tight font-bold">
-                            View Cookie Details
-                          </p>
-                          <p className="text-[10px] text-gray-600 m-0 leading-tight">
-                            See all cookies used on this website
-                          </p>
-                        </div>
-                        <button
-                          className="px-3.5 py-2 text-[11px] font-bold rounded-lg border-2 transition-all hover:shadow-lg flex items-center gap-1.5"
-                          style={{
-                            backgroundColor: 'white',
-                            color: config.theme.primaryColor,
-                            borderColor: config.theme.primaryColor
-                          }}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                          </svg>
-                          View Cookies
-                        </button>
-                      </div>
-                    </div>
-
-
 
                     {/* Secure This Consent Section */}
                     <div className="p-6 -mx-5 mb-4 border-t border-b" style={{

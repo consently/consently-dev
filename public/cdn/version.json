@@ -1,20 +1,20 @@
 {
   "version": "3.0.0",
-  "buildDate": "2026-01-07T08:04:50.908Z",
+  "buildDate": "2026-01-20T14:33:12.462Z",
   "widgets": [
     {
       "name": "Cookie Widget",
       "file": "widget.js",
-      "fileSize": 88722,
-      "gzippedSize": 19435,
-      "integrity": "sha384-HqCRYq/5E95AZArVXCEEIkXPXgNUOYR+yCcJJk7q2yBNj+FwH5ojFoqPDDnuBCAK"
+      "fileSize": 91438,
+      "gzippedSize": 20147,
+      "integrity": "sha384-gm9FGefgEycnBcmBbe6Mxifmqwmrra6cnHdy+BbzeIJvdujWx+QODdqWWZ55uaB4"
     },
     {
       "name": "DPDPA Widget",
       "file": "dpdpa-widget.js",
-      "fileSize": 67516,
-      "gzippedSize": 17333,
-      "integrity": "sha384-2rhDkiaQzPLEui4vvUudgqh6Vxrv3H7MpGxuNnYqMianF+kVKXFo5hKcgO186Z14"
+      "fileSize": 66938,
+      "gzippedSize": 17208,
+      "integrity": "sha384-nlfLizzCo/SHv9MiNdUxYP5nhGitjdwEZfzB/QrA+ddVUgF3zsQkPctHVFkji99w"
     }
   ]
 }

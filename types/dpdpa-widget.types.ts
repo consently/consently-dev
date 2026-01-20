@@ -147,6 +147,9 @@ export interface DPDPAWidgetConfig {
   // Processing activities
   activities: ProcessingActivityPublic[];
 
+  // Mandatory purposes (cannot be deselected by user)
+  mandatoryPurposes?: string[]; // Array of purpose IDs that are mandatory
+
   // Privacy notice
   privacyNoticeHTML: string;
 

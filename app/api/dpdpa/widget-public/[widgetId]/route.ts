@@ -198,6 +198,11 @@ export async function GET(
       // Processing activities - ensure it's always an array and properly typed
       activities: (Array.isArray(activities) ? activities : []) as ProcessingActivityPublic[],
 
+      // Mandatory purposes (cannot be deselected by user)
+      mandatoryPurposes: Array.isArray(widgetConfig.mandatory_purposes) 
+        ? widgetConfig.mandatory_purposes 
+        : [],
+
       // Privacy notice (sanitized)
       privacyNoticeHTML: privacyNoticeHTML,
 

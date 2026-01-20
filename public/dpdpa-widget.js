@@ -2926,8 +2926,8 @@ ${activitySections}
               </div>
             `}
             <div>
-              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">Your Data Permissions</h2>
-              <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">To proceed with your request, we need your consent under DPDP Act 2023. Please review your choices below.</p>
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">${escapeHtml(translatedConfig.title)}</h2>
+              <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">${escapeHtml(t.compliantWith)}</p>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -2997,12 +2997,18 @@ ${activitySections}
         // Extract data categories from new or legacy structure
         let dataCategories = [];
         let purposesList = [];
+        let hasMandatoryPurpose = false;
+        const mandatoryPurposes = config.mandatoryPurposes || [];
 
         // Check if new structure with purposes array exists
         if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
           // New structure: extract purposes and their data categories
           activity.purposes.forEach(purpose => {
             purposesList.push(purpose.purposeName || 'Unknown Purpose');
+            // Check if this purpose is mandatory
+            if (mandatoryPurposes.includes(purpose.purposeId) || mandatoryPurposes.includes(purpose.id)) {
+              hasMandatoryPurpose = true;
+            }
             if (purpose.dataCategories && Array.isArray(purpose.dataCategories)) {
               purpose.dataCategories.forEach(cat => {
                 if (cat.categoryName && !dataCategories.includes(cat.categoryName)) {
@@ -3024,13 +3030,13 @@ ${activitySections}
         }
 
         return `
-              <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="display: flex; gap: 16px; align-items: flex-start; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff; transition: all 0.2s ease; margin-bottom: 12px;">
+              <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="display: flex; gap: 16px; align-items: flex-start; padding: 16px; border: 1px solid ${hasMandatoryPurpose ? primaryColor + '40' : '#e5e7eb'}; border-radius: 12px; background: ${hasMandatoryPurpose ? primaryColor + '08' : '#ffffff'}; transition: all 0.2s ease; margin-bottom: 12px;">
                 <!-- Checkbox -->
-                <label style="display: flex; align-items: center; cursor: pointer; padding-top: 2px;">
+                <label style="display: flex; align-items: center; ${hasMandatoryPurpose ? 'cursor: not-allowed;' : 'cursor: pointer;'} padding-top: 2px;">
                   <div class="custom-checkbox-wrapper" style="position: relative; width: 24px; height: 24px;">
-                    <input type="checkbox" class="activity-checkbox" data-activity-id="${activity.id}" style="opacity: 0; position: absolute; width: 100%; height: 100%; cursor: pointer; z-index: 2;" />
-                    <div class="checkbox-visual" style="width: 24px; height: 24px; border: 2px solid #d1d5db; border-radius: 6px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; background: white;">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0; transform: scale(0.8); transition: all 0.2s;">
+                    <input type="checkbox" class="activity-checkbox" data-activity-id="${activity.id}" ${hasMandatoryPurpose ? 'checked disabled data-mandatory="true"' : ''} style="opacity: 0; position: absolute; width: 100%; height: 100%; cursor: ${hasMandatoryPurpose ? 'not-allowed' : 'pointer'}; z-index: 2;" />
+                    <div class="checkbox-visual" style="width: 24px; height: 24px; border: 2px solid ${hasMandatoryPurpose ? primaryColor : '#d1d5db'}; border-radius: 6px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; background: ${hasMandatoryPurpose ? primaryColor : 'white'};">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity: ${hasMandatoryPurpose ? '1' : '0'}; transform: scale(${hasMandatoryPurpose ? '1' : '0.8'}); transition: all 0.2s;">
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
                     </div>
@@ -3039,8 +3045,9 @@ ${activitySections}
                 
                 <!-- Content -->
                 <div style="flex: 1;">
-                  <div style="font-size: 15px; font-weight: 700; color: ${textColor}; margin-bottom: 6px; line-height: 1.3;">
+                  <div style="font-size: 15px; font-weight: 700; color: ${textColor}; margin-bottom: 6px; line-height: 1.3; display: flex; align-items: center; gap: 8px;">
                     ${escapeHtml(activity.activity_name)}
+                    ${hasMandatoryPurpose ? `<span style="font-size: 10px; font-weight: 600; color: ${primaryColor}; background: ${primaryColor}15; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Required</span>` : ''}
                   </div>
                   
                   <div style="font-size: 13px; color: #6b7280; line-height: 1.5;">
@@ -3051,7 +3058,7 @@ ${activitySections}
                   </div>
                 </div>
                 
-                <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="">
+                <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="${hasMandatoryPurpose ? 'accepted' : ''}">
               </div>
             `;
       }).join('')}
@@ -3079,25 +3086,6 @@ ${activitySections}
           </div>
         </div>
 
-        <!-- View Cookies Section -->
-        <div style="padding: 16px; background: linear-gradient(135deg, ${primaryColor}08, ${primaryColor}04); border-radius: 12px; margin-bottom: 16px; border: 1px solid ${primaryColor}20; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-            <div style="flex: 1;">
-              <p style="margin: 0 0 4px 0; font-size: 14px; color: #1a1a1a; font-weight: 600; line-height: 1.4; display: flex; align-items: center; gap: 6px;">
-                🍪 Cookie Settings
-              </p>
-              <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
-                Manage cookie categories and view detailed information
-              </p>
-            </div>
-            <button id="dpdpa-view-cookies" style="padding: 10px 20px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 6px;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block;">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-              </svg>
-              Configure Cookies
-            </button>
-          </div>
-        </div>
         
       </div>
 
@@ -3915,27 +3903,6 @@ ${activitySections}
         openPrivacyCentre();
       });
     }
-
-    // View Cookies button
-    const viewCookiesBtn = widget.querySelector('#dpdpa-view-cookies');
-    if (viewCookiesBtn) {
-      // Enhanced hover effects
-      viewCookiesBtn.addEventListener('mouseenter', () => {
-        viewCookiesBtn.style.background = primaryColor + 'dd';
-        viewCookiesBtn.style.transform = 'translateY(-2px)';
-        viewCookiesBtn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
-      });
-      viewCookiesBtn.addEventListener('mouseleave', () => {
-        viewCookiesBtn.style.background = primaryColor;
-        viewCookiesBtn.style.transform = 'translateY(0)';
-        viewCookiesBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-      });
-
-      viewCookiesBtn.addEventListener('click', () => {
-        showCookieDetails();
-      });
-    }
-
 
     // Enhanced hover effects for activity table rows
     const activityItems = widget.querySelectorAll('.dpdpa-activity-item');

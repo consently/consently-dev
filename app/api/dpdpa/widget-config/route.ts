@@ -42,6 +42,9 @@ const widgetConfigSchema = z.object({
   selectedActivities: z.array(z.string().uuid('Invalid activity ID format'))
     .max(100, 'Cannot select more than 100 activities')
     .optional(),
+  mandatoryPurposes: z.array(z.string().uuid('Invalid purpose ID format'))
+    .max(100, 'Cannot have more than 100 mandatory purposes')
+    .optional(),
   autoShow: z.boolean().optional(),
   showAfterDelay: z.number()
     .min(0)
@@ -225,6 +228,10 @@ export async function POST(request: NextRequest) {
     const validatedActivities = (configData.selectedActivities || [])
       .filter(id => UUID_REGEX.test(id));
 
+    // Validate mandatory purposes UUIDs
+    const validatedMandatoryPurposes = (configData.mandatoryPurposes || [])
+      .filter(id => UUID_REGEX.test(id));
+
     // Prepare data for insertion
     const insertData = {
       user_id: user.id,
@@ -241,6 +248,7 @@ export async function POST(request: NextRequest) {
       reject_button_text: configData.rejectButtonText,
       customize_button_text: configData.customizeButtonText,
       selected_activities: validatedActivities,
+      mandatory_purposes: validatedMandatoryPurposes,
       auto_show: configData.autoShow ?? true,
       show_after_delay: configData.showAfterDelay ?? 1000,
       consent_duration: configData.consentDuration ?? 365,
@@ -385,6 +393,16 @@ export async function PUT(request: NextRequest) {
         originalCount: configData.selectedActivities.length,
         validatedCount: validatedActivities.length,
         validatedIds: validatedActivities
+      });
+    }
+    // Validate and filter UUIDs for mandatoryPurposes
+    if (configData.mandatoryPurposes !== undefined) {
+      const validatedMandatoryPurposes = (configData.mandatoryPurposes || [])
+        .filter(id => UUID_REGEX.test(id));
+      updatePayload.mandatory_purposes = validatedMandatoryPurposes;
+      console.log('[Widget Config API] Updating mandatory_purposes:', {
+        originalCount: configData.mandatoryPurposes.length,
+        validatedCount: validatedMandatoryPurposes.length
       });
     }
     if (configData.autoShow !== undefined) updatePayload.auto_show = configData.autoShow;
