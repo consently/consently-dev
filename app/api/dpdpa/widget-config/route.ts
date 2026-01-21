@@ -62,6 +62,10 @@ const widgetConfigSchema = z.object({
   isActive: z.boolean().optional(),
   supportedLanguages: z.array(z.string()).optional(),
   displayRules: displayRulesSchema.optional(),
+  // Age Gate Settings (DPDPA 2023 Compliance)
+  enableAgeGate: z.boolean().optional(),
+  ageGateThreshold: z.number().min(13).max(21).optional(),
+  ageGateMinorMessage: z.string().max(500, 'Minor message must not exceed 500 characters').optional(),
 });
 
 // GET - Fetch widget configuration(s)
@@ -158,7 +162,7 @@ export async function GET(request: NextRequest) {
             supported_languages: ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as'],
             display_rules: []
           };
-          
+
           return NextResponse.json({ data: [virtualConfig] });
         }
       }
@@ -263,6 +267,10 @@ export async function POST(request: NextRequest) {
       is_active: configData.isActive ?? true,
       supported_languages: configData.supportedLanguages || ['en', 'hi', 'pa', 'te', 'ta'],
       display_rules: configData.displayRules || [],
+      // Age Gate Settings
+      enable_age_gate: configData.enableAgeGate ?? false,
+      age_gate_threshold: configData.ageGateThreshold ?? 18,
+      age_gate_minor_message: configData.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.',
     };
 
     // Insert widget configuration
@@ -418,6 +426,11 @@ export async function PUT(request: NextRequest) {
     if (configData.customCSS !== undefined) updatePayload.custom_css = configData.customCSS;
     if (configData.isActive !== undefined) updatePayload.is_active = configData.isActive;
     if (configData.supportedLanguages !== undefined) updatePayload.supported_languages = configData.supportedLanguages;
+
+    // Age Gate Settings
+    if (configData.enableAgeGate !== undefined) updatePayload.enable_age_gate = configData.enableAgeGate;
+    if (configData.ageGateThreshold !== undefined) updatePayload.age_gate_threshold = configData.ageGateThreshold;
+    if (configData.ageGateMinorMessage !== undefined) updatePayload.age_gate_minor_message = configData.ageGateMinorMessage;
 
     // IMPROVED: Validate and clean display rules with empty state detection
     if (configData.displayRules !== undefined) {

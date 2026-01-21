@@ -69,7 +69,13 @@
     revocationWarning: '⚠️ Warning: Revoking consent may affect service delivery.',
     grievanceText: 'If you have any grievances with how we process your personal data click {here}. If we are unable to resolve your grievance, you can also make a complaint to the Data Protection Board by clicking {here2}.',
     here: 'here',
-    poweredBy: 'Powered by'
+    poweredBy: 'Powered by',
+    // Age Gate Translations
+    ageVerificationRequired: 'Age Verification Required',
+    selectBirthYear: 'Select your year of birth',
+    continueButton: 'Continue',
+    ageGateDescription: 'To provide you with an appropriate experience, we need to verify your age.',
+    ageGateDefaultMinorMessage: 'This content requires adult supervision. Please ask a parent or guardian to assist you.'
   };
 
   // Translation cache to avoid repeated API calls
@@ -278,6 +284,70 @@
       localStorage.removeItem(key);
     }
   };
+
+  // ============================================================================
+  // AGE GATE SYSTEM - Neutral age verification for DPDPA 2023 compliance
+  // ============================================================================
+
+  // Get minor cookie name (widget-specific to prevent cross-site issues)
+  function getMinorCookieName() {
+    return `consently_minor_flag_${widgetId}`;
+  }
+
+  // Check if user has been flagged as minor via cookie
+  function checkMinorCookie() {
+    try {
+      const cookieName = getMinorCookieName();
+
+      // Check localStorage first
+      const localStorageFlag = ConsentStorage.get(cookieName);
+      if (localStorageFlag) {
+        console.log('[Consently DPDPA] Minor flag found in localStorage');
+        return true;
+      }
+
+      // Fallback to cookie check
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === cookieName && value === 'true') {
+          console.log('[Consently DPDPA] Minor flag found in cookie');
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      console.error('[Consently DPDPA] Error checking minor cookie:', e);
+      return false;
+    }
+  }
+
+  // Set cookie flagging device as minor (365 days)
+  function setMinorCookie() {
+    try {
+      const cookieName = getMinorCookieName();
+      const expirationDays = 365;
+
+      // Set in localStorage (more reliable)
+      ConsentStorage.set(cookieName, true, expirationDays);
+
+      // Also set as cookie for additional persistence
+      const expiresDate = new Date();
+      expiresDate.setDate(expiresDate.getDate() + expirationDays);
+      document.cookie = `${cookieName}=true; expires=${expiresDate.toUTCString()}; path=/; SameSite=Lax`;
+
+      console.log('[Consently DPDPA] Minor flag cookie set for', expirationDays, 'days');
+    } catch (e) {
+      console.error('[Consently DPDPA] Error setting minor cookie:', e);
+    }
+  }
+
+  // Calculate age from birth year
+  function calculateAgeFromBirthYear(birthYear) {
+    const currentYear = new Date().getFullYear();
+    return currentYear - parseInt(birthYear, 10);
+  }
 
   // Consistent hash function - uses same algorithm for both async and sync
   // Returns 32-character hex string for consistency
@@ -749,7 +819,15 @@
     if (rule.trigger_type === 'onPageLoad') {
       // Show widget after delay
       setTimeout(() => {
-        showConsentWidget();
+        // If age gate is enabled, show age gate first
+        if (config && config.enableAgeGate) {
+          showAgeGate(() => {
+            // Age verification passed, show consent widget
+            showConsentWidget();
+          });
+        } else {
+          showConsentWidget();
+        }
       }, rule.trigger_delay || 0);
     }
     // Other trigger types (onClick, onFormSubmit) are handled separately
@@ -1626,6 +1704,198 @@
   }
 
 
+  // ============================================================================
+  // AGE GATE UI - Neutral age verification screen
+  // ============================================================================
+
+  // Show Age Gate with neutral birth year selector
+  async function showAgeGate(onSuccess) {
+    console.log('[Consently DPDPA] Showing age gate screen');
+
+    const existingModal = document.getElementById('dpdpa-age-gate-modal');
+    if (existingModal) existingModal.remove();
+
+    const theme = config && config.theme ? config.theme : {};
+    const themeColor = theme.primaryColor || '#4c8bf5';
+    const ageThreshold = config && config.ageGateThreshold ? config.ageGateThreshold : 18;
+
+    // Get translations
+    const t = await getTranslation(config && config.language ? config.language : 'en');
+
+    const modal = document.createElement('div');
+    modal.id = 'dpdpa-age-gate-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 16px;
+    `;
+
+    // Generate year options (from current year going back to 1900)
+    const currentYear = new Date().getFullYear();
+    let yearOptions = '<option value="" disabled selected>Select year...</option>';
+    for (let year = currentYear; year >= 1900; year--) {
+      yearOptions += `<option value="${year}">${year}</option>`;
+    }
+
+    modal.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:slideUp 0.3s ease-out;">
+        <!-- Icon and Title -->
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="width:64px;height:64px;background:linear-gradient(135deg, ${themeColor} 0%, ${themeColor}dd 100%);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 4px 12px ${themeColor}33;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="white"/>
+            </svg>
+          </div>
+          <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:#1a1a1a;letter-spacing:-0.3px;">${escapeHtml(t.ageVerificationRequired)}</h2>
+          <p style="color:#64748b;font-size:14px;margin:0;line-height:1.5;">${escapeHtml(t.ageGateDescription)}</p>
+        </div>
+        
+        <!-- Birth Year Input -->
+        <div style="margin-bottom:24px;">
+          <label style="display:block;font-weight:600;margin-bottom:8px;color:#1e293b;font-size:14px;">
+            ${escapeHtml(t.selectBirthYear)}
+          </label>
+          <select id="birth-year-select" style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;box-sizing:border-box;transition:all 0.2s;background:white;color:#1e293b;cursor:pointer;appearance:none;background-image:url('data:image/svg+xml;charset=US-ASCII,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"%2394a3b8\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m6 9 6 6 6-6\"/></svg>');background-repeat:no-repeat;background-position:right 12px center;background-size:20px;">
+            ${yearOptions}
+          </select>
+          <div id="age-gate-error" style="color:#dc2626;margin-top:8px;font-size:13px;display:none;"></div>
+        </div>
+        
+        <!-- Continue Button -->
+        <button 
+          id="age-gate-continue-btn"
+          style="width:100%;padding:14px;background:linear-gradient(135deg, ${themeColor} 0%, ${themeColor}dd 100%);border:none;color:white;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px ${themeColor}40;"
+          onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px ${themeColor}50'"
+          onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px ${themeColor}40'"
+        >
+          ${escapeHtml(t.continueButton)}
+        </button>
+        
+        <!-- Footer Note -->
+        <p style="text-align:center;margin-top:16px;font-size:12px;color:#94a3b8;line-height:1.5;">
+          This is required for compliance with DPDPA 2023.
+        </p>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Add event listeners
+    const birthYearSelect = modal.querySelector('#birth-year-select');
+    const continueBtn = modal.querySelector('#age-gate-continue-btn');
+    const errorDiv = modal.querySelector('#age-gate-error');
+
+    birthYearSelect.addEventListener('focus', function () {
+      this.style.borderColor = themeColor;
+      this.style.boxShadow = `0 0 0 3px ${themeColor}20`;
+    });
+
+    birthYearSelect.addEventListener('blur', function () {
+      this.style.borderColor = '#e2e8f0';
+      this.style.boxShadow = 'none';
+    });
+
+    continueBtn.addEventListener('click', function () {
+      const selectedYear = birthYearSelect.value;
+
+      if (!selectedYear) {
+        errorDiv.textContent = 'Please select your year of birth';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      const age = calculateAgeFromBirthYear(selectedYear);
+      console.log('[Consently DPDPA] Age calculated:', age, 'Threshold:', ageThreshold);
+
+      if (age < ageThreshold) {
+        // User is a minor - set cookie and show block screen
+        console.log('[Consently DPDPA] User is below age threshold, setting minor cookie');
+        setMinorCookie();
+        modal.remove();
+        showMinorBlockScreen();
+      } else {
+        // User is adult - proceed to consent
+        console.log('[Consently DPDPA] User passed age verification');
+        modal.remove();
+        if (typeof onSuccess === 'function') {
+          onSuccess();
+        }
+      }
+    });
+  }
+
+  // Show Minor Block Screen (when user is identified as minor)
+  async function showMinorBlockScreen() {
+    console.log('[Consently DPDPA] Showing minor block screen');
+
+    const existingModal = document.getElementById('dpdpa-minor-block-modal');
+    if (existingModal) existingModal.remove();
+
+    const theme = config && config.theme ? config.theme : {};
+    const themeColor = theme.primaryColor || '#4c8bf5';
+
+    // Get custom message or default
+    const t = await getTranslation(config && config.language ? config.language : 'en');
+    const minorMessage = config && config.ageGateMinorMessage
+      ? config.ageGateMinorMessage
+      : t.ageGateDefaultMinorMessage;
+
+    const modal = document.createElement('div');
+    modal.id = 'dpdpa-minor-block-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 16px;
+    `;
+
+    modal.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:32px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);text-align:center;">
+        <!-- Icon -->
+        <div style="width:80px;height:80px;background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(245,158,11,0.3);">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 8V12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 16H12.01" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        
+        <!-- Message -->
+        <h2 style="margin:0 0 12px 0;font-size:20px;font-weight:700;color:#1a1a1a;">Age Verification Required</h2>
+        <p style="color:#64748b;font-size:15px;margin:0 0 24px 0;line-height:1.6;">
+          ${escapeHtml(minorMessage)}
+        </p>
+        
+        <!-- Info Box -->
+        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px;margin-bottom:16px;">
+          <p style="color:#92400e;font-size:13px;margin:0;line-height:1.5;">
+            <strong>Why am I seeing this?</strong><br>
+            Based on the information provided, you appear to be under the required age. This setting is stored on this device for 1 year.
+          </p>
+        </div>
+        
+        <!-- Powered by -->
+        <p style="font-size:11px;color:#94a3b8;margin:0;">
+          Protected by <strong>Consently</strong> · DPDPA 2023 Compliance
+        </p>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
 
   // Show Consent ID Verification Screen
   async function showVerificationScreen() {
@@ -2472,6 +2742,24 @@ ${activitySections}
       return;
     }
 
+    // =========================================================================
+    // AGE GATE CHECK - DPDPA 2023 Compliance for minors
+    // =========================================================================
+    if (config.enableAgeGate) {
+      console.log('[Consently DPDPA] Age gate is enabled, checking minor status...');
+
+      // Check if user has been flagged as minor
+      if (checkMinorCookie()) {
+        console.log('[Consently DPDPA] User flagged as minor, showing block screen');
+        showMinorBlockScreen();
+        return; // Don't proceed with consent widget
+      }
+
+      // Age gate will be shown when widget is about to be displayed
+      // We check this flag later in showNoticeForRule and the autoShow flow
+      console.log('[Consently DPDPA] No minor flag found, age gate will be shown before consent');
+    }
+
     // Check if user has stored Consent ID
     const storedID = ConsentStorage.get('consently_consent_id');
 
@@ -2650,7 +2938,15 @@ ${activitySections}
         if (config.autoShow) {
           // No rules configured, use default behavior - show ALL activities
           setTimeout(() => {
-            showConsentWidget();
+            // If age gate is enabled, show age gate first
+            if (config && config.enableAgeGate) {
+              showAgeGate(() => {
+                // Age verification passed, show consent widget
+                showConsentWidget();
+              });
+            } else {
+              showConsentWidget();
+            }
           }, config.showAfterDelay || 1000);
         }
       } else {

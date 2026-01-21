@@ -199,8 +199,8 @@ export async function GET(
       activities: (Array.isArray(activities) ? activities : []) as ProcessingActivityPublic[],
 
       // Mandatory purposes (cannot be deselected by user)
-      mandatoryPurposes: Array.isArray(widgetConfig.mandatory_purposes) 
-        ? widgetConfig.mandatory_purposes 
+      mandatoryPurposes: Array.isArray(widgetConfig.mandatory_purposes)
+        ? widgetConfig.mandatory_purposes
         : [],
 
       // Privacy notice (sanitized)
@@ -230,8 +230,13 @@ export async function GET(
       // NEW: Display rules for page-specific notices (filter inactive rules and validate)
       display_rules: filterAndValidateDisplayRules(widgetConfig.display_rules),
 
+      // Age Gate Settings (DPDPA 2023 Compliance - verifiable parental consent)
+      enableAgeGate: widgetConfig.enable_age_gate ?? false,
+      ageGateThreshold: widgetConfig.age_gate_threshold ?? 18,
+      ageGateMinorMessage: widgetConfig.age_gate_minor_message || 'This content requires adult supervision. Please ask a parent or guardian to assist you.',
+
       // Metadata
-      version: '2.0.0' // Updated version for display rules support
+      version: '2.1.0' // Updated version for age gate support
     };
 
     // Cache the config

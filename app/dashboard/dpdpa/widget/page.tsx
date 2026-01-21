@@ -140,6 +140,10 @@ interface WidgetConfig {
   displayRules?: DisplayRule[];
   enableSmartPreFill?: boolean;
   emailFieldSelectors?: string;
+  // Age Gate Settings
+  enableAgeGate?: boolean;
+  ageGateThreshold?: number;
+  ageGateMinorMessage?: string;
 }
 
 export default function DPDPAWidgetPage() {
@@ -2493,11 +2497,10 @@ export default function DPDPAWidgetPage() {
                           return (
                             <div
                               key={`${activityId}-${purposeId}`}
-                              className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                                isMandatory
-                                  ? 'border-amber-400 bg-amber-50'
-                                  : 'border-gray-200 hover:border-amber-300 hover:bg-amber-50/50'
-                              }`}
+                              className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${isMandatory
+                                ? 'border-amber-400 bg-amber-50'
+                                : 'border-gray-200 hover:border-amber-300 hover:bg-amber-50/50'
+                                }`}
                               onClick={() => {
                                 setConfig(prev => ({
                                   ...prev,
@@ -2509,7 +2512,7 @@ export default function DPDPAWidgetPage() {
                             >
                               <Checkbox
                                 checked={isMandatory}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 className="h-5 w-5"
                               />
                               <div className="flex-1">
@@ -2538,6 +2541,122 @@ export default function DPDPAWidgetPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Age Verification Gate Section - DPDPA 2023 Compliance */}
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-emerald-200">
+            <CardHeader className="border-b bg-gradient-to-r from-emerald-50 to-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 bg-emerald-100 rounded-lg">
+                      <Shield className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    Age Verification Gate
+                  </CardTitle>
+                  <CardDescription className="mt-2">
+                    Neutral age verification for minors - asks &quot;birth year&quot; instead of &quot;Are you 18+?&quot;
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium ${config.enableAgeGate ? 'text-emerald-700' : 'text-gray-500'}`}>
+                    {config.enableAgeGate ? 'Enabled' : 'Disabled'}
+                  </span>
+                  <button
+                    onClick={() => setConfig(prev => ({ ...prev, enableAgeGate: !prev.enableAgeGate }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${config.enableAgeGate ? 'bg-emerald-600' : 'bg-gray-200'
+                      }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.enableAgeGate ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {config.enableAgeGate ? (
+                <div className="space-y-6">
+                  {/* Info Box */}
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <p className="text-sm text-emerald-900 flex items-start gap-2">
+                      <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>
+                        <strong>Neutral Age Gate:</strong> Users will be asked to select their birth year from a dropdown. This prevents easy circumvention compared to a simple &quot;Are you 18+?&quot; button. If a minor is detected, a cookie is set for 1 year to block future access.
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* Age Threshold */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      Minimum Age Requirement
+                      <Tooltip content="The minimum age a user must be to proceed with consent. Users below this age will be blocked." />
+                    </label>
+                    <select
+                      value={config.ageGateThreshold || 18}
+                      onChange={(e) => setConfig(prev => ({ ...prev, ageGateThreshold: parseInt(e.target.value) }))}
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                    >
+                      <option value={13}>13 years (COPPA)</option>
+                      <option value={16}>16 years (GDPR)</option>
+                      <option value={18}>18 years (Default)</option>
+                      <option value={21}>21 years</option>
+                    </select>
+                    <p className="text-xs text-gray-500">
+                      DPDPA 2023 recommends 18 years for general data processing.
+                    </p>
+                  </div>
+
+                  {/* Custom Minor Message */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      Message for Blocked Users
+                      <Tooltip content="This message is shown to users who are identified as minors (below the age threshold)." />
+                    </label>
+                    <Textarea
+                      value={config.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.'}
+                      onChange={(e) => setConfig(prev => ({ ...prev, ageGateMinorMessage: e.target.value }))}
+                      placeholder="This content requires adult supervision. Please ask a parent or guardian to assist you."
+                      rows={3}
+                      className="transition-all focus:ring-2 focus:ring-emerald-500 resize-none"
+                    />
+                    <p className="text-xs text-gray-500">
+                      A friendly, informative message shown to users who cannot proceed due to age restrictions.
+                    </p>
+                  </div>
+
+                  {/* Cookie Duration Info */}
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-800 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>
+                        <strong>Cookie Lock:</strong> Once a user is identified as a minor, a cookie is set on their device for 365 days. This prevents them from simply refreshing the page to try again.
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="flex justify-center mb-4">
+                    <div className="p-4 bg-gray-100 rounded-full">
+                      <Shield className="h-10 w-10 text-gray-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Age Verification Disabled</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                    Enable this feature to add a neutral age verification gate before the consent widget appears.
+                  </p>
+                  <Button
+                    onClick={() => setConfig(prev => ({ ...prev, enableAgeGate: true }))}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    Enable Age Gate
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Display Rules Management - NEW SECTION */}
           <Card className="shadow-sm hover:shadow-md transition-shadow border-blue-200">
@@ -3257,6 +3376,68 @@ export default function DPDPAWidgetPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Age Gate Preview - Show when enabled */}
+                {config.enableAgeGate && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+                        <Shield className="h-3 w-3" />
+                        Age Gate Preview
+                      </span>
+                    </div>
+                    <div
+                      className="shadow-xl max-w-sm mx-auto overflow-hidden transition-all duration-300"
+                      style={{
+                        backgroundColor: 'white',
+                        borderRadius: '16px',
+                        border: '1px solid #e5e7eb',
+                      }}
+                    >
+                      <div className="p-5 text-center">
+                        <div
+                          className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                          style={{
+                            background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
+                            boxShadow: `0 4px 12px ${config.theme.primaryColor}33`
+                          }}
+                        >
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="white" />
+                          </svg>
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900 mb-1">Age Verification Required</h3>
+                        <p className="text-xs text-gray-500 mb-4">To provide you with an appropriate experience, we need to verify your age.</p>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 text-left mb-2">Select your year of birth</label>
+                          <select
+                            disabled
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm bg-white text-gray-500"
+                          >
+                            <option>Select year...</option>
+                          </select>
+                        </div>
+                        <button
+                          disabled
+                          className="w-full py-3 rounded-lg text-white font-semibold text-sm"
+                          style={{
+                            background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
+                            opacity: 0.8
+                          }}
+                        >
+                          Continue
+                        </button>
+                        <p className="text-xs text-gray-400 mt-3">
+                          Min age: {config.ageGateThreshold || 18} years
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-center mt-2">
+                      <span className="text-xs text-gray-400">↓ Then shows consent widget ↓</span>
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className="shadow-2xl max-w-md mx-auto overflow-hidden transition-all duration-300 hover:shadow-3xl"
                   style={{

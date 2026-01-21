@@ -172,6 +172,11 @@ export interface DPDPAWidgetConfig {
   enableSmartPreFill: boolean;
   emailFieldSelectors: string;
 
+  // Age Gate Settings (DPDPA 2023 Compliance)
+  enableAgeGate?: boolean;
+  ageGateThreshold?: number; // Minimum age to proceed (default 18)
+  ageGateMinorMessage?: string; // Custom message shown to minors
+
   // Display rules (NEW in v2.0)
   display_rules: DisplayRule[];
 
