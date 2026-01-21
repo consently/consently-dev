@@ -2638,15 +2638,17 @@ export default function DPDPAWidgetPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="flex justify-center mb-4">
-                    <div className="p-4 bg-gray-100 rounded-full">
-                      <Shield className="h-10 w-10 text-gray-400" />
+                  <div className="flex items-start gap-4 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 mb-8 shadow-sm">
+                    <div className="p-3 bg-white rounded-xl shadow-sm">
+                      <Shield className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">Age Verification Gate (Integrated)</h3>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        Enable a mandatory "tick box" and birth year selector directly within your consent widget. This ensures DPDPA 2023 compliance by verifying the user's age before consent is recorded, without redirecting them to a separate screen.
+                      </p>
                     </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Age Verification Disabled</h3>
-                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">
-                    Enable this feature to add a neutral age verification gate before the consent widget appears.
-                  </p>
                   <Button
                     onClick={() => setConfig(prev => ({ ...prev, enableAgeGate: true }))}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -3377,66 +3379,15 @@ export default function DPDPAWidgetPage() {
                   </div>
                 </div>
 
-                {/* Age Gate Preview - Show when enabled */}
-                {config.enableAgeGate && (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
-                        <Shield className="h-3 w-3" />
-                        Age Gate Preview
-                      </span>
-                    </div>
-                    <div
-                      className="shadow-xl max-w-sm mx-auto overflow-hidden transition-all duration-300"
-                      style={{
-                        backgroundColor: 'white',
-                        borderRadius: '16px',
-                        border: '1px solid #e5e7eb',
-                      }}
-                    >
-                      <div className="p-5 text-center">
-                        <div
-                          className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-                          style={{
-                            background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
-                            boxShadow: `0 4px 12px ${config.theme.primaryColor}33`
-                          }}
-                        >
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="white" />
-                          </svg>
-                        </div>
-                        <h3 className="font-bold text-lg text-gray-900 mb-1">Age Verification Required</h3>
-                        <p className="text-xs text-gray-500 mb-4">To provide you with an appropriate experience, we need to verify your age.</p>
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 text-left mb-2">Select your year of birth</label>
-                          <select
-                            disabled
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm bg-white text-gray-500"
-                          >
-                            <option>Select year...</option>
-                          </select>
-                        </div>
-                        <button
-                          disabled
-                          className="w-full py-3 rounded-lg text-white font-semibold text-sm"
-                          style={{
-                            background: `linear-gradient(135deg, ${config.theme.primaryColor} 0%, ${config.theme.primaryColor}dd 100%)`,
-                            opacity: 0.8
-                          }}
-                        >
-                          Continue
-                        </button>
-                        <p className="text-xs text-gray-400 mt-3">
-                          Min age: {config.ageGateThreshold || 18} years
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-center mt-2">
-                      <span className="text-xs text-gray-400">↓ Then shows consent widget ↓</span>
-                    </div>
+                {/* Content Area */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                      <Shield className="h-3 w-3" />
+                      Integrated Compliance
+                    </span>
                   </div>
-                )}
+                </div>
 
                 <div
                   className="shadow-2xl max-w-md mx-auto overflow-hidden transition-all duration-300 hover:shadow-3xl"
@@ -3644,6 +3595,33 @@ export default function DPDPAWidgetPage() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Integrated Age Gate Section - Preview Mode */}
+                  {config.enableAgeGate && (
+                    <div className="p-4 bg-amber-50 border-t border-b border-amber-100 -mx-5 mb-0">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-amber-300"
+                            style={{ accentColor: config.theme.primaryColor }}
+                            disabled
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[13px] font-bold text-amber-900 m-0 leading-tight">Age Verification</p>
+                          <p className="text-[11px] text-amber-700 m-0 mt-1 leading-relaxed">
+                            I confirm I am above {config.ageGateThreshold || 18} years old.
+                            <span className="block mt-1">Year of birth:
+                              <select className="ml-2 px-1.5 py-0.5 border border-amber-200 rounded bg-white text-[10px]" disabled>
+                                <option>Select year...</option>
+                              </select>
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Footer Actions */}
                   <div className="px-5 py-4 border-t bg-white flex justify-center" style={{ borderColor: '#e5e7eb' }}>
