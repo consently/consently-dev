@@ -26,6 +26,8 @@ import {
   Cookie,
   X,
 } from 'lucide-react';
+import { SectorSolutions } from '@/components/marketing/SectorSolutions';
+import { ComplianceStrategy } from '@/components/marketing/ComplianceStrategy';
 
 export const dynamic = 'force-static';
 export const revalidate = 3600; // Revalidate every hour
@@ -292,6 +294,12 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Sector Solutions */}
+      <SectorSolutions />
+
+      {/* Compliance Strategy */}
+      <ComplianceStrategy />
 
       {/* Product Gallery Section */}
       <section className="py-16 sm:py-20 bg-gradient-to-b from-gray-50 to-white">

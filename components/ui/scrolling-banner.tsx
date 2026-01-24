@@ -4,6 +4,11 @@ import { Sparkles, Zap, Shield, Rocket, Star, TrendingUp } from 'lucide-react';
 
 const taglines = [
   {
+    text: '📢 DPDPA compliance timeline reduced by MEITY! Get compliant in 3 months',
+    icon: <Rocket className="h-5 w-5" />,
+    gradient: 'from-pink-500 to-pink-600',
+  },
+  {
     text: '🇮🇳 The ONLY DPDP-Compliant Tool with 22 Indian Languages',
     icon: <Shield className="h-5 w-5" />,
     gradient: 'from-orange-500 to-orange-600',
@@ -49,7 +54,7 @@ export function ScrollingBanner() {
           </div>
         ))}
       </div>
-      
+
       {/* Gradient overlays for fade effect */}
       <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-blue-600 to-transparent pointer-events-none z-10" />
       <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-blue-600 to-transparent pointer-events-none z-10" />
