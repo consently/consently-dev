@@ -140,10 +140,17 @@ interface WidgetConfig {
   displayRules?: DisplayRule[];
   enableSmartPreFill?: boolean;
   emailFieldSelectors?: string;
-  // Age Gate Settings
+  // Age Gate Settings (LEGACY - Deprecated, use DigiLocker verification)
   enableAgeGate?: boolean;
   ageGateThreshold?: number;
   ageGateMinorMessage?: string;
+  // DigiLocker Age Verification (DPDPA 2023 Verifiable Parental Consent)
+  requireAgeVerification?: boolean;
+  ageVerificationThreshold?: number;
+  ageVerificationProvider?: 'digilocker' | 'apisetu' | 'custom';
+  minorHandling?: 'block' | 'guardian_consent' | 'limited_access';
+  minorGuardianMessage?: string;
+  verificationValidityDays?: number;
 }
 
 export default function DPDPAWidgetPage() {
@@ -362,7 +369,21 @@ export default function DPDPAWidgetPage() {
             privacyNoticeVersion: existingConfig.privacy_notice_version,
             privacyNoticeLastUpdated: existingConfig.privacy_notice_last_updated,
             requiresReconsent: existingConfig.requires_reconsent,
-            displayRules: existingConfig.display_rules || []
+            displayRules: existingConfig.display_rules || [],
+            // Legacy Age Gate
+            enableAgeGate: existingConfig.enable_age_gate,
+            ageGateThreshold: existingConfig.age_gate_threshold,
+            ageGateMinorMessage: existingConfig.age_gate_minor_message,
+            // DigiLocker Age Verification
+            requireAgeVerification: existingConfig.require_age_verification,
+            ageVerificationThreshold: existingConfig.age_verification_threshold,
+            ageVerificationProvider: existingConfig.age_verification_provider,
+            minorHandling: existingConfig.minor_handling,
+            minorGuardianMessage: existingConfig.minor_guardian_message,
+            verificationValidityDays: existingConfig.verification_validity_days,
+            // Smart Pre-fill
+            enableSmartPreFill: existingConfig.enable_smart_pre_fill,
+            emailFieldSelectors: existingConfig.email_field_selectors,
           });
         }
       }
@@ -2542,7 +2563,7 @@ export default function DPDPAWidgetPage() {
             </Card>
           )}
 
-          {/* Age Verification Gate Section - DPDPA 2023 Compliance */}
+          {/* DigiLocker Age Verification Section - DPDPA 2023 Verifiable Parental Consent */}
           <Card className="shadow-sm hover:shadow-md transition-shadow border-emerald-200">
             <CardHeader className="border-b bg-gradient-to-r from-emerald-50 to-white">
               <div className="flex items-center justify-between">
@@ -2551,23 +2572,26 @@ export default function DPDPAWidgetPage() {
                     <div className="p-2 bg-emerald-100 rounded-lg">
                       <Shield className="h-5 w-5 text-emerald-600" />
                     </div>
-                    Age Verification Gate
+                    DigiLocker Age Verification
+                    <Badge variant="outline" className="ml-2 text-xs bg-emerald-50 text-emerald-700 border-emerald-300">
+                      DPDPA 2023
+                    </Badge>
                   </CardTitle>
                   <CardDescription className="mt-2">
-                    Neutral age verification for minors - asks &quot;birth year&quot; instead of &quot;Are you 18+?&quot;
+                    Government-backed age verification via DigiLocker for verifiable parental consent
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium ${config.enableAgeGate ? 'text-emerald-700' : 'text-gray-500'}`}>
-                    {config.enableAgeGate ? 'Enabled' : 'Disabled'}
+                  <span className={`text-xs font-medium ${config.requireAgeVerification ? 'text-emerald-700' : 'text-gray-500'}`}>
+                    {config.requireAgeVerification ? 'Enabled' : 'Disabled'}
                   </span>
                   <button
-                    onClick={() => setConfig(prev => ({ ...prev, enableAgeGate: !prev.enableAgeGate }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${config.enableAgeGate ? 'bg-emerald-600' : 'bg-gray-200'
+                    onClick={() => setConfig(prev => ({ ...prev, requireAgeVerification: !prev.requireAgeVerification }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${config.requireAgeVerification ? 'bg-emerald-600' : 'bg-gray-200'
                       }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.enableAgeGate ? 'translate-x-6' : 'translate-x-1'
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.requireAgeVerification ? 'translate-x-6' : 'translate-x-1'
                         }`}
                     />
                   </button>
@@ -2575,14 +2599,14 @@ export default function DPDPAWidgetPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              {config.enableAgeGate ? (
+              {config.requireAgeVerification ? (
                 <div className="space-y-6">
                   {/* Info Box */}
                   <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                     <p className="text-sm text-emerald-900 flex items-start gap-2">
                       <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       <span>
-                        <strong>Neutral Age Gate:</strong> Users will be asked to select their birth year from a dropdown. This prevents easy circumvention compared to a simple &quot;Are you 18+?&quot; button. If a minor is detected, a cookie is set for 1 year to block future access.
+                        <strong>Government-Backed Verification:</strong> Users verify their age via DigiLocker using government-issued ID documents (Aadhaar, PAN, etc.). Only the verified age is stored - date of birth is immediately discarded for privacy.
                       </span>
                     </p>
                   </div>
@@ -2591,74 +2615,256 @@ export default function DPDPAWidgetPage() {
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                       Minimum Age Requirement
-                      <Tooltip content="The minimum age a user must be to proceed with consent. Users below this age will be blocked." />
+                      <Tooltip content="The minimum age required for users to proceed. Users below this threshold are considered minors." />
                     </label>
                     <select
-                      value={config.ageGateThreshold || 18}
-                      onChange={(e) => setConfig(prev => ({ ...prev, ageGateThreshold: parseInt(e.target.value) }))}
+                      value={config.ageVerificationThreshold || 18}
+                      onChange={(e) => setConfig(prev => ({ ...prev, ageVerificationThreshold: parseInt(e.target.value) }))}
                       className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
                     >
                       <option value={13}>13 years (COPPA)</option>
                       <option value={16}>16 years (GDPR)</option>
-                      <option value={18}>18 years (Default)</option>
+                      <option value={18}>18 years (DPDPA Default)</option>
                       <option value={21}>21 years</option>
                     </select>
                     <p className="text-xs text-gray-500">
-                      DPDPA 2023 recommends 18 years for general data processing.
+                      DPDPA 2023 recommends 18 years for general data processing activities.
                     </p>
                   </div>
 
-                  {/* Custom Minor Message */}
+                  {/* Minor Handling */}
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      Message for Blocked Users
-                      <Tooltip content="This message is shown to users who are identified as minors (below the age threshold)." />
+                      Minor Handling Policy
+                      <Tooltip content="How to handle users who are verified as minors (below the age threshold)." />
                     </label>
-                    <Textarea
-                      value={config.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.'}
-                      onChange={(e) => setConfig(prev => ({ ...prev, ageGateMinorMessage: e.target.value }))}
-                      placeholder="This content requires adult supervision. Please ask a parent or guardian to assist you."
-                      rows={3}
-                      className="transition-all focus:ring-2 focus:ring-emerald-500 resize-none"
-                    />
+                    <select
+                      value={config.minorHandling || 'guardian_consent'}
+                      onChange={(e) => setConfig(prev => ({ ...prev, minorHandling: e.target.value as 'block' | 'guardian_consent' | 'limited_access' }))}
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                    >
+                      <option value="guardian_consent">Require Guardian Consent (Recommended)</option>
+                      <option value="block">Block Access Completely</option>
+                      <option value="limited_access">Allow Limited Access</option>
+                    </select>
                     <p className="text-xs text-gray-500">
-                      A friendly, informative message shown to users who cannot proceed due to age restrictions.
+                      {config.minorHandling === 'guardian_consent' && 'Minor will need a parent/guardian to verify via DigiLocker and approve their consent.'}
+                      {config.minorHandling === 'block' && 'Minors will be blocked from proceeding. No consent will be recorded.'}
+                      {config.minorHandling === 'limited_access' && 'Minors can proceed with restricted functionality. Use with caution.'}
                     </p>
                   </div>
 
-                  {/* Cookie Duration Info */}
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-800 flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  {/* Guardian Message (shown when guardian_consent is selected) */}
+                  {config.minorHandling === 'guardian_consent' && (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        Message for Minors
+                        <Tooltip content="This message is shown to users who are identified as minors and need guardian consent." />
+                      </label>
+                      <Textarea
+                        value={config.minorGuardianMessage || 'You are under the required age. Please ask a parent or guardian to verify their identity and approve your consent.'}
+                        onChange={(e) => setConfig(prev => ({ ...prev, minorGuardianMessage: e.target.value }))}
+                        placeholder="You are under the required age. Please ask a parent or guardian to verify their identity and approve your consent."
+                        rows={3}
+                        className="transition-all focus:ring-2 focus:ring-emerald-500 resize-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* Verification Validity */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      Verification Validity Period
+                      <Tooltip content="How long a successful age verification remains valid before the user needs to re-verify." />
+                    </label>
+                    <select
+                      value={config.verificationValidityDays || 365}
+                      onChange={(e) => setConfig(prev => ({ ...prev, verificationValidityDays: parseInt(e.target.value) }))}
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                    >
+                      <option value={30}>30 days</option>
+                      <option value={90}>90 days</option>
+                      <option value={180}>180 days</option>
+                      <option value={365}>1 year (Recommended)</option>
+                    </select>
+                    <p className="text-xs text-gray-500">
+                      After this period, users will need to re-verify their age via DigiLocker.
+                    </p>
+                  </div>
+
+                  {/* Privacy & Security Info */}
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800 flex items-start gap-2">
+                      <Shield className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       <span>
-                        <strong>Cookie Lock:</strong> Once a user is identified as a minor, a cookie is set on their device for 365 days. This prevents them from simply refreshing the page to try again.
+                        <strong>Privacy First:</strong> DigiLocker access tokens are used once and immediately discarded. Date of birth is never stored - only the calculated age is retained. All verification data is encrypted in transit and at rest.
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* Guardian Consent Info (when enabled) */}
+                  {config.minorHandling === 'guardian_consent' && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs text-amber-800 flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          <strong>Guardian Consent Flow:</strong> When a minor is detected, they can request guardian consent. The guardian receives an email with a verification link, verifies their own age via DigiLocker (must be 18+), and then approves or rejects the minor&apos;s consent request.
+                        </span>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* International Users Note */}
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-xs text-gray-600 flex items-start gap-2">
+                      <Globe className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>
+                        <strong>International Users:</strong> DigiLocker verification is available only for users with Indian government-issued ID documents. International users without DigiLocker access cannot complete age verification.
                       </span>
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="flex items-start gap-4 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 mb-8 shadow-sm">
+                  <div className="flex items-start gap-4 p-5 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100 mb-8 shadow-sm">
                     <div className="p-3 bg-white rounded-xl shadow-sm">
-                      <Shield className="h-6 w-6 text-blue-600" />
+                      <Shield className="h-6 w-6 text-emerald-600" />
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">Age Verification Gate (Integrated)</h3>
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        Enable a mandatory "tick box" and birth year selector directly within your consent widget. This ensures DPDPA 2023 compliance by verifying the user's age before consent is recorded, without redirecting them to a separate screen.
+                    <div className="text-left">
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">DigiLocker Age Verification</h3>
+                      <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                        Enable government-backed age verification via DigiLocker (API Setu) for DPDPA 2023 &quot;verifiable parental consent&quot; compliance. Users verify their age using government-issued ID documents.
                       </p>
+                      <ul className="text-xs text-gray-500 space-y-1">
+                        <li className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          Government-backed identity verification
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          Privacy-first: Only age stored, DOB discarded
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          Guardian consent workflow for minors
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          Cryptographic verification assertions
+                        </li>
+                      </ul>
                     </div>
                   </div>
                   <Button
-                    onClick={() => setConfig(prev => ({ ...prev, enableAgeGate: true }))}
+                    onClick={() => setConfig(prev => ({ ...prev, requireAgeVerification: true, minorHandling: 'guardian_consent' }))}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
-                    Enable Age Gate
+                    Enable DigiLocker Verification
                   </Button>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Legacy Age Gate Section (Deprecated) - Hidden if DigiLocker is enabled */}
+          {!config.requireAgeVerification && (
+            <Card className="shadow-sm hover:shadow-md transition-shadow border-gray-200 opacity-75">
+              <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <div className="p-2 bg-gray-100 rounded-lg">
+                        <Shield className="h-5 w-5 text-gray-500" />
+                      </div>
+                      Simple Age Gate
+                      <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700 border-amber-300">
+                        Legacy
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="mt-2">
+                      Client-side birth year selector (not government-verified)
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-medium ${config.enableAgeGate ? 'text-gray-700' : 'text-gray-500'}`}>
+                      {config.enableAgeGate ? 'Enabled' : 'Disabled'}
+                    </span>
+                    <button
+                      onClick={() => setConfig(prev => ({ ...prev, enableAgeGate: !prev.enableAgeGate }))}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 ${config.enableAgeGate ? 'bg-gray-600' : 'bg-gray-200'
+                        }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.enableAgeGate ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {config.enableAgeGate ? (
+                  <div className="space-y-6">
+                    {/* Deprecation Warning */}
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-900 flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          <strong>Deprecated:</strong> This simple age gate is not compliant with DPDPA 2023 &quot;verifiable parental consent&quot; requirements. Consider using DigiLocker Age Verification above for proper compliance.
+                        </span>
+                      </p>
+                    </div>
+
+                    {/* Age Threshold */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        Minimum Age Requirement
+                        <Tooltip content="The minimum age a user must be to proceed with consent. Users below this age will be blocked." />
+                      </label>
+                      <select
+                        value={config.ageGateThreshold || 18}
+                        onChange={(e) => setConfig(prev => ({ ...prev, ageGateThreshold: parseInt(e.target.value) }))}
+                        className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 w-full"
+                      >
+                        <option value={13}>13 years (COPPA)</option>
+                        <option value={16}>16 years (GDPR)</option>
+                        <option value={18}>18 years (Default)</option>
+                        <option value={21}>21 years</option>
+                      </select>
+                    </div>
+
+                    {/* Custom Minor Message */}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        Message for Blocked Users
+                        <Tooltip content="This message is shown to users who are identified as minors (below the age threshold)." />
+                      </label>
+                      <Textarea
+                        value={config.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.'}
+                        onChange={(e) => setConfig(prev => ({ ...prev, ageGateMinorMessage: e.target.value }))}
+                        placeholder="This content requires adult supervision. Please ask a parent or guardian to assist you."
+                        rows={3}
+                        className="transition-all focus:ring-2 focus:ring-gray-500 resize-none"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 mb-4">
+                      Simple client-side age verification. Not recommended for DPDPA compliance.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfig(prev => ({ ...prev, enableAgeGate: true }))}
+                      className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                    >
+                      Enable Simple Age Gate
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Display Rules Management - NEW SECTION */}
           <Card className="shadow-sm hover:shadow-md transition-shadow border-blue-200">
@@ -3596,8 +3802,38 @@ export default function DPDPAWidgetPage() {
                     </div>
                   </div>
 
-                  {/* Integrated Age Gate Section - Preview Mode */}
-                  {config.enableAgeGate && (
+                  {/* DigiLocker Age Verification Section - Preview Mode */}
+                  {config.requireAgeVerification && (
+                    <div className="p-4 bg-emerald-50 border-t border-b border-emerald-100 -mx-5 mb-0">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-emerald-100 rounded-lg">
+                          <Shield className="h-4 w-4 text-emerald-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[13px] font-bold text-emerald-900 m-0 leading-tight">Age Verification Required</p>
+                          <p className="text-[11px] text-emerald-700 m-0 mt-1 leading-relaxed">
+                            To proceed, you must verify your age ({config.ageVerificationThreshold || 18}+ years) via DigiLocker using your government-issued ID.
+                          </p>
+                          <button
+                            className="mt-2 px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5"
+                            style={{
+                              backgroundColor: config.theme.primaryColor,
+                              color: 'white'
+                            }}
+                            disabled
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            </svg>
+                            Verify with DigiLocker
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Legacy Age Gate Section - Preview Mode (Only if DigiLocker is disabled) */}
+                  {!config.requireAgeVerification && config.enableAgeGate && (
                     <div className="p-4 bg-amber-50 border-t border-b border-amber-100 -mx-5 mb-0">
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5">

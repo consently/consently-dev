@@ -38,7 +38,14 @@ export type AuditAction =
   | 'activity.update'
   | 'activity.delete'
   | 'email.send'
-  | 'email.export';
+  | 'email.export'
+  // Age Verification Actions (DPDPA 2023)
+  | 'age_verification.initiated'
+  | 'age_verification.completed'
+  | 'age_verification.failed'
+  | 'guardian_consent.requested'
+  | 'guardian_consent.approved'
+  | 'guardian_consent.rejected';
 
 export type AuditStatus = 'success' | 'failure';
 

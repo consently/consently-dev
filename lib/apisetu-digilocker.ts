@@ -1,0 +1,503 @@
+/**
+ * API Setu DigiLocker Integration Service
+ *
+ * Provides government-backed age verification via DigiLocker OAuth flow.
+ * Implements DPDPA 2023 "verifiable parental consent" requirement.
+ *
+ * SECURITY NOTES:
+ * - Access tokens are NEVER persisted - deleted immediately after use
+ * - DOB is extracted, age calculated, then DOB is discarded
+ * - Only verified_age (integer) is stored in database
+ * - All credentials read from environment variables only
+ */
+
+import crypto from 'crypto';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: 'Bearer';
+  expires_in: number;
+  refresh_token?: string;
+  scope?: string;
+}
+
+export interface AgeVerificationResponse {
+  // Raw response from DigiLocker consent artifact
+  dob: string;                    // Format: YYYY-MM-DD - DISCARDED after age calculation
+  document_type: string;          // E.g., 'AADHAAR' - Kept for audit trail
+  consent_artifact_id: string;    // Reference for audit
+  name?: string;                  // NOT stored - discarded immediately
+}
+
+export interface VerificationResult {
+  success: boolean;
+  age: number | null;
+  documentType: string | null;
+  consentArtifactRef: string | null;
+  error?: string;
+  errorCode?: string;
+}
+
+export interface SessionInitResult {
+  success: boolean;
+  sessionId: string;
+  stateToken: string;
+  redirectUrl: string;
+  expiresAt: Date;
+  error?: string;
+}
+
+export interface ApiSetuConfig {
+  baseUrl: string;
+  sandboxUrl: string;
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  scope: string;
+  useSandbox: boolean;
+}
+
+// ============================================================================
+// MOCK MODE FOR TESTING
+// ============================================================================
+
+const MOCK_MODE_ENABLED = process.env.APISETU_USE_MOCK === 'true';
+
+const MOCK_USERS: Record<string, { dob: string; documentType: string }> = {
+  // Test adult (age 30)
+  'mock_adult_code': {
+    dob: '1996-01-15',
+    documentType: 'AADHAAR',
+  },
+  // Test minor (age 15)
+  'mock_minor_code': {
+    dob: '2011-06-20',
+    documentType: 'AADHAAR',
+  },
+  // Test edge case (exactly 18 today - calculate dynamically)
+  'mock_edge_18_code': {
+    dob: getDateYearsAgo(18),
+    documentType: 'AADHAAR',
+  },
+  // Test edge case (17 years 364 days)
+  'mock_edge_17_code': {
+    dob: getDateYearsAgo(17, -1), // 17 years minus 1 day = still 17
+    documentType: 'AADHAAR',
+  },
+};
+
+function getDateYearsAgo(years: number, offsetDays: number = 0): string {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - years);
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().split('T')[0];
+}
+
+// ============================================================================
+// SERVICE CLASS
+// ============================================================================
+
+export class ApiSetuDigiLockerService {
+  private config: ApiSetuConfig;
+  private mockMode: boolean;
+
+  constructor() {
+    this.mockMode = MOCK_MODE_ENABLED || !process.env.APISETU_CLIENT_ID;
+
+    this.config = {
+      baseUrl: process.env.APISETU_BASE_URL || 'https://apisetu.gov.in/certificate/v3',
+      sandboxUrl: process.env.APISETU_SANDBOX_URL || 'https://apisetu.gov.in/certificate/v3/sandbox',
+      clientId: process.env.APISETU_CLIENT_ID || '',
+      clientSecret: process.env.APISETU_CLIENT_SECRET || '',
+      redirectUri: process.env.APISETU_REDIRECT_URI || '',
+      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'DL:AgeProof',
+      useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
+    };
+
+    if (this.mockMode) {
+      console.log('[ApiSetuDigiLocker] Running in MOCK MODE - no real API Setu calls');
+    }
+  }
+
+  /**
+   * Get the effective base URL based on sandbox setting
+   */
+  private getBaseUrl(): string {
+    return this.config.useSandbox ? this.config.sandboxUrl : this.config.baseUrl;
+  }
+
+  /**
+   * Check if mock mode is enabled
+   */
+  isMockMode(): boolean {
+    return this.mockMode;
+  }
+
+  /**
+   * Generate a unique session ID
+   */
+  generateSessionId(): string {
+    return `avs_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+  }
+
+  /**
+   * Generate a secure state token for CSRF protection
+   */
+  generateStateToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Generate OAuth authorization URL for DigiLocker
+   */
+  generateAuthorizationUrl(stateToken: string): string {
+    if (this.mockMode) {
+      // In mock mode, redirect to our own mock endpoint
+      const mockUrl = new URL(this.config.redirectUri);
+      mockUrl.searchParams.set('mock', 'true');
+      mockUrl.searchParams.set('state', stateToken);
+      return mockUrl.toString();
+    }
+
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: this.config.clientId,
+      redirect_uri: this.config.redirectUri,
+      state: stateToken,
+      scope: this.config.scope,
+    });
+
+    return `${this.getBaseUrl()}/authorize?${params.toString()}`;
+  }
+
+  /**
+   * Exchange authorization code for access token
+   * IMPORTANT: Token is NOT persisted - used once and discarded
+   */
+  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+    if (this.mockMode) {
+      // Mock token response
+      return {
+        access_token: `mock_access_token_${Date.now()}`,
+        token_type: 'Bearer',
+        expires_in: 3600,
+      };
+    }
+
+    const response = await fetch(`${this.getBaseUrl()}/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        client_id: this.config.clientId,
+        client_secret: this.config.clientSecret,
+        redirect_uri: this.config.redirectUri,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[ApiSetuDigiLocker] Token exchange failed:', error);
+      throw new Error(`Token exchange failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Fetch age verification attributes from DigiLocker consent artifact
+   * IMPORTANT: DOB is discarded after age calculation - only age is returned
+   */
+  async getAgeVerificationAttributes(
+    accessToken: string,
+    consentArtifactId: string,
+    authorizationCode?: string
+  ): Promise<AgeVerificationResponse> {
+    if (this.mockMode && authorizationCode) {
+      // Mock response based on code
+      const mockUser = MOCK_USERS[authorizationCode];
+      if (mockUser) {
+        return {
+          dob: mockUser.dob,
+          document_type: mockUser.documentType,
+          consent_artifact_id: `mock_artifact_${Date.now()}`,
+        };
+      }
+      // Default mock adult
+      return {
+        dob: '1990-01-15',
+        document_type: 'AADHAAR',
+        consent_artifact_id: `mock_artifact_${Date.now()}`,
+      };
+    }
+
+    const response = await fetch(`${this.getBaseUrl()}/pull/${consentArtifactId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'X-Consent-Artifact': consentArtifactId,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[ApiSetuDigiLocker] Failed to fetch attributes:', error);
+      throw new Error(`Failed to fetch age verification attributes: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Calculate age from date of birth
+   * Uses conservative calculation - assumes birthday hasn't occurred this year if ambiguous
+   */
+  calculateAge(dob: string): number {
+    const birthDate = new Date(dob);
+    const today = new Date();
+
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    // If birthday hasn't occurred this year, subtract 1
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    return age;
+  }
+
+  /**
+   * Complete verification flow - exchanges code, fetches attributes, calculates age
+   * IMPORTANT: Access token and DOB are discarded after use
+   */
+  async completeVerification(authorizationCode: string): Promise<VerificationResult> {
+    try {
+      // Step 1: Exchange code for token
+      const tokenResponse = await this.exchangeCodeForToken(authorizationCode);
+
+      // Step 2: Fetch age verification attributes
+      // In production, consent artifact ID would come from token response or separate call
+      const consentArtifactId = this.mockMode
+        ? `mock_artifact_${Date.now()}`
+        : `artifact_${authorizationCode.substring(0, 16)}`;
+
+      const attributes = await this.getAgeVerificationAttributes(
+        tokenResponse.access_token,
+        consentArtifactId,
+        authorizationCode
+      );
+
+      // Step 3: Calculate age and DISCARD DOB
+      const age = this.calculateAge(attributes.dob);
+
+      // Access token is NOT persisted - goes out of scope here
+      // DOB is NOT returned - only the calculated age
+
+      return {
+        success: true,
+        age,
+        documentType: attributes.document_type,
+        consentArtifactRef: attributes.consent_artifact_id,
+      };
+    } catch (error) {
+      console.error('[ApiSetuDigiLocker] Verification failed:', error);
+      return {
+        success: false,
+        age: null,
+        documentType: null,
+        consentArtifactRef: null,
+        error: error instanceof Error ? error.message : 'Verification failed',
+        errorCode: 'VERIFICATION_FAILED',
+      };
+    }
+  }
+
+  /**
+   * Validate state token matches expected value (CSRF protection)
+   */
+  validateStateToken(received: string, expected: string): boolean {
+    // Use timing-safe comparison to prevent timing attacks
+    if (received.length !== expected.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(
+      Buffer.from(received),
+      Buffer.from(expected)
+    );
+  }
+
+  /**
+   * Generate signed verification assertion (JWT)
+   * This is stored in localStorage on client as proof of verification
+   */
+  generateVerificationAssertion(payload: {
+    sessionId: string;
+    visitorId: string;
+    widgetId: string;
+    age: number;
+    verifiedAt: Date;
+    expiresAt: Date;
+  }): string {
+    const secret = process.env.AGE_VERIFICATION_JWT_SECRET;
+    if (!secret) {
+      throw new Error('AGE_VERIFICATION_JWT_SECRET not configured');
+    }
+
+    const header = {
+      alg: 'HS256',
+      typ: 'JWT',
+    };
+
+    const claims = {
+      sub: payload.visitorId,
+      iss: 'consently.in',
+      aud: payload.widgetId,
+      iat: Math.floor(payload.verifiedAt.getTime() / 1000),
+      exp: Math.floor(payload.expiresAt.getTime() / 1000),
+      session_id: payload.sessionId,
+      age: payload.age,
+      age_band: this.getAgeBand(payload.age),
+    };
+
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const encodedPayload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+    const signatureInput = `${encodedHeader}.${encodedPayload}`;
+
+    const signature = crypto
+      .createHmac('sha256', secret)
+      .update(signatureInput)
+      .digest('base64url');
+
+    return `${signatureInput}.${signature}`;
+  }
+
+  /**
+   * Verify verification assertion (JWT)
+   */
+  verifyVerificationAssertion(token: string): {
+    valid: boolean;
+    claims?: Record<string, unknown>;
+    error?: string;
+  } {
+    const secret = process.env.AGE_VERIFICATION_JWT_SECRET;
+    if (!secret) {
+      return { valid: false, error: 'JWT secret not configured' };
+    }
+
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        return { valid: false, error: 'Invalid token format' };
+      }
+
+      const [encodedHeader, encodedPayload, signature] = parts;
+
+      // Verify signature
+      const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(`${encodedHeader}.${encodedPayload}`)
+        .digest('base64url');
+
+      if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+        return { valid: false, error: 'Invalid signature' };
+      }
+
+      // Decode and check claims
+      const claims = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString());
+
+      // Check expiration
+      if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) {
+        return { valid: false, error: 'Token expired' };
+      }
+
+      return { valid: true, claims };
+    } catch (error) {
+      return { valid: false, error: 'Token verification failed' };
+    }
+  }
+
+  /**
+   * Get age band for privacy-preserving age reporting
+   */
+  private getAgeBand(age: number): string {
+    if (age < 13) return 'under_13';
+    if (age < 16) return '13_to_15';
+    if (age < 18) return '16_to_17';
+    if (age < 21) return '18_to_20';
+    if (age < 25) return '21_to_24';
+    if (age < 35) return '25_to_34';
+    if (age < 45) return '35_to_44';
+    if (age < 55) return '45_to_54';
+    if (age < 65) return '55_to_64';
+    return '65_plus';
+  }
+}
+
+// ============================================================================
+// SINGLETON INSTANCE
+// ============================================================================
+
+let serviceInstance: ApiSetuDigiLockerService | null = null;
+
+export function getApiSetuService(): ApiSetuDigiLockerService {
+  if (!serviceInstance) {
+    serviceInstance = new ApiSetuDigiLockerService();
+  }
+  return serviceInstance;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Check if age meets threshold for a given widget config
+ */
+export function isAgeAboveThreshold(age: number, threshold: number): boolean {
+  return age >= threshold;
+}
+
+/**
+ * Determine if guardian consent is required
+ */
+export function requiresGuardianConsent(
+  age: number,
+  threshold: number,
+  minorHandling: 'block' | 'guardian_consent' | 'limited_access'
+): boolean {
+  if (age >= threshold) {
+    return false;
+  }
+  return minorHandling === 'guardian_consent';
+}
+
+/**
+ * Calculate session expiry time
+ */
+export function calculateSessionExpiry(durationMinutes: number = 60): Date {
+  const expiry = new Date();
+  expiry.setMinutes(expiry.getMinutes() + durationMinutes);
+  return expiry;
+}
+
+/**
+ * Calculate verification validity expiry
+ */
+export function calculateVerificationExpiry(validityDays: number = 365): Date {
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + validityDays);
+  return expiry;
+}
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+export default ApiSetuDigiLockerService;

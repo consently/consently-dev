@@ -62,10 +62,20 @@ const widgetConfigSchema = z.object({
   isActive: z.boolean().optional(),
   supportedLanguages: z.array(z.string()).optional(),
   displayRules: displayRulesSchema.optional(),
-  // Age Gate Settings (DPDPA 2023 Compliance)
+  // Age Gate Settings (LEGACY - Deprecated, use DigiLocker verification)
   enableAgeGate: z.boolean().optional(),
   ageGateThreshold: z.number().min(13).max(21).optional(),
   ageGateMinorMessage: z.string().max(500, 'Minor message must not exceed 500 characters').optional(),
+  // DigiLocker Age Verification (DPDPA 2023 Verifiable Parental Consent)
+  requireAgeVerification: z.boolean().optional(),
+  ageVerificationThreshold: z.number().min(13).max(21).optional(),
+  ageVerificationProvider: z.enum(['digilocker', 'apisetu', 'custom']).optional(),
+  minorHandling: z.enum(['block', 'guardian_consent', 'limited_access']).optional(),
+  minorGuardianMessage: z.string().max(1000, 'Guardian message must not exceed 1000 characters').optional(),
+  verificationValidityDays: z.number().min(1).max(365).optional(),
+  // Smart Email Pre-fill
+  enableSmartPreFill: z.boolean().optional(),
+  emailFieldSelectors: z.string().max(1000).optional(),
 });
 
 // GET - Fetch widget configuration(s)
@@ -267,10 +277,20 @@ export async function POST(request: NextRequest) {
       is_active: configData.isActive ?? true,
       supported_languages: configData.supportedLanguages || ['en', 'hi', 'pa', 'te', 'ta'],
       display_rules: configData.displayRules || [],
-      // Age Gate Settings
+      // Age Gate Settings (LEGACY)
       enable_age_gate: configData.enableAgeGate ?? false,
       age_gate_threshold: configData.ageGateThreshold ?? 18,
       age_gate_minor_message: configData.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.',
+      // DigiLocker Age Verification (DPDPA 2023)
+      require_age_verification: configData.requireAgeVerification ?? false,
+      age_verification_threshold: configData.ageVerificationThreshold ?? 18,
+      age_verification_provider: configData.ageVerificationProvider || 'digilocker',
+      minor_handling: configData.minorHandling || 'guardian_consent',
+      minor_guardian_message: configData.minorGuardianMessage || 'You are under the required age. Please ask a parent or guardian to verify their identity and approve your consent.',
+      verification_validity_days: configData.verificationValidityDays ?? 365,
+      // Smart Pre-fill
+      enable_smart_pre_fill: configData.enableSmartPreFill ?? false,
+      email_field_selectors: configData.emailFieldSelectors || '',
     };
 
     // Insert widget configuration
@@ -427,10 +447,22 @@ export async function PUT(request: NextRequest) {
     if (configData.isActive !== undefined) updatePayload.is_active = configData.isActive;
     if (configData.supportedLanguages !== undefined) updatePayload.supported_languages = configData.supportedLanguages;
 
-    // Age Gate Settings
+    // Age Gate Settings (LEGACY)
     if (configData.enableAgeGate !== undefined) updatePayload.enable_age_gate = configData.enableAgeGate;
     if (configData.ageGateThreshold !== undefined) updatePayload.age_gate_threshold = configData.ageGateThreshold;
     if (configData.ageGateMinorMessage !== undefined) updatePayload.age_gate_minor_message = configData.ageGateMinorMessage;
+
+    // DigiLocker Age Verification (DPDPA 2023)
+    if (configData.requireAgeVerification !== undefined) updatePayload.require_age_verification = configData.requireAgeVerification;
+    if (configData.ageVerificationThreshold !== undefined) updatePayload.age_verification_threshold = configData.ageVerificationThreshold;
+    if (configData.ageVerificationProvider !== undefined) updatePayload.age_verification_provider = configData.ageVerificationProvider;
+    if (configData.minorHandling !== undefined) updatePayload.minor_handling = configData.minorHandling;
+    if (configData.minorGuardianMessage !== undefined) updatePayload.minor_guardian_message = configData.minorGuardianMessage;
+    if (configData.verificationValidityDays !== undefined) updatePayload.verification_validity_days = configData.verificationValidityDays;
+
+    // Smart Pre-fill
+    if (configData.enableSmartPreFill !== undefined) updatePayload.enable_smart_pre_fill = configData.enableSmartPreFill;
+    if (configData.emailFieldSelectors !== undefined) updatePayload.email_field_selectors = configData.emailFieldSelectors;
 
     // IMPROVED: Validate and clean display rules with empty state detection
     if (configData.displayRules !== undefined) {
