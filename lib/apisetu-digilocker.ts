@@ -220,6 +220,7 @@ export class ApiSetuDigiLockerService {
       scope: this.config.scope,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
+      flow: 'Aadhaar', // Required by MeriPehchaan/DigiLocker
     });
 
     // Use OAuth base URL which points to /public/oauth2/1/authorize
