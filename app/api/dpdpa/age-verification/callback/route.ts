@@ -43,24 +43,45 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Find session by state token
+    // Log incoming state for debugging
+    console.log('[Age Verification Callback] Received state:', state);
+    console.log('[Age Verification Callback] Received code:', code ? 'present' : 'missing');
+
+    // Find session by state token (without join first to debug)
     const { data: session, error: sessionError } = await supabase
       .from('age_verification_sessions')
-      .select(`
-        *,
-        dpdpa_widget_configs!inner(
-          age_verification_threshold,
-          minor_handling,
-          user_id
-        )
-      `)
+      .select('*')
       .eq('state_token', state)
       .single();
 
-    if (sessionError || !session) {
+    if (sessionError) {
+      console.error('[Age Verification Callback] Supabase error:', sessionError);
+      console.error('[Age Verification Callback] State token:', state);
+
+      // Try to find any recent sessions for debugging
+      const { data: recentSessions } = await supabase
+        .from('age_verification_sessions')
+        .select('id, session_id, state_token, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      console.log('[Age Verification Callback] Recent sessions:', recentSessions);
+
+      return redirectWithError('invalid_state', 'Invalid or expired verification session');
+    }
+
+    if (!session) {
       console.error('[Age Verification Callback] Session not found for state:', state);
       return redirectWithError('invalid_state', 'Invalid or expired verification session');
     }
+
+    console.log('[Age Verification Callback] Found session:', session.session_id, 'status:', session.status);
+
+    // Fetch widget config separately
+    const { data: widgetConfig } = await supabase
+      .from('dpdpa_widget_configs')
+      .select('age_verification_threshold, minor_handling, user_id')
+      .eq('widget_id', session.widget_id)
+      .single();
 
     // Check if session expired
     if (new Date(session.expires_at) < new Date()) {
@@ -77,7 +98,6 @@ export async function GET(request: NextRequest) {
     await updateSessionStatus(supabase, session.id, 'in_progress');
 
     const apiSetuService = getApiSetuService();
-    const widgetConfig = session.dpdpa_widget_configs;
     const threshold = widgetConfig?.age_verification_threshold || 18;
     const minorHandling = widgetConfig?.minor_handling || 'block';
 
