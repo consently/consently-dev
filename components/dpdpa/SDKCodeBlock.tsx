@@ -9,7 +9,7 @@ interface SDKCodeBlockProps {
   code: string;
   copied: string;
   onCopy: (text: string, label: string) => void;
-  alertContent?: string;
+  alertContent?: React.ReactNode;
   endpointBoxes?: React.ReactNode;
 }
 
