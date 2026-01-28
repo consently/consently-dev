@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     if (isMock || apiSetuService.isMockMode()) {
       // Use mock code from URL or default
       const mockCode = code || 'mock_adult_code';
-      const result = await apiSetuService.completeVerification(mockCode, codeVerifier || 'mock_verifier');
+      const result = await apiSetuService.completeVerification(mockCode, codeVerifier || 'mock_verifier', threshold);
 
       if (!result.success) {
         await updateSessionFailed(supabase, session.id, result.error || 'Verification failed');
@@ -126,9 +126,9 @@ export async function GET(request: NextRequest) {
         return redirectWithError('verification_failed', result.error || 'Verification failed');
       }
 
-      // Update session with verified age
-      const isMinor = result.age! < threshold;
-      const needsGuardianConsent = requiresGuardianConsent(result.age!, threshold, minorHandling);
+      // Update session with verified result
+      const isMinor = !result.meetsAgeThreshold;
+      const needsGuardianConsent = isMinor && minorHandling === 'guardian_consent';
 
       await updateSessionVerified(supabase, session.id, {
         verified_age: result.age!,
@@ -166,8 +166,8 @@ export async function GET(request: NextRequest) {
       return redirectWithError('invalid_state', 'State token mismatch - possible CSRF attack');
     }
 
-    // Complete verification with PKCE (exchange code using verifier, fetch age, discard token and DOB)
-    const result = await apiSetuService.completeVerification(code, codeVerifier);
+    // Complete verification with PKCE (exchange code using verifier, call AVS endpoint)
+    const result = await apiSetuService.completeVerification(code, codeVerifier, threshold);
 
     if (!result.success) {
       await updateSessionFailed(supabase, session.id, result.error || 'Verification failed');
@@ -181,9 +181,9 @@ export async function GET(request: NextRequest) {
       return redirectWithError('verification_failed', result.error || 'Verification failed');
     }
 
-    // Determine if guardian consent is needed
-    const isMinor = result.age! < threshold;
-    const needsGuardianConsent = requiresGuardianConsent(result.age!, threshold, minorHandling);
+    // Determine if guardian consent is needed based on AVS result
+    const isMinor = !result.meetsAgeThreshold;
+    const needsGuardianConsent = isMinor && minorHandling === 'guardian_consent';
 
     // Update session with verified age
     await updateSessionVerified(supabase, session.id, {

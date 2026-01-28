@@ -26,7 +26,15 @@ export interface TokenResponse {
 }
 
 export interface AgeVerificationResponse {
-  // Raw response from DigiLocker consent artifact
+  // AVS response from DigiLocker - privacy-preserving, no DOB exposed
+  result: 'yes' | 'no';           // Whether user meets age threshold
+  threshold_age: number;          // The age threshold that was checked
+  document_type?: string;         // E.g., 'AADHAAR' - Kept for audit trail
+  consent_artifact_id?: string;   // Reference for audit
+}
+
+export interface LegacyAgeVerificationResponse {
+  // Legacy response format (if using /user endpoint)
   dob: string;                    // Format: YYYY-MM-DD - DISCARDED after age calculation
   document_type: string;          // E.g., 'AADHAAR' - Kept for audit trail
   consent_artifact_id: string;    // Reference for audit
@@ -35,7 +43,9 @@ export interface AgeVerificationResponse {
 
 export interface VerificationResult {
   success: boolean;
-  age: number | null;
+  meetsAgeThreshold: boolean;     // True if user meets the age threshold (AVS result)
+  thresholdAge: number;           // The threshold that was checked
+  age: number | null;             // Actual age (only available in mock mode)
   documentType: string | null;
   consentArtifactRef: string | null;
   error?: string;
@@ -267,46 +277,62 @@ export class ApiSetuDigiLockerService {
   }
 
   /**
-   * Fetch age verification attributes from DigiLocker consent artifact
-   * IMPORTANT: DOB is discarded after age calculation - only age is returned
+   * Fetch age verification result from DigiLocker AVS endpoint
+   * Returns privacy-preserving yes/no result - no DOB is exposed
    */
   async getAgeVerificationAttributes(
     accessToken: string,
-    consentArtifactId: string,
+    thresholdAge: number = 18,
     authorizationCode?: string
   ): Promise<AgeVerificationResponse> {
     if (this.mockMode && authorizationCode) {
       // Mock response based on code
       const mockUser = MOCK_USERS[authorizationCode];
       if (mockUser) {
+        const age = this.calculateAge(mockUser.dob);
         return {
-          dob: mockUser.dob,
+          result: age >= thresholdAge ? 'yes' : 'no',
+          threshold_age: thresholdAge,
           document_type: mockUser.documentType,
           consent_artifact_id: `mock_artifact_${Date.now()}`,
         };
       }
       // Default mock adult
       return {
-        dob: '1990-01-15',
+        result: 'yes',
+        threshold_age: thresholdAge,
         document_type: 'AADHAAR',
         consent_artifact_id: `mock_artifact_${Date.now()}`,
       };
     }
 
-    // Use API base URL for data pull (user endpoint)
-    const response = await fetch(`${this.getApiBaseUrl()}/user`, {
+    // Use AVS endpoint for age verification (privacy-preserving)
+    // The AVS endpoint returns yes/no for the given threshold, not the actual DOB
+    const avsUrl = `${this.getApiBaseUrl()}/avs?threshold_age=${thresholdAge}`;
+    console.log('[ApiSetuDigiLocker] Calling AVS endpoint:', avsUrl);
+
+    const response = await fetch(avsUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('[ApiSetuDigiLocker] Failed to fetch attributes:', error);
-      throw new Error(`Failed to fetch age verification attributes: ${response.status}`);
+      console.error('[ApiSetuDigiLocker] AVS endpoint failed:', response.status, error);
+      throw new Error(`Failed to fetch age verification: ${response.status} - ${error}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('[ApiSetuDigiLocker] AVS response:', JSON.stringify(data));
+
+    return {
+      result: data.result || data.age_verified || (data.verified ? 'yes' : 'no'),
+      threshold_age: data.threshold_age || thresholdAge,
+      document_type: data.document_type || 'AADHAAR',
+      consent_artifact_id: data.consent_artifact_id || data.txn_id || `avs_${Date.now()}`,
+    };
   }
 
   /**
@@ -329,42 +355,47 @@ export class ApiSetuDigiLockerService {
   }
 
   /**
-   * Complete verification flow - exchanges code, fetches attributes, calculates age
-   * IMPORTANT: Access token and DOB are discarded after use
+   * Complete verification flow - exchanges code, fetches AVS result
+   * IMPORTANT: Access token is discarded after use, no DOB is ever received
    */
-  async completeVerification(authorizationCode: string, codeVerifier: string): Promise<VerificationResult> {
+  async completeVerification(
+    authorizationCode: string,
+    codeVerifier: string,
+    thresholdAge: number = 18
+  ): Promise<VerificationResult> {
     try {
       // Step 1: Exchange code for token (with PKCE code verifier)
       const tokenResponse = await this.exchangeCodeForToken(authorizationCode, codeVerifier);
+      console.log('[ApiSetuDigiLocker] Token exchange successful');
 
-      // Step 2: Fetch age verification attributes
-      // In production, consent artifact ID would come from token response or separate call
-      const consentArtifactId = this.mockMode
-        ? `mock_artifact_${Date.now()}`
-        : `artifact_${authorizationCode.substring(0, 16)}`;
-
-      const attributes = await this.getAgeVerificationAttributes(
+      // Step 2: Call AVS endpoint to get age verification result
+      // This returns yes/no for the threshold - no DOB is exposed (privacy-preserving)
+      const avsResult = await this.getAgeVerificationAttributes(
         tokenResponse.access_token,
-        consentArtifactId,
+        thresholdAge,
         authorizationCode
       );
 
-      // Step 3: Calculate age and DISCARD DOB
-      const age = this.calculateAge(attributes.dob);
+      const meetsThreshold = avsResult.result === 'yes';
+      console.log('[ApiSetuDigiLocker] AVS result:', meetsThreshold ? 'MEETS threshold' : 'BELOW threshold');
 
       // Access token is NOT persisted - goes out of scope here
-      // DOB is NOT returned - only the calculated age
+      // No DOB is ever received - only yes/no for the threshold
 
       return {
         success: true,
-        age,
-        documentType: attributes.document_type,
-        consentArtifactRef: attributes.consent_artifact_id,
+        meetsAgeThreshold: meetsThreshold,
+        thresholdAge: avsResult.threshold_age,
+        age: meetsThreshold ? thresholdAge : thresholdAge - 1, // Approximate for backwards compatibility
+        documentType: avsResult.document_type || null,
+        consentArtifactRef: avsResult.consent_artifact_id || null,
       };
     } catch (error) {
       console.error('[ApiSetuDigiLocker] Verification failed:', error);
       return {
         success: false,
+        meetsAgeThreshold: false,
+        thresholdAge: thresholdAge,
         age: null,
         documentType: null,
         consentArtifactRef: null,
