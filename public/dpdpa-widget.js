@@ -4343,11 +4343,14 @@ ${activitySections}
     // DigiLocker Age Verification Button
     const digilockerVerifyBtn = widget.querySelector('#dpdpa-digilocker-verify-btn');
     if (digilockerVerifyBtn) {
+      // Store original button text for restoration
+      const originalBtnText = digilockerVerifyBtn.textContent || 'Verify with DigiLocker';
+
       digilockerVerifyBtn.addEventListener('click', async () => {
         const errorDiv = widget.querySelector('#dpdpa-digilocker-error');
 
         try {
-          digilockerVerifyBtn.textContent = t.verifying;
+          digilockerVerifyBtn.textContent = 'Verifying...';
           digilockerVerifyBtn.disabled = true;
 
           // Initiate age verification
@@ -4359,14 +4362,17 @@ ${activitySections}
             errorDiv.textContent = e.message || 'Verification failed. Please try again.';
             errorDiv.style.display = 'block';
           }
-          digilockerVerifyBtn.textContent = t.retryVerification || 'Retry Verification';
+          digilockerVerifyBtn.textContent = 'Retry Verification';
           digilockerVerifyBtn.disabled = false;
         }
       });
 
       // Check existing verification status on load
       if (checkExistingAgeVerification()) {
-        updateDigiLockerUI(widget, t);
+        // Get translations from config language for UI update
+        getTranslation(config && config.language ? config.language : 'en').then(translations => {
+          updateDigiLockerUI(widget, translations);
+        });
       }
     }
 
@@ -4393,27 +4399,30 @@ ${activitySections}
           await requestGuardianConsent(ageVerificationSessionId, guardianEmail);
 
           if (statusDiv) {
-            statusDiv.textContent = t.consentRequestSent || 'Consent request sent to guardian';
+            statusDiv.textContent = 'Consent request sent to guardian';
             statusDiv.style.color = '#059669';
           }
 
-          guardianSendBtn.textContent = t.waitingForGuardian || 'Waiting for approval...';
+          guardianSendBtn.textContent = 'Waiting for approval...';
 
           // Start polling for guardian consent
           startGuardianConsentPolling(ageVerificationSessionId, (status) => {
-            if (status.status === 'approved') {
-              if (statusDiv) {
-                statusDiv.textContent = t.guardianApproved || 'Guardian consent approved!';
-                statusDiv.style.color = '#059669';
+            // Get translations for UI update
+            getTranslation(config && config.language ? config.language : 'en').then(translations => {
+              if (status.status === 'approved') {
+                if (statusDiv) {
+                  statusDiv.textContent = 'Guardian consent approved!';
+                  statusDiv.style.color = '#059669';
+                }
+                updateDigiLockerUI(widget, translations);
+              } else if (status.status === 'rejected') {
+                if (statusDiv) {
+                  statusDiv.textContent = 'Guardian consent was denied';
+                  statusDiv.style.color = '#dc2626';
+                }
+                updateDigiLockerUI(widget, translations);
               }
-              updateDigiLockerUI(widget, t);
-            } else if (status.status === 'rejected') {
-              if (statusDiv) {
-                statusDiv.textContent = t.guardianRejected || 'Guardian consent was denied';
-                statusDiv.style.color = '#dc2626';
-              }
-              updateDigiLockerUI(widget, t);
-            }
+            });
           });
 
         } catch (e) {
@@ -4422,7 +4431,7 @@ ${activitySections}
             statusDiv.textContent = e.message || 'Failed to send consent request';
             statusDiv.style.color = '#dc2626';
           }
-          guardianSendBtn.textContent = t.sendConsentRequest || 'Send Consent Request';
+          guardianSendBtn.textContent = 'Send Consent Request';
           guardianSendBtn.disabled = false;
         }
       });
