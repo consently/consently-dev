@@ -250,26 +250,27 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Fetch session
+    // Fetch session (without inner join to avoid 404 when widget config is missing)
     const { data: session, error: sessionError } = await supabase
       .from('age_verification_sessions')
-      .select(`
-        *,
-        dpdpa_widget_configs!inner(
-          age_verification_threshold,
-          minor_handling,
-          verification_validity_days
-        )
-      `)
+      .select('*')
       .eq('session_id', sessionId)
       .single();
 
     if (sessionError || !session) {
+      console.error('[Age Verification] Session lookup error:', sessionError);
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } }
       );
     }
+
+    // Fetch widget config separately
+    const { data: widgetConfig } = await supabase
+      .from('dpdpa_widget_configs')
+      .select('age_verification_threshold, minor_handling, verification_validity_days')
+      .eq('widget_id', session.widget_id)
+      .single();
 
     // Check if session expired
     if (new Date(session.expires_at) < new Date()) {
@@ -283,8 +284,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build response based on status
-    const widgetConfig = session.dpdpa_widget_configs;
+    // Build response based on status (widgetConfig fetched separately above)
     const threshold = widgetConfig?.age_verification_threshold || 18;
     const isMinor = session.verified_age !== null && session.verified_age < threshold;
 
