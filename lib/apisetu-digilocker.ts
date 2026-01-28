@@ -126,7 +126,7 @@ export class ApiSetuDigiLockerService {
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'openid',
+      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'avs',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
     };
 
