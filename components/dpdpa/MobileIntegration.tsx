@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Copy, 
-  CheckCircle, 
+import {
+  Copy,
+  CheckCircle,
   Smartphone,
   Server,
   Shield,
@@ -16,6 +16,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SDKCodeBlock } from './SDKCodeBlock';
+import { ImplementationNotes } from './ImplementationNotes';
 
 interface MobileIntegrationProps {
   widgetId: string;
@@ -797,6 +799,88 @@ class ConsentlySDK private constructor(private val context: Context) {
 }`;
   };
 
+  // SDK configuration data
+  const sdkList = [
+    {
+      id: 'react-native',
+      title: 'React Native SDK',
+      icon: <FileCode className="h-4 w-4 text-purple-600" />,
+      codeGetter: getReactNativeExample,
+      alertContent: (
+        <>
+          Required packages: <code className="bg-amber-100 px-1 rounded">@react-native-async-storage/async-storage</code>, <code className="bg-amber-100 px-1 rounded">uuid</code>, <code className="bg-amber-100 px-1 rounded">react-native-get-random-values</code>
+        </>
+      )
+    },
+    {
+      id: 'flutter',
+      title: 'Flutter SDK',
+      icon: <FileCode className="h-4 w-4 text-purple-600" />,
+      codeGetter: getFlutterExample,
+      alertContent: (
+        <>
+          Required packages: <code className="bg-amber-100 px-1 rounded">http</code>, <code className="bg-amber-100 px-1 rounded">shared_preferences</code>, <code className="bg-amber-100 px-1 rounded">uuid</code>
+        </>
+      )
+    },
+    {
+      id: 'ios',
+      title: 'iOS Swift SDK',
+      icon: <FileCode className="h-4 w-4 text-purple-600" />,
+      codeGetter: getSwiftExample,
+      alertContent: 'Minimum iOS version: 13.0. Uses Foundation, UIKit, and UserDefaults for storage.'
+    },
+    {
+      id: 'android',
+      title: 'Android Kotlin SDK',
+      icon: <FileCode className="h-4 w-4 text-purple-600" />,
+      codeGetter: getKotlinExample,
+      alertContent: (
+        <>
+          Requires <code className="bg-amber-100 px-1 rounded">kotlinx-coroutines</code> for async operations. Add <code className="bg-amber-100 px-1 rounded">INTERNET</code> permission in AndroidManifest.xml.
+        </>
+      )
+    },
+    {
+      id: 'api',
+      title: 'REST API Documentation',
+      icon: <Server className="h-4 w-4 text-purple-600" />,
+      codeGetter: getApiExample,
+      endpointBoxes: (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div className="p-3 bg-gray-50 rounded border">
+            <p className="text-xs text-gray-500 mb-1">GET Configuration</p>
+            <code className="text-xs text-purple-700 break-all">{getConfigEndpoint}</code>
+          </div>
+          <div className="p-3 bg-gray-50 rounded border">
+            <p className="text-xs text-gray-500 mb-1">POST Consent</p>
+            <code className="text-xs text-purple-700 break-all">{postConsentEndpoint}</code>
+          </div>
+        </div>
+      )
+    }
+  ];
+
+  // Implementation checklist and notes
+  const implementationChecklist = [
+    '1. Generate unique Consent ID (CNST-XXXX-XXXX-XXXX)',
+    '2. Fetch widget config on app launch',
+    '3. Display consent UI with activities',
+    '4. <strong>Handle mandatory purposes</strong> (pre-select &amp; disable)',
+    '5. Record consent with proper metadata',
+    '6. Store consent locally for offline access',
+    '7. Handle consent expiration'
+  ];
+
+  const implementationNotes = [
+    '- Consent ID must be persistent across app sessions',
+    '- <strong>Mandatory purposes</strong> must always be accepted',
+    '- Include device metadata for analytics',
+    '- Email is optional but enables cross-device sync',
+    '- Handle network errors gracefully',
+    '- Test consent flow before production'
+  ];
+
   return (
     <Card className="border-purple-200 bg-purple-50/30">
       <CardHeader>
@@ -843,7 +927,7 @@ class ConsentlySDK private constructor(private val context: Context) {
 
         {/* Platform Tabs */}
         <Tabs defaultValue="react-native" className="w-full">
-          <TabsList className="grid grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 w-full">
             <TabsTrigger value="react-native">React Native</TabsTrigger>
             <TabsTrigger value="flutter">Flutter</TabsTrigger>
             <TabsTrigger value="ios">iOS Swift</TabsTrigger>
@@ -851,181 +935,27 @@ class ConsentlySDK private constructor(private val context: Context) {
             <TabsTrigger value="api">API Docs</TabsTrigger>
           </TabsList>
 
-          {/* React Native */}
-          <TabsContent value="react-native">
-            <div className="bg-white rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-purple-600" />
-                  <h4 className="font-medium text-gray-900">React Native SDK</h4>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyToClipboard(getReactNativeExample(), 'React Native code')}
-                >
-                  {copied === 'React Native code' ? <CheckCircle className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                  Copy
-                </Button>
-              </div>
-              <div className="text-xs text-gray-600 mb-3 p-2 bg-amber-50 rounded border border-amber-200">
-                <AlertCircle className="h-3 w-3 inline mr-1" />
-                Required packages: <code className="bg-amber-100 px-1 rounded">@react-native-async-storage/async-storage</code>, <code className="bg-amber-100 px-1 rounded">uuid</code>, <code className="bg-amber-100 px-1 rounded">react-native-get-random-values</code>
-              </div>
-              <pre className="text-sm bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto max-h-96">
-                <code>{getReactNativeExample()}</code>
-              </pre>
-            </div>
-          </TabsContent>
-
-          {/* Flutter */}
-          <TabsContent value="flutter">
-            <div className="bg-white rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-purple-600" />
-                  <h4 className="font-medium text-gray-900">Flutter SDK</h4>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyToClipboard(getFlutterExample(), 'Flutter code')}
-                >
-                  {copied === 'Flutter code' ? <CheckCircle className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                  Copy
-                </Button>
-              </div>
-              <div className="text-xs text-gray-600 mb-3 p-2 bg-amber-50 rounded border border-amber-200">
-                <AlertCircle className="h-3 w-3 inline mr-1" />
-                Required packages: <code className="bg-amber-100 px-1 rounded">http</code>, <code className="bg-amber-100 px-1 rounded">shared_preferences</code>, <code className="bg-amber-100 px-1 rounded">uuid</code>
-              </div>
-              <pre className="text-sm bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto max-h-96">
-                <code>{getFlutterExample()}</code>
-              </pre>
-            </div>
-          </TabsContent>
-
-          {/* iOS Swift */}
-          <TabsContent value="ios">
-            <div className="bg-white rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-purple-600" />
-                  <h4 className="font-medium text-gray-900">iOS Swift SDK</h4>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyToClipboard(getSwiftExample(), 'Swift code')}
-                >
-                  {copied === 'Swift code' ? <CheckCircle className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                  Copy
-                </Button>
-              </div>
-              <div className="text-xs text-gray-600 mb-3 p-2 bg-amber-50 rounded border border-amber-200">
-                <AlertCircle className="h-3 w-3 inline mr-1" />
-                Minimum iOS version: 13.0. Uses Foundation, UIKit, and UserDefaults for storage.
-              </div>
-              <pre className="text-sm bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto max-h-96">
-                <code>{getSwiftExample()}</code>
-              </pre>
-            </div>
-          </TabsContent>
-
-          {/* Android Kotlin */}
-          <TabsContent value="android">
-            <div className="bg-white rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileCode className="h-4 w-4 text-purple-600" />
-                  <h4 className="font-medium text-gray-900">Android Kotlin SDK</h4>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyToClipboard(getKotlinExample(), 'Kotlin code')}
-                >
-                  {copied === 'Kotlin code' ? <CheckCircle className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                  Copy
-                </Button>
-              </div>
-              <div className="text-xs text-gray-600 mb-3 p-2 bg-amber-50 rounded border border-amber-200">
-                <AlertCircle className="h-3 w-3 inline mr-1" />
-                Requires <code className="bg-amber-100 px-1 rounded">kotlinx-coroutines</code> for async operations. Add <code className="bg-amber-100 px-1 rounded">INTERNET</code> permission in AndroidManifest.xml.
-              </div>
-              <pre className="text-sm bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto max-h-96">
-                <code>{getKotlinExample()}</code>
-              </pre>
-            </div>
-          </TabsContent>
-
-          {/* API Documentation */}
-          <TabsContent value="api">
-            <div className="bg-white rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-purple-600" />
-                  <h4 className="font-medium text-gray-900">REST API Documentation</h4>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyToClipboard(getApiExample(), 'API docs')}
-                >
-                  {copied === 'API docs' ? <CheckCircle className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                  Copy
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                <div className="p-3 bg-gray-50 rounded border">
-                  <p className="text-xs text-gray-500 mb-1">GET Configuration</p>
-                  <code className="text-xs text-purple-700 break-all">{getConfigEndpoint}</code>
-                </div>
-                <div className="p-3 bg-gray-50 rounded border">
-                  <p className="text-xs text-gray-500 mb-1">POST Consent</p>
-                  <code className="text-xs text-purple-700 break-all">{postConsentEndpoint}</code>
-                </div>
-              </div>
-              <pre className="text-sm bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto max-h-96">
-                <code>{getApiExample()}</code>
-              </pre>
-            </div>
-          </TabsContent>
+          {/* SDK Tabs - Data-driven approach */}
+          {sdkList.map((sdk) => (
+            <TabsContent key={sdk.id} value={sdk.id}>
+              <SDKCodeBlock
+                title={sdk.title}
+                icon={sdk.icon}
+                code={sdk.codeGetter()}
+                copied={copied}
+                onCopy={copyToClipboard}
+                alertContent={sdk.alertContent}
+                endpointBoxes={sdk.endpointBoxes}
+              />
+            </TabsContent>
+          ))}
         </Tabs>
 
         {/* Implementation Notes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="border rounded-lg p-4 bg-white">
-            <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              Implementation Checklist
-            </h4>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li>1. Generate unique Consent ID (CNST-XXXX-XXXX-XXXX)</li>
-              <li>2. Fetch widget config on app launch</li>
-              <li>3. Display consent UI with activities</li>
-              <li>4. <strong>Handle mandatory purposes</strong> (pre-select &amp; disable)</li>
-              <li>5. Record consent with proper metadata</li>
-              <li>6. Store consent locally for offline access</li>
-              <li>7. Handle consent expiration</li>
-            </ul>
-          </div>
-
-          <div className="border rounded-lg p-4 bg-white">
-            <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              Important Notes
-            </h4>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li>- Consent ID must be persistent across app sessions</li>
-              <li>- <strong>Mandatory purposes</strong> must always be accepted</li>
-              <li>- Include device metadata for analytics</li>
-              <li>- Email is optional but enables cross-device sync</li>
-              <li>- Handle network errors gracefully</li>
-              <li>- Test consent flow before production</li>
-            </ul>
-          </div>
-        </div>
+        <ImplementationNotes
+          checklist={implementationChecklist}
+          importantNotes={implementationNotes}
+        />
       </CardContent>
     </Card>
   );

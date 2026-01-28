@@ -3011,6 +3011,11 @@ ${activitySections}
       return;
     }
 
+    // Warn if both age verification methods are enabled
+    if (config.requireAgeVerification && config.enableAgeGate) {
+      console.warn('[Consently DPDPA] Both DigiLocker age verification and legacy age gate are enabled. Only DigiLocker will be used. Consider disabling the legacy age gate in your widget settings.');
+    }
+
     // Check for age verification callback (returning from DigiLocker)
     if (config.requireAgeVerification) {
       // First check existing verification
@@ -3693,6 +3698,41 @@ ${activitySections}
           </p>
         </div>
       </div>
+
+      <!--
+        AGE VERIFICATION IMPLEMENTATIONS:
+
+        There are TWO age verification implementations available:
+
+        1. DIGILOCKER AGE VERIFICATION (Recommended - DPDPA 2023 Compliant)
+           - Controlled by: config.requireAgeVerification
+           - Type: Government-backed OAuth flow via DigiLocker (API Setu)
+           - Process: Users verify age using government-issued ID documents (Aadhaar, PAN, etc.)
+           - Verification: Server-side cryptographic verification of government-issued documents
+           - Privacy: Only verified age is stored, date of birth is immediately discarded
+           - Guardian Consent: Supports guardian consent workflow for minors
+           - Compliance: Meets DPDPA 2023 "verifiable parental consent" requirements
+           - Status: Active and recommended for production use
+
+        2. LEGACY AGE GATE (Deprecated - Client-side only)
+           - Controlled by: config.enableAgeGate
+           - Type: Simple checkbox + year dropdown (client-side self-attestation)
+           - Process: User checks a box and selects birth year
+           - Verification: No verification - relies on user honesty
+           - Compliance: Not suitable for DPDPA 2023 compliance
+           - Status: Deprecated, maintained for backward compatibility only
+
+        PRIORITY ORDER:
+        - If config.requireAgeVerification is true, ONLY DigiLocker section is shown (lines 3698-3733)
+        - If config.requireAgeVerification is false AND config.enableAgeGate is true, legacy section is shown (lines 3736-3754)
+        - If both are false, no age verification is shown
+        - If both are true, only DigiLocker is used (legacy is ignored)
+
+        MIGRATION NOTE:
+        - New implementations should use config.requireAgeVerification (DigiLocker)
+        - config.enableAgeGate is kept for backward compatibility with existing widgets
+        - Users should be encouraged to migrate from legacy age gate to DigiLocker
+      -->
 
       <!-- DigiLocker Age Verification Section -->
       ${config.requireAgeVerification ? `

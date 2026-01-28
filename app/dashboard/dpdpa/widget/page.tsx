@@ -223,6 +223,25 @@ export default function DPDPAWidgetPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Color utility function to convert hex color to RGBA variants
+  const getColorVariants = (primaryColor: string) => {
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '59, 130, 246';
+    };
+
+    const rgb = hexToRgb(primaryColor);
+    return {
+      bg50: `rgba(${rgb}, 0.05)`,
+      bg100: `rgba(${rgb}, 0.1)`,
+      bg200: `rgba(${rgb}, 0.15)`,
+      border200: `rgba(${rgb}, 0.2)`,
+      text600: primaryColor,
+      text700: primaryColor,
+      text900: primaryColor,
+    };
+  };
+
   const themePresets = [
     { name: 'Default Blue', primaryColor: '#3b82f6', backgroundColor: '#ffffff', textColor: '#1f2937' },
     { name: 'Professional Dark', primaryColor: '#6366f1', backgroundColor: '#1f2937', textColor: '#f9fafb' },
@@ -2564,16 +2583,16 @@ export default function DPDPAWidgetPage() {
           )}
 
           {/* DigiLocker Age Verification Section - DPDPA 2023 Verifiable Parental Consent */}
-          <Card className="shadow-sm hover:shadow-md transition-shadow border-emerald-200">
-            <CardHeader className="border-b bg-gradient-to-r from-emerald-50 to-white">
+          <Card className="shadow-sm hover:shadow-md transition-shadow" style={{ borderColor: getColorVariants(config.theme.primaryColor).border200 }}>
+            <CardHeader className="border-b" style={{ background: `linear-gradient(to right, ${getColorVariants(config.theme.primaryColor).bg50}, white)` }}>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <div className="p-2 bg-emerald-100 rounded-lg">
-                      <Shield className="h-5 w-5 text-emerald-600" />
+                    <div className="p-2 rounded-lg" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg100 }}>
+                      <Shield className="h-5 w-5" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                     </div>
                     DigiLocker Age Verification
-                    <Badge variant="outline" className="ml-2 text-xs bg-emerald-50 text-emerald-700 border-emerald-300">
+                    <Badge variant="outline" className="ml-2 text-xs" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg50, color: getColorVariants(config.theme.primaryColor).text700, borderColor: getColorVariants(config.theme.primaryColor).border200 }}>
                       DPDPA 2023
                     </Badge>
                   </CardTitle>
@@ -2582,13 +2601,16 @@ export default function DPDPAWidgetPage() {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium ${config.requireAgeVerification ? 'text-emerald-700' : 'text-gray-500'}`}>
+                  <span className="text-xs font-medium" style={{ color: config.requireAgeVerification ? getColorVariants(config.theme.primaryColor).text700 : '#6b7280' }}>
                     {config.requireAgeVerification ? 'Enabled' : 'Disabled'}
                   </span>
                   <button
                     onClick={() => setConfig(prev => ({ ...prev, requireAgeVerification: !prev.requireAgeVerification }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${config.requireAgeVerification ? 'bg-emerald-600' : 'bg-gray-200'
-                      }`}
+                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    style={{
+                      backgroundColor: config.requireAgeVerification ? config.theme.primaryColor : '#e5e7eb',
+                      boxShadow: config.requireAgeVerification ? `0 0 0 2px ${getColorVariants(config.theme.primaryColor).border200}` : 'none'
+                    }}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.requireAgeVerification ? 'translate-x-6' : 'translate-x-1'
@@ -2599,11 +2621,25 @@ export default function DPDPAWidgetPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-6">
+              {/* Warning when both age verification methods are enabled */}
+              {config.requireAgeVerification && config.enableAgeGate && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-yellow-800">
+                        <strong>Warning:</strong> Both DigiLocker and legacy age gate are enabled. Only DigiLocker will be used in the widget. Consider disabling the legacy age gate to avoid confusion.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {config.requireAgeVerification ? (
                 <div className="space-y-6">
                   {/* Info Box */}
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                    <p className="text-sm text-emerald-900 flex items-start gap-2">
+                  <div className="p-4 rounded-lg" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg50, borderColor: getColorVariants(config.theme.primaryColor).border200, border: '1px solid' }}>
+                    <p className="text-sm flex items-start gap-2" style={{ color: getColorVariants(config.theme.primaryColor).text900 }}>
                       <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       <span>
                         <strong>Government-Backed Verification:</strong> Users verify their age via DigiLocker using government-issued ID documents (Aadhaar, PAN, etc.). Only the verified age is stored - date of birth is immediately discarded for privacy.
@@ -2620,7 +2656,8 @@ export default function DPDPAWidgetPage() {
                     <select
                       value={config.ageVerificationThreshold || 18}
                       onChange={(e) => setConfig(prev => ({ ...prev, ageVerificationThreshold: parseInt(e.target.value) }))}
-                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 w-full"
+                      style={{ '--tw-ring-color': config.theme.primaryColor } as React.CSSProperties}
                     >
                       <option value={13}>13 years (COPPA)</option>
                       <option value={16}>16 years (GDPR)</option>
@@ -2641,7 +2678,8 @@ export default function DPDPAWidgetPage() {
                     <select
                       value={config.minorHandling || 'guardian_consent'}
                       onChange={(e) => setConfig(prev => ({ ...prev, minorHandling: e.target.value as 'block' | 'guardian_consent' | 'limited_access' }))}
-                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 w-full"
+                      style={{ '--tw-ring-color': config.theme.primaryColor } as React.CSSProperties}
                     >
                       <option value="guardian_consent">Require Guardian Consent (Recommended)</option>
                       <option value="block">Block Access Completely</option>
@@ -2666,7 +2704,8 @@ export default function DPDPAWidgetPage() {
                         onChange={(e) => setConfig(prev => ({ ...prev, minorGuardianMessage: e.target.value }))}
                         placeholder="You are under the required age. Please ask a parent or guardian to verify their identity and approve your consent."
                         rows={3}
-                        className="transition-all focus:ring-2 focus:ring-emerald-500 resize-none"
+                        className="transition-all focus:ring-2 resize-none"
+                        style={{ '--tw-ring-color': config.theme.primaryColor } as React.CSSProperties}
                       />
                     </div>
                   )}
@@ -2680,7 +2719,8 @@ export default function DPDPAWidgetPage() {
                     <select
                       value={config.verificationValidityDays || 365}
                       onChange={(e) => setConfig(prev => ({ ...prev, verificationValidityDays: parseInt(e.target.value) }))}
-                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 w-full"
+                      style={{ '--tw-ring-color': config.theme.primaryColor } as React.CSSProperties}
                     >
                       <option value={30}>30 days</option>
                       <option value={90}>90 days</option>
@@ -2726,9 +2766,9 @@ export default function DPDPAWidgetPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="flex items-start gap-4 p-5 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100 mb-8 shadow-sm">
+                  <div className="flex items-start gap-4 p-5 rounded-2xl mb-8 shadow-sm" style={{ background: `linear-gradient(to bottom right, ${getColorVariants(config.theme.primaryColor).bg50}, ${getColorVariants(config.theme.primaryColor).bg100})`, borderColor: getColorVariants(config.theme.primaryColor).border200, border: '1px solid' }}>
                     <div className="p-3 bg-white rounded-xl shadow-sm">
-                      <Shield className="h-6 w-6 text-emerald-600" />
+                      <Shield className="h-6 w-6" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                     </div>
                     <div className="text-left">
                       <h3 className="text-lg font-bold text-gray-900 mb-1">DigiLocker Age Verification</h3>
@@ -2737,19 +2777,19 @@ export default function DPDPAWidgetPage() {
                       </p>
                       <ul className="text-xs text-gray-500 space-y-1">
                         <li className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          <CheckCircle2 className="h-3 w-3" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                           Government-backed identity verification
                         </li>
                         <li className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          <CheckCircle2 className="h-3 w-3" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                           Privacy-first: Only age stored, DOB discarded
                         </li>
                         <li className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          <CheckCircle2 className="h-3 w-3" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                           Guardian consent workflow for minors
                         </li>
                         <li className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          <CheckCircle2 className="h-3 w-3" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                           Cryptographic verification assertions
                         </li>
                       </ul>
@@ -2757,7 +2797,8 @@ export default function DPDPAWidgetPage() {
                   </div>
                   <Button
                     onClick={() => setConfig(prev => ({ ...prev, requireAgeVerification: true, minorHandling: 'guardian_consent' }))}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="text-white"
+                    style={{ backgroundColor: config.theme.primaryColor }}
                   >
                     Enable DigiLocker Verification
                   </Button>
@@ -3804,14 +3845,14 @@ export default function DPDPAWidgetPage() {
 
                   {/* DigiLocker Age Verification Section - Preview Mode */}
                   {config.requireAgeVerification && (
-                    <div className="p-4 bg-emerald-50 border-t border-b border-emerald-100 -mx-5 mb-0">
+                    <div className="p-4 border-t border-b -mx-5 mb-0" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg50, borderColor: getColorVariants(config.theme.primaryColor).border200 }}>
                       <div className="flex items-start gap-3">
-                        <div className="p-2 bg-emerald-100 rounded-lg">
-                          <Shield className="h-4 w-4 text-emerald-600" />
+                        <div className="p-2 rounded-lg" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg100 }}>
+                          <Shield className="h-4 w-4" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                         </div>
                         <div className="flex-1">
-                          <p className="text-[13px] font-bold text-emerald-900 m-0 leading-tight">Age Verification Required</p>
-                          <p className="text-[11px] text-emerald-700 m-0 mt-1 leading-relaxed">
+                          <p className="text-[13px] font-bold m-0 leading-tight" style={{ color: getColorVariants(config.theme.primaryColor).text900 }}>Age Verification Required</p>
+                          <p className="text-[11px] m-0 mt-1 leading-relaxed" style={{ color: getColorVariants(config.theme.primaryColor).text700 }}>
                             To proceed, you must verify your age ({config.ageVerificationThreshold || 18}+ years) via DigiLocker using your government-issued ID.
                           </p>
                           <button
