@@ -141,15 +141,16 @@ export async function POST(request: NextRequest) {
     // Initialize API Setu service
     const apiSetuService = getApiSetuService();
 
-    // Generate session and state tokens
+    // Generate session, state tokens, and PKCE code verifier
     const sessionId = apiSetuService.generateSessionId();
     const stateToken = apiSetuService.generateStateToken();
+    const codeVerifier = apiSetuService.generateCodeVerifier();
     const expiresAt = calculateSessionExpiry(60); // 1 hour expiry
 
-    // Generate authorization URL
-    const redirectUrl = apiSetuService.generateAuthorizationUrl(stateToken);
+    // Generate authorization URL with PKCE
+    const redirectUrl = apiSetuService.generateAuthorizationUrl(stateToken, codeVerifier);
 
-    // Store session in database
+    // Store session in database (including code_verifier for callback)
     const { error: insertError } = await supabase
       .from('age_verification_sessions')
       .insert({
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
         visitor_id: visitorId,
         session_id: sessionId,
         state_token: stateToken,
+        code_verifier: codeVerifier,
         status: 'pending',
         return_url: returnUrl,
         ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',

@@ -173,9 +173,24 @@ export class ApiSetuDigiLockerService {
   }
 
   /**
-   * Generate OAuth authorization URL for DigiLocker
+   * Generate PKCE code verifier (random string for OAuth PKCE flow)
    */
-  generateAuthorizationUrl(stateToken: string): string {
+  generateCodeVerifier(): string {
+    return crypto.randomBytes(32).toString('base64url');
+  }
+
+  /**
+   * Generate PKCE code challenge from verifier (SHA-256 hash)
+   */
+  generateCodeChallenge(verifier: string): string {
+    const hash = crypto.createHash('sha256').update(verifier).digest('base64url');
+    return hash;
+  }
+
+  /**
+   * Generate OAuth authorization URL for DigiLocker with PKCE
+   */
+  generateAuthorizationUrl(stateToken: string, codeVerifier: string): string {
     // Validate redirect URI is configured
     if (!this.config.redirectUri) {
       throw new Error('APISETU_REDIRECT_URI is not configured. Cannot initiate age verification.');
@@ -194,12 +209,17 @@ export class ApiSetuDigiLockerService {
       throw new Error('APISETU_CLIENT_ID is not configured. Cannot initiate age verification.');
     }
 
+    // Generate PKCE code challenge from verifier
+    const codeChallenge = this.generateCodeChallenge(codeVerifier);
+
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
       state: stateToken,
       scope: this.config.scope,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
     });
 
     // Use OAuth base URL which points to /public/oauth2/1/authorize
@@ -210,7 +230,7 @@ export class ApiSetuDigiLockerService {
    * Exchange authorization code for access token
    * IMPORTANT: Token is NOT persisted - used once and discarded
    */
-  async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+  async exchangeCodeForToken(code: string, codeVerifier: string): Promise<TokenResponse> {
     if (this.mockMode) {
       // Mock token response
       return {
@@ -232,6 +252,7 @@ export class ApiSetuDigiLockerService {
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
         redirect_uri: this.config.redirectUri,
+        code_verifier: codeVerifier,
       }),
     });
 
@@ -310,10 +331,10 @@ export class ApiSetuDigiLockerService {
    * Complete verification flow - exchanges code, fetches attributes, calculates age
    * IMPORTANT: Access token and DOB are discarded after use
    */
-  async completeVerification(authorizationCode: string): Promise<VerificationResult> {
+  async completeVerification(authorizationCode: string, codeVerifier: string): Promise<VerificationResult> {
     try {
-      // Step 1: Exchange code for token
-      const tokenResponse = await this.exchangeCodeForToken(authorizationCode);
+      // Step 1: Exchange code for token (with PKCE code verifier)
+      const tokenResponse = await this.exchangeCodeForToken(authorizationCode, codeVerifier);
 
       // Step 2: Fetch age verification attributes
       // In production, consent artifact ID would come from token response or separate call

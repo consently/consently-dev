@@ -81,11 +81,18 @@ export async function GET(request: NextRequest) {
     const threshold = widgetConfig?.age_verification_threshold || 18;
     const minorHandling = widgetConfig?.minor_handling || 'block';
 
+    // Get PKCE code verifier from session (needed for token exchange)
+    const codeVerifier = session.code_verifier || '';
+    if (!codeVerifier && !isMock && !apiSetuService.isMockMode()) {
+      await updateSessionFailed(supabase, session.id, 'Missing PKCE code verifier');
+      return redirectWithError('internal_error', 'Session data incomplete - please try again');
+    }
+
     // Handle mock mode
     if (isMock || apiSetuService.isMockMode()) {
       // Use mock code from URL or default
       const mockCode = code || 'mock_adult_code';
-      const result = await apiSetuService.completeVerification(mockCode);
+      const result = await apiSetuService.completeVerification(mockCode, codeVerifier || 'mock_verifier');
 
       if (!result.success) {
         await updateSessionFailed(supabase, session.id, result.error || 'Verification failed');
@@ -139,8 +146,8 @@ export async function GET(request: NextRequest) {
       return redirectWithError('invalid_state', 'State token mismatch - possible CSRF attack');
     }
 
-    // Complete verification (exchange code, fetch age, discard token and DOB)
-    const result = await apiSetuService.completeVerification(code);
+    // Complete verification with PKCE (exchange code using verifier, fetch age, discard token and DOB)
+    const result = await apiSetuService.completeVerification(code, codeVerifier);
 
     if (!result.success) {
       await updateSessionFailed(supabase, session.id, result.error || 'Verification failed');
