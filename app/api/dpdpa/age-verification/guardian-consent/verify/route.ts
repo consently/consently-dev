@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
     const apiSetuService = getApiSetuService();
     const guardianSessionId = apiSetuService.generateSessionId();
     const stateToken = apiSetuService.generateStateToken();
+    const codeVerifier = apiSetuService.generateCodeVerifier();
     const expiresAt = calculateSessionExpiry(60);
 
     // Store guardian verification session
@@ -165,6 +166,7 @@ export async function POST(request: NextRequest) {
         visitor_id: `guardian_${consent.id}`,
         session_id: guardianSessionId,
         state_token: stateToken,
+        code_verifier: codeVerifier,
         status: 'pending',
         return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/verify-guardian?token=${token}&guardian_session=${guardianSessionId}`,
         ip_address: request.headers.get('x-forwarded-for') || 'unknown',
@@ -189,8 +191,8 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', consent.id);
 
-    // Generate DigiLocker redirect URL for guardian
-    const redirectUrl = apiSetuService.generateAuthorizationUrl(stateToken);
+    // Generate DigiLocker redirect URL for guardian (with PKCE)
+    const redirectUrl = apiSetuService.generateAuthorizationUrl(stateToken, codeVerifier);
 
     return NextResponse.json(
       {
