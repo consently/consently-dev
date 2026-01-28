@@ -52,8 +52,14 @@ export interface SessionInitResult {
 }
 
 export interface ApiSetuConfig {
-  baseUrl: string;
-  sandboxUrl: string;
+  // OAuth endpoints (for authorize, token exchange)
+  oauthBaseUrl: string;
+  // API endpoints (for pulling documents/data)
+  apiBaseUrl: string;
+  // Sandbox URLs
+  sandboxOauthUrl: string;
+  sandboxApiUrl: string;
+  // Credentials
   clientId: string;
   clientSecret: string;
   redirectUri: string;
@@ -109,12 +115,18 @@ export class ApiSetuDigiLockerService {
     this.mockMode = MOCK_MODE_ENABLED || !process.env.APISETU_CLIENT_ID;
 
     this.config = {
-      baseUrl: process.env.APISETU_BASE_URL || 'https://apisetu.gov.in/certificate/v3',
-      sandboxUrl: process.env.APISETU_SANDBOX_URL || 'https://apisetu.gov.in/certificate/v3/sandbox',
+      // OAuth endpoints - CRITICAL: Must use /public/oauth2/1/ path for DigiLocker OAuth
+      oauthBaseUrl: process.env.DIGILOCKER_OAUTH_BASE_URL || 'https://api.digitallocker.gov.in/public/oauth2/1',
+      // API endpoints for document/data pull
+      apiBaseUrl: process.env.APISETU_BASE_URL || 'https://api.digitallocker.gov.in/public/oauth2/1',
+      // Sandbox URLs
+      sandboxOauthUrl: process.env.DIGILOCKER_SANDBOX_OAUTH_URL || 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
+      sandboxApiUrl: process.env.APISETU_SANDBOX_URL || 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
+      // Credentials
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'DL:AgeProof',
+      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'openid',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
     };
 
@@ -124,10 +136,19 @@ export class ApiSetuDigiLockerService {
   }
 
   /**
-   * Get the effective base URL based on sandbox setting
+   * Get the effective OAuth base URL based on sandbox setting
+   * Used for: /authorize, /token endpoints
    */
-  private getBaseUrl(): string {
-    return this.config.useSandbox ? this.config.sandboxUrl : this.config.baseUrl;
+  private getOAuthBaseUrl(): string {
+    return this.config.useSandbox ? this.config.sandboxOauthUrl : this.config.oauthBaseUrl;
+  }
+
+  /**
+   * Get the effective API base URL based on sandbox setting
+   * Used for: /user, /files, document pull endpoints
+   */
+  private getApiBaseUrl(): string {
+    return this.config.useSandbox ? this.config.sandboxApiUrl : this.config.apiBaseUrl;
   }
 
   /**
@@ -181,7 +202,8 @@ export class ApiSetuDigiLockerService {
       scope: this.config.scope,
     });
 
-    return `${this.getBaseUrl()}/authorize?${params.toString()}`;
+    // Use OAuth base URL which points to /public/oauth2/1/authorize
+    return `${this.getOAuthBaseUrl()}/authorize?${params.toString()}`;
   }
 
   /**
@@ -198,7 +220,8 @@ export class ApiSetuDigiLockerService {
       };
     }
 
-    const response = await fetch(`${this.getBaseUrl()}/token`, {
+    // Use OAuth base URL for token exchange
+    const response = await fetch(`${this.getOAuthBaseUrl()}/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -248,10 +271,10 @@ export class ApiSetuDigiLockerService {
       };
     }
 
-    const response = await fetch(`${this.getBaseUrl()}/pull/${consentArtifactId}`, {
+    // Use API base URL for data pull (user endpoint)
+    const response = await fetch(`${this.getApiBaseUrl()}/user`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'X-Consent-Artifact': consentArtifactId,
       },
     });
 
