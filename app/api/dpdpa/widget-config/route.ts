@@ -278,8 +278,8 @@ export async function POST(request: NextRequest) {
       is_active: configData.isActive ?? true,
       supported_languages: configData.supportedLanguages || ['en', 'hi', 'pa', 'te', 'ta'],
       display_rules: configData.displayRules || [],
-      // Age Gate Settings (LEGACY)
-      enable_age_gate: configData.enableAgeGate ?? false,
+      // Age Gate Settings (LEGACY) - Auto-disabled when DigiLocker is enabled
+      enable_age_gate: configData.requireAgeVerification ? false : (configData.enableAgeGate ?? false),
       age_gate_threshold: configData.ageGateThreshold ?? 18,
       age_gate_minor_message: configData.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.',
       // DigiLocker Age Verification (DPDPA 2023)
@@ -464,6 +464,13 @@ export async function PUT(request: NextRequest) {
     if (configData.minorHandling !== undefined) updatePayload.minor_handling = configData.minorHandling;
     if (configData.minorGuardianMessage !== undefined) updatePayload.minor_guardian_message = configData.minorGuardianMessage;
     if (configData.verificationValidityDays !== undefined) updatePayload.verification_validity_days = configData.verificationValidityDays;
+
+    // Auto-disable legacy age gate when DigiLocker verification is enabled
+    // This prevents confusion from having both methods active
+    if (configData.requireAgeVerification === true) {
+      updatePayload.enable_age_gate = false;
+      console.log('[Widget Config API] DigiLocker enabled - auto-disabling legacy age gate');
+    }
 
     // Smart Pre-fill
     if (configData.enableSmartPreFill !== undefined) updatePayload.enable_smart_pre_fill = configData.enableSmartPreFill;

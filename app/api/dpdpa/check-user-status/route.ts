@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 const requestSchema = z.object({
   emailHash: z.string().length(64), // SHA-256 hex string
-  widgetId: z.string().uuid(),
+  widgetId: z.string().min(10).max(50).regex(/^dpdpa_[a-z0-9_]+$/, 'Invalid widget ID format'),
 });
 
 export async function POST(request: NextRequest) {

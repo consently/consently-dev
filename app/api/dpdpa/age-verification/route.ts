@@ -89,6 +89,27 @@ export async function POST(request: NextRequest) {
 
     const { widgetId, visitorId, returnUrl } = validation.data;
 
+    // Validate required environment variables for DigiLocker integration
+    const isMockMode = process.env.APISETU_USE_MOCK === 'true';
+    if (!isMockMode) {
+      const requiredEnvVars = [
+        'APISETU_CLIENT_ID',
+        'APISETU_CLIENT_SECRET',
+        'APISETU_REDIRECT_URI',
+      ];
+      const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+      if (missingVars.length > 0) {
+        console.error('[Age Verification] Missing required environment variables:', missingVars);
+        return NextResponse.json(
+          {
+            error: 'Age verification service is not configured. Please contact support.',
+            code: 'SERVICE_NOT_CONFIGURED',
+          },
+          { status: 503, headers: { 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+    }
+
     // Create Supabase client
     const supabase = createPublicClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

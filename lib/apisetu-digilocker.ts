@@ -155,12 +155,22 @@ export class ApiSetuDigiLockerService {
    * Generate OAuth authorization URL for DigiLocker
    */
   generateAuthorizationUrl(stateToken: string): string {
+    // Validate redirect URI is configured
+    if (!this.config.redirectUri) {
+      throw new Error('APISETU_REDIRECT_URI is not configured. Cannot initiate age verification.');
+    }
+
     if (this.mockMode) {
       // In mock mode, redirect to our own mock endpoint
       const mockUrl = new URL(this.config.redirectUri);
       mockUrl.searchParams.set('mock', 'true');
       mockUrl.searchParams.set('state', stateToken);
       return mockUrl.toString();
+    }
+
+    // Validate client ID is configured for production
+    if (!this.config.clientId) {
+      throw new Error('APISETU_CLIENT_ID is not configured. Cannot initiate age verification.');
     }
 
     const params = new URLSearchParams({
