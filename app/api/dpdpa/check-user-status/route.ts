@@ -14,7 +14,8 @@ import { z } from 'zod';
  */
 
 const requestSchema = z.object({
-  emailHash: z.string().length(64), // SHA-256 hex string
+  // Accept both 32-char (truncated legacy) and 64-char (full SHA-256) hashes for compatibility
+  emailHash: z.string().min(32).max(64).regex(/^[a-f0-9]+$/, 'Invalid email hash format'),
   widgetId: z.string().min(10).max(50).regex(/^dpdpa_[a-z0-9_]+$/, 'Invalid widget ID format'),
 });
 

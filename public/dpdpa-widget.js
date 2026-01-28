@@ -688,7 +688,7 @@
   }
 
   // Consistent hash function - uses same algorithm for both async and sync
-  // Returns 32-character hex string for consistency
+  // Returns 64-character hex string (full SHA-256 length)
   function hashStringSync(str) {
     if (!str) return null;
 
@@ -696,21 +696,26 @@
     const normalized = str.toLowerCase().trim();
 
     // Use a consistent hash algorithm that produces same result every time
-    // This is a modified djb2 hash that produces 32-character hex output
+    // This is a modified djb2 hash that produces 64-character hex output
     let hash1 = 5381;
     let hash2 = 0;
+    let hash3 = 52711;
+    let hash4 = 0;
 
     for (let i = 0; i < normalized.length; i++) {
       const char = normalized.charCodeAt(i);
       hash1 = ((hash1 << 5) + hash1) + char;
       hash2 = ((hash2 << 5) + hash2) + (char * 31);
+      hash3 = ((hash3 << 5) + hash3) ^ char;
+      hash4 = ((hash4 << 5) + hash4) + (char * 17);
     }
 
-    // Combine both hashes and convert to 32-character hex string
-    const combined = Math.abs(hash1) + Math.abs(hash2);
-    const hex = combined.toString(16).padStart(16, '0');
-    // Repeat pattern to get 32 chars for consistency with SHA-256 length
-    return (hex + hex).substring(0, 32);
+    // Combine hashes and convert to 64-character hex string
+    const hex1 = Math.abs(hash1).toString(16).padStart(16, '0');
+    const hex2 = Math.abs(hash2).toString(16).padStart(16, '0');
+    const hex3 = Math.abs(hash3).toString(16).padStart(16, '0');
+    const hex4 = Math.abs(hash4).toString(16).padStart(16, '0');
+    return (hex1 + hex2 + hex3 + hex4).substring(0, 64);
   }
 
   // Async version that uses Web Crypto API if available, otherwise uses sync version
@@ -727,7 +732,8 @@
         const data = encoder.encode(normalized);
         const hashBuffer = await crypto.subtle.digest('SHA-256', data);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+        // Return full 64-character SHA-256 hex string
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       } catch (e) {
         // Fallback to sync hash if crypto fails
         console.warn('[Consently DPDPA] Web Crypto API failed, using fallback hash:', e);
@@ -1497,10 +1503,13 @@
     // SECURITY: If a rule matches a specific URL pattern, it MUST specify activities
     // Otherwise, we won't show the widget to prevent accidentally showing all activities
     const currentPath = window.location.pathname || '/';
+    const currentHref = window.location.href || currentPath;
     if (rule.url_pattern && rule.url_pattern !== '*' && rule.url_pattern !== '/*') {
       if (!rule.activities || !Array.isArray(rule.activities) || rule.activities.length === 0) {
         console.error('[Consently DPDPA] ❌ Display rule matched for:', currentPath);
-        console.error('[Consently DPDPA] ❌ Rule:', rule.rule_name, 'matches URL pattern:', rule.url_pattern);
+        console.error('[Consently DPDPA] ❌ Full URL:', currentHref);
+        console.error('[Consently DPDPA] ❌ Rule:', rule.rule_name);
+        console.error('[Consently DPDPA] ❌ URL pattern:', rule.url_pattern, '| Match type:', rule.url_match_type || 'contains');
         console.error('[Consently DPDPA] ❌ BUT rule does not specify which activities to show!');
         console.error('[Consently DPDPA] ❌ Widget will NOT be shown to prevent showing all activities');
         console.error('[Consently DPDPA] ❌ To fix: Add "activities" array to the display rule with only the activities you want to show');
