@@ -895,44 +895,46 @@ class ConsentlySDK private constructor(private val context: Context) {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* API Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3">
           <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-purple-200">
-            <div className="bg-purple-100 p-2 rounded">
-              <Server className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 text-sm">REST API</h4>
-              <p className="text-xs text-gray-600">Simple HTTP endpoints</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-purple-200">
-            <div className="bg-purple-100 p-2 rounded">
-              <Shield className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 text-sm">CORS Enabled</h4>
-              <p className="text-xs text-gray-600">Works from any origin</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-purple-200">
-            <div className="bg-purple-100 p-2 rounded">
+            <div className="bg-purple-100 p-2 rounded flex-shrink-0">
               <Code className="h-5 w-5 text-purple-600" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <h4 className="font-medium text-gray-900 text-sm">Widget ID</h4>
-              <p className="text-xs text-gray-600 font-mono truncate">{widgetId}</p>
+              <p className="text-xs text-gray-600 font-mono break-all">{widgetId}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-start gap-2 p-3 bg-white rounded-lg border border-purple-200">
+              <div className="bg-purple-100 p-1.5 rounded flex-shrink-0">
+                <Server className="h-4 w-4 text-purple-600" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-medium text-gray-900 text-xs">REST API</h4>
+                <p className="text-xs text-gray-500">HTTP endpoints</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 p-3 bg-white rounded-lg border border-purple-200">
+              <div className="bg-purple-100 p-1.5 rounded flex-shrink-0">
+                <Shield className="h-4 w-4 text-purple-600" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-medium text-gray-900 text-xs">CORS Enabled</h4>
+                <p className="text-xs text-gray-500">Any origin</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Platform Tabs */}
         <Tabs defaultValue="react-native" className="w-full">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 w-full">
-            <TabsTrigger value="react-native">React Native</TabsTrigger>
-            <TabsTrigger value="flutter">Flutter</TabsTrigger>
-            <TabsTrigger value="ios">iOS Swift</TabsTrigger>
-            <TabsTrigger value="android">Android</TabsTrigger>
-            <TabsTrigger value="api">API Docs</TabsTrigger>
+          <TabsList className="flex flex-wrap gap-1 w-full h-auto p-1">
+            <TabsTrigger value="react-native" className="flex-1 min-w-fit text-xs px-2 py-1.5">React Native</TabsTrigger>
+            <TabsTrigger value="flutter" className="flex-1 min-w-fit text-xs px-2 py-1.5">Flutter</TabsTrigger>
+            <TabsTrigger value="ios" className="flex-1 min-w-fit text-xs px-2 py-1.5">iOS Swift</TabsTrigger>
+            <TabsTrigger value="android" className="flex-1 min-w-fit text-xs px-2 py-1.5">Android</TabsTrigger>
+            <TabsTrigger value="api" className="flex-1 min-w-fit text-xs px-2 py-1.5">API Docs</TabsTrigger>
           </TabsList>
 
           {/* SDK Tabs - Data-driven approach */}

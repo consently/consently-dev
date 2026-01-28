@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { displayRulesSchema } from '@/types/dpdpa-widget.types';
 import { logSuccess, logFailure } from '@/lib/audit';
 import { checkRateLimit, getUserIdentifier } from '@/lib/rate-limit';
+import { cache } from '@/lib/cache';
 
 // Validation schema
 // UUID validation regex
@@ -333,6 +334,10 @@ export async function POST(request: NextRequest) {
       request
     );
 
+    // Invalidate any existing cache for this widget ID (in case of recreation)
+    const cacheKey = `dpdpa-widget-config:${widgetId}`;
+    await cache.del(cacheKey);
+
     return NextResponse.json({ data, widgetId }, { status: 201 });
   } catch (error) {
     console.error('Unexpected error:', error);
@@ -589,6 +594,11 @@ export async function PUT(request: NextRequest) {
       selectedActivitiesCount: data.selected_activities?.length || 0,
       selectedActivities: data.selected_activities
     });
+
+    // Invalidate the public widget config cache so users see updated settings immediately
+    const cacheKey = `dpdpa-widget-config:${data.widget_id}`;
+    await cache.del(cacheKey);
+    console.log('[Widget Config API] Cache invalidated for widget:', data.widget_id);
 
     return NextResponse.json({ data });
   } catch (error) {
