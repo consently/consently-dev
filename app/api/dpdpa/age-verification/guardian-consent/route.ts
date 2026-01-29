@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import { getApiSetuService, calculateSessionExpiry } from '@/lib/apisetu-digilocker';
 import { logSuccess, logFailure } from '@/lib/audit';
+import { sendGuardianConsentEmail } from '@/lib/resend-email';
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -189,10 +190,19 @@ export async function POST(request: NextRequest) {
     // Generate verification link for guardian
     const verificationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-guardian?token=${requestToken}`;
 
-    // TODO: Send email to guardian (integrate with email service)
-    // For now, log and return the link
-    console.log('[Guardian Consent] Verification link generated:', verificationLink);
-    console.log('[Guardian Consent] Send email to:', guardianEmail);
+    // Send guardian consent email
+    const emailResult = await sendGuardianConsentEmail(guardianEmail, {
+      verificationLink,
+      minorAge: session.verified_age ?? 0,
+      domain: session.dpdpa_widget_configs?.domain || 'Unknown',
+      relationship,
+      expiresAt: expiresAt.toISOString(),
+    });
+
+    if (!emailResult.success) {
+      console.error('[Guardian Consent] Failed to send email:', emailResult.error);
+      // Continue even if email fails - the record is created and link is available
+    }
 
     // Log success
     await logSuccess(

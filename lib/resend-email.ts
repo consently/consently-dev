@@ -484,6 +484,189 @@ export function checkResendConfig(): {
 
 
 /**
+ * Send Guardian Consent Request email
+ * Sent to a parent/guardian when a minor requires parental consent under DPDPA 2023
+ */
+export async function sendGuardianConsentEmail(
+  guardianEmail: string,
+  options: {
+    verificationLink: string;
+    minorAge: number;
+    domain: string;
+    relationship: string;
+    expiresAt: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  const { verificationLink, minorAge, domain, relationship, expiresAt } = options;
+  const expiryDate = new Date(expiresAt).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const subject = 'Guardian Consent Required - Consently';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <title>Guardian Consent Required</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .email-container { width: 100% !important; padding: 16px !important; }
+      .content-padding { padding: 24px 20px !important; }
+      .header-padding { padding: 28px 20px !important; }
+      .cta-button { padding: 14px 24px !important; font-size: 15px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f0f4f8; -webkit-font-smoothing: antialiased;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f4f8; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table class="email-container" width="520" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 20px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08); overflow: hidden; max-width: 520px;">
+
+          <!-- Header -->
+          <tr>
+            <td class="header-padding" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 36px 32px; text-align: center;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <div style="width: 56px; height: 56px; background: rgba(255,255,255,0.2); border-radius: 16px; margin: 0 auto 16px; display: inline-block; line-height: 56px;">
+                      <span style="font-size: 28px;">&#x1F6E1;&#xFE0F;</span>
+                    </div>
+                    <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">
+                      Guardian Consent Required
+                    </h1>
+                    <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
+                      Under the Digital Personal Data Protection Act, 2023
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td class="content-padding" style="padding: 32px;">
+              <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.7; color: #475569;">
+                A minor (age <strong style="color: #1e293b;">${minorAge}</strong>) has requested consent for data processing on
+                <strong style="color: #1e293b;">${domain}</strong>. As their <strong style="color: #1e293b;">${relationship}</strong>,
+                your verification and approval is required under the DPDPA 2023.
+              </p>
+
+              <!-- Info Box -->
+              <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: 12px; padding: 20px; margin: 24px 0;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #1e40af; font-weight: 600;">
+                  What you need to do:
+                </p>
+                <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8; color: #1e3a8a;">
+                  <li>Click the button below to open the verification page</li>
+                  <li>Verify your identity using DigiLocker (government-backed)</li>
+                  <li>Review and approve or reject the consent request</li>
+                </ol>
+              </div>
+
+              <!-- CTA Button -->
+              <table cellpadding="0" cellspacing="0" width="100%" style="margin: 28px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${verificationLink}" class="cta-button" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 700; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                      Review &amp; Verify
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Security Notice -->
+              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%); border-radius: 12px; padding: 16px; margin-top: 20px;">
+                <table cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td width="32" valign="top">
+                      <span style="font-size: 18px;">&#x1F512;</span>
+                    </td>
+                    <td style="padding-left: 8px;">
+                      <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #92400e;">
+                        <strong>Privacy &amp; Security:</strong> Only your age will be verified via DigiLocker.
+                        Your date of birth and other personal details will not be stored.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <p style="margin: 24px 0 0 0; font-size: 13px; line-height: 1.6; color: #94a3b8;">
+                This link expires on <strong style="color: #64748b;">${expiryDate}</strong>.
+                If you did not expect this request, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 24px 32px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b;">
+                Sent by <strong style="color: #3b82f6;">Consently</strong>
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                Protecting your privacy under DPDPA 2023
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Copyright -->
+        <table width="520" cellpadding="0" cellspacing="0" style="margin-top: 16px; max-width: 520px;">
+          <tr>
+            <td style="text-align: center; padding: 8px;">
+              <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                &copy; ${new Date().getFullYear()} Consently &bull; <a href="https://consently.in" style="color: #64748b; text-decoration: none;">consently.in</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const text = `
+Guardian Consent Required - Consently
+
+A minor (age ${minorAge}) has requested consent for data processing on ${domain}. As their ${relationship}, your verification and approval is required under the DPDPA 2023.
+
+What you need to do:
+1. Click the link below to open the verification page
+2. Verify your identity using DigiLocker (government-backed)
+3. Review and approve or reject the consent request
+
+Verify here: ${verificationLink}
+
+Privacy & Security: Only your age will be verified via DigiLocker. Your date of birth and other personal details will not be stored.
+
+This link expires on ${expiryDate}. If you did not expect this request, you can safely ignore this email.
+
+---
+(c) ${new Date().getFullYear()} Consently | consently.in
+Protected under DPDPA 2023
+  `.trim();
+
+  return sendEmail({
+    to: guardianEmail,
+    subject,
+    html,
+    text,
+  });
+}
+
+/**
  * Send Admin Action OTP email
  */
 export async function sendAdminOTPEmail(
