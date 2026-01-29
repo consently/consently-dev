@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = calculateSessionExpiry(60);
 
     // Store guardian verification session
-    const { error: insertError } = await supabase
+    const { data: guardianSessionRow, error: insertError } = await supabase
       .from('age_verification_sessions')
       .insert({
         widget_id: consent.age_verification_sessions?.widget_id,
@@ -172,9 +172,11 @@ export async function POST(request: NextRequest) {
         ip_address: request.headers.get('x-forwarded-for') || 'unknown',
         user_agent: request.headers.get('user-agent') || null,
         expires_at: expiresAt.toISOString(),
-      });
+      })
+      .select('id')
+      .single();
 
-    if (insertError) {
+    if (insertError || !guardianSessionRow) {
       console.error('[Guardian Verify] Failed to create guardian session:', insertError);
       return NextResponse.json(
         { error: 'Failed to create guardian verification session' },
@@ -182,11 +184,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update consent record with guardian session reference
+    // Update consent record with guardian session UUID reference
     await supabase
       .from('guardian_consent_records')
       .update({
-        guardian_verification_session_id: guardianSessionId,
+        guardian_verification_session_id: guardianSessionRow.id,
         updated_at: new Date().toISOString(),
       })
       .eq('id', consent.id);

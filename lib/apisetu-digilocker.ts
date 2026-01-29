@@ -75,6 +75,11 @@ export interface ApiSetuConfig {
   redirectUri: string;
   scope: string;
   useSandbox: boolean;
+  // MeriPehchaan/NSSO parameters
+  dlFlow: string;
+  acr: string;
+  amr: string;
+  pla: string;
 }
 
 // ============================================================================
@@ -126,9 +131,9 @@ export class ApiSetuDigiLockerService {
 
     this.config = {
       // OAuth endpoints - CRITICAL: Must use /public/oauth2/1/ path for DigiLocker OAuth
-      oauthBaseUrl: process.env.DIGILOCKER_OAUTH_BASE_URL || 'https://api.digitallocker.gov.in/public/oauth2/1',
+      oauthBaseUrl: process.env.DIGILOCKER_OAUTH_BASE_URL || 'https://digilocker.meripehchaan.gov.in/public/oauth2/1',
       // API endpoints for document/data pull
-      apiBaseUrl: process.env.APISETU_BASE_URL || 'https://api.digitallocker.gov.in/public/oauth2/1',
+      apiBaseUrl: process.env.APISETU_BASE_URL || 'https://digilocker.meripehchaan.gov.in/public/oauth2/1',
       // Sandbox URLs
       sandboxOauthUrl: process.env.DIGILOCKER_SANDBOX_OAUTH_URL || 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
       sandboxApiUrl: process.env.APISETU_SANDBOX_URL || 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
@@ -138,6 +143,11 @@ export class ApiSetuDigiLockerService {
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
       scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'avs',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
+      // MeriPehchaan/NSSO parameters
+      dlFlow: process.env.DIGILOCKER_DL_FLOW || 'signin',
+      acr: process.env.DIGILOCKER_ACR || 'opus_er_alias+mobile+user_alias+email+aadhaar+pan+driving_licence',
+      amr: process.env.DIGILOCKER_AMR || 'all',
+      pla: process.env.DIGILOCKER_PLA || 'Y',
     };
 
     if (this.mockMode) {
@@ -225,16 +235,20 @@ export class ApiSetuDigiLockerService {
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.config.clientId,
-      redirect_uri: this.config.redirectUri,
       state: stateToken,
-      scope: this.config.scope,
+      redirect_uri: this.config.redirectUri,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
-      flow: 'Aadhaar', // Required by MeriPehchaan/DigiLocker
+      dl_flow: this.config.dlFlow,
+      amr: this.config.amr,
+      scope: this.config.scope,
+      pla: this.config.pla,
     });
 
-    // Use OAuth base URL which points to /public/oauth2/1/authorize
-    return `${this.getOAuthBaseUrl()}/authorize?${params.toString()}`;
+    // Append acr separately to preserve literal + signs (URLSearchParams encodes + as %2B)
+    // MeriPehchaan/NSSO expects literal + as separators in acr values
+    const acr = this.config.acr;
+    return `${this.getOAuthBaseUrl()}/authorize?${params.toString()}&acr=${acr}`;
   }
 
   /**

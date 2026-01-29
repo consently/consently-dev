@@ -138,6 +138,9 @@ export async function GET(request: NextRequest) {
         guardian_consent_status: needsGuardianConsent ? 'pending' : 'not_required',
       });
 
+      // Update guardian consent record if this is a guardian verification
+      await updateGuardianConsentIfApplicable(supabase, session, result.age!);
+
       await logSuccess(
         widgetConfig?.user_id || '',
         'age_verification.completed',
@@ -193,6 +196,9 @@ export async function GET(request: NextRequest) {
       requires_guardian_consent: needsGuardianConsent,
       guardian_consent_status: needsGuardianConsent ? 'pending' : 'not_required',
     });
+
+    // Update guardian consent record if this is a guardian verification
+    await updateGuardianConsentIfApplicable(supabase, session, result.age!);
 
     // Log success
     await logSuccess(
@@ -271,6 +277,43 @@ async function updateSessionVerified(
       ...data,
     })
     .eq('id', sessionId);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function updateGuardianConsentIfApplicable(
+  supabase: any,
+  session: { id: string; visitor_id: string },
+  verifiedAge: number
+) {
+  // Check if this is a guardian verification session
+  if (!session.visitor_id || !session.visitor_id.startsWith('guardian_')) {
+    return;
+  }
+
+  const consentRecordId = session.visitor_id.replace('guardian_', '');
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(consentRecordId)) {
+    console.warn('[Age Verification Callback] Invalid guardian consent record ID:', consentRecordId);
+    return;
+  }
+
+  // Update guardian consent record with verified age and session UUID
+  const { error } = await supabase
+    .from('guardian_consent_records')
+    .update({
+      guardian_verified_age: verifiedAge,
+      guardian_verification_session_id: session.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', consentRecordId);
+
+  if (error) {
+    console.error('[Age Verification Callback] Failed to update guardian consent:', error);
+  } else {
+    console.log('[Age Verification Callback] Updated guardian consent record:', consentRecordId, 'age:', verifiedAge);
+  }
 }
 
 function redirectWithError(errorCode: string, errorMessage: string): NextResponse {

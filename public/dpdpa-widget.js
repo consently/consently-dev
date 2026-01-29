@@ -415,6 +415,110 @@
     }
   }
 
+  // Save widget state to sessionStorage before DigiLocker redirect
+  function saveWidgetState() {
+    try {
+      const stateKey = `consently_widget_state_${widgetId}`;
+      const state = {
+        activityConsents: activityConsents,
+        userEmail: userEmail,
+        verifiedEmail: verifiedEmail,
+        consentID: consentID,
+        savedAt: Date.now()
+      };
+      sessionStorage.setItem(stateKey, JSON.stringify(state));
+      console.log('[Consently DPDPA] Widget state saved before redirect');
+    } catch (e) {
+      console.error('[Consently DPDPA] Error saving widget state:', e);
+    }
+  }
+
+  // Restore widget state from sessionStorage after returning from DigiLocker
+  function restoreWidgetState() {
+    try {
+      const stateKey = `consently_widget_state_${widgetId}`;
+      const stored = sessionStorage.getItem(stateKey);
+      if (!stored) return null;
+
+      // Remove from sessionStorage to prevent stale state on next load
+      sessionStorage.removeItem(stateKey);
+
+      const state = JSON.parse(stored);
+
+      // Check TTL (30 minutes max)
+      if (Date.now() - state.savedAt > 30 * 60 * 1000) {
+        console.log('[Consently DPDPA] Saved widget state expired, discarding');
+        return null;
+      }
+
+      // Restore module-level state variables
+      if (state.activityConsents && Object.keys(state.activityConsents).length > 0) {
+        activityConsents = state.activityConsents;
+      }
+      if (state.userEmail) userEmail = state.userEmail;
+      if (state.verifiedEmail) verifiedEmail = state.verifiedEmail;
+      if (state.consentID) consentID = state.consentID;
+
+      console.log('[Consently DPDPA] Widget state restored after redirect');
+      return state;
+    } catch (e) {
+      console.error('[Consently DPDPA] Error restoring widget state:', e);
+      return null;
+    }
+  }
+
+  // Re-apply restored state to the widget DOM elements
+  function applyRestoredStateToDom(widget) {
+    try {
+      // Re-apply checkbox states for consent activities
+      if (Object.keys(activityConsents).length > 0) {
+        const checkboxes = widget.querySelectorAll('.activity-checkbox');
+        checkboxes.forEach(function(checkbox) {
+          const activityId = checkbox.getAttribute('data-activity-id');
+          if (activityConsents[activityId]) {
+            const isAccepted = activityConsents[activityId].status === 'accepted';
+            if (checkbox.checked !== isAccepted) {
+              checkbox.checked = isAccepted;
+              // Apply visual styles without triggering change event
+              const item = checkbox.closest('.dpdpa-activity-item');
+              const checkboxVisual = checkbox.parentElement ? checkbox.parentElement.querySelector('.checkbox-visual') : null;
+              const checkmark = checkboxVisual ? checkboxVisual.querySelector('svg') : null;
+
+              if (isAccepted && item) {
+                item.style.borderColor = primaryColor;
+                item.style.borderWidth = '2px';
+                item.style.background = '#f0f9ff';
+                item.style.boxShadow = '0 4px 12px rgba(59,130,246,0.25)';
+                item.style.borderLeftWidth = '4px';
+                if (checkboxVisual) {
+                  checkboxVisual.style.background = primaryColor;
+                  checkboxVisual.style.borderColor = primaryColor;
+                }
+                if (checkmark) {
+                  checkmark.style.opacity = '1';
+                  checkmark.style.transform = 'scale(1)';
+                }
+              }
+            }
+          }
+        });
+        console.log('[Consently DPDPA] Restored checkbox states from saved state');
+      }
+
+      // Pre-fill email if restored
+      if (userEmail) {
+        var emailInputs = widget.querySelectorAll('input[type="email"]');
+        emailInputs.forEach(function(input) {
+          if (!input.value) {
+            input.value = userEmail;
+          }
+        });
+      }
+    } catch (e) {
+      console.error('[Consently DPDPA] Error applying restored state to DOM:', e);
+    }
+  }
+
   // Initiate DigiLocker age verification
   async function initiateAgeVerification(returnUrl) {
     try {
@@ -449,6 +553,9 @@
         // In mock mode, open in same window for testing
         console.log('[Consently DPDPA] Mock mode - redirecting to:', data.redirectUrl);
       }
+
+      // Save widget state before redirect so it can be restored on return
+      saveWidgetState();
 
       // Redirect to DigiLocker
       window.location.href = data.redirectUrl;
@@ -3035,6 +3142,8 @@ ${activitySections}
         const callbackResult = await handleAgeVerificationCallback();
         if (callbackResult) {
           console.log('[Consently DPDPA] Age verification callback processed:', callbackResult.status);
+          // Restore widget state saved before DigiLocker redirect
+          restoreWidgetState();
         }
       }
     }
@@ -4377,7 +4486,7 @@ ${activitySections}
       });
 
       // Check existing verification status on load
-      if (checkExistingAgeVerification()) {
+      if (checkExistingAgeVerification() || ageVerificationStatus) {
         // Get translations from config language for UI update
         getTranslation(config && config.language ? config.language : 'en').then(translations => {
           updateDigiLockerUI(widget, translations);
@@ -4517,6 +4626,9 @@ ${activitySections}
         }
       });
     });
+
+    // Restore saved widget state to DOM after returning from DigiLocker redirect
+    applyRestoredStateToDom(widget);
 
     // Confirm & Submit Button
     const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
