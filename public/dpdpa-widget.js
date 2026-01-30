@@ -3734,7 +3734,9 @@ ${activitySections}
             </div>
             <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: ${textColor};">Verification Required</h3>
             <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
-                Please verify your email below to view and manage your consent preferences.
+                ${config.requireAgeVerification
+                  ? 'Please verify your age below to view and manage your consent preferences.'
+                  : 'Please verify your email below to view and manage your consent preferences.'}
             </p>
         </div>
 
@@ -3847,6 +3849,85 @@ ${activitySections}
         
       </div>
 
+      <!--
+        AGE VERIFICATION IMPLEMENTATIONS:
+
+        There are TWO age verification implementations available:
+
+        1. DIGILOCKER AGE VERIFICATION (Recommended - DPDPA 2023 Compliant)
+           - Controlled by: config.requireAgeVerification
+           - Type: Government-backed OAuth flow via DigiLocker (API Setu)
+           - Process: Users verify age using government-issued ID documents (Aadhaar, PAN, etc.)
+           - Verification: Server-side cryptographic verification of government-issued documents
+           - Privacy: Only verified age is stored, date of birth is immediately discarded
+           - Guardian Consent: Supports guardian consent workflow for minors
+           - Compliance: Meets DPDPA 2023 "verifiable parental consent" requirements
+           - Status: Active and recommended for production use
+
+        2. LEGACY AGE GATE (Deprecated - Client-side only)
+           - Controlled by: config.enableAgeGate
+           - Type: Simple checkbox + year dropdown (client-side self-attestation)
+           - Process: User checks a box and selects birth year
+           - Verification: No verification - relies on user honesty
+           - Compliance: Not suitable for DPDPA 2023 compliance
+           - Status: Deprecated, maintained for backward compatibility only
+
+        PRIORITY ORDER:
+        - If config.requireAgeVerification is true, ONLY DigiLocker section is shown
+        - If config.requireAgeVerification is false AND config.enableAgeGate is true, legacy section is shown
+        - If both are false, no age verification is shown
+        - If both are true, only DigiLocker is used (legacy is ignored)
+
+        UI ORDER (when age verification is required):
+        - DigiLocker section is shown FIRST (above email) — it is mandatory
+        - Email section is shown SECOND — it is optional
+        - This matches the legal requirement: age must be established before consent is requested
+      -->
+
+      <!-- DigiLocker Age Verification Section (MUST appear before email when required) -->
+      ${config.requireAgeVerification ? `
+        <div id="dpdpa-digilocker-section" style="padding: 16px 24px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-top: 1px solid #a7f3d0; border-bottom: 1px solid #a7f3d0;">
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="padding: 8px; background: #10b981; border-radius: 10px; flex-shrink: 0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span style="font-size: 14px; color: #065f46; font-weight: 700;">${t.digilockerVerification}</span>
+                <span style="font-size: 10px; font-weight: 700; color: #dc2626; background: #fef2f2; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #fecaca;">Required</span>
+              </div>
+              <span style="font-size: 13px; color: #047857; line-height: 1.5; display: block; margin-bottom: 4px;">
+                ${t.digilockerDescription} (${config.ageVerificationThreshold || 18}+ years)
+              </span>
+              <span style="font-size: 11px; color: #6b7280; line-height: 1.4; display: block; margin-bottom: 12px;">
+                Age verification is required before consent can be recorded. No personal data is stored.
+              </span>
+              <div id="dpdpa-digilocker-status" style="margin-bottom: 12px;"></div>
+              <button id="dpdpa-digilocker-verify-btn" type="button" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px ${primaryColor}40;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                ${t.verifyWithDigilocker}
+              </button>
+              <!-- Guardian Consent Section (hidden by default) -->
+              <div id="dpdpa-guardian-section" style="display: none; margin-top: 16px; padding: 16px; background: #fffbeb; border-radius: 8px; border: 1px solid #fef3c7;">
+                <label style="display: block; font-size: 13px; color: #92400e; font-weight: 600; margin-bottom: 8px;">${t.guardianEmail}</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <input type="email" id="dpdpa-guardian-email" placeholder="${t.guardianEmailPlaceholder}" style="flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;" />
+                  <button id="dpdpa-guardian-send-btn" type="button" style="padding: 10px 16px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                    ${t.sendConsentRequest}
+                  </button>
+                </div>
+                <div id="dpdpa-guardian-status" style="margin-top: 8px; font-size: 12px; color: #6b7280;"></div>
+              </div>
+            </div>
+          </div>
+          <div id="dpdpa-digilocker-error" style="color: #dc2626; margin-top: 8px; font-size: 12px; display: none; font-weight: 600;"></div>
+        </div>
+      ` : ''}
+
       <!-- Secure This Consent Section -->
       <div class="dpdpa-secure-section" style="padding: 24px; background: linear-gradient(to right, #f8fafc, #f1f5f9); border-top: 1px solid rgba(0,0,0,0.05); border-bottom: 1px solid rgba(0,0,0,0.05);">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -3859,6 +3940,9 @@ ${activitySections}
           <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: ${textColor};">
             Secure This Consent
           </h3>
+          ${config.requireAgeVerification ? `
+            <span style="font-size: 10px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Optional</span>
+          ` : ''}
         </div>
         <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
           ${userStatus === 'verified'
@@ -3898,79 +3982,6 @@ ${activitySections}
           </p>
         </div>
       </div>
-
-      <!--
-        AGE VERIFICATION IMPLEMENTATIONS:
-
-        There are TWO age verification implementations available:
-
-        1. DIGILOCKER AGE VERIFICATION (Recommended - DPDPA 2023 Compliant)
-           - Controlled by: config.requireAgeVerification
-           - Type: Government-backed OAuth flow via DigiLocker (API Setu)
-           - Process: Users verify age using government-issued ID documents (Aadhaar, PAN, etc.)
-           - Verification: Server-side cryptographic verification of government-issued documents
-           - Privacy: Only verified age is stored, date of birth is immediately discarded
-           - Guardian Consent: Supports guardian consent workflow for minors
-           - Compliance: Meets DPDPA 2023 "verifiable parental consent" requirements
-           - Status: Active and recommended for production use
-
-        2. LEGACY AGE GATE (Deprecated - Client-side only)
-           - Controlled by: config.enableAgeGate
-           - Type: Simple checkbox + year dropdown (client-side self-attestation)
-           - Process: User checks a box and selects birth year
-           - Verification: No verification - relies on user honesty
-           - Compliance: Not suitable for DPDPA 2023 compliance
-           - Status: Deprecated, maintained for backward compatibility only
-
-        PRIORITY ORDER:
-        - If config.requireAgeVerification is true, ONLY DigiLocker section is shown (lines 3698-3733)
-        - If config.requireAgeVerification is false AND config.enableAgeGate is true, legacy section is shown (lines 3736-3754)
-        - If both are false, no age verification is shown
-        - If both are true, only DigiLocker is used (legacy is ignored)
-
-        MIGRATION NOTE:
-        - New implementations should use config.requireAgeVerification (DigiLocker)
-        - config.enableAgeGate is kept for backward compatibility with existing widgets
-        - Users should be encouraged to migrate from legacy age gate to DigiLocker
-      -->
-
-      <!-- DigiLocker Age Verification Section -->
-      ${config.requireAgeVerification ? `
-        <div id="dpdpa-digilocker-section" style="padding: 16px 24px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-top: 1px solid #a7f3d0; border-bottom: 1px solid #a7f3d0;">
-          <div style="display: flex; align-items: flex-start; gap: 12px;">
-            <div style="padding: 8px; background: #10b981; border-radius: 10px; flex-shrink: 0;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-            </div>
-            <div style="flex: 1;">
-              <span style="font-size: 14px; color: #065f46; font-weight: 700; display: block; margin-bottom: 4px;">${t.digilockerVerification}</span>
-              <span style="font-size: 13px; color: #047857; line-height: 1.5; display: block; margin-bottom: 12px;">
-                ${t.digilockerDescription} (${config.ageVerificationThreshold || 18}+ years)
-              </span>
-              <div id="dpdpa-digilocker-status" style="margin-bottom: 12px;"></div>
-              <button id="dpdpa-digilocker-verify-btn" type="button" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: ${primaryColor}; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px ${primaryColor}40;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-                ${t.verifyWithDigilocker}
-              </button>
-              <!-- Guardian Consent Section (hidden by default) -->
-              <div id="dpdpa-guardian-section" style="display: none; margin-top: 16px; padding: 16px; background: #fffbeb; border-radius: 8px; border: 1px solid #fef3c7;">
-                <label style="display: block; font-size: 13px; color: #92400e; font-weight: 600; margin-bottom: 8px;">${t.guardianEmail}</label>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <input type="email" id="dpdpa-guardian-email" placeholder="${t.guardianEmailPlaceholder}" style="flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;" />
-                  <button id="dpdpa-guardian-send-btn" type="button" style="padding: 10px 16px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                    ${t.sendConsentRequest}
-                  </button>
-                </div>
-                <div id="dpdpa-guardian-status" style="margin-top: 8px; font-size: 12px; color: #6b7280;"></div>
-              </div>
-            </div>
-          </div>
-          <div id="dpdpa-digilocker-error" style="color: #dc2626; margin-top: 8px; font-size: 12px; display: none; font-weight: 600;"></div>
-        </div>
-      ` : ''}
 
       <!-- Legacy Age Gate Section (Integrated Checkbox) - Only if DigiLocker not enabled -->
       ${!config.requireAgeVerification && config.enableAgeGate ? `
