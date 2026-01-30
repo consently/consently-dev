@@ -141,7 +141,11 @@ export class ApiSetuDigiLockerService {
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'openid',
+      // CRITICAL: scope MUST be exactly 'openid' — hardcoded, not from env.
+      // AVS is NOT a scope. Guardian Consent is NOT a scope.
+      // Everything else is inferred by NSSO from partner config + acr + pla.
+      // If NSSO rejects 'openid', check APISetu Dashboard → AuthPartner → Scopes → enable OpenID.
+      scope: 'openid',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
       // MeriPehchaan/NSSO parameters - CRITICAL: Do not change these defaults
       // These are the canonical parameters required by NSSO for age verification + guardian consent
@@ -249,7 +253,13 @@ export class ApiSetuDigiLockerService {
     // Append acr separately to preserve literal + signs (URLSearchParams encodes + as %2B)
     // MeriPehchaan/NSSO expects literal + as separators in acr values
     const acr = this.config.acr;
-    return `${this.getOAuthBaseUrl()}/authorize?${params.toString()}&acr=${acr}`;
+    const authorizeUrl = `${this.getOAuthBaseUrl()}/authorize?${params.toString()}&acr=${acr}`;
+
+    // DEBUG: Log the final authorize URL to verify exact parameters sent to NSSO
+    // Remove this log after confirming the flow works in production
+    console.log('[ApiSetuDigiLocker] NSSO AUTHORIZE URL:', authorizeUrl);
+
+    return authorizeUrl;
   }
 
   /**
