@@ -119,6 +119,40 @@ function getDateYearsAgo(years: number, offsetDays: number = 0): string {
 }
 
 // ============================================================================
+// AVS RESULT NORMALIZATION
+// ============================================================================
+
+/**
+ * Normalize DigiLocker AVS result to canonical 'yes' | 'no'.
+ * DigiLocker's actual response format varies and may return:
+ *   'yes', 'Y', 'YES', 'Yes', true, 1, 'true'  → 'yes'
+ *   'no', 'N', 'NO', 'No', false, 0, 'false'    → 'no'
+ *   undefined / null / unrecognized              → 'no' (fail-safe)
+ */
+function normalizeAvsResult(raw: unknown): 'yes' | 'no' {
+  if (raw === null || raw === undefined) {
+    return 'no';
+  }
+
+  if (typeof raw === 'boolean') {
+    return raw ? 'yes' : 'no';
+  }
+
+  if (typeof raw === 'number') {
+    return raw > 0 ? 'yes' : 'no';
+  }
+
+  if (typeof raw === 'string') {
+    const normalized = raw.trim().toLowerCase();
+    if (['yes', 'y', 'true', '1', 'pass', 'passed', 'verified'].includes(normalized)) {
+      return 'yes';
+    }
+  }
+
+  return 'no';
+}
+
+// ============================================================================
 // SERVICE CLASS
 // ============================================================================
 
@@ -353,11 +387,17 @@ export class ApiSetuDigiLockerService {
     const data = await response.json();
     console.log('[ApiSetuDigiLocker] AVS response:', JSON.stringify(data));
 
+    // Normalize the AVS result to 'yes' or 'no'
+    // DigiLocker may return: 'yes', 'Y', 'YES', 'Yes', true, 1, 'no', 'N', 'NO', false, 0
+    const rawResult = data.result ?? data.age_verified ?? data.verified ?? data.ageVerified;
+    const normalizedResult = normalizeAvsResult(rawResult);
+    console.log('[ApiSetuDigiLocker] AVS raw result:', rawResult, '→ normalized:', normalizedResult);
+
     return {
-      result: data.result || data.age_verified || (data.verified ? 'yes' : 'no'),
-      threshold_age: data.threshold_age || thresholdAge,
-      document_type: data.document_type || 'AADHAAR',
-      consent_artifact_id: data.consent_artifact_id || data.txn_id || `avs_${Date.now()}`,
+      result: normalizedResult,
+      threshold_age: data.threshold_age || data.thresholdAge || thresholdAge,
+      document_type: data.document_type || data.documentType || 'AADHAAR',
+      consent_artifact_id: data.consent_artifact_id || data.consentArtifactId || data.txn_id || `avs_${Date.now()}`,
     };
   }
 
@@ -408,11 +448,17 @@ export class ApiSetuDigiLockerService {
       // Access token is NOT persisted - goes out of scope here
       // No DOB is ever received - only yes/no for the threshold
 
+      // AVS is privacy-preserving: only returns yes/no, never actual DOB or age.
+      // Store the threshold as verified_age when user passes (meaning "at least this age").
+      // When user fails, store threshold - 1 (meaning "below this age").
+      // This is the best we can do without the actual DOB.
+      const approximateAge = meetsThreshold ? thresholdAge : thresholdAge - 1;
+
       return {
         success: true,
         meetsAgeThreshold: meetsThreshold,
         thresholdAge: avsResult.threshold_age,
-        age: meetsThreshold ? thresholdAge : thresholdAge - 1, // Approximate for backwards compatibility
+        age: approximateAge,
         documentType: avsResult.document_type || null,
         consentArtifactRef: avsResult.consent_artifact_id || null,
       };
