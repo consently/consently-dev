@@ -273,7 +273,6 @@
   // DigiLocker Age Verification State
   let ageVerificationSessionId = null; // Current verification session ID
   let ageVerificationStatus = null; // 'pending' | 'verified' | 'failed' | 'requires_guardian'
-  let ageVerificationAge = null; // Verified age (if successful)
   let guardianConsentStatus = null; // 'pending' | 'sent' | 'approved' | 'rejected'
   let ageVerificationPollingInterval = null; // Polling interval reference
   // Canonical policy outcome from server — single source of truth
@@ -385,19 +384,13 @@
   // DIGILOCKER AGE VERIFICATION - Government-backed verification for DPDPA 2023
   // ============================================================================
 
-  // Check if there's an existing verified age verification session
+  // Check if there's an existing verified age verification (boolean only, no personal data)
   function checkExistingAgeVerification() {
     try {
       const storageKey = `consently_age_verified_${widgetId}`;
       const stored = ConsentStorage.get(storageKey);
-      if (stored && stored.verified && stored.age !== undefined) {
+      if (stored && stored.verified) {
         ageVerificationStatus = 'verified';
-        ageVerificationAge = stored.age;
-        ageVerificationSessionId = stored.sessionId;
-        // Restore verification outcome if stored
-        if (stored.verificationOutcome) {
-          verificationOutcome = stored.verificationOutcome;
-        }
         return true;
       }
       return false;
@@ -407,15 +400,14 @@
     }
   }
 
-  // Store successful age verification
-  function storeAgeVerification(sessionId, age, validityDays = 365) {
+  // Store successful age verification (only boolean status, no personal data).
+  // UX-only flag. NOT a source of truth.
+  // Server verification outcome is authoritative.
+  function storeAgeVerification(validityDays = 365) {
     try {
       const storageKey = `consently_age_verified_${widgetId}`;
       ConsentStorage.set(storageKey, {
         verified: true,
-        age: age,
-        sessionId: sessionId,
-        verificationOutcome: verificationOutcome,
         verifiedAt: new Date().toISOString()
       }, validityDays);
     } catch (e) {
@@ -595,8 +587,6 @@
       }
 
       if (data.verified) {
-        ageVerificationAge = data.age;
-
         // Map server outcome to widget status for backward compatibility
         switch (verificationOutcome) {
           case 'verified_adult':
@@ -635,11 +625,11 @@
         const consentPermittedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
         if (verificationOutcome && consentPermittedOutcomes.includes(verificationOutcome)) {
           const validityDays = config?.verificationValidityDays || 365;
-          storeAgeVerification(sessionId, data.age, validityDays);
+          storeAgeVerification(validityDays);
         } else if (!verificationOutcome && ageVerificationStatus === 'verified') {
           // Legacy fallback: no outcome field yet
           const validityDays = config?.verificationValidityDays || 365;
-          storeAgeVerification(sessionId, data.age, validityDays);
+          storeAgeVerification(validityDays);
         }
       } else if (data.status === 'failed') {
         ageVerificationStatus = 'failed';
@@ -753,7 +743,7 @@
         if (status.status === 'approved') {
           ageVerificationStatus = 'verified';
           verificationOutcome = 'guardian_approved';
-          storeAgeVerification(sessionId, ageVerificationAge, config?.verificationValidityDays || 365);
+          storeAgeVerification(config?.verificationValidityDays || 365);
         } else {
           ageVerificationStatus = 'rejected';
           verificationOutcome = 'blocked_minor';
