@@ -18,6 +18,41 @@ import { createClient as createPublicClient } from '@supabase/supabase-js';
 import { getApiSetuService, requiresGuardianConsent } from '@/lib/apisetu-digilocker';
 import { logSuccess, logFailure } from '@/lib/audit';
 
+// Canonical verification outcomes — single source of truth for policy enforcement
+type VerificationOutcome =
+  | 'verified_adult'
+  | 'blocked_minor'
+  | 'guardian_required'
+  | 'guardian_approved'
+  | 'limited_access'
+  | 'expired';
+
+/**
+ * Resolve the verification outcome based on verified age and widget policy.
+ * This is the ONLY place where outcome is determined at verification time.
+ */
+function resolveVerificationOutcome(
+  verifiedAge: number,
+  ageThreshold: number,
+  minorHandling: string
+): VerificationOutcome {
+  if (verifiedAge >= ageThreshold) {
+    return 'verified_adult';
+  }
+
+  switch (minorHandling) {
+    case 'block':
+      return 'blocked_minor';
+    case 'guardian_consent':
+      return 'guardian_required';
+    case 'limited_access':
+      return 'limited_access';
+    default:
+      // Default to block if policy is unrecognized — fail safe
+      return 'blocked_minor';
+  }
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
@@ -156,9 +191,10 @@ export async function GET(request: NextRequest) {
         return redirectWithError('verification_failed', result.error || 'Verification failed');
       }
 
-      // Update session with verified result
+      // Resolve policy outcome
+      const outcome = resolveVerificationOutcome(result.age!, threshold, minorHandling);
       const isMinor = !result.meetsAgeThreshold;
-      const needsGuardianConsent = isMinor && minorHandling === 'guardian_consent';
+      const needsGuardianConsent = outcome === 'guardian_required';
 
       await updateSessionVerified(supabase, session.id, {
         verified_age: result.age!,
@@ -166,6 +202,7 @@ export async function GET(request: NextRequest) {
         consent_artifact_ref: result.consentArtifactRef,
         requires_guardian_consent: needsGuardianConsent,
         guardian_consent_status: needsGuardianConsent ? 'pending' : 'not_required',
+        verification_outcome: outcome,
       });
 
       // Update guardian consent record if this is a guardian verification
@@ -179,7 +216,7 @@ export async function GET(request: NextRequest) {
         {
           age: result.age,
           is_minor: isMinor,
-          requires_guardian_consent: needsGuardianConsent,
+          verification_outcome: outcome,
           mock_mode: true,
         }
       );
@@ -227,17 +264,19 @@ export async function GET(request: NextRequest) {
       return redirectWithError('verification_failed', result.error || 'Verification failed');
     }
 
-    // Determine if guardian consent is needed based on AVS result
+    // Resolve policy outcome — single source of truth
+    const outcome = resolveVerificationOutcome(result.age!, threshold, minorHandling);
     const isMinor = !result.meetsAgeThreshold;
-    const needsGuardianConsent = isMinor && minorHandling === 'guardian_consent';
+    const needsGuardianConsent = outcome === 'guardian_required';
 
-    // Update session with verified age
+    // Update session with verified age and policy outcome
     await updateSessionVerified(supabase, session.id, {
       verified_age: result.age!,
       document_type: result.documentType,
       consent_artifact_ref: result.consentArtifactRef,
       requires_guardian_consent: needsGuardianConsent,
       guardian_consent_status: needsGuardianConsent ? 'pending' : 'not_required',
+      verification_outcome: outcome,
     });
 
     // Update guardian consent record if this is a guardian verification
@@ -252,7 +291,7 @@ export async function GET(request: NextRequest) {
       {
         age: result.age,
         is_minor: isMinor,
-        requires_guardian_consent: needsGuardianConsent,
+        verification_outcome: outcome,
         document_type: result.documentType,
       }
     );
@@ -309,6 +348,7 @@ async function updateSessionVerified(
     consent_artifact_ref: string | null;
     requires_guardian_consent: boolean;
     guardian_consent_status: string;
+    verification_outcome: VerificationOutcome;
   }
 ) {
   await supabase

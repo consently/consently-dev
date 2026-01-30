@@ -276,6 +276,9 @@
   let ageVerificationAge = null; // Verified age (if successful)
   let guardianConsentStatus = null; // 'pending' | 'sent' | 'approved' | 'rejected'
   let ageVerificationPollingInterval = null; // Polling interval reference
+  // Canonical policy outcome from server — single source of truth
+  // Values: 'verified_adult' | 'blocked_minor' | 'guardian_required' | 'guardian_approved' | 'limited_access' | 'expired'
+  let verificationOutcome = null;
 
   // LocalStorage manager for consent persistence
   const ConsentStorage = {
@@ -391,6 +394,10 @@
         ageVerificationStatus = 'verified';
         ageVerificationAge = stored.age;
         ageVerificationSessionId = stored.sessionId;
+        // Restore verification outcome if stored
+        if (stored.verificationOutcome) {
+          verificationOutcome = stored.verificationOutcome;
+        }
         return true;
       }
       return false;
@@ -408,6 +415,7 @@
         verified: true,
         age: age,
         sessionId: sessionId,
+        verificationOutcome: verificationOutcome,
         verifiedAt: new Date().toISOString()
       }, validityDays);
     } catch (e) {
@@ -581,24 +589,55 @@
 
       const data = await response.json();
 
+      // Use server-side verification_outcome as canonical state
+      if (data.verificationOutcome) {
+        verificationOutcome = data.verificationOutcome;
+      }
+
       if (data.verified) {
-        ageVerificationStatus = 'verified';
         ageVerificationAge = data.age;
 
-        // Check if minor with guardian consent required
-        if (data.isMinor && data.requiresGuardianConsent) {
-          if (data.guardianConsentStatus === 'approved') {
+        // Map server outcome to widget status for backward compatibility
+        switch (verificationOutcome) {
+          case 'verified_adult':
             ageVerificationStatus = 'verified';
-          } else if (data.guardianConsentStatus === 'rejected') {
+            break;
+          case 'guardian_approved':
+            ageVerificationStatus = 'verified';
+            break;
+          case 'blocked_minor':
             ageVerificationStatus = 'rejected';
-          } else {
+            break;
+          case 'guardian_required':
             ageVerificationStatus = 'requires_guardian';
             guardianConsentStatus = data.guardianConsentStatus || 'pending';
-          }
+            break;
+          case 'limited_access':
+            ageVerificationStatus = 'verified';
+            break;
+          default:
+            // Fallback: use legacy logic if outcome not yet set (backward compat)
+            ageVerificationStatus = 'verified';
+            if (data.isMinor && data.requiresGuardianConsent) {
+              if (data.guardianConsentStatus === 'approved') {
+                ageVerificationStatus = 'verified';
+              } else if (data.guardianConsentStatus === 'rejected') {
+                ageVerificationStatus = 'rejected';
+              } else {
+                ageVerificationStatus = 'requires_guardian';
+                guardianConsentStatus = data.guardianConsentStatus || 'pending';
+              }
+            }
+            break;
         }
 
-        // Store verification if fully approved
-        if (ageVerificationStatus === 'verified') {
+        // Store verification if outcome permits consent
+        const consentPermittedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
+        if (verificationOutcome && consentPermittedOutcomes.includes(verificationOutcome)) {
+          const validityDays = config?.verificationValidityDays || 365;
+          storeAgeVerification(sessionId, data.age, validityDays);
+        } else if (!verificationOutcome && ageVerificationStatus === 'verified') {
+          // Legacy fallback: no outcome field yet
           const validityDays = config?.verificationValidityDays || 365;
           storeAgeVerification(sessionId, data.age, validityDays);
         }
@@ -713,9 +752,11 @@
 
         if (status.status === 'approved') {
           ageVerificationStatus = 'verified';
+          verificationOutcome = 'guardian_approved';
           storeAgeVerification(sessionId, ageVerificationAge, config?.verificationValidityDays || 365);
         } else {
           ageVerificationStatus = 'rejected';
+          verificationOutcome = 'blocked_minor';
         }
 
         if (onStatusChange) {
@@ -745,20 +786,29 @@
     if (ageVerificationStatus === 'verified') {
       if (statusContainer) {
         const verifiedAt = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const isLimitedAccess = verificationOutcome === 'limited_access';
+        const badgeColor = isLimitedAccess ? '#d97706' : '#059669';
+        const bgColor = isLimitedAccess ? '#fffbeb' : '#ecfdf5';
+        const borderColor = isLimitedAccess ? '#fde68a' : '#a7f3d0';
+        const badgeText = isLimitedAccess ? 'Limited Access - Age Verified' : t.ageVerified;
+        const subText = isLimitedAccess
+          ? 'You have been verified as a minor. Some features may be restricted.'
+          : 'Only age eligibility was checked. No personal data was stored.';
+
         statusContainer.innerHTML = `
-          <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px;">
-            <div style="display: flex; align-items: center; gap: 8px; color: #059669;">
+          <div style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; color: ${badgeColor};">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                 <polyline points="22 4 12 14.01 9 11.01"/>
               </svg>
-              <span style="font-weight: 700; font-size: 14px;">${t.ageVerified}</span>
+              <span style="font-weight: 700; font-size: 14px;">${badgeText}</span>
             </div>
             <p style="margin: 8px 0 0 28px; font-size: 12px; color: #047857;">
               Verified on ${verifiedAt} via DigiLocker
             </p>
             <p style="margin: 4px 0 0 28px; font-size: 11px; color: #6b7280;">
-              Only age eligibility was checked. No personal data was stored.
+              ${subText}
             </p>
             <p style="margin: 8px 0 0 28px; font-size: 12px; color: #065f46; font-weight: 600;">
               Please review your preferences below and click Confirm to continue.
@@ -784,6 +834,27 @@
       }
       if (verifyBtn) verifyBtn.style.display = 'none';
       if (guardianSection) guardianSection.style.display = 'block';
+    } else if (ageVerificationStatus === 'rejected' || verificationOutcome === 'blocked_minor') {
+      // Minor blocked by policy — no consent UI shown
+      if (statusContainer) {
+        statusContainer.innerHTML = `
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; color: #dc2626;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M15 9l-6 6"/>
+                <path d="M9 9l6 6"/>
+              </svg>
+              <span style="font-weight: 700; font-size: 14px;">Access Restricted</span>
+            </div>
+            <p style="margin: 8px 0 0 28px; font-size: 12px; color: #991b1b;">
+              ${config?.minorGuardianMessage || 'You must be 18 or older to provide consent. Please ask a parent or guardian to complete verification on your behalf.'}
+            </p>
+          </div>
+        `;
+      }
+      if (verifyBtn) verifyBtn.style.display = 'none';
+      if (guardianSection) guardianSection.style.display = 'none';
     } else if (ageVerificationStatus === 'failed') {
       if (statusContainer) {
         statusContainer.innerHTML = `
@@ -4646,11 +4717,35 @@ ${activitySections}
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
         // DigiLocker Age Verification Check (DPDPA 2023)
+        // Uses verificationOutcome (server-enforced) as primary guard,
+        // with ageVerificationStatus as fallback for backward compatibility.
         if (config.requireAgeVerification) {
           const errorDiv = widget.querySelector('#dpdpa-digilocker-error');
 
-          // Check if age is verified
-          if (ageVerificationStatus !== 'verified') {
+          // Block if outcome explicitly disallows consent
+          if (verificationOutcome === 'blocked_minor') {
+            if (overlay) overlay.remove();
+            showMinorBlockScreen();
+            return;
+          }
+
+          if (verificationOutcome === 'guardian_required') {
+            if (errorDiv) {
+              errorDiv.textContent = t.guardianConsentMessage || 'Guardian consent is required to proceed.';
+              errorDiv.style.display = 'block';
+            }
+            const digiSection = widget.querySelector('#dpdpa-digilocker-section');
+            if (digiSection) {
+              digiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+          }
+
+          // Check if age is verified (consent-permitted outcomes)
+          const consentPermitted = ['verified_adult', 'guardian_approved', 'limited_access'];
+          const hasPermittedOutcome = verificationOutcome && consentPermitted.includes(verificationOutcome);
+
+          if (!hasPermittedOutcome && ageVerificationStatus !== 'verified') {
             if (errorDiv) {
               if (ageVerificationStatus === 'requires_guardian') {
                 errorDiv.textContent = t.guardianConsentMessage || 'Guardian consent is required to proceed.';
@@ -4668,7 +4763,7 @@ ${activitySections}
             return;
           }
 
-          // Check if minor was blocked
+          // Legacy fallback: check rejected status
           if (ageVerificationStatus === 'rejected') {
             if (overlay) overlay.remove();
             showMinorBlockScreen();

@@ -284,17 +284,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build response based on status (widgetConfig fetched separately above)
+    // Build response based on verification_outcome (canonical policy field)
     const threshold = widgetConfig?.age_verification_threshold || 18;
     const isMinor = session.verified_age !== null && session.verified_age < threshold;
+    const outcome = session.verification_outcome || null;
 
     let verificationAssertion = null;
 
-    // Generate verification assertion if verified and adult (or minor with guardian consent)
+    // Only issue JWT assertion for outcomes that permit consent
+    // blocked_minor and guardian_required MUST NOT receive assertions
+    const assertionAllowedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
     if (
       session.status === 'verified' &&
       session.verified_age !== null &&
-      (!isMinor || session.guardian_consent_status === 'approved')
+      outcome &&
+      assertionAllowedOutcomes.includes(outcome)
     ) {
       const apiSetuService = getApiSetuService();
       const validityDays = widgetConfig?.verification_validity_days || 365;
@@ -317,6 +321,7 @@ export async function GET(request: NextRequest) {
         verified: session.status === 'verified',
         age: session.verified_age,
         isMinor,
+        verificationOutcome: outcome,
         requiresGuardianConsent: session.requires_guardian_consent,
         guardianConsentStatus: session.guardian_consent_status,
         verificationAssertion,

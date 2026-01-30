@@ -319,12 +319,16 @@ async function handleApprovalRequest(
     })
     .eq('id', consent.id);
 
-  // Update minor's verification session
+  // Update minor's verification session with canonical outcome
+  // guardian_approved = consent can proceed; blocked_minor = permanently blocked
+  const verificationOutcome = action === 'approve' ? 'guardian_approved' : 'blocked_minor';
+
   await supabase
     .from('age_verification_sessions')
     .update({
       guardian_consent_status: newStatus,
       guardian_verification_id: guardianSession.id,
+      verification_outcome: verificationOutcome,
       updated_at: new Date().toISOString(),
     })
     .eq('id', consent.minor_verification_id);

@@ -413,7 +413,7 @@ export async function POST(request: NextRequest) {
     // Verify widget exists and is active
     const { data: widgetConfig, error: widgetError } = await supabase
       .from('dpdpa_widget_configs')
-      .select('widget_id, consent_duration, user_id')
+      .select('widget_id, consent_duration, user_id, require_age_verification')
       .eq('widget_id', body.widgetId)
       .eq('is_active', true)
       .single();
@@ -437,6 +437,67 @@ export async function POST(request: NextRequest) {
           }
         }
       );
+    }
+
+    // ===== AGE VERIFICATION POLICY GUARD =====
+    // If widget requires age verification, enforce policy before accepting consent.
+    // This is the server-side enforcement layer — widget-side checks are defensive only.
+    if (widgetConfig.require_age_verification) {
+      // Find the most recent verified session for this visitor + widget
+      const { data: verificationSession } = await supabase
+        .from('age_verification_sessions')
+        .select('verification_outcome, status, verified_age, expires_at')
+        .eq('widget_id', body.widgetId)
+        .eq('visitor_id', body.visitorId)
+        .eq('status', 'verified')
+        .order('verified_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!verificationSession) {
+        console.warn('[Consent Record API] Age verification required but no verified session found:', {
+          widgetId: body.widgetId,
+          visitorId: body.visitorId,
+        });
+        return NextResponse.json(
+          {
+            error: 'Age verification is required before consent can be recorded',
+            code: 'AGE_VERIFICATION_REQUIRED',
+          },
+          {
+            status: 403,
+            headers: { 'Access-Control-Allow-Origin': '*' },
+          }
+        );
+      }
+
+      const outcome = verificationSession.verification_outcome;
+      const consentAllowedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
+
+      if (!outcome || !consentAllowedOutcomes.includes(outcome)) {
+        console.warn('[Consent Record API] Consent blocked by verification policy:', {
+          widgetId: body.widgetId,
+          visitorId: body.visitorId,
+          verification_outcome: outcome,
+        });
+        return NextResponse.json(
+          {
+            error: 'Consent is not permitted for this verification outcome',
+            code: 'CONSENT_BLOCKED_BY_POLICY',
+            verificationOutcome: outcome,
+          },
+          {
+            status: 403,
+            headers: { 'Access-Control-Allow-Origin': '*' },
+          }
+        );
+      }
+
+      console.log('[Consent Record API] Age verification policy check passed:', {
+        widgetId: body.widgetId,
+        visitorId: body.visitorId,
+        verification_outcome: outcome,
+      });
     }
 
     // ===== CONSENT LIMIT ENFORCEMENT =====
