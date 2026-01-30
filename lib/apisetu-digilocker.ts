@@ -141,17 +141,18 @@ export class ApiSetuDigiLockerService {
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      // CRITICAL: scope MUST be exactly 'openid' — hardcoded, not from env.
-      // AVS is NOT a scope. Guardian Consent is NOT a scope.
-      // Everything else is inferred by NSSO from partner config + acr + pla.
-      // If NSSO rejects 'openid', check APISetu Dashboard → AuthPartner → Scopes → enable OpenID.
-      scope: 'openid',
+      // CRITICAL: scope MUST match what's configured in APISetu AuthPartner dashboard.
+      // For Age Verification partners, this is 'avs' (maps to "Age verification" checkbox).
+      // Do NOT use 'openid' unless your AuthPartner explicitly has OpenID scope enabled.
+      // Verify at: consume.apisetu.gov.in → AuthPartner → Scopes
+      scope: 'avs',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
-      // MeriPehchaan/NSSO parameters - CRITICAL: Do not change these defaults
-      // These are the canonical parameters required by NSSO for age verification + guardian consent
+      // MeriPehchaan/NSSO parameters - MUST match APISetu AuthPartner configuration
+      // Verify at: consume.apisetu.gov.in → AuthPartner → Flow/ACR/AMR settings
+      // Current partner config: Sign-in flow, ACR=aadhaar+email+mobile, AMR=aadhaar
       dlFlow: process.env.DIGILOCKER_DL_FLOW || 'signin',
-      acr: process.env.DIGILOCKER_ACR || 'digilocker',
-      amr: process.env.DIGILOCKER_AMR || 'all',
+      acr: process.env.DIGILOCKER_ACR || 'aadhaar+email+mobile',
+      amr: process.env.DIGILOCKER_AMR || 'aadhaar',
       pla: process.env.DIGILOCKER_PLA || 'Y',
     };
 
