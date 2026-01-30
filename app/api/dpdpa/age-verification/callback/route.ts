@@ -26,9 +26,39 @@ export async function GET(request: NextRequest) {
   const errorDescription = searchParams.get('error_description');
   const isMock = searchParams.get('mock') === 'true';
 
-  // Handle OAuth errors
+  // Handle OAuth errors from NSSO (e.g. user cancelled PAN/KYC, session timeout)
+  // These are RECOVERABLE - user can retry by initiating a new session
   if (error) {
     console.error('[Age Verification Callback] OAuth error:', error, errorDescription);
+
+    // If we have a state token, reset the session to 'pending' so it's not stuck in limbo.
+    // NSSO errors (user_cancelled, access_denied, PAN/KYC incomplete) are NOT permanent failures.
+    if (state) {
+      try {
+        const supabaseForError = createPublicClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        // Determine if this is a user-initiated cancellation
+        const isUserCancelled = error === 'access_denied' || error === 'user_cancelled' || error === 'consent_required';
+        const errorCode = isUserCancelled ? 'user_cancelled' : 'oauth_error';
+
+        // Reset session back to 'pending' so it can be retried or expires naturally
+        // Do NOT mark as 'failed' — PAN/KYC issues are recoverable
+        await supabaseForError
+          .from('age_verification_sessions')
+          .update({
+            status: 'pending',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('state_token', state);
+
+        return redirectWithError(errorCode, errorDescription || error);
+      } catch (e) {
+        console.error('[Age Verification Callback] Failed to reset session on OAuth error:', e);
+      }
+    }
+
     return redirectWithError('oauth_error', errorDescription || error);
   }
 
@@ -173,7 +203,20 @@ export async function GET(request: NextRequest) {
     const result = await apiSetuService.completeVerification(code, codeVerifier, threshold);
 
     if (!result.success) {
-      await updateSessionFailed(supabase, session.id, result.error || 'Verification failed');
+      // Determine if error is recoverable (token exchange timeout, network) or permanent (invalid code)
+      const isRecoverable = result.errorCode === 'VERIFICATION_FAILED' &&
+        (result.error?.includes('Token exchange failed') || result.error?.includes('fetch'));
+
+      if (isRecoverable) {
+        // Reset to pending — user can retry by initiating a new session
+        // This covers: NSSO PAN/KYC took too long causing code expiry, network issues
+        await updateSessionStatus(supabase, session.id, 'pending');
+        console.warn('[Age Verification Callback] Recoverable verification error, session reset to pending:', result.error);
+      } else {
+        // Permanent failure — invalid code, AVS rejection, etc.
+        await updateSessionFailed(supabase, session.id, result.error || 'Verification failed');
+      }
+
       await logFailure(
         widgetConfig?.user_id,
         'age_verification.failed',

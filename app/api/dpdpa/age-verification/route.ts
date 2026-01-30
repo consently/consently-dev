@@ -366,7 +366,7 @@ function getStatusMessage(
 ): string {
   switch (status) {
     case 'pending':
-      return 'Verification session created. Please complete verification via DigiLocker.';
+      return 'Verification is pending. You can start or retry verification via DigiLocker.';
     case 'in_progress':
       return 'Verification in progress. Please wait...';
     case 'verified':

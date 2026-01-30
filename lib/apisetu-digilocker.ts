@@ -141,11 +141,12 @@ export class ApiSetuDigiLockerService {
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'avs',
+      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'openid',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
-      // MeriPehchaan/NSSO parameters
+      // MeriPehchaan/NSSO parameters - CRITICAL: Do not change these defaults
+      // These are the canonical parameters required by NSSO for age verification + guardian consent
       dlFlow: process.env.DIGILOCKER_DL_FLOW || 'signin',
-      acr: process.env.DIGILOCKER_ACR || 'opus_er_alias+mobile+user_alias+email+aadhaar+pan+driving_licence',
+      acr: process.env.DIGILOCKER_ACR || 'digilocker',
       amr: process.env.DIGILOCKER_AMR || 'all',
       pla: process.env.DIGILOCKER_PLA || 'Y',
     };

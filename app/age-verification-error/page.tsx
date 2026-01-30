@@ -9,11 +9,12 @@ function ErrorContent() {
   const error = searchParams.get('error') || 'unknown_error';
   const message = searchParams.get('message') || 'An error occurred during age verification';
 
-  const errorMessages: Record<string, { title: string; description: string; action: string }> = {
+  const errorMessages: Record<string, { title: string; description: string; action: string; showHelpLink?: boolean }> = {
     oauth_error: {
       title: 'Authentication Error',
       description: 'There was an error authenticating with DigiLocker. This could be due to incorrect credentials or permission issues.',
       action: 'Please try again or contact support if the issue persists.',
+      showHelpLink: true,
     },
     missing_state: {
       title: 'Security Error',
@@ -27,7 +28,7 @@ function ErrorContent() {
     },
     session_expired: {
       title: 'Session Expired',
-      description: 'Your verification session has expired.',
+      description: 'Your verification session has expired. Age verification sessions are valid for 1 hour.',
       action: 'Please start a new verification process.',
     },
     missing_code: {
@@ -39,11 +40,30 @@ function ErrorContent() {
       title: 'Verification Failed',
       description: message || 'Unable to verify your age using DigiLocker.',
       action: 'Please ensure you have a valid DigiLocker account and try again.',
+      showHelpLink: true,
+    },
+    pan_mismatch: {
+      title: 'PAN/Aadhaar Mismatch',
+      description: 'Your PAN and Aadhaar details don\'t match in the government database. This is required for DigiLocker age verification.',
+      action: 'Please link your PAN with Aadhaar on the Income Tax e-filing portal, wait 24-48 hours, and try again.',
+      showHelpLink: true,
+    },
+    kyc_incomplete: {
+      title: 'KYC Verification Required',
+      description: 'DigiLocker requires additional identity verification (PAN/Aadhaar linking) for age verification.',
+      action: 'Complete the KYC process in DigiLocker and try again. This is a one-time requirement.',
+      showHelpLink: true,
+    },
+    user_cancelled: {
+      title: 'Verification Cancelled',
+      description: 'You cancelled the DigiLocker verification process.',
+      action: 'Return to the website and start age verification again when ready.',
     },
     internal_error: {
       title: 'Technical Error',
       description: message || 'An unexpected error occurred during verification.',
       action: 'Please try again later or contact support.',
+      showHelpLink: true,
     },
   };
 
@@ -82,6 +102,24 @@ function ErrorContent() {
           <p className="text-sm text-gray-500 mb-8">
             {errorInfo.action}
           </p>
+
+          {/* Help Link for specific errors */}
+          {errorInfo.showHelpLink && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Having trouble with DigiLocker verification?</strong>
+              </p>
+              <p className="text-sm text-blue-700 mt-2">
+                Learn more about why DigiLocker asks for PAN/KYC details and how to complete verification.
+              </p>
+              <Link
+                href="/help/digilocker-age-verification"
+                className="inline-flex items-center mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                View DigiLocker Help Guide →
+              </Link>
+            </div>
+          )}
 
           {/* Error Details (for debugging) */}
           {process.env.NODE_ENV === 'development' && (
