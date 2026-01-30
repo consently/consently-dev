@@ -744,15 +744,26 @@
 
     if (ageVerificationStatus === 'verified') {
       if (statusContainer) {
+        const verifiedAt = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
         statusContainer.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 8px; color: #059669;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <span style="font-weight: 600;">${t.ageVerified}</span>
+          <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; color: #059669;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <span style="font-weight: 700; font-size: 14px;">${t.ageVerified}</span>
+            </div>
+            <p style="margin: 8px 0 0 28px; font-size: 12px; color: #047857;">
+              Verified on ${verifiedAt} via DigiLocker
+            </p>
+            <p style="margin: 4px 0 0 28px; font-size: 11px; color: #6b7280;">
+              Only age eligibility was checked. No personal data was stored.
+            </p>
+            <p style="margin: 8px 0 0 28px; font-size: 12px; color: #065f46; font-weight: 600;">
+              Please review your preferences below and click Confirm to continue.
+            </p>
           </div>
-          <p style="margin: 4px 0 0 28px; font-size: 12px; color: #6b7280;">${t.ageVerifiedMessage}</p>
         `;
       }
       if (verifyBtn) verifyBtn.style.display = 'none';
