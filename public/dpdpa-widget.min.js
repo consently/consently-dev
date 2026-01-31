@@ -3520,8 +3520,9 @@ ${activitySections}
       // For non-onPageLoad triggers, wait for them to fire - don't show anything immediately
       return;
     }
-    
+
     // Show widget if age verification just completed and user needs to give consent
+    // This is checked at the end of init() after all other conditions
     if (ageVerificationJustCompleted) {
       console.log('[Consently DPDPA] Showing widget after age verification completion');
       // Small delay to ensure UI is ready
