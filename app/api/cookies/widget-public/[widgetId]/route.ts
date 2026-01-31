@@ -51,8 +51,17 @@ async function triggerBackgroundScan(domain: string, userId: string) {
 
     console.log(`[Background Scan] Triggering scan for ${domain}`);
     
-    // Trigger the scan via internal API call
-    const scanUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/cookies/scan`;
+    // Get the base URL for internal API call
+    // In production (Vercel), use VERCEL_URL or NEXT_PUBLIC_SITE_URL
+    // Avoid localhost in production as serverless functions can't call themselves via localhost
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_SITE_URL?.startsWith('http') && !process.env.NEXT_PUBLIC_SITE_URL.includes('localhost')
+        ? process.env.NEXT_PUBLIC_SITE_URL
+        : process.env.NEXT_PUBLIC_WIDGET_URL || 'https://www.consently.in';
+    
+    const scanUrl = `${baseUrl}/api/cookies/scan`;
+    console.log(`[Background Scan] Using scan URL: ${scanUrl}`);
     
     // Use fetch with no-wait pattern
     fetch(scanUrl, {
