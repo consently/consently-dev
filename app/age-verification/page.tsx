@@ -11,8 +11,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import { features } from '@/lib/env';
-
 // Types
 interface VerificationStatus {
   verified: boolean;
@@ -340,6 +338,7 @@ function AgeVerificationContent() {
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   
   // Get query params
   const error = searchParams.get('error');
@@ -349,8 +348,13 @@ function AgeVerificationContent() {
   const age = parseInt(searchParams.get('age') || '0');
   const name = searchParams.get('name');
 
-  // Check if DigiLocker is configured
-  const isConfigured = features.digilocker;
+  // Fetch DigiLocker configuration status from API
+  useEffect(() => {
+    fetch('/api/digilocker/config')
+      .then(res => res.json())
+      .then(data => setIsConfigured(data.configured))
+      .catch(() => setIsConfigured(false));
+  }, []);
 
   // Fetch verification status
   useEffect(() => {
@@ -397,7 +401,7 @@ function AgeVerificationContent() {
     window.location.href = '/api/digilocker/init';
   };
 
-  if (loading) {
+  if (loading || isConfigured === null) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-lg">
@@ -493,7 +497,7 @@ function AgeVerificationContent() {
               <CardTitle className="text-sm text-gray-500">Debug Information</CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-gray-500 space-y-2">
-              <p>DigiLocker Configured: {isConfigured ? 'Yes' : 'No'}</p>
+              <p>DigiLocker Configured: {isConfigured === null ? 'Loading...' : isConfigured ? 'Yes' : 'No'}</p>
               <p>User Verified: {status?.verified ? 'Yes' : 'No'}</p>
               <p>Consent Valid: {status?.consentValid ? 'Yes' : 'No'}</p>
             </CardContent>
