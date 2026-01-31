@@ -3205,6 +3205,7 @@ ${activitySections}
     }
 
     // Check for age verification callback (returning from DigiLocker)
+    let ageVerificationJustCompleted = false;
     if (config.requireAgeVerification) {
       // First check existing verification
       if (checkExistingAgeVerification()) {
@@ -3216,6 +3217,15 @@ ${activitySections}
           console.log('[Consently DPDPA] Age verification callback processed:', callbackResult.status);
           // Restore widget state saved before DigiLocker redirect
           restoreWidgetState();
+          
+          // Mark that age verification just completed - widget should be shown
+          // Check if user is allowed to proceed (verified adult, guardian approved, or limited access)
+          const allowedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
+          if (callbackResult.verified && 
+              (!callbackResult.verificationOutcome || allowedOutcomes.includes(callbackResult.verificationOutcome))) {
+            ageVerificationJustCompleted = true;
+            console.log('[Consently DPDPA] Age verification passed - will show widget for consent');
+          }
         }
       }
     }
@@ -3435,6 +3445,16 @@ ${activitySections}
       // For non-onPageLoad triggers, wait for them to fire - don't show anything immediately
       return;
     }
+  }
+  
+  // Show widget if age verification just completed and user needs to give consent
+  if (ageVerificationJustCompleted) {
+    console.log('[Consently DPDPA] Showing widget after age verification completion');
+    // Small delay to ensure UI is ready
+    setTimeout(() => {
+      showConsentWidget();
+    }, 500);
+    return;
   }
 
   // Apply consent (trigger custom events, etc.)
