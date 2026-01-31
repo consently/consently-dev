@@ -193,7 +193,7 @@ export function buildAuthorizationUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state: state,
-    scope: 'openid profile',
+    scope: 'openid',
     purpose: purpose,
   });
 
@@ -234,7 +234,25 @@ export async function exchangeCodeForToken(
     body: body.toString(),
   });
 
-  const data = await response.json();
+  // Handle non-JSON responses (e.g., HTML error pages)
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new DigiLockerError(
+      'invalid_response',
+      `DigiLocker returned non-JSON response: ${text.substring(0, 200)}`
+    );
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch (parseError) {
+    throw new DigiLockerError(
+      'parse_error',
+      'Failed to parse DigiLocker response'
+    );
+  }
 
   if (!response.ok) {
     const error = data as DigiLockerErrorResponse;

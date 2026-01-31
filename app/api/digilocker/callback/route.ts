@@ -75,12 +75,17 @@ export async function GET(request: NextRequest) {
       // Parse state to get redirect URL if available
       let redirectTo = '/age-verification';
       if (state) {
-        const stateData = await redis.get<string>(`digilocker:state:${state}`);
-        if (stateData) {
-          const parsed = JSON.parse(stateData);
-          redirectTo = parsed.redirectTo || redirectTo;
-          // Clean up Redis
-          await redis.del(`digilocker:state:${state}`);
+        try {
+          const stateData = await redis.get<string>(`digilocker:state:${state}`);
+          if (stateData) {
+            const parsed = JSON.parse(stateData);
+            redirectTo = parsed.redirectTo || redirectTo;
+            // Clean up Redis
+            await redis.del(`digilocker:state:${state}`);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse state data:', parseError);
+          // Continue with default redirectTo
         }
       }
 
@@ -127,7 +132,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse state data
-    const { codeVerifier, userId: stateUserId, redirectTo } = JSON.parse(stateData);
+    let parsedState;
+    try {
+      parsedState = JSON.parse(stateData);
+    } catch (parseError) {
+      console.error('Failed to parse state data:', parseError);
+      const errorUrl = new URL('/age-verification', request.url);
+      errorUrl.searchParams.set('error', 'session_error');
+      errorUrl.searchParams.set('error_description', 'Invalid session data');
+      return NextResponse.redirect(errorUrl.toString());
+    }
+    
+    const { codeVerifier, userId: stateUserId, redirectTo } = parsedState;
 
     // Verify user matches (security check)
     if (userId && stateUserId && userId !== stateUserId) {
