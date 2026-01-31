@@ -172,18 +172,6 @@ export interface DPDPAWidgetConfig {
   enableSmartPreFill: boolean;
   emailFieldSelectors: string;
 
-  // Age Gate Settings (LEGACY - Deprecated, use DigiLocker verification)
-  enableAgeGate?: boolean;
-  ageGateThreshold?: number; // Minimum age to proceed (default 18)
-  ageGateMinorMessage?: string; // Custom message shown to minors
-
-  // DigiLocker Age Verification (DPDPA 2023 Verifiable Parental Consent)
-  requireAgeVerification?: boolean; // Enable government-backed age verification
-  ageVerificationThreshold?: number; // Minimum age required (13-21, default 18)
-  ageVerificationProvider?: 'digilocker' | 'apisetu' | 'custom';
-  minorHandling?: 'block' | 'limited_access';
-  verificationValidityDays?: number; // How long verification remains valid (1-365)
-
   // Display rules (NEW in v2.0)
   display_rules: DisplayRule[];
 
@@ -482,82 +470,3 @@ export interface WidgetAnalytics {
     acceptanceRate: number;
   }[];
 }
-
-// ============================================================================
-// Age Verification Types (DigiLocker / API Setu)
-// ============================================================================
-
-/**
- * Age verification session status
- */
-export type AgeVerificationStatus =
-  | 'pending'
-  | 'in_progress'
-  | 'verified'
-  | 'failed'
-  | 'expired';
-
-/**
- * Age verification provider types
- */
-export type AgeVerificationProvider = 'digilocker' | 'apisetu' | 'custom';
-
-/**
- * Minor handling options
- */
-export type MinorHandling = 'block' | 'limited_access';
-
-/**
- * Age verification session (client-facing)
- */
-export interface AgeVerificationSession {
-  sessionId: string;
-  widgetId: string;
-  visitorId: string;
-  status: AgeVerificationStatus;
-  verifiedAge?: number;
-  isMinor?: boolean;
-  documentType?: string;
-  verifiedAt?: string;
-  expiresAt: string;
-  verificationAssertion?: string; // JWT for client-side proof
-}
-
-/**
- * Age verification initiation request
- */
-export interface AgeVerificationInitRequest {
-  widgetId: string;
-  visitorId: string;
-  returnUrl: string;
-}
-
-/**
- * Age verification initiation response
- */
-export interface AgeVerificationInitResponse {
-  success: boolean;
-  sessionId: string;
-  redirectUrl: string;
-  expiresAt: string;
-  mockMode?: boolean;
-  error?: string;
-}
-
-/**
- * Age verification status response
- */
-export interface AgeVerificationStatusResponse {
-  status: AgeVerificationStatus;
-  verified: boolean;
-  age?: number;
-  isMinor?: boolean;
-  verificationAssertion?: string;
-  documentType?: string;
-  verifiedAt?: string;
-  message: string;
-  error?: string;
-}
-
-
-
