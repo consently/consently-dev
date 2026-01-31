@@ -164,32 +164,28 @@ export class ApiSetuDigiLockerService {
     this.mockMode = MOCK_MODE_ENABLED || !process.env.APISETU_CLIENT_ID;
 
     this.config = {
-      // OAuth endpoints - CRITICAL: Must use /public/oauth2/1/ path for DigiLocker OAuth
-      oauthBaseUrl: process.env.DIGILOCKER_OAUTH_BASE_URL || 'https://digilocker.meripehchaan.gov.in/public/oauth2/1',
-      // API endpoints for document/data pull
-      apiBaseUrl: process.env.APISETU_BASE_URL || 'https://digilocker.meripehchaan.gov.in/public/oauth2/1',
-      // Sandbox URLs
-      sandboxOauthUrl: process.env.DIGILOCKER_SANDBOX_OAUTH_URL || 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
-      sandboxApiUrl: process.env.APISETU_SANDBOX_URL || 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
-      // Credentials
+      // OAuth endpoints - MeriPehchaan OAuth via API Setu AuthPartner
+      oauthBaseUrl: 'https://digilocker.meripehchaan.gov.in/public/oauth2/1',
+      // API endpoints for AVS (Age Verification Service) calls
+      apiBaseUrl: 'https://digilocker.meripehchaan.gov.in/public/oauth2/1',
+      // Sandbox URLs (for testing - not used in production)
+      sandboxOauthUrl: 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
+      sandboxApiUrl: 'https://api.sandbox.digitallocker.gov.in/public/oauth2/1',
+      // AuthPartner credentials (from consume.apisetu.gov.in dashboard)
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      // CRITICAL: scope MUST match what's configured in APISetu AuthPartner dashboard.
-      // For Age Verification partners, this can be:
-      //   - 'avs' for AVS-only partners (old config)
-      //   - 'openid age_verification' for OpenID + age verification (new Authpartner config)
-      // Verify at: consume.apisetu.gov.in → AuthPartner → Scopes
-      // If DIGILOCKER_AGE_VERIFICATION_SCOPE is not set, defaults to 'openid age_verification'
-      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'openid age_verification',
+      // OAuth scope - matches AuthPartner dashboard Scopes configuration
+      // Your AuthPartner (JM56F33ABE) has: openid, age_verification
+      // Verify at: consume.apisetu.gov.in → AuthPartner → Scopes tab
+      scope: 'openid age_verification',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
-      // MeriPehchaan/NSSO parameters - MUST match APISetu AuthPartner configuration
-      // Verify at: consume.apisetu.gov.in → AuthPartner → Flow/ACR/AMR settings
-      // Current partner config: Sign-in flow, ACR=aadhaar+email+mobile, AMR=aadhaar
-      dlFlow: process.env.DIGILOCKER_DL_FLOW || 'signin',
-      acr: process.env.DIGILOCKER_ACR || 'aadhaar+email+mobile',
-      amr: process.env.DIGILOCKER_AMR || 'aadhaar',
-      pla: process.env.DIGILOCKER_PLA || 'Y',
+      // Legacy NSSO params removed - now controlled by API Setu dashboard
+      // (dlFlow, acr, amr, pla are configured in AuthPartner settings, not sent in URL)
+      dlFlow: 'signin',  // Kept for potential future use, not sent in authorize URL
+      acr: '',           // Removed - controlled by dashboard
+      amr: '',           // Removed - controlled by dashboard
+      pla: '',           // Removed - controlled by dashboard
     };
 
     if (this.mockMode) {
@@ -202,10 +198,7 @@ export class ApiSetuDigiLockerService {
         scope: this.config.scope,
         oauthBaseUrl: this.config.oauthBaseUrl,
         useSandbox: this.config.useSandbox,
-        dlFlow: this.config.dlFlow,
-        acr: this.config.acr,
-        amr: this.config.amr,
-        pla: this.config.pla,
+        note: 'MeriPehchaan-specific params (ACR, AMR, flow) are controlled by API Setu dashboard',
       });
     }
   }
@@ -287,6 +280,10 @@ export class ApiSetuDigiLockerService {
     // Generate PKCE code challenge from verifier
     const codeChallenge = this.generateCodeChallenge(codeVerifier);
 
+    // Standard OAuth 2.0 + PKCE params
+    // NOTE: MeriPehchaan-specific params (acr, amr, dl_flow, pla) are managed
+    // by API Setu AuthPartner dashboard config, NOT passed in authorize URL.
+    // Passing them can cause conflicts with dashboard settings.
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.config.clientId,
@@ -294,16 +291,10 @@ export class ApiSetuDigiLockerService {
       redirect_uri: this.config.redirectUri,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
-      dl_flow: this.config.dlFlow,
-      amr: this.config.amr,
       scope: this.config.scope,
-      pla: this.config.pla,
     });
 
-    // Append acr separately to preserve literal + signs (URLSearchParams encodes + as %2B)
-    // MeriPehchaan/NSSO expects literal + as separators in acr values
-    const acr = this.config.acr;
-    const authorizeUrl = `${this.getOAuthBaseUrl()}/authorize?${params.toString()}&acr=${acr}`;
+    const authorizeUrl = `${this.getOAuthBaseUrl()}/authorize?${params.toString()}`;
 
     // DEBUG: Log the final authorize URL to verify exact parameters sent to NSSO
     // Remove this log after confirming the flow works in production
