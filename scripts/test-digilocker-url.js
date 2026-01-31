@@ -14,7 +14,7 @@ const crypto = require('crypto');
 const config = {
   clientId: process.env.APISETU_CLIENT_ID || 'JM56F33ABE',
   redirectUri: process.env.APISETU_REDIRECT_URI || 'https://www.consently.in/api/auth/meri-pehchaan/callback',
-  scope: 'avs',
+  scope: 'openid age_verification',
   oauthBaseUrl: 'https://digilocker.meripehchaan.gov.in/public/oauth2/1',
 };
 
