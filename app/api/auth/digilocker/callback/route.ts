@@ -76,9 +76,10 @@ export async function GET(request: NextRequest) {
       let redirectTo = '/age-verification';
       if (state) {
         try {
-          const stateData = await redis.get<string>(`digilocker:state:${state}`);
+          const stateData = await redis.get(`digilocker:state:${state}`);
           if (stateData) {
-            const parsed = JSON.parse(stateData);
+            // Upstash Redis may return parsed object or string
+            const parsed = typeof stateData === 'string' ? JSON.parse(stateData) : stateData;
             redirectTo = parsed.redirectTo || redirectTo;
             // Clean up Redis
             await redis.del(`digilocker:state:${state}`);
@@ -131,17 +132,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
-    // Parse state data
-    let parsedState;
-    try {
-      parsedState = JSON.parse(stateData);
-    } catch (parseError) {
-      console.error('Failed to parse state data:', parseError);
-      const errorUrl = new URL('/age-verification', request.url);
-      errorUrl.searchParams.set('error', 'session_error');
-      errorUrl.searchParams.set('error_description', 'Invalid session data');
-      return NextResponse.redirect(errorUrl.toString());
-    }
+    // Parse state data - Upstash Redis may return parsed object or string
+    const parsedState = typeof stateData === 'string' ? JSON.parse(stateData) : stateData;
     
     const { codeVerifier, userId: stateUserId, redirectTo } = parsedState;
 

@@ -87,7 +87,8 @@ export async function GET(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    await redis.setex(`digilocker:state:${state}`, PKCE_TTL, JSON.stringify(stateData));
+    // Upstash Redis automatically serializes objects to JSON
+    await redis.setex(`digilocker:state:${state}`, PKCE_TTL, stateData);
 
     // Log initiation
     await logSuccess(
