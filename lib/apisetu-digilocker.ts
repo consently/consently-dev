@@ -45,9 +45,10 @@ export interface AgeVerificationResponse {
 
 export interface DigiLockerUserResponse {
   // Response from /user endpoint - DOB is extracted, age calculated, then DOB is discarded
-  // NOTE: DigiLocker officially returns DD-MM-YYYY format (e.g., "15-06-1990")
-  // Our normalizeDob() function handles both DD-MM-YYYY and YYYY-MM-DD formats
-  dob: string;                    // Format: DD-MM-YYYY or YYYY-MM-DD - DISCARDED after age calculation
+  // ⭐ CRITICAL: DigiLocker OFFICIALLY returns DDMMYYYY format (e.g., "31121990" for 31-Dec-1990)
+  // See API spec page 11: "dob": "31121970"
+  // Our normalizeDob() handles: DDMMYYYY (official), DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
+  dob: string;                    // Format: DDMMYYYY (official) - DISCARDED after age calculation
   document_type: string;          // E.g., 'AADHAAR' - Kept for audit trail
   consent_artifact_id: string;    // Reference for audit
   name?: string;                  // NOT stored - discarded immediately
@@ -106,9 +107,15 @@ const MOCK_USERS: Record<string, { dob: string; documentType: string }> = {
     dob: '1996-01-15',
     documentType: 'AADHAAR',
   },
-  // Test adult (age 30) - DD-MM-YYYY format (DigiLocker official format)
+  // Test adult (age 30) - DD-MM-YYYY format
   'mock_adult_ddmmyyyy_code': {
     dob: '15-01-1996',
+    documentType: 'AADHAAR',
+  },
+  // ⭐ Test adult (age 30) - DDMMYYYY format (DigiLocker OFFICIAL format!)
+  // API spec page 11: "dob": "31121970"
+  'mock_adult_ddmmyyyy_nosep_code': {
+    dob: '15011996',
     documentType: 'AADHAAR',
   },
   // Test minor (age 15) - YYYY-MM-DD format
@@ -119,6 +126,11 @@ const MOCK_USERS: Record<string, { dob: string; documentType: string }> = {
   // Test minor (age 15) - DD-MM-YYYY format
   'mock_minor_ddmmyyyy_code': {
     dob: '20-06-2011',
+    documentType: 'AADHAAR',
+  },
+  // ⭐ Test minor (age 15) - DDMMYYYY format (DigiLocker OFFICIAL format!)
+  'mock_minor_ddmmyyyy_nosep_code': {
+    dob: '20062011',
     documentType: 'AADHAAR',
   },
   // Test edge case (exactly 18 today - calculate dynamically)
@@ -498,7 +510,8 @@ export class ApiSetuDigiLockerService {
   /**
    * Normalize DOB string from various formats to a JavaScript Date object.
    * Handles:
-   * - DD-MM-YYYY (DigiLocker official format: 15-06-1990)
+   * - DDMMYYYY (DigiLocker OFFICIAL format: 31121990 for 31-Dec-1990) ⭐ CRITICAL
+   * - DD-MM-YYYY (e.g., 15-06-1990)
    * - YYYY-MM-DD (ISO format: 1990-06-15)
    * - DD/MM/YYYY (15/06/1990)
    * - YYYY/MM/DD (1990/06/15)
@@ -511,13 +524,14 @@ export class ApiSetuDigiLockerService {
 
     const trimmed = dob.trim();
     
-    // Try DD-MM-YYYY or DD/MM/YYYY (DigiLocker format)
-    // DigiLocker returns: "15-06-1990" for June 15, 1990
-    const ddMmYyyyMatch = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
-    if (ddMmYyyyMatch) {
-      const day = parseInt(ddMmYyyyMatch[1], 10);
-      const month = parseInt(ddMmYyyyMatch[2], 10) - 1; // JS months are 0-indexed
-      const year = parseInt(ddMmYyyyMatch[3], 10);
+    // ⭐ DigiLocker OFFICIAL format: DDMMYYYY (8 digits, no separators)
+    // Example: "31121970" = 31 December 1970
+    // Page 11 of API spec: "dob": "31121970"
+    const ddmmyyyyMatch = trimmed.match(/^(\d{2})(\d{2})(\d{4})$/);
+    if (ddmmyyyyMatch) {
+      const day = parseInt(ddmmyyyyMatch[1], 10);
+      const month = parseInt(ddmmyyyyMatch[2], 10) - 1; // JS months are 0-indexed
+      const year = parseInt(ddmmyyyyMatch[3], 10);
       
       // Validate ranges
       if (day < 1 || day > 31 || month < 0 || month > 11 || year < 1900 || year > 2100) {
@@ -532,20 +546,36 @@ export class ApiSetuDigiLockerService {
       return date;
     }
     
-    // Try YYYY-MM-DD or YYYY/MM/DD (ISO format)
+    // Try DD-MM-YYYY or DD/MM/YYYY (with separators)
+    const ddMmYyyyMatch = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (ddMmYyyyMatch) {
+      const day = parseInt(ddMmYyyyMatch[1], 10);
+      const month = parseInt(ddMmYyyyMatch[2], 10) - 1;
+      const year = parseInt(ddMmYyyyMatch[3], 10);
+      
+      if (day < 1 || day > 31 || month < 0 || month > 11 || year < 1900 || year > 2100) {
+        throw new Error(`Invalid DOB values: day=${day}, month=${month + 1}, year=${year}`);
+      }
+      
+      const date = new Date(year, month, day);
+      if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
+        throw new Error(`Invalid DOB date: ${trimmed}`);
+      }
+      return date;
+    }
+    
+    // Try YYYY-MM-DD or YYYY/MM/DD (ISO format with separators)
     const isoMatch = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
     if (isoMatch) {
       const year = parseInt(isoMatch[1], 10);
       const month = parseInt(isoMatch[2], 10) - 1;
       const day = parseInt(isoMatch[3], 10);
       
-      // Validate ranges
       if (day < 1 || day > 31 || month < 0 || month > 11 || year < 1900 || year > 2100) {
         throw new Error(`Invalid DOB values: year=${year}, month=${month + 1}, day=${day}`);
       }
       
       const date = new Date(year, month, day);
-      // Verify the date is valid
       if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
         throw new Error(`Invalid DOB date: ${trimmed}`);
       }
@@ -558,7 +588,7 @@ export class ApiSetuDigiLockerService {
       return fallbackDate;
     }
     
-    throw new Error(`Unrecognized DOB format: ${trimmed}. Expected DD-MM-YYYY or YYYY-MM-DD`);
+    throw new Error(`Unrecognized DOB format: ${trimmed}. Expected DDMMYYYY, DD-MM-YYYY, or YYYY-MM-DD`);
   }
 
   /**
