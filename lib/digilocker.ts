@@ -193,7 +193,6 @@ export function buildAuthorizationUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state: state,
-    scope: 'openid',
     purpose: purpose,
   });
 
@@ -207,6 +206,7 @@ export function buildAuthorizationUrl(
 /**
  * Exchange authorization code for access token
  * Per DigiLocker API spec Page 9
+ * Note: DigiLocker MeriPehchaan API uses a custom flow, not standard OAuth 2.0
  */
 export async function exchangeCodeForToken(
   code: string,
@@ -217,9 +217,11 @@ export async function exchangeCodeForToken(
 
   const tokenUrl = `${baseUrl}/public/oauth2/1/token`;
 
+  // DigiLocker MeriPehchaan API expects client_credentials grant type
+  // NOT authorization_code like standard OAuth 2.0
   const body = new URLSearchParams({
     code,
-    grant_type: 'authorization_code',
+    grant_type: 'client_credentials',
     client_id: config.clientId,
     client_secret: config.clientSecret,
     redirect_uri: config.redirectUri,
