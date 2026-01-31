@@ -1,11 +1,11 @@
 /**
- * MeriPehchaan (DigiLocker) Callback Route Alias
+ * MeriPehchaan Callback Route — LEGACY ALIAS (no hyphen)
  *
- * This route handles callbacks from API Setu's DigiLocker OAuth flow.
- * It re-exports the main age verification callback handler.
+ * The canonical callback URL (registered in API Setu) uses a hyphen:
+ *   https://www.consently.in/api/auth/meri-pehchaan/callback
  *
- * Callback URL registered with API Setu:
- * https://consently.in/api/auth/meripehchaan/callback
+ * This non-hyphenated route is kept as a safety fallback.
+ * The canonical route is at: /api/auth/meri-pehchaan/callback
  */
 
 export { GET, OPTIONS } from '@/app/api/dpdpa/age-verification/callback/route';
