@@ -2172,6 +2172,214 @@
     document.body.appendChild(modal);
   }
 
+  // Show OTP Verification Modal (Step 2 after sending OTP)
+  async function showOtpVerificationModal(email) {
+    const existingModal = document.getElementById('dpdpa-otp-modal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'dpdpa-otp-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 16px;
+    `;
+
+    modal.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:slideUp 0.3s ease-out;text-align:center;">
+        <!-- Icon -->
+        <div style="width:64px;height:64px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 4px 12px rgba(79,118,246,0.25);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        
+        <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:#1a1a1a;">Enter Verification Code</h2>
+        <p style="color:#64748b;font-size:14px;margin:0 0 20px 0;line-height:1.5;">
+          We've sent a 6-digit code to<br/>
+          <strong style="color:#1e293b;">${escapeHtml(email)}</strong>
+        </p>
+        
+        <!-- OTP Input -->
+        <div style="margin-bottom:16px;">
+          <input 
+            type="text" 
+            inputmode="numeric"
+            pattern="[0-9]*"
+            id="dpdpa-otp-verify-input" 
+            placeholder="000000"
+            maxlength="6"
+            autocomplete="one-time-code"
+            style="width:180px;padding:16px 12px;border:2px solid #4F76F6;border-radius:12px;font-size:28px;outline:none;text-align:center;letter-spacing:0.3em;font-family:'SF Mono',monospace;font-weight:700;background:linear-gradient(to right,#4F76F608,#4F76F610);color:#1e293b;box-sizing:border-box;"
+            onfocus="this.style.boxShadow='0 0 0 4px rgba(79,118,246,0.15)';"
+            onblur="this.style.boxShadow='none';"
+          />
+        </div>
+        
+        <div id="dpdpa-otp-error" style="color:#dc2626;margin-bottom:12px;font-size:13px;display:none;font-weight:500;"></div>
+        
+        <!-- Verify Button -->
+        <button 
+          id="dpdpa-verify-otp-btn"
+          style="width:100%;padding:14px;background:linear-gradient(135deg, #4F76F6 0%, #3B5BDB 100%);border:none;color:white;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(79,118,246,0.25);margin-bottom:12px;"
+        >
+          Verify & Continue
+        </button>
+        
+        <!-- Actions -->
+        <div style="display:flex;justify-content:center;gap:16px;">
+          <button id="dpdpa-resend-otp-btn" style="background:none;border:none;color:#4F76F6;font-weight:600;font-size:13px;cursor:pointer;padding:4px 8px;">
+            ↻ Resend Code
+          </button>
+          <button id="dpdpa-change-email-btn" style="background:none;border:none;color:#64748b;font-weight:500;font-size:13px;cursor:pointer;padding:4px 8px;text-decoration:underline;">
+            Change Email
+          </button>
+        </div>
+        
+        <p style="margin:16px 0 0 0;font-size:12px;color:#94a3b8;">
+          Didn't receive the code? Check your spam folder.
+        </p>
+      </div>
+      <style>
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(10px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      </style>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Focus OTP input
+    setTimeout(() => {
+      const otpInput = modal.querySelector('#dpdpa-otp-verify-input');
+      if (otpInput) otpInput.focus();
+    }, 100);
+
+    // Verify Button Handler
+    const verifyBtn = modal.querySelector('#dpdpa-verify-otp-btn');
+    const otpInput = modal.querySelector('#dpdpa-otp-verify-input');
+    const errorDiv = modal.querySelector('#dpdpa-otp-error');
+
+    const handleVerify = async () => {
+      const otp = otpInput.value.replace(/\s/g, '');
+      
+      if (!otp || otp.length < 4) {
+        errorDiv.textContent = 'Please enter a valid verification code';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      verifyBtn.textContent = 'Verifying...';
+      verifyBtn.disabled = true;
+      errorDiv.style.display = 'none';
+
+      try {
+        const apiBase = getApiUrl();
+        const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            otpCode: otp,
+            visitorId: consentID || getConsentID(),
+            widgetId: widgetId,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          // Success - Store verified email
+          verifiedEmail = email;
+          userEmail = email;
+
+          // Handle Stable Consent ID
+          if (data.stableConsentId && data.stableConsentId !== consentID) {
+            console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
+            consentID = data.stableConsentId;
+            storeConsentID(consentID);
+          }
+
+          // Remove OTP modal and show consent widget
+          modal.remove();
+          showConsentWidget(email, 'verified');
+        } else {
+          errorDiv.textContent = data.error || 'Invalid verification code. Please try again.';
+          errorDiv.style.display = 'block';
+          verifyBtn.textContent = 'Verify & Continue';
+          verifyBtn.disabled = false;
+          otpInput.focus();
+        }
+      } catch (error) {
+        console.error('[Consently DPDPA] OTP verification error:', error);
+        errorDiv.textContent = 'Verification failed. Please try again.';
+        errorDiv.style.display = 'block';
+        verifyBtn.textContent = 'Verify & Continue';
+        verifyBtn.disabled = false;
+      }
+    };
+
+    verifyBtn.addEventListener('click', handleVerify);
+    otpInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleVerify();
+    });
+
+    // Resend Button Handler
+    const resendBtn = modal.querySelector('#dpdpa-resend-otp-btn');
+    resendBtn.addEventListener('click', async () => {
+      resendBtn.textContent = 'Sending...';
+      resendBtn.disabled = true;
+
+      try {
+        const apiBase = getApiUrl();
+        const response = await fetch(`${apiBase}/api/privacy-centre/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            visitorId: consentID || getConsentID(),
+            widgetId: widgetId,
+          }),
+        });
+
+        if (response.ok) {
+          errorDiv.textContent = 'A new code has been sent!';
+          errorDiv.style.color = '#059669';
+          errorDiv.style.display = 'block';
+          setTimeout(() => {
+            errorDiv.style.display = 'none';
+            errorDiv.style.color = '#dc2626';
+          }, 3000);
+        } else {
+          errorDiv.textContent = 'Failed to resend code. Please try again.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('[Consently DPDPA] Resend OTP error:', error);
+        errorDiv.textContent = 'Failed to resend code. Please try again.';
+        errorDiv.style.display = 'block';
+      } finally {
+        resendBtn.textContent = '↻ Resend Code';
+        resendBtn.disabled = false;
+      }
+    });
+
+    // Change Email Handler
+    const changeEmailBtn = modal.querySelector('#dpdpa-change-email-btn');
+    changeEmailBtn.addEventListener('click', () => {
+      modal.remove();
+      showVerificationScreen();
+    });
+  }
+
   // Show Consent ID Verification Screen
   async function showVerificationScreen() {
     const existingModal = document.getElementById('dpdpa-verification-modal');
@@ -2415,9 +2623,10 @@
               return;
             }
 
-            // Success - Switch to OTP modal (Step 2)
+            // Success - Show OTP verification modal (Step 2)
+            // IMPORTANT: Do NOT show consent widget yet - user must verify OTP first
             modal.remove();
-            showConsentWidget(email, 'verified');
+            showOtpVerificationModal(email);
 
           } catch (error) {
             console.error('[Email Verification] Send OTP error:', error);
@@ -4429,8 +4638,14 @@ ${activitySections}
           digilockerVerifyBtn.textContent = 'Verifying...';
           digilockerVerifyBtn.disabled = true;
 
+          // Build return URL - strip any existing verification params to avoid loops
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.delete('age_verification_session');
+          currentUrl.searchParams.delete('age_verification_status');
+          const cleanReturnUrl = currentUrl.toString();
+
           // Initiate age verification
-          await initiateAgeVerification(window.location.href);
+          await initiateAgeVerification(cleanReturnUrl);
 
         } catch (e) {
           console.error('[Consently DPDPA] DigiLocker verification error:', e);
