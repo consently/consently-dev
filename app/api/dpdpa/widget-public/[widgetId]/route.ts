@@ -230,20 +230,8 @@ export async function GET(
       // NEW: Display rules for page-specific notices (filter inactive rules and validate)
       display_rules: filterAndValidateDisplayRules(widgetConfig.display_rules),
 
-      // Age Gate Settings (LEGACY - Deprecated, use DigiLocker verification)
-      enableAgeGate: widgetConfig.enable_age_gate ?? false,
-      ageGateThreshold: widgetConfig.age_gate_threshold ?? 18,
-      ageGateMinorMessage: widgetConfig.age_gate_minor_message || 'This content requires adult supervision.',
-
-      // DigiLocker Age Verification (DPDPA 2023 Verifiable Parental Consent)
-      requireAgeVerification: widgetConfig.require_age_verification ?? false,
-      ageVerificationThreshold: widgetConfig.age_verification_threshold ?? 18,
-      ageVerificationProvider: widgetConfig.age_verification_provider || 'digilocker',
-      minorHandling: widgetConfig.minor_handling || 'block',
-      verificationValidityDays: widgetConfig.verification_validity_days ?? 365,
-
       // Metadata
-      version: '2.2.0' // Updated version for DigiLocker age verification support
+      version: '2.0.0'
     };
 
     // Cache the config
