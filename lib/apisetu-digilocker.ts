@@ -176,10 +176,12 @@ export class ApiSetuDigiLockerService {
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
       // CRITICAL: scope MUST match what's configured in APISetu AuthPartner dashboard.
-      // For Age Verification partners, this is 'avs' (maps to "Age verification" checkbox).
-      // Do NOT use 'openid' unless your AuthPartner explicitly has OpenID scope enabled.
+      // For Age Verification partners, this can be:
+      //   - 'avs' for AVS-only partners (old config)
+      //   - 'openid age_verification' for OpenID + age verification (new Authpartner config)
       // Verify at: consume.apisetu.gov.in → AuthPartner → Scopes
-      scope: 'avs',
+      // If DIGILOCKER_AGE_VERIFICATION_SCOPE is not set, defaults to 'openid age_verification'
+      scope: process.env.DIGILOCKER_AGE_VERIFICATION_SCOPE || 'openid age_verification',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
       // MeriPehchaan/NSSO parameters - MUST match APISetu AuthPartner configuration
       // Verify at: consume.apisetu.gov.in → AuthPartner → Flow/ACR/AMR settings
@@ -192,6 +194,19 @@ export class ApiSetuDigiLockerService {
 
     if (this.mockMode) {
       console.log('[ApiSetuDigiLocker] Running in MOCK MODE - no real API Setu calls');
+    } else {
+      // Log configuration for debugging (redact secrets)
+      console.log('[ApiSetuDigiLocker] Configuration loaded:', {
+        clientId: this.config.clientId,
+        redirectUri: this.config.redirectUri,
+        scope: this.config.scope,
+        oauthBaseUrl: this.config.oauthBaseUrl,
+        useSandbox: this.config.useSandbox,
+        dlFlow: this.config.dlFlow,
+        acr: this.config.acr,
+        amr: this.config.amr,
+        pla: this.config.pla,
+      });
     }
   }
 
