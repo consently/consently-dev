@@ -317,26 +317,50 @@ export class ApiSetuDigiLockerService {
       };
     }
 
-    // Use OAuth base URL for token exchange
-    const response = await fetch(`${this.getOAuthBaseUrl()}/token`, {
+    const tokenUrl = `${this.getOAuthBaseUrl()}/token`;
+
+    // MeriPehchaan token endpoint requires Basic auth header per partner specs
+    // Format: Authorization: Basic base64(client_id:client_secret)
+    const basicAuth = Buffer.from(
+      `${this.config.clientId}:${this.config.clientSecret}`
+    ).toString('base64');
+
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: this.config.redirectUri,
+      code_verifier: codeVerifier,
+    });
+
+    // Debug: log token exchange request (redact secrets)
+    console.log('[ApiSetuDigiLocker] Token exchange request:', {
+      url: tokenUrl,
+      method: 'POST',
+      redirect_uri: this.config.redirectUri,
+      code_length: code.length,
+      code_verifier_length: codeVerifier.length,
+      has_basic_auth: true,
+    });
+
+    const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basicAuth}`,
       },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        client_id: this.config.clientId,
-        client_secret: this.config.clientSecret,
-        redirect_uri: this.config.redirectUri,
-        code_verifier: codeVerifier,
-      }),
+      body: body,
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('[ApiSetuDigiLocker] Token exchange failed:', error);
-      throw new Error(`Token exchange failed: ${response.status} ${response.statusText}`);
+      const errorBody = await response.text();
+      console.error('[ApiSetuDigiLocker] Token exchange failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: tokenUrl,
+        redirect_uri: this.config.redirectUri,
+        response: errorBody,
+      });
+      throw new Error(`Token exchange failed: ${response.status} ${response.statusText} — ${errorBody}`);
     }
 
     return await response.json();
