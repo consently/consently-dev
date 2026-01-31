@@ -221,9 +221,10 @@ export class ApiSetuDigiLockerService {
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
       // OAuth scope for DigiLocker /user endpoint access
       // 'openid' = Standard OAuth scope for /user endpoint
-      // 'age_verification' = API Setu age verification scope (check dashboard)
+      // 'avs' = API Setu Age Verification Service scope
+      // Working config (from API Setu dashboard): scope=openid+avs
       // NOTE: Must match what's enabled in API Setu dashboard AuthPartner settings
-      scope: process.env.DIGILOCKER_SCOPE || 'openid',
+      scope: process.env.DIGILOCKER_SCOPE || 'openid avs',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
       // Legacy NSSO params removed - now controlled by API Setu dashboard
       // (dlFlow, acr, amr, pla are configured in AuthPartner settings, not sent in URL)
