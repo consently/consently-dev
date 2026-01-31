@@ -175,12 +175,11 @@ export class ApiSetuDigiLockerService {
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      // OAuth scope for DigiLocker Age Verification Service (AVS)
-      // Note: Guardian consent (avs_parent) removed - infrastructure not ready
-      // and users can bypass with fake second numbers/emails
-      // Note: We do NOT use 'openid' - DigiLocker's token endpoint does not
-      // support OIDC grant semantics. Use plain OAuth 2.0 scope instead.
-      scope: 'avs',
+      // OAuth scope for DigiLocker Age Verification
+      // NOTE: Using 'age_verification' - the only scope for DigiLocker age verification
+      // We do NOT use 'openid' (OIDC not supported by token endpoint)
+      // We do NOT use 'avs' or 'avs_parent' (deprecated scope names)
+      scope: 'age_verification',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
       // Legacy NSSO params removed - now controlled by API Setu dashboard
       // (dlFlow, acr, amr, pla are configured in AuthPartner settings, not sent in URL)
