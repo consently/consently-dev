@@ -79,13 +79,26 @@ const envSchema = z.object({
   DIGILOCKER_ISSUER_ID: z.string().optional(), // e.g., 'in.consently'
 });
 
+// Type for the environment variables
+export type Env = z.infer<typeof envSchema>;
+
+// Cache for validated environment
+let validatedEnv: Env | null = null;
+let validationError: Error | null = null;
+
 /**
  * Parse and validate environment variables
  * This will throw an error if validation fails
+ * Results are cached after first call
  */
-function validateEnv() {
+function validateEnv(): Env {
+  // Return cached result if available
+  if (validatedEnv) return validatedEnv;
+  if (validationError) throw validationError;
+
   try {
-    return envSchema.parse(process.env);
+    validatedEnv = envSchema.parse(process.env);
+    return validatedEnv;
   } catch (error) {
     if (error instanceof z.ZodError) {
       const missingVars = error.issues.map((err: z.ZodIssue) => {
@@ -102,63 +115,82 @@ function validateEnv() {
       
       // In production, we want to fail hard
       if (process.env.NODE_ENV === 'production') {
-        throw new Error('Environment validation failed. Cannot start application.');
+        validationError = new Error('Environment validation failed. Cannot start application.');
+        throw validationError;
       }
       
       // In development, log but continue (allow hot reload to work)
       console.warn('\n⚠️  Continuing in development mode with invalid env vars.\n');
       console.warn('⚠️  Some features may not work correctly.\n');
     }
-    throw error;
+    validationError = error as Error;
+    throw validationError;
+  }
+}
+
+/**
+ * Safe getter for environment variables
+ * Returns undefined if validation fails (in development)
+ * Throws error in production
+ */
+function getEnvValue<K extends keyof Env>(key: K): Env[K] | undefined {
+  try {
+    const env = validateEnv();
+    return env[key];
+  } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+    // In development, return from process.env directly as fallback
+    return process.env[key] as Env[K] | undefined;
   }
 }
 
 /**
  * Validated and type-safe environment variables
- * Use this instead of process.env throughout your app
+ * Uses Proxy for lazy validation
  */
-export const env = validateEnv();
-
-/**
- * Type for the environment variables
- * Useful for mocking in tests
- */
-export type Env = z.infer<typeof envSchema>;
+export const env = new Proxy({} as Env, {
+  get(target, prop: string) {
+    return getEnvValue(prop as keyof Env);
+  },
+});
 
 /**
  * Check if running in production
  */
-export const isProduction = env.NODE_ENV === 'production';
+export const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Check if running in development
  */
-export const isDevelopment = env.NODE_ENV === 'development';
+export const isDevelopment = process.env.NODE_ENV === 'development';
 
 /**
  * Check if running in test
  */
-export const isTest = env.NODE_ENV === 'test';
+export const isTest = process.env.NODE_ENV === 'test';
 
 /**
  * Helper: Check if a feature is enabled based on env vars
+ * Uses direct process.env access to avoid validation issues
  */
 export const features = {
-  redis: !!(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN),
-  sentry: !!env.NEXT_PUBLIC_SENTRY_DSN,
-  analytics: !!env.NEXT_PUBLIC_GA_ID,
-  payments: !!(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET),
-  email: !!env.RESEND_API_KEY,
-  translation: !!env.GOOGLE_TRANSLATE_API_KEY,
-  cookieScanner: !!env.BROWSERLESS_API_KEY,
-  digilocker: !!(env.DIGILOCKER_CLIENT_ID && env.DIGILOCKER_CLIENT_SECRET && env.DIGILOCKER_REDIRECT_URI),
+  redis: !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
+  sentry: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
+  analytics: !!process.env.NEXT_PUBLIC_GA_ID,
+  payments: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+  email: !!process.env.RESEND_API_KEY,
+  translation: !!process.env.GOOGLE_TRANSLATE_API_KEY,
+  cookieScanner: !!process.env.BROWSERLESS_API_KEY,
+  digilocker: !!(process.env.DIGILOCKER_CLIENT_ID && process.env.DIGILOCKER_CLIENT_SECRET && process.env.DIGILOCKER_REDIRECT_URI),
 } as const;
 
 /**
  * Log feature availability (useful for debugging)
  */
 export function logFeatureStatus() {
-  if (isDevelopment) {
+  if (isDevelopment && typeof window === 'undefined') {
     console.log('\n📊 Feature Status:');
     console.log(`  Redis: ${features.redis ? '✅' : '❌ (fallback to in-memory)'}`);
     console.log(`  Sentry: ${features.sentry ? '✅' : '❌'}`);
@@ -171,7 +203,8 @@ export function logFeatureStatus() {
   }
 }
 
-// Log feature status on import (only in development)
+// Log feature status on import (only in development server-side)
 if (isDevelopment && typeof window === 'undefined') {
-  logFeatureStatus();
+  // Delay to avoid issues during module initialization
+  setTimeout(logFeatureStatus, 100);
 }
