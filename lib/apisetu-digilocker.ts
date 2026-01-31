@@ -175,10 +175,10 @@ export class ApiSetuDigiLockerService {
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      // OAuth scope — only 'openid' for identity + consent
-      // Age verification is NOT an OAuth scope — it happens via DigiLocker
-      // APIs (AVS endpoint) AFTER token exchange, not during OAuth authorize
-      scope: 'openid',
+      // OAuth scope — 'age_verification' for DigiLocker age verification
+      // Note: We do NOT use 'openid' - DigiLocker's token endpoint does not
+      // support OIDC grant semantics. Use plain OAuth 2.0 scope instead.
+      scope: 'age_verification',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
       // Legacy NSSO params removed - now controlled by API Setu dashboard
       // (dlFlow, acr, amr, pla are configured in AuthPartner settings, not sent in URL)
