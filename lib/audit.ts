@@ -45,7 +45,13 @@ export type AuditAction =
   | 'age_verification.failed'
   | 'guardian_consent.requested'
   | 'guardian_consent.approved'
-  | 'guardian_consent.rejected';
+  | 'guardian_consent.rejected'
+  // MeriPehchaan Consent Postback Actions
+  | 'meripehchaan_consent.received'
+  | 'meripehchaan_consent.verified'
+  | 'meripehchaan_consent.failed'
+  | 'meripehchaan_consent.updated'
+  | 'meripehchaan_consent.revoked';
 
 export type AuditStatus = 'success' | 'failure';
 
