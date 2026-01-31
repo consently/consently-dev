@@ -71,8 +71,7 @@ const widgetConfigSchema = z.object({
   requireAgeVerification: z.boolean().optional(),
   ageVerificationThreshold: z.number().min(13).max(21).optional(),
   ageVerificationProvider: z.enum(['digilocker', 'apisetu', 'custom']).optional(),
-  minorHandling: z.enum(['block', 'guardian_consent', 'limited_access']).optional(),
-  minorGuardianMessage: z.string().max(1000, 'Guardian message must not exceed 1000 characters').optional(),
+  minorHandling: z.enum(['block', 'limited_access']).optional(),
   verificationValidityDays: z.number().min(1).max(365).optional(),
   // Smart Email Pre-fill
   enableSmartPreFill: z.boolean().optional(),
@@ -281,13 +280,12 @@ export async function POST(request: NextRequest) {
       // Age Gate Settings (LEGACY) - Auto-disabled when DigiLocker is enabled
       enable_age_gate: configData.requireAgeVerification ? false : (configData.enableAgeGate ?? false),
       age_gate_threshold: configData.ageGateThreshold ?? 18,
-      age_gate_minor_message: configData.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.',
+      age_gate_minor_message: configData.ageGateMinorMessage || 'This content requires adult supervision.',
       // DigiLocker Age Verification (DPDPA 2023)
       require_age_verification: configData.requireAgeVerification ?? false,
       age_verification_threshold: configData.ageVerificationThreshold ?? 18,
       age_verification_provider: configData.ageVerificationProvider || 'digilocker',
-      minor_handling: configData.minorHandling || 'guardian_consent',
-      minor_guardian_message: configData.minorGuardianMessage || 'You are under the required age. Please ask a parent or guardian to verify their identity and approve your consent.',
+      minor_handling: configData.minorHandling || 'block',
       verification_validity_days: configData.verificationValidityDays ?? 365,
       // Smart Pre-fill
       enable_smart_pre_fill: configData.enableSmartPreFill ?? false,
@@ -462,7 +460,7 @@ export async function PUT(request: NextRequest) {
     if (configData.ageVerificationThreshold !== undefined) updatePayload.age_verification_threshold = configData.ageVerificationThreshold;
     if (configData.ageVerificationProvider !== undefined) updatePayload.age_verification_provider = configData.ageVerificationProvider;
     if (configData.minorHandling !== undefined) updatePayload.minor_handling = configData.minorHandling;
-    if (configData.minorGuardianMessage !== undefined) updatePayload.minor_guardian_message = configData.minorGuardianMessage;
+
     if (configData.verificationValidityDays !== undefined) updatePayload.verification_validity_days = configData.verificationValidityDays;
 
     // Auto-disable legacy age gate when DigiLocker verification is enabled

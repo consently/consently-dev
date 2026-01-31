@@ -75,7 +75,7 @@
     selectBirthYear: 'Select your year of birth',
     continueButton: 'Continue',
     ageGateDescription: 'To provide you with an appropriate experience, we need to verify your age.',
-    ageGateDefaultMinorMessage: 'This content requires adult supervision. Please ask a parent or guardian to assist you.',
+    ageGateDefaultMinorMessage: 'This content requires adult supervision.',
     // DigiLocker Age Verification Translations
     digilockerVerification: 'DigiLocker Age Verification',
     digilockerDescription: 'Verify your age securely using your government-issued ID via DigiLocker.',
@@ -87,16 +87,7 @@
     verificationFailedMessage: 'Age verification failed. Please try again.',
     verificationPending: 'Verification Pending',
     verificationPendingMessage: 'Please complete verification in the DigiLocker window.',
-    guardianConsentRequired: 'Guardian Consent Required',
-    guardianConsentMessage: 'You are under the required age. A parent or guardian must verify their identity and approve your consent.',
-    requestGuardianConsent: 'Request Guardian Consent',
-    guardianEmail: 'Guardian Email',
-    guardianEmailPlaceholder: 'Enter guardian email address',
-    sendConsentRequest: 'Send Consent Request',
-    consentRequestSent: 'Consent request sent to guardian',
-    waitingForGuardian: 'Waiting for guardian approval...',
-    guardianApproved: 'Guardian consent approved',
-    guardianRejected: 'Guardian consent was denied',
+    minorBlockedMessage: 'You must be 18 or older to provide consent.',
     retryVerification: 'Retry Verification'
   };
 
@@ -272,11 +263,10 @@
 
   // DigiLocker Age Verification State
   let ageVerificationSessionId = null; // Current verification session ID
-  let ageVerificationStatus = null; // 'pending' | 'verified' | 'failed' | 'requires_guardian'
-  let guardianConsentStatus = null; // 'pending' | 'sent' | 'approved' | 'rejected'
+  let ageVerificationStatus = null; // 'pending' | 'verified' | 'failed'
   let ageVerificationPollingInterval = null; // Polling interval reference
   // Canonical policy outcome from server — single source of truth
-  // Values: 'verified_adult' | 'blocked_minor' | 'guardian_required' | 'guardian_approved' | 'limited_access' | 'expired'
+  // Values: 'verified_adult' | 'blocked_minor' | 'limited_access' | 'expired'
   let verificationOutcome = null;
 
   // LocalStorage manager for consent persistence
@@ -592,15 +582,8 @@
           case 'verified_adult':
             ageVerificationStatus = 'verified';
             break;
-          case 'guardian_approved':
-            ageVerificationStatus = 'verified';
-            break;
           case 'blocked_minor':
             ageVerificationStatus = 'rejected';
-            break;
-          case 'guardian_required':
-            ageVerificationStatus = 'requires_guardian';
-            guardianConsentStatus = data.guardianConsentStatus || 'pending';
             break;
           case 'limited_access':
             ageVerificationStatus = 'verified';
@@ -608,21 +591,11 @@
           default:
             // Fallback: use legacy logic if outcome not yet set (backward compat)
             ageVerificationStatus = 'verified';
-            if (data.isMinor && data.requiresGuardianConsent) {
-              if (data.guardianConsentStatus === 'approved') {
-                ageVerificationStatus = 'verified';
-              } else if (data.guardianConsentStatus === 'rejected') {
-                ageVerificationStatus = 'rejected';
-              } else {
-                ageVerificationStatus = 'requires_guardian';
-                guardianConsentStatus = data.guardianConsentStatus || 'pending';
-              }
-            }
             break;
         }
 
         // Store verification if outcome permits consent
-        const consentPermittedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
+        const consentPermittedOutcomes = ['verified_adult', 'limited_access'];
         if (verificationOutcome && consentPermittedOutcomes.includes(verificationOutcome)) {
           const validityDays = config?.verificationValidityDays || 365;
           storeAgeVerification(validityDays);
@@ -638,57 +611,6 @@
       return data;
     } catch (e) {
       console.error('[Consently DPDPA] Error checking verification status:', e);
-      return null;
-    }
-  }
-
-  // Request guardian consent
-  async function requestGuardianConsent(sessionId, guardianEmail, relationship = 'parent') {
-    try {
-      const apiBase = getApiUrl();
-
-      const response = await fetch(`${apiBase}/api/dpdpa/age-verification/guardian-consent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionId,
-          guardianEmail: guardianEmail,
-          relationship: relationship
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to request guardian consent');
-      }
-
-      const data = await response.json();
-      guardianConsentStatus = 'sent';
-
-      return data;
-    } catch (e) {
-      console.error('[Consently DPDPA] Error requesting guardian consent:', e);
-      throw e;
-    }
-  }
-
-  // Check guardian consent status
-  async function checkGuardianConsentStatus(sessionId) {
-    try {
-      const apiBase = getApiUrl();
-
-      const response = await fetch(`${apiBase}/api/dpdpa/age-verification/guardian-consent?sessionId=${sessionId}`);
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-      guardianConsentStatus = data.status;
-
-      return data;
-    } catch (e) {
-      console.error('[Consently DPDPA] Error checking guardian consent:', e);
       return null;
     }
   }
@@ -727,43 +649,6 @@
     return null;
   }
 
-  // Start polling for guardian consent status
-  function startGuardianConsentPolling(sessionId, onStatusChange) {
-    if (ageVerificationPollingInterval) {
-      clearInterval(ageVerificationPollingInterval);
-    }
-
-    ageVerificationPollingInterval = setInterval(async () => {
-      const status = await checkGuardianConsentStatus(sessionId);
-
-      if (status && (status.status === 'approved' || status.status === 'rejected')) {
-        clearInterval(ageVerificationPollingInterval);
-        ageVerificationPollingInterval = null;
-
-        if (status.status === 'approved') {
-          ageVerificationStatus = 'verified';
-          verificationOutcome = 'guardian_approved';
-          storeAgeVerification(config?.verificationValidityDays || 365);
-        } else {
-          ageVerificationStatus = 'rejected';
-          verificationOutcome = 'blocked_minor';
-        }
-
-        if (onStatusChange) {
-          onStatusChange(status);
-        }
-      }
-    }, 5000); // Poll every 5 seconds
-  }
-
-  // Stop polling
-  function stopGuardianConsentPolling() {
-    if (ageVerificationPollingInterval) {
-      clearInterval(ageVerificationPollingInterval);
-      ageVerificationPollingInterval = null;
-    }
-  }
-
   // Update the DigiLocker verification UI
   function updateDigiLockerUI(widget, t) {
     const verificationSection = widget.querySelector('#dpdpa-digilocker-section');
@@ -771,7 +656,6 @@
 
     const statusContainer = verificationSection.querySelector('#dpdpa-digilocker-status');
     const verifyBtn = verificationSection.querySelector('#dpdpa-digilocker-verify-btn');
-    const guardianSection = verificationSection.querySelector('#dpdpa-guardian-section');
 
     if (ageVerificationStatus === 'verified') {
       if (statusContainer) {
@@ -807,23 +691,6 @@
         `;
       }
       if (verifyBtn) verifyBtn.style.display = 'none';
-      if (guardianSection) guardianSection.style.display = 'none';
-    } else if (ageVerificationStatus === 'requires_guardian') {
-      if (statusContainer) {
-        statusContainer.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 8px; color: #d97706;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 16v-4"/>
-              <path d="M12 8h.01"/>
-            </svg>
-            <span style="font-weight: 600;">${t.guardianConsentRequired}</span>
-          </div>
-          <p style="margin: 4px 0 0 28px; font-size: 12px; color: #6b7280;">${t.guardianConsentMessage}</p>
-        `;
-      }
-      if (verifyBtn) verifyBtn.style.display = 'none';
-      if (guardianSection) guardianSection.style.display = 'block';
     } else if (ageVerificationStatus === 'rejected' || verificationOutcome === 'blocked_minor') {
       // Minor blocked by policy — no consent UI shown
       if (statusContainer) {
@@ -838,13 +705,12 @@
               <span style="font-weight: 700; font-size: 14px;">Access Restricted</span>
             </div>
             <p style="margin: 8px 0 0 28px; font-size: 12px; color: #991b1b;">
-              ${config?.minorGuardianMessage || 'You must be 18 or older to provide consent. Please ask a parent or guardian to complete verification on your behalf.'}
+              ${config?.minorBlockedMessage || 'You must be 18 or older to provide consent.'}
             </p>
           </div>
         `;
       }
       if (verifyBtn) verifyBtn.style.display = 'none';
-      if (guardianSection) guardianSection.style.display = 'none';
     } else if (ageVerificationStatus === 'failed') {
       if (statusContainer) {
         statusContainer.innerHTML = `
@@ -3219,8 +3085,8 @@ ${activitySections}
           restoreWidgetState();
           
           // Mark that age verification just completed - widget should be shown
-          // Check if user is allowed to proceed (verified adult, guardian approved, or limited access)
-          const allowedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
+          // Check if user is allowed to proceed (verified adult or limited access)
+          const allowedOutcomes = ['verified_adult', 'limited_access'];
           if (callbackResult.verified && 
               (!callbackResult.verificationOutcome || allowedOutcomes.includes(callbackResult.verificationOutcome))) {
             ageVerificationJustCompleted = true;
@@ -3870,7 +3736,7 @@ ${activitySections}
            - Process: Users verify age using government-issued ID documents (Aadhaar, PAN, etc.)
            - Verification: Server-side cryptographic verification of government-issued documents
            - Privacy: Only verified age is stored, date of birth is immediately discarded
-           - Guardian Consent: Supports guardian consent workflow for minors
+
            - Compliance: Meets DPDPA 2023 "verifiable parental consent" requirements
            - Status: Active and recommended for production use
 
@@ -3921,17 +3787,6 @@ ${activitySections}
                 </svg>
                 ${t.verifyWithDigilocker}
               </button>
-              <!-- Guardian Consent Section (hidden by default) -->
-              <div id="dpdpa-guardian-section" style="display: none; margin-top: 16px; padding: 16px; background: #fffbeb; border-radius: 8px; border: 1px solid #fef3c7;">
-                <label style="display: block; font-size: 13px; color: #92400e; font-weight: 600; margin-bottom: 8px;">${t.guardianEmail}</label>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <input type="email" id="dpdpa-guardian-email" placeholder="${t.guardianEmailPlaceholder}" style="flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;" />
-                  <button id="dpdpa-guardian-send-btn" type="button" style="padding: 10px 16px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">
-                    ${t.sendConsentRequest}
-                  </button>
-                </div>
-                <div id="dpdpa-guardian-status" style="margin-top: 8px; font-size: 12px; color: #6b7280;"></div>
-              </div>
             </div>
           </div>
           <div id="dpdpa-digilocker-error" style="color: #dc2626; margin-top: 8px; font-size: 12px; display: none; font-weight: 600;"></div>
@@ -4597,67 +4452,6 @@ ${activitySections}
       }
     }
 
-    // Guardian Consent Send Button
-    const guardianSendBtn = widget.querySelector('#dpdpa-guardian-send-btn');
-    if (guardianSendBtn) {
-      guardianSendBtn.addEventListener('click', async () => {
-        const emailInput = widget.querySelector('#dpdpa-guardian-email');
-        const statusDiv = widget.querySelector('#dpdpa-guardian-status');
-        const guardianEmail = emailInput ? emailInput.value.trim() : '';
-
-        if (!guardianEmail || !guardianEmail.includes('@')) {
-          if (statusDiv) {
-            statusDiv.textContent = 'Please enter a valid email address';
-            statusDiv.style.color = '#dc2626';
-          }
-          return;
-        }
-
-        try {
-          guardianSendBtn.textContent = 'Sending...';
-          guardianSendBtn.disabled = true;
-
-          await requestGuardianConsent(ageVerificationSessionId, guardianEmail);
-
-          if (statusDiv) {
-            statusDiv.textContent = 'Consent request sent to guardian';
-            statusDiv.style.color = '#059669';
-          }
-
-          guardianSendBtn.textContent = 'Waiting for approval...';
-
-          // Start polling for guardian consent
-          startGuardianConsentPolling(ageVerificationSessionId, (status) => {
-            // Get translations for UI update
-            getTranslation(config && config.language ? config.language : 'en').then(translations => {
-              if (status.status === 'approved') {
-                if (statusDiv) {
-                  statusDiv.textContent = 'Guardian consent approved!';
-                  statusDiv.style.color = '#059669';
-                }
-                updateDigiLockerUI(widget, translations);
-              } else if (status.status === 'rejected') {
-                if (statusDiv) {
-                  statusDiv.textContent = 'Guardian consent was denied';
-                  statusDiv.style.color = '#dc2626';
-                }
-                updateDigiLockerUI(widget, translations);
-              }
-            });
-          });
-
-        } catch (e) {
-          console.error('[Consently DPDPA] Guardian consent error:', e);
-          if (statusDiv) {
-            statusDiv.textContent = e.message || 'Failed to send consent request';
-            statusDiv.style.color = '#dc2626';
-          }
-          guardianSendBtn.textContent = 'Send Consent Request';
-          guardianSendBtn.disabled = false;
-        }
-      });
-    }
-
     // Checkboxes for activities with enhanced visual feedback (table view)
     const checkboxes = widget.querySelectorAll('.activity-checkbox');
     checkboxes.forEach(checkbox => {
@@ -4750,29 +4544,13 @@ ${activitySections}
             return;
           }
 
-          if (verificationOutcome === 'guardian_required') {
-            if (errorDiv) {
-              errorDiv.textContent = t.guardianConsentMessage || 'Guardian consent is required to proceed.';
-              errorDiv.style.display = 'block';
-            }
-            const digiSection = widget.querySelector('#dpdpa-digilocker-section');
-            if (digiSection) {
-              digiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            return;
-          }
-
           // Check if age is verified (consent-permitted outcomes)
-          const consentPermitted = ['verified_adult', 'guardian_approved', 'limited_access'];
+          const consentPermitted = ['verified_adult', 'limited_access'];
           const hasPermittedOutcome = verificationOutcome && consentPermitted.includes(verificationOutcome);
 
           if (!hasPermittedOutcome && ageVerificationStatus !== 'verified') {
             if (errorDiv) {
-              if (ageVerificationStatus === 'requires_guardian') {
-                errorDiv.textContent = t.guardianConsentMessage || 'Guardian consent is required to proceed.';
-              } else {
-                errorDiv.textContent = t.ageVerificationRequired || 'Please verify your age to continue.';
-              }
+              errorDiv.textContent = t.ageVerificationRequired || 'Please verify your age to continue.';
               errorDiv.style.display = 'block';
             }
 

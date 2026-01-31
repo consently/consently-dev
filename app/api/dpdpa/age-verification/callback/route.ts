@@ -15,15 +15,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createPublicClient } from '@supabase/supabase-js';
-import { getApiSetuService, requiresGuardianConsent } from '@/lib/apisetu-digilocker';
+import { getApiSetuService } from '@/lib/apisetu-digilocker';
 import { logSuccess, logFailure } from '@/lib/audit';
 
 // Canonical verification outcomes — single source of truth for policy enforcement
 type VerificationOutcome =
   | 'verified_adult'
   | 'blocked_minor'
-  | 'guardian_required'
-  | 'guardian_approved'
   | 'limited_access'
   | 'expired';
 
@@ -43,8 +41,6 @@ function resolveVerificationOutcome(
   switch (minorHandling) {
     case 'block':
       return 'blocked_minor';
-    case 'guardian_consent':
-      return 'guardian_required';
     case 'limited_access':
       return 'limited_access';
     default:
@@ -194,19 +190,13 @@ export async function GET(request: NextRequest) {
       // Resolve policy outcome
       const outcome = resolveVerificationOutcome(result.age!, threshold, minorHandling);
       const isMinor = !result.meetsAgeThreshold;
-      const needsGuardianConsent = outcome === 'guardian_required';
 
       await updateSessionVerified(supabase, session.id, {
         verified_age: result.age!,
         document_type: result.documentType,
         consent_artifact_ref: result.consentArtifactRef,
-        requires_guardian_consent: needsGuardianConsent,
-        guardian_consent_status: needsGuardianConsent ? 'pending' : 'not_required',
         verification_outcome: outcome,
       });
-
-      // Update guardian consent record if this is a guardian verification
-      await updateGuardianConsentIfApplicable(supabase, session, result.age!);
 
       await logSuccess(
         widgetConfig?.user_id || '',
@@ -267,20 +257,14 @@ export async function GET(request: NextRequest) {
     // Resolve policy outcome — single source of truth
     const outcome = resolveVerificationOutcome(result.age!, threshold, minorHandling);
     const isMinor = !result.meetsAgeThreshold;
-    const needsGuardianConsent = outcome === 'guardian_required';
 
     // Update session with verified age and policy outcome
     await updateSessionVerified(supabase, session.id, {
       verified_age: result.age!,
       document_type: result.documentType,
       consent_artifact_ref: result.consentArtifactRef,
-      requires_guardian_consent: needsGuardianConsent,
-      guardian_consent_status: needsGuardianConsent ? 'pending' : 'not_required',
       verification_outcome: outcome,
     });
-
-    // Update guardian consent record if this is a guardian verification
-    await updateGuardianConsentIfApplicable(supabase, session, result.age!);
 
     // Log success
     await logSuccess(
@@ -346,8 +330,6 @@ async function updateSessionVerified(
     verified_age: number;
     document_type: string | null;
     consent_artifact_ref: string | null;
-    requires_guardian_consent: boolean;
-    guardian_consent_status: string;
     verification_outcome: VerificationOutcome;
   }
 ) {
@@ -360,43 +342,6 @@ async function updateSessionVerified(
       ...data,
     })
     .eq('id', sessionId);
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function updateGuardianConsentIfApplicable(
-  supabase: any,
-  session: { id: string; visitor_id: string },
-  verifiedAge: number
-) {
-  // Check if this is a guardian verification session
-  if (!session.visitor_id || !session.visitor_id.startsWith('guardian_')) {
-    return;
-  }
-
-  const consentRecordId = session.visitor_id.replace('guardian_', '');
-
-  // Validate UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(consentRecordId)) {
-    console.warn('[Age Verification Callback] Invalid guardian consent record ID:', consentRecordId);
-    return;
-  }
-
-  // Update guardian consent record with verified age and session UUID
-  const { error } = await supabase
-    .from('guardian_consent_records')
-    .update({
-      guardian_verified_age: verifiedAge,
-      guardian_verification_session_id: session.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', consentRecordId);
-
-  if (error) {
-    console.error('[Age Verification Callback] Failed to update guardian consent:', error);
-  } else {
-    console.log('[Age Verification Callback] Updated guardian consent record:', consentRecordId, 'age:', verifiedAge);
-  }
 }
 
 function redirectWithError(errorCode: string, errorMessage: string): NextResponse {

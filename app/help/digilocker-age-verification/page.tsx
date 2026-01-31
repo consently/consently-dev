@@ -2,7 +2,7 @@
  * DigiLocker Age Verification Help Page
  *
  * Comprehensive FAQ and explanation for users and website owners about
- * DigiLocker age verification, PAN/KYC requirements, and guardian consent.
+ * DigiLocker age verification and PAN/KYC requirements.
  */
 
 import React from 'react';
@@ -10,13 +10,12 @@ import { Metadata } from 'next';
 import {
   ShieldCheck,
   Lock,
-  Users,
   HelpCircle,
 } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'DigiLocker Age Verification Help | Consently',
-  description: 'Understanding DigiLocker age verification, PAN/KYC requirements, and guardian consent under DPDPA 2023',
+  description: 'Understanding DigiLocker age verification and PAN/KYC requirements under DPDPA 2023',
 };
 
 export default function DigiLockerHelpPage() {
@@ -70,7 +69,7 @@ export default function DigiLockerHelpPage() {
                   If you see a screen saying:
                 </p>
                 <div className="bg-gray-100 p-4 rounded font-mono text-sm border border-gray-300">
-                  "Age Verification and Guardian Consent application needs more details to verify your identity..."
+                  "Age Verification application needs more details to verify your identity..."
                 </div>
                 <p>
                   <strong>This is EXPECTED behavior and NOT an error.</strong>
@@ -83,7 +82,7 @@ export default function DigiLockerHelpPage() {
                       <span className="text-amber-600 mr-2">•</span>
                       <span>
                         DigiLocker is <strong>upgrading your account's assurance level</strong> to meet
-                        DPDPA 2023 requirements for age verification and guardian consent
+                        DPDPA 2023 requirements for age verification
                       </span>
                     </li>
                     <li className="flex items-start">
@@ -136,67 +135,6 @@ export default function DigiLockerHelpPage() {
                     </li>
                   </ul>
                 </div>
-              </div>
-            </section>
-
-            {/* Guardian Consent */}
-            <section>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
-                <Users className="h-6 w-6 mr-2 text-purple-600" />
-                Guardian Consent for Minors
-              </h2>
-              <div className="space-y-4 text-gray-700">
-                <p>
-                  Under <strong>DPDPA 2023 (Digital Personal Data Protection Act)</strong>, websites must obtain
-                  <strong> verifiable parental consent</strong> before processing data of users under 18.
-                </p>
-
-                <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-                  <h3 className="font-semibold text-purple-900 mb-3">How guardian consent works:</h3>
-                  <ol className="space-y-3">
-                    <li className="flex items-start">
-                      <span className="font-bold text-purple-600 mr-3">1.</span>
-                      <span>
-                        <strong>Minor verifies age via DigiLocker</strong> - System detects age &lt; 18
-                      </span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold text-purple-600 mr-3">2.</span>
-                      <span>
-                        <strong>Guardian email is requested</strong> - Minor provides parent/guardian email
-                      </span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold text-purple-600 mr-3">3.</span>
-                      <span>
-                        <strong>Guardian receives verification link</strong> - Email sent with consent request
-                      </span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold text-purple-600 mr-3">4.</span>
-                      <span>
-                        <strong>Guardian verifies identity via DigiLocker</strong> - Must be ≥18 years old
-                      </span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold text-purple-600 mr-3">5.</span>
-                      <span>
-                        <strong>Guardian approves or rejects</strong> - Decision is recorded
-                      </span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold text-purple-600 mr-3">6.</span>
-                      <span>
-                        <strong>Minor can proceed (if approved)</strong> - Consent valid for configured period
-                      </span>
-                    </li>
-                  </ol>
-                </div>
-
-                <p className="bg-blue-50 p-4 rounded border-l-4 border-blue-400">
-                  <strong>Note:</strong> Guardian's PAN may also be requested during their verification.
-                  This is the same profile assurance process as described above.
-                </p>
               </div>
             </section>
 
@@ -293,9 +231,7 @@ export default function DigiLockerHelpPage() {
                   <li>
                     <strong>Test in sandbox mode</strong> before going live
                   </li>
-                  <li>
-                    <strong>Configure guardian consent</strong> if your audience includes minors
-                  </li>
+
                   <li>
                     <strong>Review DPDPA 2023 compliance</strong> requirements for your industry
                   </li>

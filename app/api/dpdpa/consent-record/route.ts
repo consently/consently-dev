@@ -472,7 +472,7 @@ export async function POST(request: NextRequest) {
       }
 
       const outcome = verificationSession.verification_outcome;
-      const consentAllowedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
+      const consentAllowedOutcomes = ['verified_adult', 'limited_access'];
 
       if (!outcome || !consentAllowedOutcomes.includes(outcome)) {
         console.warn('[Consent Record API] Consent blocked by verification policy:', {

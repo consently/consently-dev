@@ -5,7 +5,7 @@
  * GET /api/dpdpa/age-verification - Check verification status
  *
  * Implements government-backed age verification via DigiLocker (API Setu)
- * for DPDPA 2023 "verifiable parental consent" compliance.
+ * for DPDPA 2023 compliance.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,7 +15,6 @@ import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import {
   getApiSetuService,
   calculateSessionExpiry,
-  requiresGuardianConsent,
   isAgeAboveThreshold,
 } from '@/lib/apisetu-digilocker';
 import { logSuccess } from '@/lib/audit';
@@ -292,8 +291,8 @@ export async function GET(request: NextRequest) {
     let verificationAssertion = null;
 
     // Only issue JWT assertion for outcomes that permit consent
-    // blocked_minor and guardian_required MUST NOT receive assertions
-    const assertionAllowedOutcomes = ['verified_adult', 'guardian_approved', 'limited_access'];
+    // blocked_minor MUST NOT receive assertions
+    const assertionAllowedOutcomes = ['verified_adult', 'limited_access'];
     if (
       session.status === 'verified' &&
       session.verified_age !== null &&
@@ -322,12 +321,10 @@ export async function GET(request: NextRequest) {
         age: session.verified_age,
         isMinor,
         verificationOutcome: outcome,
-        requiresGuardianConsent: session.requires_guardian_consent,
-        guardianConsentStatus: session.guardian_consent_status,
         verificationAssertion,
         documentType: session.document_type,
         verifiedAt: session.verified_at,
-        message: getStatusMessage(session.status, isMinor, session.guardian_consent_status),
+        message: getStatusMessage(session.status, isMinor),
       },
       {
         status: 200,
@@ -367,7 +364,6 @@ export async function OPTIONS() {
 function getStatusMessage(
   status: string,
   isMinor: boolean,
-  guardianConsentStatus: string | null
 ): string {
   switch (status) {
     case 'pending':
@@ -376,15 +372,7 @@ function getStatusMessage(
       return 'Verification in progress. Please wait...';
     case 'verified':
       if (isMinor) {
-        if (guardianConsentStatus === 'approved') {
-          return 'Age verified with guardian consent. You may proceed.';
-        } else if (guardianConsentStatus === 'pending') {
-          return 'You are under the required age. Waiting for guardian approval.';
-        } else if (guardianConsentStatus === 'rejected') {
-          return 'Guardian consent was denied. You cannot proceed.';
-        } else {
-          return 'You are under the required age. Guardian consent is required.';
-        }
+        return 'You are under the required age. Access is restricted.';
       }
       return 'Age verified successfully. You may proceed.';
     case 'failed':

@@ -148,8 +148,7 @@ interface WidgetConfig {
   requireAgeVerification?: boolean;
   ageVerificationThreshold?: number;
   ageVerificationProvider?: 'digilocker' | 'apisetu' | 'custom';
-  minorHandling?: 'block' | 'guardian_consent' | 'limited_access';
-  minorGuardianMessage?: string;
+  minorHandling?: 'block' | 'limited_access';
   verificationValidityDays?: number;
 }
 
@@ -398,7 +397,6 @@ export default function DPDPAWidgetPage() {
             ageVerificationThreshold: existingConfig.age_verification_threshold,
             ageVerificationProvider: existingConfig.age_verification_provider,
             minorHandling: existingConfig.minor_handling,
-            minorGuardianMessage: existingConfig.minor_guardian_message,
             verificationValidityDays: existingConfig.verification_validity_days,
             // Smart Pre-fill
             enableSmartPreFill: existingConfig.enable_smart_pre_fill,
@@ -2676,39 +2674,21 @@ export default function DPDPAWidgetPage() {
                       <Tooltip content="How to handle users who are verified as minors (below the age threshold)." />
                     </label>
                     <select
-                      value={config.minorHandling || 'guardian_consent'}
-                      onChange={(e) => setConfig(prev => ({ ...prev, minorHandling: e.target.value as 'block' | 'guardian_consent' | 'limited_access' }))}
+                      value={config.minorHandling || 'block'}
+                      onChange={(e) => setConfig(prev => ({ ...prev, minorHandling: e.target.value as 'block' | 'limited_access' }))}
                       className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 w-full"
                       style={{ '--tw-ring-color': config.theme.primaryColor } as React.CSSProperties}
                     >
-                      <option value="guardian_consent">Require Guardian Consent (Recommended)</option>
                       <option value="block">Block Access Completely</option>
                       <option value="limited_access">Allow Limited Access</option>
                     </select>
                     <p className="text-xs text-gray-500">
-                      {config.minorHandling === 'guardian_consent' && 'Minor will need a parent/guardian to verify via DigiLocker and approve their consent.'}
                       {config.minorHandling === 'block' && 'Minors will be blocked from proceeding. No consent will be recorded.'}
                       {config.minorHandling === 'limited_access' && 'Minors can proceed with restricted functionality. Use with caution.'}
                     </p>
                   </div>
 
-                  {/* Guardian Message (shown when guardian_consent is selected) */}
-                  {config.minorHandling === 'guardian_consent' && (
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        Message for Minors
-                        <Tooltip content="This message is shown to users who are identified as minors and need guardian consent." />
-                      </label>
-                      <Textarea
-                        value={config.minorGuardianMessage || 'You are under the required age. Please ask a parent or guardian to verify their identity and approve your consent.'}
-                        onChange={(e) => setConfig(prev => ({ ...prev, minorGuardianMessage: e.target.value }))}
-                        placeholder="You are under the required age. Please ask a parent or guardian to verify their identity and approve your consent."
-                        rows={3}
-                        className="transition-all focus:ring-2 resize-none"
-                        style={{ '--tw-ring-color': config.theme.primaryColor } as React.CSSProperties}
-                      />
-                    </div>
-                  )}
+
 
                   {/* Verification Validity */}
                   <div className="space-y-2">
@@ -2742,17 +2722,7 @@ export default function DPDPAWidgetPage() {
                     </p>
                   </div>
 
-                  {/* Guardian Consent Info (when enabled) */}
-                  {config.minorHandling === 'guardian_consent' && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-xs text-amber-800 flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                        <span>
-                          <strong>Guardian Consent Flow:</strong> When a minor is detected, they can request guardian consent. The guardian receives an email with a verification link, verifies their own age via DigiLocker (must be 18+), and then approves or rejects the minor&apos;s consent request.
-                        </span>
-                      </p>
-                    </div>
-                  )}
+
 
                   {/* International Users Note */}
                   <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
@@ -2784,10 +2754,7 @@ export default function DPDPAWidgetPage() {
                           <CheckCircle2 className="h-3 w-3" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                           Privacy-first: Only age stored, DOB discarded
                         </li>
-                        <li className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
-                          Guardian consent workflow for minors
-                        </li>
+
                         <li className="flex items-center gap-1">
                           <CheckCircle2 className="h-3 w-3" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
                           Cryptographic verification assertions
@@ -2796,7 +2763,7 @@ export default function DPDPAWidgetPage() {
                     </div>
                   </div>
                   <Button
-                    onClick={() => setConfig(prev => ({ ...prev, requireAgeVerification: true, minorHandling: 'guardian_consent' }))}
+                    onClick={() => setConfig(prev => ({ ...prev, requireAgeVerification: true, minorHandling: 'block' }))}
                     className="text-white"
                     style={{ backgroundColor: config.theme.primaryColor }}
                   >
@@ -2881,9 +2848,9 @@ export default function DPDPAWidgetPage() {
                         <Tooltip content="This message is shown to users who are identified as minors (below the age threshold)." />
                       </label>
                       <Textarea
-                        value={config.ageGateMinorMessage || 'This content requires adult supervision. Please ask a parent or guardian to assist you.'}
+                        value={config.ageGateMinorMessage || 'This content requires adult supervision.'}
                         onChange={(e) => setConfig(prev => ({ ...prev, ageGateMinorMessage: e.target.value }))}
-                        placeholder="This content requires adult supervision. Please ask a parent or guardian to assist you."
+                        placeholder="This content requires adult supervision."
                         rows={3}
                         className="transition-all focus:ring-2 focus:ring-gray-500 resize-none"
                       />

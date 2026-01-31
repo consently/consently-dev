@@ -181,8 +181,7 @@ export interface DPDPAWidgetConfig {
   requireAgeVerification?: boolean; // Enable government-backed age verification
   ageVerificationThreshold?: number; // Minimum age required (13-21, default 18)
   ageVerificationProvider?: 'digilocker' | 'apisetu' | 'custom';
-  minorHandling?: 'block' | 'guardian_consent' | 'limited_access';
-  minorGuardianMessage?: string; // Custom message for minors requiring guardian consent
+  minorHandling?: 'block' | 'limited_access';
   verificationValidityDays?: number; // How long verification remains valid (1-365)
 
   // Display rules (NEW in v2.0)
@@ -506,7 +505,7 @@ export type AgeVerificationProvider = 'digilocker' | 'apisetu' | 'custom';
 /**
  * Minor handling options
  */
-export type MinorHandling = 'block' | 'guardian_consent' | 'limited_access';
+export type MinorHandling = 'block' | 'limited_access';
 
 /**
  * Age verification session (client-facing)
@@ -518,8 +517,6 @@ export interface AgeVerificationSession {
   status: AgeVerificationStatus;
   verifiedAge?: number;
   isMinor?: boolean;
-  requiresGuardianConsent?: boolean;
-  guardianConsentStatus?: GuardianConsentStatus;
   documentType?: string;
   verifiedAt?: string;
   expiresAt: string;
@@ -555,8 +552,6 @@ export interface AgeVerificationStatusResponse {
   verified: boolean;
   age?: number;
   isMinor?: boolean;
-  requiresGuardianConsent?: boolean;
-  guardianConsentStatus?: GuardianConsentStatus;
   verificationAssertion?: string;
   documentType?: string;
   verifiedAt?: string;
@@ -564,110 +559,5 @@ export interface AgeVerificationStatusResponse {
   error?: string;
 }
 
-// ============================================================================
-// Guardian Consent Types
-// ============================================================================
 
-/**
- * Guardian consent status
- */
-export type GuardianConsentStatus =
-  | 'not_required'
-  | 'pending'
-  | 'sent'
-  | 'viewed'
-  | 'approved'
-  | 'rejected'
-  | 'expired';
-
-/**
- * Guardian relationship types
- */
-export type GuardianRelationship = 'parent' | 'guardian' | 'other';
-
-/**
- * Guardian consent request payload
- */
-export interface GuardianConsentRequest {
-  sessionId: string;
-  guardianEmail: string;
-  guardianPhone?: string;
-  relationship: GuardianRelationship;
-}
-
-/**
- * Guardian consent record (client-facing)
- */
-export interface GuardianConsentRecord {
-  id: string;
-  status: GuardianConsentStatus;
-  relationship: GuardianRelationship;
-  guardianVerified: boolean;
-  guardianAge?: number;
-  minorAge?: number;
-  consentGivenAt?: string;
-  expiresAt: string;
-}
-
-/**
- * Guardian consent request response
- */
-export interface GuardianConsentRequestResponse {
-  success: boolean;
-  message: string;
-  consentId?: string;
-  expiresAt?: string;
-  verificationLink?: string; // Only in mock mode
-  error?: string;
-}
-
-/**
- * Guardian consent status response
- */
-export interface GuardianConsentStatusResponse {
-  status: GuardianConsentStatus;
-  relationship?: GuardianRelationship;
-  consentGivenAt?: string;
-  expiresAt?: string;
-  minorAge?: number;
-  guardianVerified: boolean;
-  message: string;
-  error?: string;
-}
-
-/**
- * Guardian verification initiation response
- */
-export interface GuardianVerificationResponse {
-  success: boolean;
-  guardianVerified: boolean;
-  guardianSessionId?: string;
-  redirectUrl?: string;
-  guardianAge?: number;
-  minorAge?: number;
-  domain?: string;
-  readyForApproval?: boolean;
-  message: string;
-  mockMode?: boolean;
-  error?: string;
-}
-
-/**
- * Guardian approval request payload
- */
-export interface GuardianApprovalRequest {
-  token: string;
-  guardianSessionId: string;
-  action: 'approve' | 'reject';
-}
-
-/**
- * Guardian approval response
- */
-export interface GuardianApprovalResponse {
-  success: boolean;
-  status: 'approved' | 'rejected';
-  message: string;
-  error?: string;
-}
 

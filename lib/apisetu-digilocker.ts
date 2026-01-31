@@ -161,7 +161,9 @@ export class ApiSetuDigiLockerService {
   private mockMode: boolean;
 
   constructor() {
-    this.mockMode = MOCK_MODE_ENABLED || !process.env.APISETU_CLIENT_ID;
+    // Only use mock mode if explicitly enabled via APISETU_USE_MOCK=true
+    // Removed automatic fallback to prevent accidental mock mode in production
+    this.mockMode = MOCK_MODE_ENABLED;
 
     this.config = {
       // OAuth endpoints - MeriPehchaan OAuth via API Setu AuthPartner
@@ -192,6 +194,26 @@ export class ApiSetuDigiLockerService {
     if (this.mockMode) {
       console.log('[ApiSetuDigiLocker] Running in MOCK MODE - no real API Setu calls');
     } else {
+      // Validate required credentials in production mode
+      if (!this.config.clientId) {
+        throw new Error(
+          'APISETU_CLIENT_ID is required when not in mock mode. ' +
+          'Set APISETU_USE_MOCK=true for testing, or configure APISETU_CLIENT_ID for production.'
+        );
+      }
+      if (!this.config.clientSecret) {
+        throw new Error(
+          'APISETU_CLIENT_SECRET is required when not in mock mode. ' +
+          'Set APISETU_USE_MOCK=true for testing, or configure APISETU_CLIENT_SECRET for production.'
+        );
+      }
+      if (!this.config.redirectUri) {
+        throw new Error(
+          'APISETU_REDIRECT_URI is required when not in mock mode. ' +
+          'Set APISETU_USE_MOCK=true for testing, or configure APISETU_REDIRECT_URI for production.'
+        );
+      }
+
       // Log configuration for debugging (redact secrets)
       console.log('[ApiSetuDigiLocker] Configuration loaded:', {
         clientId: this.config.clientId,
@@ -651,20 +673,6 @@ export function getApiSetuService(): ApiSetuDigiLockerService {
  */
 export function isAgeAboveThreshold(age: number, threshold: number): boolean {
   return age >= threshold;
-}
-
-/**
- * Determine if guardian consent is required
- */
-export function requiresGuardianConsent(
-  age: number,
-  threshold: number,
-  minorHandling: 'block' | 'guardian_consent' | 'limited_access'
-): boolean {
-  if (age >= threshold) {
-    return false;
-  }
-  return minorHandling === 'guardian_consent';
 }
 
 /**
