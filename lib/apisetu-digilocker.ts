@@ -4,9 +4,18 @@
  * Provides government-backed age verification via DigiLocker OAuth flow.
  * Implements DPDPA 2023 "verifiable parental consent" requirement.
  *
+ * FLOW:
+ * 1. User redirected to DigiLocker/MeriPehchaan OAuth
+ * 2. User authenticates (Aadhaar/MPIN/Biometric)
+ * 3. Callback with authorization code
+ * 4. Exchange code for access token (PKCE)
+ * 5. Call /user endpoint to get DOB
+ * 6. Calculate exact age from DOB
+ * 7. DOB is discarded, only age is stored
+ *
  * SECURITY NOTES:
  * - Access tokens are NEVER persisted - deleted immediately after use
- * - DOB is extracted, age calculated, then DOB is discarded
+ * - DOB is extracted from /user endpoint, age calculated, then DOB is discarded
  * - Only verified_age (integer) is stored in database
  * - All credentials read from environment variables only
  */
@@ -26,16 +35,19 @@ export interface TokenResponse {
 }
 
 export interface AgeVerificationResponse {
-  // AVS response from DigiLocker - privacy-preserving, no DOB exposed
+  // Age verification response with exact age calculated from DOB
   result: 'yes' | 'no';           // Whether user meets age threshold
   threshold_age: number;          // The age threshold that was checked
+  actual_age: number;             // Exact age calculated from DOB
   document_type?: string;         // E.g., 'AADHAAR' - Kept for audit trail
   consent_artifact_id?: string;   // Reference for audit
 }
 
-export interface LegacyAgeVerificationResponse {
-  // Legacy response format (if using /user endpoint)
-  dob: string;                    // Format: YYYY-MM-DD - DISCARDED after age calculation
+export interface DigiLockerUserResponse {
+  // Response from /user endpoint - DOB is extracted, age calculated, then DOB is discarded
+  // NOTE: DigiLocker officially returns DD-MM-YYYY format (e.g., "15-06-1990")
+  // Our normalizeDob() function handles both DD-MM-YYYY and YYYY-MM-DD formats
+  dob: string;                    // Format: DD-MM-YYYY or YYYY-MM-DD - DISCARDED after age calculation
   document_type: string;          // E.g., 'AADHAAR' - Kept for audit trail
   consent_artifact_id: string;    // Reference for audit
   name?: string;                  // NOT stored - discarded immediately
@@ -43,9 +55,9 @@ export interface LegacyAgeVerificationResponse {
 
 export interface VerificationResult {
   success: boolean;
-  meetsAgeThreshold: boolean;     // True if user meets the age threshold (AVS result)
+  meetsAgeThreshold: boolean;     // True if user meets the age threshold
   thresholdAge: number;           // The threshold that was checked
-  age: number | null;             // Actual age (only available in mock mode)
+  age: number | null;             // Actual age calculated from DOB (null if failed)
   documentType: string | null;
   consentArtifactRef: string | null;
   error?: string;
@@ -89,14 +101,24 @@ export interface ApiSetuConfig {
 const MOCK_MODE_ENABLED = process.env.APISETU_USE_MOCK === 'true';
 
 const MOCK_USERS: Record<string, { dob: string; documentType: string }> = {
-  // Test adult (age 30)
+  // Test adult (age 30) - YYYY-MM-DD format
   'mock_adult_code': {
     dob: '1996-01-15',
     documentType: 'AADHAAR',
   },
-  // Test minor (age 15)
+  // Test adult (age 30) - DD-MM-YYYY format (DigiLocker official format)
+  'mock_adult_ddmmyyyy_code': {
+    dob: '15-01-1996',
+    documentType: 'AADHAAR',
+  },
+  // Test minor (age 15) - YYYY-MM-DD format
   'mock_minor_code': {
     dob: '2011-06-20',
+    documentType: 'AADHAAR',
+  },
+  // Test minor (age 15) - DD-MM-YYYY format
+  'mock_minor_ddmmyyyy_code': {
+    dob: '20-06-2011',
     documentType: 'AADHAAR',
   },
   // Test edge case (exactly 18 today - calculate dynamically)
@@ -177,11 +199,10 @@ export class ApiSetuDigiLockerService {
       clientId: process.env.APISETU_CLIENT_ID || '',
       clientSecret: process.env.APISETU_CLIENT_SECRET || '',
       redirectUri: process.env.APISETU_REDIRECT_URI || '',
-      // OAuth scope for DigiLocker Age Verification via API Setu
-      // 'avs' = Age Verification Service (from dashboard checkbox "Age verification")
-      // NOTE: We do NOT use 'openid' - it causes invalid_grant_type at token endpoint
-      // The error explicitly says: "disable openid from the scopes section"
-      scope: 'avs',
+      // OAuth scope for DigiLocker /user endpoint access
+      // 'openid' = Required for accessing /user endpoint to get DOB
+      // NOTE: Must be enabled in API Setu dashboard AuthPartner settings
+      scope: 'openid',
       useSandbox: process.env.APISETU_USE_SANDBOX === 'true',
       // Legacy NSSO params removed - now controlled by API Setu dashboard
       // (dlFlow, acr, amr, pla are configured in AuthPartner settings, not sent in URL)
@@ -236,7 +257,7 @@ export class ApiSetuDigiLockerService {
 
   /**
    * Get the effective API base URL based on sandbox setting
-   * Used for: /user, /files, document pull endpoints
+   * Used for: /user endpoint (to get DOB for age calculation)
    */
   private getApiBaseUrl(): string {
     return this.config.useSandbox ? this.config.sandboxApiUrl : this.config.apiBaseUrl;
@@ -390,8 +411,9 @@ export class ApiSetuDigiLockerService {
   }
 
   /**
-   * Fetch age verification result from DigiLocker AVS endpoint
-   * Returns privacy-preserving yes/no result - no DOB is exposed
+   * Fetch user attributes from DigiLocker /user endpoint
+   * Extracts DOB, calculates exact age, then discards DOB
+   * SECURITY: DOB is never stored - only calculated age is returned
    */
   async getAgeVerificationAttributes(
     accessToken: string,
@@ -406,25 +428,28 @@ export class ApiSetuDigiLockerService {
         return {
           result: age >= thresholdAge ? 'yes' : 'no',
           threshold_age: thresholdAge,
+          actual_age: age,
           document_type: mockUser.documentType,
           consent_artifact_id: `mock_artifact_${Date.now()}`,
         };
       }
       // Default mock adult
+      const defaultAge = 30;
       return {
         result: 'yes',
         threshold_age: thresholdAge,
+        actual_age: defaultAge,
         document_type: 'AADHAAR',
         consent_artifact_id: `mock_artifact_${Date.now()}`,
       };
     }
 
-    // Use AVS endpoint for age verification (privacy-preserving)
-    // The AVS endpoint returns yes/no for the given threshold, not the actual DOB
-    const avsUrl = `${this.getApiBaseUrl()}/avs?threshold_age=${thresholdAge}`;
-    console.log('[ApiSetuDigiLocker] Calling AVS endpoint:', avsUrl);
+    // Use /user endpoint to get DOB, then calculate exact age
+    // SECURITY: DOB is extracted, age is calculated, then DOB is discarded
+    const userUrl = `${this.getApiBaseUrl()}/user`;
+    console.log('[ApiSetuDigiLocker] Calling /user endpoint:', userUrl);
 
-    const response = await fetch(avsUrl, {
+    const response = await fetch(userUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -433,33 +458,116 @@ export class ApiSetuDigiLockerService {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('[ApiSetuDigiLocker] AVS endpoint failed:', response.status, error);
-      throw new Error(`Failed to fetch age verification: ${response.status} - ${error}`);
+      console.error('[ApiSetuDigiLocker] /user endpoint failed:', response.status, error);
+      throw new Error(`Failed to fetch user data: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
-    console.log('[ApiSetuDigiLocker] AVS response:', JSON.stringify(data));
+    const data: DigiLockerUserResponse = await response.json();
+    
+    // Validate DOB exists
+    if (!data.dob) {
+      throw new Error('DOB not found in user response');
+    }
 
-    // Normalize the AVS result to 'yes' or 'no'
-    // DigiLocker may return: 'yes', 'Y', 'YES', 'Yes', true, 1, 'no', 'N', 'NO', false, 0
-    const rawResult = data.result ?? data.age_verified ?? data.verified ?? data.ageVerified;
-    const normalizedResult = normalizeAvsResult(rawResult);
-    console.log('[ApiSetuDigiLocker] AVS raw result:', rawResult, '→ normalized:', normalizedResult);
+    // Detect DOB format for debugging (log format only, not actual DOB)
+    const dobFormat = data.dob.match(/^\d{4}/) ? 'YYYY-MM-DD' : 
+                      data.dob.match(/^\d{2}-\d{2}-\d{4}$/) ? 'DD-MM-YYYY' : 'other';
+    console.log(`[ApiSetuDigiLocker] /user response received (DOB format: ${dobFormat})`);
+
+    // Calculate exact age from DOB
+    // SECURITY: DOB is used for calculation only, never stored
+    const actualAge = this.calculateAge(data.dob);
+    const meetsThreshold = actualAge >= thresholdAge;
+
+    console.log('[ApiSetuDigiLocker] Age calculated:', { 
+      actualAge, 
+      meetsThreshold, 
+      thresholdAge,
+      documentType: data.document_type 
+    });
 
     return {
-      result: normalizedResult,
-      threshold_age: data.threshold_age || data.thresholdAge || thresholdAge,
-      document_type: data.document_type || data.documentType || 'AADHAAR',
-      consent_artifact_id: data.consent_artifact_id || data.consentArtifactId || data.txn_id || `avs_${Date.now()}`,
+      result: meetsThreshold ? 'yes' : 'no',
+      threshold_age: thresholdAge,
+      actual_age: actualAge,
+      document_type: data.document_type || 'AADHAAR',
+      consent_artifact_id: data.consent_artifact_id || `avs_${Date.now()}`,
     };
+  }
+
+  /**
+   * Normalize DOB string from various formats to a JavaScript Date object.
+   * Handles:
+   * - DD-MM-YYYY (DigiLocker official format: 15-06-1990)
+   * - YYYY-MM-DD (ISO format: 1990-06-15)
+   * - DD/MM/YYYY (15/06/1990)
+   * - YYYY/MM/DD (1990/06/15)
+   * Throws error if format cannot be parsed.
+   */
+  private normalizeDob(dob: string): Date {
+    if (!dob || typeof dob !== 'string') {
+      throw new Error('Invalid DOB: empty or not a string');
+    }
+
+    const trimmed = dob.trim();
+    
+    // Try DD-MM-YYYY or DD/MM/YYYY (DigiLocker format)
+    // DigiLocker returns: "15-06-1990" for June 15, 1990
+    const ddMmYyyyMatch = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (ddMmYyyyMatch) {
+      const day = parseInt(ddMmYyyyMatch[1], 10);
+      const month = parseInt(ddMmYyyyMatch[2], 10) - 1; // JS months are 0-indexed
+      const year = parseInt(ddMmYyyyMatch[3], 10);
+      
+      // Validate ranges
+      if (day < 1 || day > 31 || month < 0 || month > 11 || year < 1900 || year > 2100) {
+        throw new Error(`Invalid DOB values: day=${day}, month=${month + 1}, year=${year}`);
+      }
+      
+      const date = new Date(year, month, day);
+      // Verify the date is valid (e.g., not Feb 30)
+      if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
+        throw new Error(`Invalid DOB date: ${trimmed}`);
+      }
+      return date;
+    }
+    
+    // Try YYYY-MM-DD or YYYY/MM/DD (ISO format)
+    const isoMatch = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (isoMatch) {
+      const year = parseInt(isoMatch[1], 10);
+      const month = parseInt(isoMatch[2], 10) - 1;
+      const day = parseInt(isoMatch[3], 10);
+      
+      // Validate ranges
+      if (day < 1 || day > 31 || month < 0 || month > 11 || year < 1900 || year > 2100) {
+        throw new Error(`Invalid DOB values: year=${year}, month=${month + 1}, day=${day}`);
+      }
+      
+      const date = new Date(year, month, day);
+      // Verify the date is valid
+      if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
+        throw new Error(`Invalid DOB date: ${trimmed}`);
+      }
+      return date;
+    }
+    
+    // Fallback: try native Date parsing (handles ISO 8601, etc.)
+    const fallbackDate = new Date(trimmed);
+    if (!isNaN(fallbackDate.getTime())) {
+      return fallbackDate;
+    }
+    
+    throw new Error(`Unrecognized DOB format: ${trimmed}. Expected DD-MM-YYYY or YYYY-MM-DD`);
   }
 
   /**
    * Calculate age from date of birth
    * Uses conservative calculation - assumes birthday hasn't occurred this year if ambiguous
+   * Accepts multiple DOB formats (DD-MM-YYYY, YYYY-MM-DD, etc.)
    */
   calculateAge(dob: string): number {
-    const birthDate = new Date(dob);
+    const birthDate = this.normalizeDob(dob);
     const today = new Date();
 
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -474,8 +582,11 @@ export class ApiSetuDigiLockerService {
   }
 
   /**
-   * Complete verification flow - exchanges code, fetches AVS result
-   * IMPORTANT: Access token is discarded after use, no DOB is ever received
+   * Complete verification flow - exchanges code, fetches user data, calculates exact age
+   * IMPORTANT: 
+   * - Access token is discarded after use
+   * - DOB is extracted and immediately discarded after age calculation
+   * - Only verified_age is stored in database
    */
   async completeVerification(
     authorizationCode: string,
@@ -487,33 +598,34 @@ export class ApiSetuDigiLockerService {
       const tokenResponse = await this.exchangeCodeForToken(authorizationCode, codeVerifier);
       console.log('[ApiSetuDigiLocker] Token exchange successful');
 
-      // Step 2: Call AVS endpoint to get age verification result
-      // This returns yes/no for the threshold - no DOB is exposed (privacy-preserving)
-      const avsResult = await this.getAgeVerificationAttributes(
+      // Step 2: Call /user endpoint to get DOB and calculate exact age
+      // SECURITY: DOB is received, age is calculated, then DOB is discarded
+      const userResult = await this.getAgeVerificationAttributes(
         tokenResponse.access_token,
         thresholdAge,
         authorizationCode
       );
 
-      const meetsThreshold = avsResult.result === 'yes';
-      console.log('[ApiSetuDigiLocker] AVS result:', meetsThreshold ? 'MEETS threshold' : 'BELOW threshold');
+      const meetsThreshold = userResult.result === 'yes';
+      const actualAge = userResult.actual_age;
+      
+      console.log('[ApiSetuDigiLocker] Verification result:', { 
+        actualAge,
+        meetsThreshold, 
+        thresholdAge 
+      });
 
       // Access token is NOT persisted - goes out of scope here
-      // No DOB is ever received - only yes/no for the threshold
-
-      // AVS is privacy-preserving: only returns yes/no, never actual DOB or age.
-      // Store the threshold as verified_age when user passes (meaning "at least this age").
-      // When user fails, store threshold - 1 (meaning "below this age").
-      // This is the best we can do without the actual DOB.
-      const approximateAge = meetsThreshold ? thresholdAge : thresholdAge - 1;
+      // DOB was used for calculation only and is now discarded
+      // Only the calculated age is returned
 
       return {
         success: true,
         meetsAgeThreshold: meetsThreshold,
-        thresholdAge: avsResult.threshold_age,
-        age: approximateAge,
-        documentType: avsResult.document_type || null,
-        consentArtifactRef: avsResult.consent_artifact_id || null,
+        thresholdAge: userResult.threshold_age,
+        age: actualAge,
+        documentType: userResult.document_type || null,
+        consentArtifactRef: userResult.consent_artifact_id || null,
       };
     } catch (error) {
       console.error('[ApiSetuDigiLocker] Verification failed:', error);
