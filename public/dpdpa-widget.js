@@ -3445,16 +3445,16 @@ ${activitySections}
       // For non-onPageLoad triggers, wait for them to fire - don't show anything immediately
       return;
     }
-  }
-  
-  // Show widget if age verification just completed and user needs to give consent
-  if (ageVerificationJustCompleted) {
-    console.log('[Consently DPDPA] Showing widget after age verification completion');
-    // Small delay to ensure UI is ready
-    setTimeout(() => {
-      showConsentWidget();
-    }, 500);
-    return;
+    
+    // Show widget if age verification just completed and user needs to give consent
+    if (ageVerificationJustCompleted) {
+      console.log('[Consently DPDPA] Showing widget after age verification completion');
+      // Small delay to ensure UI is ready
+      setTimeout(() => {
+        showConsentWidget();
+      }, 500);
+      return;
+    }
   }
 
   // Apply consent (trigger custom events, etc.)
