@@ -46,12 +46,20 @@ export interface AgeVerificationResponse {
 export interface DigiLockerUserResponse {
   // Response from /user endpoint - DOB is extracted, age calculated, then DOB is discarded
   // ⭐ CRITICAL: DigiLocker OFFICIALLY returns DDMMYYYY format (e.g., "31121990" for 31-Dec-1990)
-  // See API spec page 11: "dob": "31121970"
+  // See API spec page 15: "dob": "31121970" (DDMMYYYY format, no separators)
   // Our normalizeDob() handles: DDMMYYYY (official), DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD
+  // 
+  // NOTE: Per API spec v2.3 page 15, /user endpoint returns ONLY:
+  //   - digilockerid, name, dob, gender, eaadhaar, reference_key
+  // document_type and consent_artifact_id are NOT returned by /user endpoint
+  // but are kept here as optional for potential future API compatibility
   dob: string;                    // Format: DDMMYYYY (official) - DISCARDED after age calculation
-  document_type: string;          // E.g., 'AADHAAR' - Kept for audit trail
-  consent_artifact_id: string;    // Reference for audit
   name?: string;                  // NOT stored - discarded immediately
+  gender?: string;                // M/F/T - returned but not used
+  eaadhaar?: string;              // Y/N - returned but not used
+  reference_key?: string;         // Account reference - returned but not used
+  document_type?: string;         // NOT from /user - kept for potential future use
+  consent_artifact_id?: string;   // NOT from /user - kept for potential future use
 }
 
 export interface VerificationResult {
@@ -482,8 +490,19 @@ export class ApiSetuDigiLockerService {
     }
 
     // Detect DOB format for debugging (log format only, not actual DOB)
-    const dobFormat = data.dob.match(/^\d{4}/) ? 'YYYY-MM-DD' : 
-                      data.dob.match(/^\d{2}-\d{2}-\d{4}$/) ? 'DD-MM-YYYY' : 'other';
+    // DDMMYYYY = DigiLocker official (8 digits, no separators)
+    // DD-MM-YYYY = with hyphens
+    // YYYY-MM-DD = ISO format
+    let dobFormat: string;
+    if (data.dob.match(/^\d{8}$/)) {
+      dobFormat = 'DDMMYYYY (DigiLocker official)';
+    } else if (data.dob.match(/^\d{4}/)) {
+      dobFormat = 'YYYY-MM-DD (ISO)';
+    } else if (data.dob.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      dobFormat = 'DD-MM-YYYY';
+    } else {
+      dobFormat = 'other';
+    }
     console.log(`[ApiSetuDigiLocker] /user response received (DOB format: ${dobFormat})`);
 
     // Calculate exact age from DOB
@@ -594,7 +613,10 @@ export class ApiSetuDigiLockerService {
   /**
    * Calculate age from date of birth
    * Uses conservative calculation - assumes birthday hasn't occurred this year if ambiguous
-   * Accepts multiple DOB formats (DD-MM-YYYY, YYYY-MM-DD, etc.)
+   * Accepts multiple DOB formats (DDMMYYYY, DD-MM-YYYY, YYYY-MM-DD, etc.)
+   * 
+   * @returns Age in years (0-150)
+   * @throws Error if age calculation fails or produces unreasonable result
    */
   calculateAge(dob: string): number {
     const birthDate = this.normalizeDob(dob);
@@ -606,6 +628,17 @@ export class ApiSetuDigiLockerService {
     // If birthday hasn't occurred this year, subtract 1
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
+    }
+
+    // Guard against NaN or unreasonable ages
+    if (isNaN(age)) {
+      throw new Error('Age calculation resulted in NaN - invalid DOB');
+    }
+    if (age < 0) {
+      throw new Error(`Calculated age is negative (${age}) - future DOB?`);
+    }
+    if (age > 150) {
+      throw new Error(`Calculated age is unreasonable (${age}) - check DOB format`);
     }
 
     return age;
