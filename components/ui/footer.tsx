@@ -90,7 +90,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-8 sm:mt-10 lg:mt-12 pt-6 sm:pt-8 border-t border-gray-800 text-center text-xs sm:text-sm">
-          <p>&copy; 2025 Consently. All rights reserved.</p>
+          <p>&copy; 2026 Consently. All rights reserved.</p>
         </div>
       </div>
     </footer>
