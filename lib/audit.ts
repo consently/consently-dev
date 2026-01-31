@@ -39,6 +39,11 @@ export type AuditAction =
   | 'activity.delete'
   | 'email.send'
   | 'email.export'
+  // DigiLocker Age Verification
+  | 'digilocker.init'
+  | 'digilocker.callback'
+  | 'digilocker.verification_success'
+  | 'digilocker.verification_failed'
   // Age Verification Actions (DPDPA 2023)
   | 'age_verification.initiated'
   | 'age_verification.completed'
@@ -209,6 +214,7 @@ export async function logFailure(
   action: AuditAction,
   resourceType: string,
   errorMessage: string,
+  changes?: Record<string, any>,
   request?: Request
 ): Promise<void> {
   const ipAddress = request ? getIpAddress(request.headers) : undefined;
@@ -221,9 +227,15 @@ export async function logFailure(
     ipAddress,
     userAgent,
     status: 'failure',
-    errorMessage
+    errorMessage,
+    changes
   });
 }
+
+/**
+ * Alias for logFailure for backward compatibility
+ */
+export const logError = logFailure;
 
 /**
  * General purpose audit logging function

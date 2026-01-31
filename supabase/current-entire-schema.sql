@@ -442,6 +442,7 @@ CREATE TABLE public.dpdpa_consent_records (
   privacy_notice_version character varying,
   visitor_email_hash character varying,
   visitor_email text,
+  consent_source character varying DEFAULT 'web_widget'::character varying CHECK (consent_source::text = ANY (ARRAY['web_widget'::character varying, 'mobile_sdk'::character varying, 'api'::character varying, 'privacy_centre'::character varying]::text[])),
   CONSTRAINT dpdpa_consent_records_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.dpdpa_grievances (
@@ -520,6 +521,7 @@ CREATE TABLE public.dpdpa_widget_configs (
   display_rules jsonb DEFAULT '[]'::jsonb,
   otp_expiration_minutes integer DEFAULT 10 CHECK (otp_expiration_minutes >= 1 AND otp_expiration_minutes <= 60),
   dpo_email text,
+  mandatory_purposes ARRAY DEFAULT ARRAY[]::uuid[] CHECK (array_length(mandatory_purposes, 1) IS NULL OR array_length(mandatory_purposes, 1) <= 100),
   CONSTRAINT dpdpa_widget_configs_pkey PRIMARY KEY (id),
   CONSTRAINT dpdpa_widget_configs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );

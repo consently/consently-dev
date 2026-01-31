@@ -70,6 +70,13 @@ const envSchema = z.object({
 
   // ===== OPTIONAL: CORS Configuration =====
   ALLOWED_ORIGINS: z.string().optional(), // Comma-separated list of allowed origins
+
+  // ===== OPTIONAL: DigiLocker Age Verification =====
+  DIGILOCKER_ENV: z.enum(['production', 'sandbox']).default('sandbox'),
+  DIGILOCKER_CLIENT_ID: z.string().optional(),
+  DIGILOCKER_CLIENT_SECRET: z.string().optional(),
+  DIGILOCKER_REDIRECT_URI: z.string().url().optional(),
+  DIGILOCKER_ISSUER_ID: z.string().optional(), // e.g., 'in.consently'
 });
 
 /**
@@ -144,6 +151,7 @@ export const features = {
   email: !!env.RESEND_API_KEY,
   translation: !!env.GOOGLE_TRANSLATE_API_KEY,
   cookieScanner: !!env.BROWSERLESS_API_KEY,
+  digilocker: !!(env.DIGILOCKER_CLIENT_ID && env.DIGILOCKER_CLIENT_SECRET && env.DIGILOCKER_REDIRECT_URI),
 } as const;
 
 /**
@@ -158,7 +166,8 @@ export function logFeatureStatus() {
     console.log(`  Payments: ${features.payments ? '✅' : '❌'}`);
     console.log(`  Email: ${features.email ? '✅' : '❌'}`);
     console.log(`  Translation: ${features.translation ? '✅' : '❌'}`);
-    console.log(`  Cookie Scanner: ${features.cookieScanner ? '✅' : '❌'}\n`);
+    console.log(`  Cookie Scanner: ${features.cookieScanner ? '✅' : '❌'}`);
+    console.log(`  DigiLocker: ${features.digilocker ? '✅' : '❌'}\n`);
   }
 }
 

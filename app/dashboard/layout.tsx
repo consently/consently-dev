@@ -17,6 +17,7 @@ import {
   ChevronDown,
   User,
   FileCheck,
+  IdCard,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -43,6 +44,11 @@ const navigation = [
       { name: 'Widget Configuration', href: '/dashboard/dpdpa/widget' },
       { name: 'Consent Records', href: '/dashboard/dpdpa/records' },
     ],
+  },
+  {
+    name: 'Age Verification',
+    icon: IdCard,
+    href: '/age-verification',
   },
   {
     name: 'Reports & Analytics',
