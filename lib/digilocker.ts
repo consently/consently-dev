@@ -193,7 +193,7 @@ export function buildAuthorizationUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state: state,
-    scope: 'openid profile age_verification',
+    scope: 'openid profile',
     purpose: purpose,
   });
 
