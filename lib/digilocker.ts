@@ -577,36 +577,83 @@ function normalizeDob(dobRaw: string): string {
   const trimmed = dobRaw.trim();
   console.log('[DigiLocker] Normalizing DOB:', trimmed);
 
-  // Already DDMMYYYY (8 digits)
+  // 1. Already DDMMYYYY (8 digits)
   if (/^\d{8}$/.test(trimmed)) {
     console.log('[DigiLocker] DOB already in DDMMYYYY format');
     return trimmed;
   }
 
-  // MM/DD/YYYY format (e.g., "01/01/1990")
-  const mmddyyyyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (mmddyyyyMatch) {
-    const month = mmddyyyyMatch[1].padStart(2, '0');
-    const day = mmddyyyyMatch[2].padStart(2, '0');
-    const year = mmddyyyyMatch[3];
-    const normalized = `${day}${month}${year}`;
-    console.log('[DigiLocker] Converted MM/DD/YYYY to DDMMYYYY:', normalized);
+  // 2. Slashed or dashed dates: Detect DD/MM/YYYY (primary for DigiLocker/India) vs MM/DD/YYYY
+  const slashMatch = trimmed.match(/^(\d{1,2})[\/](\d{1,2})[\/](\d{4})$/);
+  if (slashMatch) {
+    const num1 = parseInt(slashMatch[1], 10);
+    const num2 = parseInt(slashMatch[2], 10);
+    const year = slashMatch[3];
+
+    let day: number;
+    let month: number;
+
+    if (num1 > 12 && num2 <= 12) {
+      // Clear DD/MM/YYYY (day > 12 can't be month)
+      day = num1;
+      month = num2;
+      console.log('[DigiLocker] Detected DD/MM/YYYY format');
+    } else if (num2 > 12 && num1 <= 12) {
+      // MM/DD/YYYY (day > 12 in second position)
+      day = num2;
+      month = num1;
+      console.log('[DigiLocker] Detected MM/DD/YYYY format');
+    } else {
+      // Ambiguous (both <= 12) → Default to DD/MM/YYYY for India/DigiLocker context
+      day = num1;
+      month = num2;
+      console.log('[DigiLocker] Ambiguous slashed date, assuming DD/MM/YYYY (Indian format)');
+    }
+
+    // Validate date parts
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      throw new DigiLockerError('invalid_dob_values', `Invalid date: day=${day}, month=${month}`);
+    }
+
+    const normalized = `${day.toString().padStart(2, '0')}${month.toString().padStart(2, '0')}${year}`;
+    console.log('[DigiLocker] Normalized to DDMMYYYY:', normalized);
     return normalized;
   }
 
-  // DD/MM/YYYY format (e.g., "31/12/2005")
-  const ddmmyyyySlashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (ddmmyyyySlashMatch && parseInt(ddmmyyyySlashMatch[1]) > 12) {
-    // If day > 12, it's definitely DD/MM/YYYY
-    const day = ddmmyyyySlashMatch[1].padStart(2, '0');
-    const month = ddmmyyyySlashMatch[2].padStart(2, '0');
-    const year = ddmmyyyySlashMatch[3];
-    const normalized = `${day}${month}${year}`;
-    console.log('[DigiLocker] Converted DD/MM/YYYY to DDMMYYYY:', normalized);
+  // 3. Dashed dates (DD-MM-YYYY or MM-DD-YYYY) - same logic as slashes
+  const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dashMatch) {
+    const num1 = parseInt(dashMatch[1], 10);
+    const num2 = parseInt(dashMatch[2], 10);
+    const year = dashMatch[3];
+
+    let day: number;
+    let month: number;
+
+    if (num1 > 12 && num2 <= 12) {
+      day = num1;
+      month = num2;
+      console.log('[DigiLocker] Detected DD-MM-YYYY format');
+    } else if (num2 > 12 && num1 <= 12) {
+      day = num2;
+      month = num1;
+      console.log('[DigiLocker] Detected MM-DD-YYYY format');
+    } else {
+      day = num1;
+      month = num2;
+      console.log('[DigiLocker] Ambiguous dashed date, assuming DD-MM-YYYY (Indian format)');
+    }
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      throw new DigiLockerError('invalid_dob_values', `Invalid date: day=${day}, month=${month}`);
+    }
+
+    const normalized = `${day.toString().padStart(2, '0')}${month.toString().padStart(2, '0')}${year}`;
+    console.log('[DigiLocker] Normalized to DDMMYYYY:', normalized);
     return normalized;
   }
 
-  // YYYY-MM-DD format (ISO 8601, OIDC standard)
+  // 4. YYYY-MM-DD format (ISO 8601, OIDC standard)
   const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoMatch) {
     const year = isoMatch[1];
@@ -617,7 +664,7 @@ function normalizeDob(dobRaw: string): string {
     return normalized;
   }
 
-  // YYYY/MM/DD format
+  // 5. YYYY/MM/DD format
   const yyyymmddSlashMatch = trimmed.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
   if (yyyymmddSlashMatch) {
     const year = yyyymmddSlashMatch[1];
