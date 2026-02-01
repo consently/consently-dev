@@ -217,13 +217,13 @@ export async function exchangeCodeForToken(
   const config = getDigiLockerConfig();
   const baseUrl = getBaseUrl();
 
-  const tokenUrl = `${baseUrl}/public/oauth2/2/token`;
+  const tokenUrl = `${baseUrl}/public/oauth2/1/token`;
 
   // DigiLocker MeriPehchaan API expects client_credentials grant type
   // NOT authorization_code like standard OAuth 2.0
   const body = new URLSearchParams({
     code,
-    grant_type: 'authorization_code',
+    grant_type: 'client_credentials',
     client_id: config.clientId,
     client_secret: config.clientSecret,
     redirect_uri: config.redirectUri,
@@ -266,12 +266,17 @@ export async function exchangeCodeForToken(
     );
   }
 
+  // Log full response for debugging (remove in production)
+  console.log('DigiLocker token response:', JSON.stringify(data, null, 2));
+
   // Extract DOB from id_token if not directly available
   const result = data as DigiLockerTokenResponse;
 
+  // Validate required fields
   if (!result.dob && result.id_token) {
     try {
       const payload = parseJwtPayload(result.id_token);
+      console.log('Parsed id_token payload:', JSON.stringify(payload, null, 2));
       if (payload.dob) {
         result.dob = payload.dob;
       }
@@ -282,6 +287,21 @@ export async function exchangeCodeForToken(
     } catch (e) {
       console.warn('Failed to parse id_token:', e);
     }
+  }
+
+  // Check if we have the minimum required fields
+  if (!result.dob) {
+    throw new DigiLockerError(
+      'missing_dob',
+      `DigiLocker response missing 'dob' field. Available fields: ${Object.keys(result).join(', ')}`
+    );
+  }
+
+  if (!result.digilockerid) {
+    throw new DigiLockerError(
+      'missing_digilockerid',
+      `DigiLocker response missing 'digilockerid' field. Available fields: ${Object.keys(result).join(', ')}`
+    );
   }
 
   return result;
