@@ -349,9 +349,9 @@ export async function exchangeCodeForToken(
     try {
       const payload = parseJwtPayload(result.id_token);
       // Log full payload for debugging (redact sensitive fields)
-      console.log('[DigiLocker] Parsed id_token claims:', { 
-        ...payload, 
-        sub: '[REDACTED]',
+      console.log('[DigiLocker] Parsed id_token claims:', {
+        ...payload,
+        sub: payload.sub ? '[PRESENT]' : '[MISSING]',
         digilockerid: payload.digilockerid ? '[PRESENT]' : '[MISSING]',
         birthdate: payload.birthdate || '[NOT FOUND]',
         dob: payload.dob || '[NOT FOUND]',
@@ -371,6 +371,11 @@ export async function exchangeCodeForToken(
       // Also extract other profile fields from id_token if missing
       if (!result.name && payload.name) result.name = payload.name;
       if (!result.gender && payload.gender) result.gender = payload.gender;
+      // DigiLocker uses the OIDC 'sub' claim as the unique user identifier (digilockerid)
+      if (!result.digilockerid && payload.sub) {
+        result.digilockerid = payload.sub;
+        console.log('[DigiLocker] Mapped id_token sub claim to digilockerid');
+      }
       if (!result.digilockerid && payload.digilockerid) result.digilockerid = payload.digilockerid;
       
       if (!result.dob) {
