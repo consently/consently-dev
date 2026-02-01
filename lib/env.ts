@@ -77,6 +77,7 @@ const envSchema = z.object({
   DIGILOCKER_CLIENT_SECRET: z.string().optional(),
   DIGILOCKER_REDIRECT_URI: z.string().url().optional(),
   DIGILOCKER_ISSUER_ID: z.string().optional(), // e.g., 'in.consently'
+  DIGILOCKER_SCOPE: z.string().optional(), // e.g., 'openid profile' or 'openid'
 });
 
 // Type for the environment variables

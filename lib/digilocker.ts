@@ -27,6 +27,7 @@ export interface DigiLockerConfig {
   clientSecret: string;
   redirectUri: string;
   issuerId: string;
+  scope?: string; // Optional: defaults to 'openid profile'
 }
 
 export interface DigiLockerTokenResponse {
@@ -105,6 +106,7 @@ export function getDigiLockerConfig(): DigiLockerConfig {
     clientSecret: env.DIGILOCKER_CLIENT_SECRET,
     redirectUri: env.DIGILOCKER_REDIRECT_URI,
     issuerId: env.DIGILOCKER_ISSUER_ID || 'in.consently',
+    scope: env.DIGILOCKER_SCOPE || 'openid profile',
   };
 }
 
@@ -200,6 +202,12 @@ export function buildAuthorizationUrl(
   const config = getDigiLockerConfig();
   const baseUrl = getBaseUrl();
 
+  // DigiLocker supports: openid, profile
+  // IMPORTANT: scope must be exactly "openid profile" (space-separated, no commas, no quotes)
+  // If getting 'invalid_scope' error, try setting DIGILOCKER_SCOPE='openid' in .env
+  // Then use /userinfo endpoint to fetch profile data separately
+  const scope = config.scope || 'openid profile';
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: config.clientId,
@@ -207,11 +215,18 @@ export function buildAuthorizationUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state: state,
-    scope: 'openid profile',
+    scope: scope,
     purpose: purpose,
   });
 
-  return `${baseUrl}/public/oauth2/1/authorize?${params.toString()}`;
+  const authUrl = `${baseUrl}/public/oauth2/1/authorize?${params.toString()}`;
+  
+  // Debug: Log the generated URL (mask sensitive info)
+  console.log('[DigiLocker] Generated auth URL:', authUrl.replace(/client_id=[^&]+/, 'client_id=***'));
+  console.log('[DigiLocker] Scope parameter:', scope);
+  console.log('[DigiLocker] Purpose parameter:', purpose);
+  
+  return authUrl;
 }
 
 // ============================================================================
