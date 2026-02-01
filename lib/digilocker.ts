@@ -53,7 +53,7 @@ export interface DigiLockerTokenResponse {
   expires_in: number;
   token_type: string;
   scope: string;
-  refresh_token: string;
+  refresh_token?: string; // May not always be returned by DigiLocker
   id_token?: string; // JWT containing user profile
   digilockerid?: string;
   name?: string;
@@ -369,7 +369,11 @@ export async function exchangeCodeForToken(
       }
       
       // Also extract other profile fields from id_token if missing
-      if (!result.name && payload.name) result.name = payload.name;
+      // DigiLocker uses OIDC standard claims: given_name (not name)
+      if (!result.name && (payload.given_name || payload.name)) {
+        result.name = payload.given_name || payload.name;
+        console.log('[DigiLocker] Mapped name from id_token:', result.name);
+      }
       if (!result.gender && payload.gender) result.gender = payload.gender;
       // DigiLocker uses the OIDC 'sub' claim as the unique user identifier (digilockerid)
       if (!result.digilockerid && payload.sub) {

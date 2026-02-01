@@ -217,7 +217,10 @@ export async function GET(request: NextRequest) {
 
     // Step 3: Encrypt tokens before storing
     const encryptedAccessToken = await encryptToken(tokenData.access_token);
-    const encryptedRefreshToken = await encryptToken(tokenData.refresh_token);
+    // refresh_token may not always be provided by DigiLocker
+    const encryptedRefreshToken = tokenData.refresh_token 
+      ? await encryptToken(tokenData.refresh_token)
+      : '';
 
     // Step 4: Store verification data using service client (bypasses RLS)
     const serviceClient = await createServiceClient();
