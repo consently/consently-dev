@@ -137,7 +137,7 @@ function generateCodeChallenge(codeVerifier: string): string {
   const encoder = new TextEncoder();
   const data = encoder.encode(codeVerifier);
   const hashBuffer = crypto.subtle.digest('SHA-256', data);
-  
+
   // Note: This returns a Promise, but for synchronous usage in PKCE generation
   // we need to handle this differently. The service will use the Node.js path.
   throw new Error('PKCE generation must be done server-side');
@@ -160,7 +160,7 @@ function base64UrlEncode(array: Uint8Array): string {
  */
 export async function generatePKCEAsync(): Promise<PKCEPair> {
   const crypto = await import('crypto');
-  
+
   const codeVerifier = crypto.randomBytes(32).toString('base64url');
   const codeChallenge = crypto
     .createHash('sha256')
@@ -193,6 +193,7 @@ export function buildAuthorizationUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state: state,
+    scope: 'openid',
     purpose: purpose,
   });
 
@@ -215,13 +216,13 @@ export async function exchangeCodeForToken(
   const config = getDigiLockerConfig();
   const baseUrl = getBaseUrl();
 
-  const tokenUrl = `${baseUrl}/public/oauth2/1/token`;
+  const tokenUrl = `${baseUrl}/public/oauth2/2/token`;
 
   // DigiLocker MeriPehchaan API expects client_credentials grant type
   // NOT authorization_code like standard OAuth 2.0
   const body = new URLSearchParams({
     code,
-    grant_type: 'client_credentials',
+    grant_type: 'authorization_code',
     client_id: config.clientId,
     client_secret: config.clientSecret,
     redirect_uri: config.redirectUri,
@@ -352,7 +353,7 @@ export function verifyAge(dobString: string): AgeVerificationResult {
 
   // Calculate age
   let age = today.getFullYear() - birthDate.getFullYear();
-  
+
   // Adjust if birthday hasn't occurred yet this year
   const monthDiff = today.getMonth() - birthDate.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
@@ -374,10 +375,10 @@ export function verifyAge(dobString: string): AgeVerificationResult {
  */
 export function isConsentValid(consentValidTill: string | Date | null | undefined): boolean {
   if (!consentValidTill) return false;
-  
+
   const expiryDate = new Date(consentValidTill);
   const now = new Date();
-  
+
   return expiryDate > now;
 }
 
@@ -395,18 +396,18 @@ export async function encryptToken(plaintext: string): Promise<string> {
   }
 
   const crypto = await import('crypto');
-  
+
   // Use a deterministic key derived from environment
   const encryptionKey = deriveEncryptionKey();
-  
+
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey, iv);
-  
+
   let encrypted = cipher.update(plaintext, 'utf8', 'base64');
   encrypted += cipher.final('base64');
-  
+
   const authTag = cipher.getAuthTag();
-  
+
   // Return: iv:authTag:encrypted
   return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
 }
@@ -420,25 +421,25 @@ export async function decryptToken(encryptedData: string): Promise<string> {
   }
 
   const crypto = await import('crypto');
-  
+
   const encryptionKey = deriveEncryptionKey();
-  
+
   const parts = encryptedData.split(':');
   if (parts.length !== 3) {
     throw new Error('Invalid encrypted token format');
   }
-  
+
   const [ivBase64, authTagBase64, encrypted] = parts;
-  
+
   const iv = Buffer.from(ivBase64, 'base64');
   const authTag = Buffer.from(authTagBase64, 'base64');
-  
+
   const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey, iv);
   decipher.setAuthTag(authTag);
-  
+
   let decrypted = decipher.update(encrypted, 'base64', 'utf8');
   decrypted += decipher.final('utf8');
-  
+
   return decrypted;
 }
 
@@ -448,13 +449,13 @@ export async function decryptToken(encryptedData: string): Promise<string> {
  */
 function deriveEncryptionKey(): Buffer {
   const crypto = require('crypto');
-  
+
   // Use SUPABASE_SERVICE_ROLE_KEY as primary encryption key source
   // This ensures the key is consistent across server instances
-  const keyMaterial = env.SUPABASE_SERVICE_ROLE_KEY || 
-                      env.DIGILOCKER_CLIENT_SECRET || 
-                      'fallback-key-please-set-proper-env-vars';
-  
+  const keyMaterial = env.SUPABASE_SERVICE_ROLE_KEY ||
+    env.DIGILOCKER_CLIENT_SECRET ||
+    'fallback-key-please-set-proper-env-vars';
+
   // Derive a 32-byte key using SHA-256
   return crypto.createHash('sha256').update(keyMaterial).digest();
 }
@@ -530,8 +531,8 @@ export async function getLatestVerification(
 /**
  * Get user-friendly error message for DigiLocker errors
  */
-export function getErrorMessage(error: DigiLockerError | Error): { 
-  message: string; 
+export function getErrorMessage(error: DigiLockerError | Error): {
+  message: string;
   action: string;
   isRetryable: boolean;
 } {
