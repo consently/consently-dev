@@ -35,6 +35,7 @@ export interface DigiLockerTokenResponse {
   token_type: string;
   scope: string;
   refresh_token: string;
+  id_token?: string; // JWT containing user profile
   digilockerid: string;
   name: string;
   dob: string; // Format: DDMMYYYY
@@ -265,7 +266,48 @@ export async function exchangeCodeForToken(
     );
   }
 
-  return data as DigiLockerTokenResponse;
+  // Extract DOB from id_token if not directly available
+  const result = data as DigiLockerTokenResponse;
+
+  if (!result.dob && result.id_token) {
+    try {
+      const payload = parseJwtPayload(result.id_token);
+      if (payload.dob) {
+        result.dob = payload.dob;
+      }
+      // Also fallback for other fields if needed
+      if (!result.name && payload.name) result.name = payload.name;
+      if (!result.gender && payload.gender) result.gender = payload.gender;
+      if (!result.digilockerid && payload.digilockerid) result.digilockerid = payload.digilockerid;
+    } catch (e) {
+      console.warn('Failed to parse id_token:', e);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Helper to parse JWT payload without verifying signature
+ * (We trust the TLS connection to DigiLocker for this direct exchange)
+ */
+function parseJwtPayload(token: string): any {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    // Should verify environment - atob/btoa might need polyfill in Node, but Next.js usually has them
+    // Fallback for Node.js environment if atob is not available
+    if (typeof atob === 'undefined') {
+      const base64Url = token.split('.')[1];
+      return JSON.parse(Buffer.from(base64Url, 'base64').toString());
+    }
+    throw e;
+  }
 }
 
 /**
