@@ -344,68 +344,73 @@ export async function exchangeCodeForToken(
   // Extract DOB from id_token if not directly available
   const result = data as DigiLockerTokenResponse;
 
-  // Validate required fields - try to extract from id_token if not directly available
-  if (!result.dob && result.id_token) {
+  // PRIMARY: Extract from id_token (most reliable source per DigiLocker spec)
+  if (result.id_token) {
     try {
       const payload = parseJwtPayload(result.id_token);
-      console.log('[DigiLocker] Parsed id_token payload:', JSON.stringify(payload, null, 2));
-      if (payload.dob) {
-        console.log('[DigiLocker] Found DOB in id_token:', payload.dob);
-        result.dob = payload.dob;
-      } else {
-        console.warn('[DigiLocker] DOB not found in id_token payload');
+      // Log full payload for debugging (redact sensitive fields)
+      console.log('[DigiLocker] Parsed id_token claims:', { 
+        ...payload, 
+        sub: '[REDACTED]',
+        digilockerid: payload.digilockerid ? '[PRESENT]' : '[MISSING]',
+        birthdate: payload.birthdate || '[NOT FOUND]',
+        dob: payload.dob || '[NOT FOUND]',
+        date_of_birth: payload.date_of_birth || '[NOT FOUND]',
+      });
+
+      // Try multiple claim names for DOB (per OIDC spec and DigiLocker variations)
+      const dobClaims = ['birthdate', 'dob', 'date_of_birth'];
+      for (const claim of dobClaims) {
+        if (payload[claim]) {
+          console.log(`[DigiLocker] Found DOB in id_token claim '${claim}':`, payload[claim]);
+          result.dob = normalizeDob(payload[claim]);
+          break;
+        }
       }
-      // Also fallback for other fields if needed
+      
+      // Also extract other profile fields from id_token if missing
       if (!result.name && payload.name) result.name = payload.name;
       if (!result.gender && payload.gender) result.gender = payload.gender;
       if (!result.digilockerid && payload.digilockerid) result.digilockerid = payload.digilockerid;
+      
+      if (!result.dob) {
+        console.warn('[DigiLocker] No DOB claim found in id_token. Available claims:', Object.keys(payload).join(', '));
+      }
     } catch (e) {
       console.warn('[DigiLocker] Failed to parse id_token:', e);
     }
   }
 
-  // If DOB is missing, try to fetch from UserInfo endpoint
-  if (!result.dob || !result.digilockerid) {
-    console.warn('[DigiLocker] DOB or digilockerid missing from token response, trying /userinfo...');
-    try {
-      const userInfo = await fetchUserInfo(result.access_token);
-      console.log('[DigiLocker] /userinfo response:', JSON.stringify(userInfo, null, 2));
-      
-      // Merge userInfo data if missing from token response
-      if (!result.dob && userInfo.dob) {
-        console.log('[DigiLocker] Found DOB in /userinfo:', userInfo.dob);
-        result.dob = userInfo.dob;
-      }
-      if (!result.digilockerid && userInfo.digilockerid) {
-        result.digilockerid = userInfo.digilockerid;
-      }
-      if (!result.name && userInfo.name) {
-        result.name = userInfo.name;
-      }
-      if (!result.gender && userInfo.gender) {
-        result.gender = userInfo.gender;
-      }
-    } catch (userInfoError) {
-      console.error('[DigiLocker] Failed to fetch userinfo:', userInfoError);
-      // Continue - we'll check for required fields below
-    }
+  // FALLBACK: Check direct response fields (some implementations return DOB directly)
+  if (!result.dob && data.dob) {
+    result.dob = normalizeDob(data.dob);
+    console.log('[DigiLocker] Found DOB in direct response:', result.dob);
   }
+
+  // DISABLED: UserInfo fallback is unreliable for Authorized Partner flow
+  // DigiLocker UserInfo endpoint often returns non-JSON or is not implemented
+  // The id_token should contain all necessary profile claims when scope includes 'profile'
+  // 
+  // if (!result.dob || !result.digilockerid) {
+  //   console.warn('[DigiLocker] DOB or digilockerid missing - UserInfo fallback skipped (unreliable)');
+  // }
 
   // Check if we have the minimum required fields
   if (!result.dob) {
-    console.error('[DigiLocker] CRITICAL: DOB is missing from both id_token and /userinfo');
+    console.error('[DigiLocker] CRITICAL: DOB is missing from id_token');
     console.error('[DigiLocker] Available fields in result:', Object.keys(result).join(', '));
     console.error('[DigiLocker] Troubleshooting:');
     console.error('  1. Check that DIGILOCKER_SCOPE includes "profile" (current: ' + config.scope + ')');
     console.error('  2. Verify "Profile information" scope is approved in DigiLocker Partner Portal');
     console.error('  3. Ensure user has completed DigiLocker registration with Aadhaar');
+    console.error('  4. Check id_token claims in logs above for available fields');
     throw new DigiLockerError(
       'missing_dob',
       `DOB not returned by DigiLocker. Ensure DIGILOCKER_SCOPE includes 'profile' and Profile scope is approved in portal. Current scope: ${config.scope}`
     );
   }
   
-  // Validate DOB format
+  // Validate DOB format (now supports DDMMYYYY, MM/DD/YYYY, YYYY-MM-DD)
   if (!/^\d{8}$/.test(result.dob)) {
     throw new DigiLockerError(
       'invalid_dob_format',
@@ -542,6 +547,88 @@ export async function refreshAccessToken(
   }
 
   return data;
+}
+
+// ============================================================================
+// DOB NORMALIZATION
+// ============================================================================
+
+/**
+ * Normalize various DOB formats to DDMMYYYY
+ * Handles:
+ * - DDMMYYYY (e.g., "31122005") - already normalized
+ * - MM/DD/YYYY (e.g., "01/01/1990") - DigiLocker format
+ * - YYYY-MM-DD (e.g., "1990-01-01") - ISO format (OIDC standard)
+ * - DD/MM/YYYY (e.g., "31/12/2005") - Alternative format
+ * 
+ * @param dobRaw - Raw DOB string from DigiLocker
+ * @returns Normalized DDMMYYYY string
+ */
+function normalizeDob(dobRaw: string): string {
+  if (!dobRaw || typeof dobRaw !== 'string') {
+    throw new DigiLockerError('invalid_dob', 'DOB is empty or invalid');
+  }
+
+  const trimmed = dobRaw.trim();
+  console.log('[DigiLocker] Normalizing DOB:', trimmed);
+
+  // Already DDMMYYYY (8 digits)
+  if (/^\d{8}$/.test(trimmed)) {
+    console.log('[DigiLocker] DOB already in DDMMYYYY format');
+    return trimmed;
+  }
+
+  // MM/DD/YYYY format (e.g., "01/01/1990")
+  const mmddyyyyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mmddyyyyMatch) {
+    const month = mmddyyyyMatch[1].padStart(2, '0');
+    const day = mmddyyyyMatch[2].padStart(2, '0');
+    const year = mmddyyyyMatch[3];
+    const normalized = `${day}${month}${year}`;
+    console.log('[DigiLocker] Converted MM/DD/YYYY to DDMMYYYY:', normalized);
+    return normalized;
+  }
+
+  // DD/MM/YYYY format (e.g., "31/12/2005")
+  const ddmmyyyySlashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddmmyyyySlashMatch && parseInt(ddmmyyyySlashMatch[1]) > 12) {
+    // If day > 12, it's definitely DD/MM/YYYY
+    const day = ddmmyyyySlashMatch[1].padStart(2, '0');
+    const month = ddmmyyyySlashMatch[2].padStart(2, '0');
+    const year = ddmmyyyySlashMatch[3];
+    const normalized = `${day}${month}${year}`;
+    console.log('[DigiLocker] Converted DD/MM/YYYY to DDMMYYYY:', normalized);
+    return normalized;
+  }
+
+  // YYYY-MM-DD format (ISO 8601, OIDC standard)
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const year = isoMatch[1];
+    const month = isoMatch[2];
+    const day = isoMatch[3];
+    const normalized = `${day}${month}${year}`;
+    console.log('[DigiLocker] Converted YYYY-MM-DD to DDMMYYYY:', normalized);
+    return normalized;
+  }
+
+  // YYYY/MM/DD format
+  const yyyymmddSlashMatch = trimmed.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  if (yyyymmddSlashMatch) {
+    const year = yyyymmddSlashMatch[1];
+    const month = yyyymmddSlashMatch[2];
+    const day = yyyymmddSlashMatch[3];
+    const normalized = `${day}${month}${year}`;
+    console.log('[DigiLocker] Converted YYYY/MM/DD to DDMMYYYY:', normalized);
+    return normalized;
+  }
+
+  // Unknown format - throw error with details
+  console.error('[DigiLocker] Unknown DOB format:', trimmed);
+  throw new DigiLockerError(
+    'invalid_dob_format',
+    `Unknown DOB format: ${trimmed}. Expected DDMMYYYY, MM/DD/YYYY, or YYYY-MM-DD.`
+  );
 }
 
 // ============================================================================
