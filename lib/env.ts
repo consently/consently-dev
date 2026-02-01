@@ -78,6 +78,7 @@ const envSchema = z.object({
   DIGILOCKER_REDIRECT_URI: z.string().url().optional(),
   DIGILOCKER_ISSUER_ID: z.string().optional(), // e.g., 'in.consently'
   DIGILOCKER_SCOPE: z.string().optional(), // e.g., 'openid profile' or 'openid'
+  DIGILOCKER_ACR: z.string().optional(), // NSSO canonical value, e.g., 'digilocker'
 });
 
 // Type for the environment variables
