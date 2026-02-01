@@ -183,7 +183,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 2: Verify age (18+ logic)
-    const ageVerification = verifyAge(tokenData.dob);
+    // dob is guaranteed to exist after exchangeCodeForToken validation
+    const ageVerification = verifyAge(tokenData.dob!);
 
     // Step 3: Encrypt tokens before storing
     const encryptedAccessToken = await encryptToken(tokenData.access_token);
@@ -202,7 +203,7 @@ export async function GET(request: NextRequest) {
       .upsert({
         user_id: effectiveUserId,
         digilocker_id: tokenData.digilockerid,
-        name: tokenData.name,
+        name: tokenData.name || 'Unknown',
         dob_raw: tokenData.dob,
         date_of_birth: ageVerification.birthDate.split('T')[0], // ISO date only
         age_at_verification: ageVerification.age,
@@ -245,7 +246,7 @@ export async function GET(request: NextRequest) {
     successUrl.searchParams.set('verified', 'true');
     successUrl.searchParams.set('isAdult', ageVerification.isAdult.toString());
     successUrl.searchParams.set('age', ageVerification.age.toString());
-    successUrl.searchParams.set('name', encodeURIComponent(tokenData.name));
+    successUrl.searchParams.set('name', encodeURIComponent(tokenData.name || 'Unknown'));
     
     return NextResponse.redirect(successUrl.toString());
 

@@ -36,14 +36,27 @@ export interface DigiLockerTokenResponse {
   scope: string;
   refresh_token: string;
   id_token?: string; // JWT containing user profile
-  digilockerid: string;
-  name: string;
-  dob: string; // Format: DDMMYYYY
-  gender: string;
-  eaadhaar: string;
-  new_account: boolean;
-  reference_key: string;
+  digilockerid?: string;
+  name?: string;
+  dob?: string; // Format: DDMMYYYY
+  gender?: string;
+  eaadhaar?: string;
+  new_account?: boolean;
+  reference_key?: string;
   consent_valid_till?: string;
+}
+
+/**
+ * UserInfo response from DigiLocker /userinfo endpoint
+ */
+export interface DigiLockerUserInfo {
+  sub: string;
+  digilockerid?: string;
+  name?: string;
+  dob?: string; // Format: DDMMYYYY
+  gender?: string;
+  email?: string;
+  mobile?: string;
 }
 
 export interface AgeVerificationResult {
@@ -194,7 +207,7 @@ export function buildAuthorizationUrl(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state: state,
-    scope: 'openid',
+    scope: 'openid profile',
     purpose: purpose,
   });
 
@@ -289,11 +302,37 @@ export async function exchangeCodeForToken(
     }
   }
 
+  // If DOB is missing, try to fetch from UserInfo endpoint
+  if (!result.dob || !result.digilockerid) {
+    try {
+      const userInfo = await fetchUserInfo(result.access_token);
+      
+      // Merge userInfo data if missing from token response
+      if (!result.dob && userInfo.dob) {
+        result.dob = userInfo.dob;
+      }
+      if (!result.digilockerid && userInfo.digilockerid) {
+        result.digilockerid = userInfo.digilockerid;
+      }
+      if (!result.name && userInfo.name) {
+        result.name = userInfo.name;
+      }
+      if (!result.gender && userInfo.gender) {
+        result.gender = userInfo.gender;
+      }
+      
+      console.log('DigiLocker userinfo response:', JSON.stringify(userInfo, null, 2));
+    } catch (userInfoError) {
+      console.warn('Failed to fetch userinfo:', userInfoError);
+      // Continue - we'll check for required fields below
+    }
+  }
+
   // Check if we have the minimum required fields
   if (!result.dob) {
     throw new DigiLockerError(
       'missing_dob',
-      `DigiLocker response missing 'dob' field. Available fields: ${Object.keys(result).join(', ')}`
+      `DigiLocker response missing 'dob' field. Available fields: ${Object.keys(result).join(', ')}. Ensure 'Profile information' scope is enabled in DigiLocker portal.`
     );
   }
 
@@ -305,6 +344,55 @@ export async function exchangeCodeForToken(
   }
 
   return result;
+}
+
+/**
+ * Fetch user information from DigiLocker UserInfo endpoint
+ * This is the most reliable way to get DOB, name, gender, etc.
+ * 
+ * GET https://api.digitallocker.gov.in/public/oauth2/1/userinfo
+ */
+export async function fetchUserInfo(accessToken: string): Promise<DigiLockerUserInfo> {
+  const baseUrl = getBaseUrl();
+  const userInfoUrl = `${baseUrl}/public/oauth2/2/userinfo`;
+
+  const response = await fetch(userInfoUrl, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  // Handle non-JSON responses
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new DigiLockerError(
+      'invalid_userinfo_response',
+      `DigiLocker userinfo returned non-JSON response: ${text.substring(0, 200)}`
+    );
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch (parseError) {
+    throw new DigiLockerError(
+      'userinfo_parse_error',
+      'Failed to parse DigiLocker userinfo response'
+    );
+  }
+
+  if (!response.ok) {
+    const error = data as DigiLockerErrorResponse;
+    throw new DigiLockerError(
+      error.error || 'userinfo_failed',
+      error.error_description || 'Failed to fetch user information'
+    );
+  }
+
+  return data as DigiLockerUserInfo;
 }
 
 /**
@@ -663,6 +751,7 @@ export const digilockerService = {
   generatePKCEAsync,
   buildAuthorizationUrl,
   exchangeCodeForToken,
+  fetchUserInfo,
   refreshAccessToken,
   verifyAge,
   isConsentValid,
