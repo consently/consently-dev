@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       error: error || 'none',
       errorDescription: errorDescription || 'none',
       allParams: Array.from(searchParams.keys()),
-    }});
+    });
 
     // Get user session for logging
     const supabase = await createClient();
