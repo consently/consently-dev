@@ -217,13 +217,13 @@ export async function exchangeCodeForToken(
   const config = getDigiLockerConfig();
   const baseUrl = getBaseUrl();
 
-  const tokenUrl = `${baseUrl}/public/oauth2/1/token`;
+  const tokenUrl = `${baseUrl}/public/oauth2/2/token`;
 
-  // DigiLocker MeriPehchaan API expects client_credentials grant type
-  // NOT authorization_code like standard OAuth 2.0
+  // DigiLocker OAuth2 token endpoint uses authorization_code grant type
+  // This is the standard OAuth 2.0 flow for user authentication
   const body = new URLSearchParams({
     code,
-    grant_type: 'client_credentials',
+    grant_type: 'authorization_code',
     client_id: config.clientId,
     client_secret: config.clientSecret,
     redirect_uri: config.redirectUri,
