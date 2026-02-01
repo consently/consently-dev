@@ -280,35 +280,41 @@ export async function exchangeCodeForToken(
   }
 
   // Log full response for debugging (remove in production)
-  console.log('DigiLocker token response:', JSON.stringify(data, null, 2));
+  console.log('[DigiLocker] Token response:', JSON.stringify(data, null, 2));
 
   // Extract DOB from id_token if not directly available
   const result = data as DigiLockerTokenResponse;
 
-  // Validate required fields
+  // Validate required fields - try to extract from id_token if not directly available
   if (!result.dob && result.id_token) {
     try {
       const payload = parseJwtPayload(result.id_token);
-      console.log('Parsed id_token payload:', JSON.stringify(payload, null, 2));
+      console.log('[DigiLocker] Parsed id_token payload:', JSON.stringify(payload, null, 2));
       if (payload.dob) {
+        console.log('[DigiLocker] Found DOB in id_token:', payload.dob);
         result.dob = payload.dob;
+      } else {
+        console.warn('[DigiLocker] DOB not found in id_token payload');
       }
       // Also fallback for other fields if needed
       if (!result.name && payload.name) result.name = payload.name;
       if (!result.gender && payload.gender) result.gender = payload.gender;
       if (!result.digilockerid && payload.digilockerid) result.digilockerid = payload.digilockerid;
     } catch (e) {
-      console.warn('Failed to parse id_token:', e);
+      console.warn('[DigiLocker] Failed to parse id_token:', e);
     }
   }
 
   // If DOB is missing, try to fetch from UserInfo endpoint
   if (!result.dob || !result.digilockerid) {
+    console.warn('[DigiLocker] DOB or digilockerid missing from token response, trying /userinfo...');
     try {
       const userInfo = await fetchUserInfo(result.access_token);
+      console.log('[DigiLocker] /userinfo response:', JSON.stringify(userInfo, null, 2));
       
       // Merge userInfo data if missing from token response
       if (!result.dob && userInfo.dob) {
+        console.log('[DigiLocker] Found DOB in /userinfo:', userInfo.dob);
         result.dob = userInfo.dob;
       }
       if (!result.digilockerid && userInfo.digilockerid) {
@@ -320,21 +326,23 @@ export async function exchangeCodeForToken(
       if (!result.gender && userInfo.gender) {
         result.gender = userInfo.gender;
       }
-      
-      console.log('DigiLocker userinfo response:', JSON.stringify(userInfo, null, 2));
     } catch (userInfoError) {
-      console.warn('Failed to fetch userinfo:', userInfoError);
+      console.error('[DigiLocker] Failed to fetch userinfo:', userInfoError);
       // Continue - we'll check for required fields below
     }
   }
 
   // Check if we have the minimum required fields
   if (!result.dob) {
+    console.error('[DigiLocker] CRITICAL: DOB is missing from both id_token and /userinfo');
+    console.error('[DigiLocker] Available fields in result:', Object.keys(result).join(', '));
     throw new DigiLockerError(
       'missing_dob',
       `DigiLocker response missing 'dob' field. Available fields: ${Object.keys(result).join(', ')}. Ensure 'Profile information' scope is enabled in DigiLocker portal.`
     );
   }
+  
+  console.log('[DigiLocker] Final DOB for verifyAge:', result.dob);
 
   if (!result.digilockerid) {
     throw new DigiLockerError(
@@ -389,6 +397,14 @@ export async function fetchUserInfo(accessToken: string): Promise<DigiLockerUser
     throw new DigiLockerError(
       error.error || 'userinfo_failed',
       error.error_description || 'Failed to fetch user information'
+    );
+  }
+
+  // Validate DOB format if present
+  if (data.dob && !/^\d{8}$/.test(data.dob)) {
+    throw new DigiLockerError(
+      'invalid_dob_format',
+      `Invalid DOB format from /userinfo: ${data.dob}. Expected DDMMYYYY.`
     );
   }
 

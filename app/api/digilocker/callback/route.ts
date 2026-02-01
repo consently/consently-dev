@@ -182,6 +182,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Log the DOB that will be used for verification
+    console.log('[DigiLocker Callback] Final DOB for verifyAge:', tokenData.dob);
+    console.log('[DigiLocker Callback] User info:', {
+      digilockerid: tokenData.digilockerid,
+      name: tokenData.name,
+      gender: tokenData.gender,
+    });
+
     // Step 2: Verify age (18+ logic)
     // dob is guaranteed to exist after exchangeCodeForToken validation
     const ageVerification = verifyAge(tokenData.dob!);
