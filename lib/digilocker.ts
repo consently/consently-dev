@@ -1,13 +1,30 @@
 /**
  * DigiLocker OAuth 2.0 + PKCE Service
  * 
- * Handles age verification through DigiLocker MeriPehchaan API
- * - Generates PKCE code verifier and challenge
- * - Builds authorization URL
- * - Exchanges authorization code for access token
- * - Parses DOB and calculates age (18+ verification)
+ * Handles age verification through Direct DigiLocker MeriPehchaan API (NSSO)
+ * NOT API Setu - this uses the direct OAuth flow for user authentication
+ * and profile access (Name, DOB, Gender).
+ * 
+ * Flow:
+ * 1. Generate PKCE code verifier and challenge
+ * 2. Build authorization URL with NSSO parameters (acr=digilocker)
+ * 3. Exchange authorization code for access token
+ * 4. Parse DOB from id_token or fetch via /userinfo endpoint
+ * 5. Calculate age (18+ verification)
+ * 
+ * API Endpoints Used:
+ * - Authorization: POST /public/oauth2/1/authorize
+ * - Token: POST /public/oauth2/2/token
+ * - UserInfo: GET /public/oauth2/2/userinfo
+ * 
+ * Required Environment Variables:
+ * - DIGILOCKER_CLIENT_ID
+ * - DIGILOCKER_CLIENT_SECRET
+ * - DIGILOCKER_REDIRECT_URI
+ * - DIGILOCKER_SCOPE=openid profile (MUST include 'profile' for DOB)
  * 
  * @see https://partners.digilocker.gov.in
+ * @see docs/DIGILOCKER_IMPLEMENTATION_GUIDE.md
  */
 
 import { env } from '@/lib/env';
@@ -27,7 +44,8 @@ export interface DigiLockerConfig {
   clientSecret: string;
   redirectUri: string;
   issuerId: string;
-  scope?: string; // Optional: defaults to 'openid profile'
+  scope?: string; // Defaults to 'openid profile' - MUST include 'profile' for DOB
+  acr?: string;   // Authentication Context Class Reference - NSSO parameter
 }
 
 export interface DigiLockerTokenResponse {
@@ -106,7 +124,8 @@ export function getDigiLockerConfig(): DigiLockerConfig {
     clientSecret: env.DIGILOCKER_CLIENT_SECRET,
     redirectUri: env.DIGILOCKER_REDIRECT_URI,
     issuerId: env.DIGILOCKER_ISSUER_ID || 'in.consently',
-    scope: env.DIGILOCKER_SCOPE || 'openid profile',
+    scope: env.DIGILOCKER_SCOPE || 'openid profile', // MUST include 'profile' for DOB access
+    acr: env.DIGILOCKER_ACR || 'digilocker', // NSSO canonical value
   };
 }
 
@@ -193,6 +212,11 @@ export async function generatePKCEAsync(): Promise<PKCEPair> {
 /**
  * Build DigiLocker authorization URL
  * Per DigiLocker API spec Page 5
+ * 
+ * NSSO Canonical Parameters:
+ * - scope: 'openid profile' (MUST include 'profile' for DOB access)
+ * - acr: 'digilocker' (NSSO canonical value for Authentication Context Class Reference)
+ * - purpose: Use case for the authentication (kyc, verification, compliance, etc.)
  */
 export function buildAuthorizationUrl(
   codeChallenge: string,
@@ -204,9 +228,12 @@ export function buildAuthorizationUrl(
 
   // DigiLocker supports: openid, profile
   // IMPORTANT: scope must be exactly "openid profile" (space-separated, no commas, no quotes)
-  // If getting 'invalid_scope' error, try setting DIGILOCKER_SCOPE='openid' in .env
-  // Then use /userinfo endpoint to fetch profile data separately
+  // 'profile' is REQUIRED to get DOB (date of birth) from the user
   const scope = config.scope || 'openid profile';
+  
+  // NSSO canonical ACR value - REQUIRED for MeriPehchaan integration
+  // This ensures the authentication follows NSSO standards
+  const acr = config.acr || 'digilocker';
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -217,6 +244,7 @@ export function buildAuthorizationUrl(
     state: state,
     scope: scope,
     purpose: purpose,
+    acr: acr,
   });
 
   const authUrl = `${baseUrl}/public/oauth2/1/authorize?${params.toString()}`;
@@ -225,6 +253,7 @@ export function buildAuthorizationUrl(
   console.log('[DigiLocker] Generated auth URL:', authUrl.replace(/client_id=[^&]+/, 'client_id=***'));
   console.log('[DigiLocker] Scope parameter:', scope);
   console.log('[DigiLocker] Purpose parameter:', purpose);
+  console.log('[DigiLocker] ACR parameter:', acr);
   
   return authUrl;
 }
@@ -258,6 +287,15 @@ export async function exchangeCodeForToken(
     code_verifier: codeVerifier,
   });
 
+  // Debug: Log the token request parameters (mask sensitive info)
+  console.log('[DigiLocker] Token exchange request:');
+  console.log('[DigiLocker] URL:', tokenUrl);
+  console.log('[DigiLocker] client_id length:', config.clientId.length);
+  console.log('[DigiLocker] client_id (first 5 chars):', config.clientId.substring(0, 5) + '...');
+  console.log('[DigiLocker] redirect_uri:', config.redirectUri);
+  console.log('[DigiLocker] code length:', code.length);
+  console.log('[DigiLocker] code_verifier length:', codeVerifier.length);
+
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
@@ -288,6 +326,12 @@ export async function exchangeCodeForToken(
 
   if (!response.ok) {
     const error = data as DigiLockerErrorResponse;
+    console.error('[DigiLocker] Token exchange failed:', {
+      error: error.error,
+      description: error.error_description,
+      status: response.status,
+      statusText: response.statusText,
+    });
     throw new DigiLockerError(
       error.error || 'unknown_error',
       error.error_description || 'Failed to exchange code for token'
@@ -351,9 +395,21 @@ export async function exchangeCodeForToken(
   if (!result.dob) {
     console.error('[DigiLocker] CRITICAL: DOB is missing from both id_token and /userinfo');
     console.error('[DigiLocker] Available fields in result:', Object.keys(result).join(', '));
+    console.error('[DigiLocker] Troubleshooting:');
+    console.error('  1. Check that DIGILOCKER_SCOPE includes "profile" (current: ' + config.scope + ')');
+    console.error('  2. Verify "Profile information" scope is approved in DigiLocker Partner Portal');
+    console.error('  3. Ensure user has completed DigiLocker registration with Aadhaar');
     throw new DigiLockerError(
       'missing_dob',
-      `DigiLocker response missing 'dob' field. Available fields: ${Object.keys(result).join(', ')}. Ensure 'Profile information' scope is enabled in DigiLocker portal.`
+      `DOB not returned by DigiLocker. Ensure DIGILOCKER_SCOPE includes 'profile' and Profile scope is approved in portal. Current scope: ${config.scope}`
+    );
+  }
+  
+  // Validate DOB format
+  if (!/^\d{8}$/.test(result.dob)) {
+    throw new DigiLockerError(
+      'invalid_dob_format',
+      `Invalid DOB format from DigiLocker: ${result.dob}. Expected DDMMYYYY.`
     );
   }
   

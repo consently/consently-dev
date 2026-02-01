@@ -46,11 +46,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse query parameters
-    const { searchParams } = new URL(request.url);
+    const url = new URL(request.url);
+    const { searchParams } = url;
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
+
+    // Debug: Log full callback URL (mask sensitive data)
+    console.log('[DigiLocker Callback] Full URL:', url.toString().replace(/code=[^&]+/, 'code=***'));
+    console.log('[DigiLocker Callback] Query params:', {
+      code: code ? `present (${code.length} chars)` : 'MISSING',
+      state: state ? `present (${state.length} chars)` : 'MISSING',
+      error: error || 'none',
+      errorDescription: errorDescription || 'none',
+      allParams: Array.from(searchParams.keys()),
+    }});
 
     // Get user session for logging
     const supabase = await createClient();
@@ -59,7 +70,12 @@ export async function GET(request: NextRequest) {
 
     // Handle user denial or DigiLocker error
     if (error) {
-      console.error(`DigiLocker Auth Error: ${error} - ${errorDescription}`);
+      console.error(`[DigiLocker Callback] DigiLocker returned error:`, {
+        error,
+        errorDescription,
+        state: state || 'MISSING',
+        hasState: !!state,
+      });
       
       // Log the error
       if (userId) {
@@ -100,11 +116,16 @@ export async function GET(request: NextRequest) {
 
     // Validate required parameters
     if (!code || !state) {
-      console.error('Missing code or state in callback');
+      console.error('[DigiLocker Callback] MISSING PARAMS:', {
+        code: code ? 'present' : 'MISSING',
+        state: state ? 'present' : 'MISSING',
+        fullUrl: url.toString().replace(/code=[^&]+/, 'code=***'),
+        searchParams: Object.fromEntries(searchParams.entries()),
+      });
       
       const errorUrl = new URL('/age-verification', request.url);
       errorUrl.searchParams.set('error', 'invalid_request');
-      errorUrl.searchParams.set('error_description', 'Missing required parameters');
+      errorUrl.searchParams.set('error_description', encodeURIComponent(`Missing required parameters: ${!code ? 'code ' : ''}${!state ? 'state' : ''}`));
       
       return NextResponse.redirect(errorUrl.toString());
     }
