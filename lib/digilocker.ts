@@ -727,7 +727,7 @@ export function getErrorMessage(error: DigiLockerError | Error): {
         };
       case 'invalid_client':
         return {
-          message: 'Configuration error. Please contact support.',
+          message: 'DigiLocker Auth Partner misconfigured: Token Authentication Method must be "authorization_code" (not client_credentials). Create a new Auth Partner in API Setu with the correct settings.',
           action: 'contact_support',
           isRetryable: false,
         };

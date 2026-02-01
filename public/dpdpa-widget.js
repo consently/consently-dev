@@ -3103,14 +3103,6 @@ ${activitySections}
       // For non-onPageLoad triggers, wait for them to fire - don't show anything immediately
       return;
     }
-
-    // This is checked at the end of init() after all other conditions
-      // Small delay to ensure UI is ready
-      setTimeout(() => {
-        showConsentWidget();
-      }, 500);
-      return;
-    }
   }
 
   // Apply consent (trigger custom events, etc.)

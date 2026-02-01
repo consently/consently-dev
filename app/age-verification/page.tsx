@@ -71,6 +71,11 @@ function ErrorDisplay({
       message: 'Your verification session is no longer valid.',
       action: 'Please start a new verification.',
     },
+    invalid_client: {
+      title: 'DigiLocker Configuration Error',
+      message: 'Your DigiLocker Auth Partner is misconfigured. The client is likely set to "client_credentials" instead of "authorization_code".',
+      action: 'Please create a NEW Auth Partner in API Setu with Token Authentication Method set to "authorization_code" and enable PKCE.',
+    },
     init_failed: {
       title: 'Initialization Failed',
       message: 'We could not start the verification process.',
@@ -340,9 +345,10 @@ function AgeVerificationContent() {
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   
-  // Get query params
+  // Get query params - decode URL-encoded error description
   const error = searchParams.get('error');
-  const errorDescription = searchParams.get('error_description');
+  const rawErrorDescription = searchParams.get('error_description');
+  const errorDescription = rawErrorDescription ? decodeURIComponent(rawErrorDescription) : null;
   const verified = searchParams.get('verified') === 'true';
   const isAdult = searchParams.get('isAdult') === 'true';
   const age = parseInt(searchParams.get('age') || '0');
