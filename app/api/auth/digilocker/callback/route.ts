@@ -30,12 +30,112 @@ import {
 import { redis } from '@/lib/redis';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { logSuccess, logError, AuditAction } from '@/lib/audit';
+import { signAgeVerificationToken } from '@/lib/age-verification-token';
 
 export const dynamic = 'force-dynamic';
 
+// ============================================================================
+// Anonymous age verification (popup) flow helpers
+// ============================================================================
+
+function postMessageHTML(data: Record<string, unknown>) {
+  const json = JSON.stringify({ type: 'consently-age-verification', ...data });
+  return new NextResponse(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Age Verification</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    margin: 0; background: #f8fafc; color: #334155; }
+  .card { text-align: center; padding: 2rem; }
+  .spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #4c8bf5;
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="spinner"></div>
+  <p>Returning to the website...</p>
+</div>
+<script>
+  (function() {
+    try {
+      if (window.opener) {
+        window.opener.postMessage(${json}, '*');
+      }
+    } catch (e) { console.error('postMessage failed:', e); }
+    setTimeout(function() { window.close(); }, 1500);
+  })();
+</script>
+</body>
+</html>`, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+/**
+ * Handle the anonymous widget age verification flow.
+ * Called when the state matches a `verify-age:state:` Redis key.
+ */
+async function handleAnonymousAgeVerification(
+  code: string,
+  stateData: { codeVerifier: string; widgetId: string; ageThreshold: number; validityDays: number }
+): Promise<NextResponse> {
+  try {
+    // Exchange code for token using the default registered redirect URI
+    const tokenResponse = await exchangeCodeForToken(code, stateData.codeVerifier);
+
+    if ('error' in tokenResponse) {
+      throw new Error((tokenResponse as any).error_description || 'Token exchange failed');
+    }
+
+    if (!tokenResponse.dob) {
+      return postMessageHTML({
+        status: 'error',
+        error: 'missing_dob',
+        errorDescription: 'Could not retrieve date of birth from DigiLocker',
+      });
+    }
+
+    const ageResult = verifyAge(tokenResponse.dob);
+    const isAdult = ageResult.age >= stateData.ageThreshold;
+
+    // Sign JWT — no database storage needed for anonymous flow
+    const token = await signAgeVerificationToken({
+      isAdult,
+      ageThreshold: stateData.ageThreshold,
+      widgetId: stateData.widgetId,
+      validityDays: stateData.validityDays,
+    });
+
+    console.log('[DigiLocker Callback] Anonymous age verification complete:', {
+      widgetId: stateData.widgetId,
+      isAdult,
+      age: ageResult.age,
+      threshold: stateData.ageThreshold,
+    });
+
+    return postMessageHTML({ status: 'success', token, isAdult });
+  } catch (err) {
+    console.error('[DigiLocker Callback] Anonymous verification error:', err);
+    const message = err instanceof Error ? err.message : 'Verification failed';
+    return postMessageHTML({
+      status: 'error',
+      error: 'verification_failed',
+      errorDescription: message,
+    });
+  }
+}
+
+// ============================================================================
+// Main callback handler
+// ============================================================================
+
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     // Check Redis is available
     if (!redis) {
@@ -52,6 +152,39 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
+
+    // ====================================================================
+    // Check if this is an anonymous widget age verification (popup flow)
+    // These use `verify-age:state:{state}` Redis keys set by /api/verify-age/init
+    // ====================================================================
+    if (state && redis) {
+      const anonRaw = await redis.get(`verify-age:state:${state}`);
+      if (anonRaw) {
+        // Delete immediately to prevent replay
+        await redis.del(`verify-age:state:${state}`);
+
+        // Handle error from DigiLocker
+        if (error) {
+          console.error('[DigiLocker Callback] Anonymous flow - DigiLocker error:', error, errorDescription);
+          return postMessageHTML({
+            status: 'error',
+            error: error,
+            errorDescription: errorDescription || 'Verification was cancelled or failed',
+          });
+        }
+
+        if (!code) {
+          return postMessageHTML({
+            status: 'error',
+            error: 'invalid_request',
+            errorDescription: 'Missing authorization code',
+          });
+        }
+
+        const stateData = typeof anonRaw === 'string' ? JSON.parse(anonRaw) : anonRaw as any;
+        return handleAnonymousAgeVerification(code, stateData);
+      }
+    }
 
     // Debug: Log full callback URL (mask sensitive data)
     console.log('[DigiLocker Callback] Full URL:', url.toString().replace(/code=[^&]+/, 'code=***'));

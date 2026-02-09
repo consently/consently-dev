@@ -79,7 +79,6 @@ const envSchema = z.object({
   DIGILOCKER_ISSUER_ID: z.string().optional(), // e.g., 'in.consently'
   DIGILOCKER_SCOPE: z.string().optional(), // e.g., 'openid profile' or 'openid'
   DIGILOCKER_ACR: z.string().optional(), // NSSO canonical value, e.g., 'digilocker'
-  DIGILOCKER_PUBLIC_REDIRECT_URI: z.string().url().optional(), // Public callback for widget age verification
 });
 
 // Type for the environment variables
@@ -187,7 +186,6 @@ export const features = {
   translation: !!process.env.GOOGLE_TRANSLATE_API_KEY,
   cookieScanner: !!process.env.BROWSERLESS_API_KEY,
   digilocker: !!(process.env.DIGILOCKER_CLIENT_ID && process.env.DIGILOCKER_CLIENT_SECRET && process.env.DIGILOCKER_REDIRECT_URI),
-  digilockerPublic: !!(process.env.DIGILOCKER_CLIENT_ID && process.env.DIGILOCKER_CLIENT_SECRET && process.env.DIGILOCKER_PUBLIC_REDIRECT_URI),
 } as const;
 
 /**

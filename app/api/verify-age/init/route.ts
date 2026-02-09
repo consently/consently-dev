@@ -66,10 +66,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check public redirect URI is configured
-    const publicRedirectUri = env.DIGILOCKER_PUBLIC_REDIRECT_URI;
-    if (!publicRedirectUri) {
-      console.error('[verify-age/init] DIGILOCKER_PUBLIC_REDIRECT_URI not configured');
+    // Check DigiLocker is configured (uses existing DIGILOCKER_REDIRECT_URI)
+    if (!env.DIGILOCKER_REDIRECT_URI) {
+      console.error('[verify-age/init] DIGILOCKER_REDIRECT_URI not configured');
       return NextResponse.json(
         { error: 'Age verification not configured' },
         { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
@@ -82,7 +81,9 @@ export async function POST(request: NextRequest) {
     // Generate state
     const state = crypto.randomUUID();
 
-    // Store state in Redis (TTL 600s = 10 minutes)
+    // Store state in Redis with verify-age: prefix (TTL 600s = 10 minutes)
+    // The existing /api/auth/digilocker/callback route detects this prefix
+    // to handle the anonymous popup flow vs the authenticated flow.
     const stateData = {
       codeVerifier,
       widgetId,
@@ -93,7 +94,6 @@ export async function POST(request: NextRequest) {
     if (redis) {
       await redis.set(`verify-age:state:${state}`, JSON.stringify(stateData), { ex: 600 });
     } else {
-      // Fallback: encode state data in the state param itself (less secure but works without Redis)
       console.warn('[verify-age/init] Redis not available, state management degraded');
       return NextResponse.json(
         { error: 'Server configuration error - Redis required' },
@@ -101,12 +101,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build authorization URL with public redirect URI override
+    // Build authorization URL using the existing registered redirect URI
     const authUrl = buildAuthorizationUrl(
       codeChallenge,
       state,
-      'verification',
-      publicRedirectUri
+      'verification'
     );
 
     return NextResponse.json(
