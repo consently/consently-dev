@@ -3652,6 +3652,7 @@ ${activitySections}
             </div>
             <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: ${textColor};">Verification Required</h3>
             <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
+                ${config.requireAgeVerification
                   ? 'Please verify your age below to view and manage your consent preferences.'
                   : 'Please verify your email below to view and manage your consent preferences.'}
             </p>
@@ -4279,47 +4280,8 @@ ${activitySections}
       });
     }
 
-    // DigiLocker Age Verification Button
-    const digilockerVerifyBtn = widget.querySelector('#dpdpa-digilocker-verify-btn');
-    if (digilockerVerifyBtn) {
-      // Store original button text for restoration
-      const originalBtnText = digilockerVerifyBtn.textContent || 'Verify with DigiLocker';
-
-      digilockerVerifyBtn.addEventListener('click', async () => {
-        const errorDiv = widget.querySelector('#dpdpa-digilocker-error');
-
-        try {
-          digilockerVerifyBtn.textContent = 'Verifying...';
-          digilockerVerifyBtn.disabled = true;
-
-          // Build return URL - strip any existing verification params to avoid loops
-          const currentUrl = new URL(window.location.href);
-          currentUrl.searchParams.delete('age_verification_session');
-          currentUrl.searchParams.delete('age_verification_status');
-          const cleanReturnUrl = currentUrl.toString();
-
-          // Initiate age verification
-          await initiateAgeVerification(cleanReturnUrl);
-
-        } catch (e) {
-          console.error('[Consently DPDPA] DigiLocker verification error:', e);
-          if (errorDiv) {
-            errorDiv.textContent = e.message || 'Verification failed. Please try again.';
-            errorDiv.style.display = 'block';
-          }
-          digilockerVerifyBtn.textContent = 'Retry Verification';
-          digilockerVerifyBtn.disabled = false;
-        }
-      });
-
-      // Check existing verification status on load
-      if (checkExistingAgeVerification() || ageVerificationStatus) {
-        // Get translations from config language for UI update
-        getTranslation(config && config.language ? config.language : 'en').then(translations => {
-          updateDigiLockerUI(widget, translations);
-        });
-      }
-    }
+    // Note: DigiLocker age verification is now handled by the popup-based flow
+    // (showAgeVerificationScreen / setupAgeVerificationListener) before the widget renders.
 
     // Checkboxes for activities with enhanced visual feedback (table view)
     const checkboxes = widget.querySelectorAll('.activity-checkbox');
@@ -4393,52 +4355,27 @@ ${activitySections}
       });
     });
 
-    // Restore saved widget state to DOM after returning from DigiLocker redirect
-    applyRestoredStateToDom(widget);
+    // Note: applyRestoredStateToDom was removed with the old redirect-based DigiLocker flow.
+    // The new popup-based flow does not require state restoration.
 
     // Confirm & Submit Button
     const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
         // DigiLocker Age Verification Check (DPDPA 2023)
-        // Uses verificationOutcome (server-enforced) as primary guard,
-        // with ageVerificationStatus as fallback for backward compatibility.
+        // The popup-based flow sets verificationOutcome before the widget renders.
         if (config.requireAgeVerification) {
-          const errorDiv = widget.querySelector('#dpdpa-digilocker-error');
-
-          // Block if outcome explicitly disallows consent
           if (verificationOutcome === 'blocked_minor') {
             if (overlay) overlay.remove();
             showMinorBlockScreen();
             return;
           }
 
-          // Check if age is verified (consent-permitted outcomes)
           const consentPermitted = ['verified_adult', 'limited_access'];
-          const hasPermittedOutcome = verificationOutcome && consentPermitted.includes(verificationOutcome);
-
-          if (!hasPermittedOutcome && ageVerificationStatus !== 'verified') {
-            if (errorDiv) {
-              errorDiv.textContent = t.ageVerificationRequired || 'Please verify your age to continue.';
-              errorDiv.style.display = 'block';
-            }
-
-            // Scroll to verification section
-            const digiSection = widget.querySelector('#dpdpa-digilocker-section');
-            if (digiSection) {
-              digiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+          if (!verificationOutcome || !consentPermitted.includes(verificationOutcome)) {
+            console.warn('[Consently DPDPA] Age verification not completed');
             return;
           }
-
-          // Legacy fallback: check rejected status
-          if (ageVerificationStatus === 'rejected') {
-            if (overlay) overlay.remove();
-            showMinorBlockScreen();
-            return;
-          }
-
-          if (errorDiv) errorDiv.style.display = 'none';
         }
 
         // Legacy Age Gate Check (Only if DigiLocker not enabled)
