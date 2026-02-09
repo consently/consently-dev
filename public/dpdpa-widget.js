@@ -3764,35 +3764,6 @@ ${activitySections}
 
       </div>
 
-      <!--
-
-        - Email section is shown SECOND — it is optional
-        - This matches the legal requirement: age must be established before consent is requested
-      -->
-
-          <div style="display: flex; align-items: flex-start; gap: 12px;">
-            <div style="padding: 8px; background: #10b981; border-radius: 10px; flex-shrink: 0;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-            </div>
-            <div style="flex: 1;">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <span style="font-size: 10px; font-weight: 700; color: #dc2626; background: #fef2f2; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #fecaca;">Required</span>
-              </div>
-              <span style="font-size: 13px; color: #047857; line-height: 1.5; display: block; margin-bottom: 4px;">
-              </span>
-              <span style="font-size: 11px; color: #6b7280; line-height: 1.4; display: block; margin-bottom: 12px;">
-              </span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      ` : ''}
-
       <!-- Secure This Consent Section -->
       <div class="dpdpa-secure-section" style="padding: 24px; background: linear-gradient(to right, #f8fafc, #f1f5f9); border-top: 1px solid rgba(0,0,0,0.05); border-bottom: 1px solid rgba(0,0,0,0.05);">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -3806,7 +3777,6 @@ ${activitySections}
             Secure This Consent
           </h3>
             <span style="font-size: 10px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Optional</span>
-          ` : ''}
         </div>
         <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
           ${userStatus === 'verified'
@@ -3846,142 +3816,1292 @@ ${activitySections}
           </p>
         </div>
       </div>
-
-            <!-- Footer Actions -->
-            <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; display: flex; gap: 12px; justify-content: flex-end;">
-              <button id="reject-all-cookies" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #6b7280; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
-                Reject All
-              </button>
-              <button id="accept-all-cookies" style="padding: 10px 20px; border: none; background: ${primaryColor}; color: white; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                Accept All
-              </button>
-              <button id="save-cookie-preferences" style="padding: 10px 20px; border: none; background: ${primaryColor}; color: white; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                Save Preferences
-              </button>
-            </div>
-          </div>
-        </div>
       `;
+    }
 
-      document.body.appendChild(modalOverlay);
+    widget.innerHTML = buildWidgetHTML();
 
-      // Animate in
-      requestAnimationFrame(() => {
-        modalOverlay.style.opacity = '1';
-        modalOverlay.querySelector('div').style.transform = 'scale(1)';
+    function languageLabel(code) {
+      const map = {
+        en: 'English',
+        hi: 'हिंदी',
+        pa: 'ਪੰਜਾਬੀ',
+        te: 'తెలుగు',
+        ta: 'தமிழ்',
+        bn: 'বাংলা',
+        mr: 'मराठी',
+        gu: 'ગુજરાતી',
+        kn: 'ಕನ್ನಡ',
+        ml: 'മലയാളം',
+        or: 'ଓଡ଼ିଆ',
+        ur: 'اردو',
+        as: 'অসমীয়া'
+      };
+      return map[code] || code;
+    }
+
+    function languageFlag(code) {
+      const map = {
+        en: '🇮🇳',
+        hi: '🇮🇳',
+        pa: '🇮🇳',
+        te: '🇮🇳',
+        ta: '🇮🇳',
+        bn: '🇮🇳',
+        mr: '🇮🇳',
+        gu: '🇮🇳',
+        kn: '🇮🇳',
+        ml: '🇮🇳',
+        or: '🇮🇳',
+        ur: '🇮🇳'
+      };
+      return map[code] || '🌐';
+    }
+
+    // Append to overlay and body
+    overlay.appendChild(widget);
+    document.body.appendChild(overlay);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+      widget.style.transform = 'scale(1)';
+      widget.style.opacity = '1';
+    });
+
+    // Attach event listeners
+    attachEventListeners(overlay, widget);
+
+    // Function to rebuild widget content with new language
+    async function rebuildWidget() {
+      if (isTranslating) {
+        console.log('[Consently DPDPA] Translation already in progress, ignoring request');
+        return;
+      }
+
+      isTranslating = true;
+
+      // Show full-screen loading overlay to prevent confusing transparent effects
+      const loadingOverlay = document.createElement('div');
+      loadingOverlay.id = 'consently-dpdpa-loading-overlay';
+      loadingOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        pointer-events: all;
+      `;
+      loadingOverlay.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+          <div style="width: 32px; height: 32px; border: 3px solid ${primaryColor}30; border-top-color: ${primaryColor}; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <span style="font-size: 13px; color: ${textColor}; font-weight: 500; opacity: 0.8;">Translating...</span>
+        </div>
+        <style>
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+      `;
+      document.body.appendChild(loadingOverlay);
+
+      try {
+        // Remove old global click handler before rebuilding
+        if (globalClickHandler) {
+          document.removeEventListener('click', globalClickHandler);
+          globalClickHandler = null;
+        }
+
+        // Fetch translations asynchronously
+        t = await getTranslation(selectedLanguage);
+
+        // If switching to English, restore original values
+        if (selectedLanguage === 'en') {
+          translatedConfig = {
+            title: config.title || 'Your Data Privacy Rights',
+            message: config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+            acceptButtonText: config.acceptButtonText || 'Accept All',
+            rejectButtonText: config.rejectButtonText || 'Reject All',
+            customizeButtonText: config.customizeButtonText || 'Manage Preferences'
+          };
+          // Restore original activities
+          activities = JSON.parse(JSON.stringify(originalActivities));
+        } else {
+          // For non-English languages, translate from original English values
+          const originalActivitiesForTranslation = JSON.parse(JSON.stringify(originalActivities));
+
+          // Collect all texts to translate in one batch (OPTIMIZED: single API call)
+          const textsToTranslate = [
+            // Config values - use original English
+            config.title || 'Your Data Privacy Rights',
+            config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+            config.acceptButtonText || 'Accept All',
+            config.rejectButtonText || 'Reject All',
+            config.customizeButtonText || 'Manage Preferences',
+            // Activity content - use original English activities
+            ...originalActivitiesForTranslation.map(a => a.activity_name),
+            ...originalActivitiesForTranslation.flatMap(a => {
+              // Handle new structure with purposes
+              if (a.purposes && Array.isArray(a.purposes) && a.purposes.length > 0) {
+                return a.purposes.flatMap(p => [
+                  p.purposeName || '',
+                  ...(p.dataCategories || []).map(cat => cat.categoryName || '')
+                ]).filter(Boolean);
+              }
+              // Fallback to legacy
+              return a.data_attributes || [];
+            })
+          ];
+
+          // Batch translate ALL content in ONE API call instead of multiple
+          const translatedTexts = await batchTranslate(textsToTranslate, selectedLanguage);
+
+          // Map translations back to config and activities
+          let textIndex = 0;
+          translatedConfig = {
+            title: translatedTexts[textIndex++],
+            message: translatedTexts[textIndex++],
+            acceptButtonText: translatedTexts[textIndex++],
+            rejectButtonText: translatedTexts[textIndex++],
+            customizeButtonText: translatedTexts[textIndex++]
+          };
+
+          const translatedActivities = originalActivitiesForTranslation.map(activity => {
+            const translatedName = translatedTexts[textIndex++];
+            // Handle both new structure (purposes) and legacy (data_attributes)
+            if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
+              // New structure - translate purposes and data categories
+              const translatedPurposes = activity.purposes.map(purpose => {
+                const translatedPurposeName = translatedTexts[textIndex++];
+                const translatedDataCategories = (purpose.dataCategories || []).map(() => translatedTexts[textIndex++]);
+                return {
+                  ...purpose,
+                  purposeName: translatedPurposeName,
+                  dataCategories: purpose.dataCategories.map((cat, idx) => ({
+                    ...cat,
+                    categoryName: translatedDataCategories[idx] || cat.categoryName
+                  }))
+                };
+              });
+              return {
+                ...activity,
+                activity_name: translatedName,
+                purposes: translatedPurposes
+              };
+            } else {
+              // Legacy structure - translate data_attributes
+              const translatedAttrs = (activity.data_attributes || []).map(() => translatedTexts[textIndex++]);
+              return {
+                ...activity,
+                activity_name: translatedName,
+                data_attributes: translatedAttrs
+              };
+            }
+          });
+
+          // Update activities with translated content
+          activities = translatedActivities;
+        }
+
+        widget.innerHTML = buildWidgetHTML();
+        // Re-attach all event listeners
+        attachEventListeners(overlay, widget);
+        // Re-setup gated interactions
+        setupGatedInteractions();
+      } catch (error) {
+        console.error('[Consently DPDPA] Translation error:', error);
+        // On error, still try to rebuild with untranslated content
+        widget.innerHTML = buildWidgetHTML();
+        attachEventListeners(overlay, widget);
+        setupGatedInteractions();
+      } finally {
+        // Always remove loading overlay
+        const overlayElement = document.getElementById('consently-dpdpa-loading-overlay');
+        if (overlayElement) overlayElement.remove();
+        isTranslating = false;
+      }
+    }
+
+    // Setup gated interactions
+    function setupGatedInteractions() {
+      const langBtn = widget.querySelector('#dpdpa-lang-btn');
+      const langMenu = widget.querySelector('#dpdpa-lang-menu');
+
+      if (!langBtn || !langMenu) return; // Safety check
+
+      // Hover effect
+      langBtn.addEventListener('mouseenter', () => {
+        langBtn.style.boxShadow = '0 4px 8px rgba(59,130,246,0.4)';
+        langBtn.style.transform = 'translateY(-1px)';
+      });
+      langBtn.addEventListener('mouseleave', () => {
+        langBtn.style.boxShadow = '0 2px 4px rgba(59,130,246,0.3)';
+        langBtn.style.transform = 'translateY(0)';
       });
 
-      // Close modal handlers
-      const closeModal = () => {
-        modalOverlay.style.opacity = '0';
-        modalOverlay.querySelector('div').style.transform = 'scale(0.95)';
-        setTimeout(() => {
-          document.body.removeChild(modalOverlay);
-        }, 300);
-      };
+      // Toggle menu
+      langBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        langMenu.style.display = langMenu.style.display === 'none' || !langMenu.style.display ? 'block' : 'none';
+      });
 
-      document.getElementById('close-cookie-modal').addEventListener('click', closeModal);
-      modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) {
-          closeModal();
+      // Close on outside click - Store reference to remove later
+      globalClickHandler = (e) => {
+        if (!langBtn.contains(e.target) && !langMenu.contains(e.target)) {
+          langMenu.style.display = 'none';
+        }
+      };
+      document.addEventListener('click', globalClickHandler);
+
+      langMenu.querySelectorAll('button[data-lang]').forEach(b => {
+        // Hover effects
+        b.addEventListener('mouseenter', () => {
+          if (b.getAttribute('data-lang') !== selectedLanguage) {
+            b.style.background = '#f0f9ff';
+          }
+        });
+        b.addEventListener('mouseleave', () => {
+          if (b.getAttribute('data-lang') !== selectedLanguage) {
+            b.style.background = '#fff';
+          }
+        });
+
+        b.addEventListener('click', async () => {
+          selectedLanguage = b.getAttribute('data-lang');
+          langMenu.style.display = 'none';
+          await rebuildWidget();
+        });
+      });
+    }
+
+    // Initial setup
+    setupGatedInteractions();
+  }
+
+
+  // Attach event listeners
+  function attachEventListeners(overlay, widget) {
+    // Get theme colors for use in event handlers
+    const theme = config.theme || {};
+    const textColor = theme.textColor || '#1f2937';
+    const buttonPrimaryColor = theme.primaryColor || primaryColor;
+
+    // Secure This Consent Buttons
+    const sendCodeBtn = widget.querySelector('#dpdpa-send-code-btn');
+    if (sendCodeBtn) {
+      sendCodeBtn.addEventListener('click', async () => {
+        const emailInput = widget.querySelector('#dpdpa-email-input');
+        const email = emailInput ? emailInput.value : null;
+
+        if (!email || !email.includes('@')) {
+          alert('Please enter a valid email address');
+          return;
+        }
+
+        // Simulate sending code
+        const originalText = sendCodeBtn.textContent;
+        sendCodeBtn.textContent = 'Sending...';
+        sendCodeBtn.disabled = true;
+
+        try {
+          const apiBase = getApiUrl();
+          const response = await fetch(`${apiBase}/api/privacy-centre/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: email,
+              visitorId: consentID || getConsentID(),
+              widgetId: widgetId,
+            }),
+          });
+
+          if (response.ok) {
+            // Switch to OTP view
+            const secureSection = widget.querySelector('#dpdpa-email-input').closest('div').parentElement;
+            secureSection.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                      <div style="width: 36px; height: 36px; background: linear-gradient(135deg, ${buttonPrimaryColor}20, ${buttonPrimaryColor}10); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 18px;">📧</span>
+                      </div>
+                      <div>
+                        <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: ${textColor};">Enter Verification Code</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 11px; color: #6b7280;">Sent to <strong style="color:${buttonPrimaryColor}">${escapeHtml(email)}</strong></p>
+                      </div>
+                    </div>
+                    <div class="dpdpa-otp-section" style="display: flex; gap: 12px; flex: 1; align-items: center; flex-wrap: wrap;">
+                        <div class="dpdpa-otp-input-wrapper" style="flex: 1; min-width: 160px; position: relative;">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" id="dpdpa-otp-input" placeholder="000000" style="width: 100%; padding: 14px 12px; border: 2px solid ${buttonPrimaryColor}40; border-radius: 12px; font-size: 24px; outline: none; transition: all 0.2s; text-align: center; letter-spacing: 0.5em; font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace; font-weight: 700; background: linear-gradient(to right, ${buttonPrimaryColor}05, ${buttonPrimaryColor}10); color: ${textColor}; box-sizing: border-box;" />
+                        </div>
+                        <button id="dpdpa-resend-btn" style="background: ${buttonPrimaryColor}10; border: 1px solid ${buttonPrimaryColor}30; color: ${buttonPrimaryColor}; font-weight: 600; font-size: 12px; cursor: pointer; padding: 10px 14px; white-space: nowrap; border-radius: 8px; transition: all 0.2s;">↻ Resend</button>
+                    </div>
+                    <p style="margin: 12px 0 0 0; font-size: 11px; color: #9ca3af; text-align: center;">Code expires in 10 minutes</p>
+                `;
+            // Re-attach listeners for the new content
+            attachEventListeners(overlay, widget);
+            userEmail = email; // Update global
+          } else {
+            alert('Failed to send code. Please try again.');
+            sendCodeBtn.textContent = originalText;
+            sendCodeBtn.disabled = false;
+          }
+        } catch (e) {
+          console.error('Send OTP error', e);
+          alert('Error sending code');
+          sendCodeBtn.textContent = originalText;
+          sendCodeBtn.disabled = false;
+        }
+      });
+    }
+
+    // Change Email Logic
+    const changeEmailBtn = widget.querySelector('#dpdpa-change-email-btn');
+    if (changeEmailBtn) {
+      changeEmailBtn.addEventListener('click', () => {
+        // Remove the widget and show it again as new user
+        const overlay = document.getElementById('consently-dpdpa-overlay');
+        if (overlay) overlay.remove();
+        // Reset user status effectively by calling showConsentWidget with cleared prefilledEmail
+        showConsentWidget(null, 'new');
+      });
+    }
+
+    // Resend Button Logic
+    const resendBtn = widget.querySelector('#dpdpa-resend-btn');
+    if (resendBtn) {
+      resendBtn.addEventListener('click', async () => {
+        if (!userEmail) return;
+        resendBtn.textContent = 'Sending...';
+        resendBtn.disabled = true;
+        try {
+          const apiBase = getApiUrl();
+          await fetch(`${apiBase}/api/privacy-centre/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: userEmail,
+              visitorId: consentID || getConsentID(),
+              widgetId: widgetId,
+            }),
+          });
+          resendBtn.textContent = 'Sent!';
+          setTimeout(() => {
+            resendBtn.textContent = '[ Resend Code ]';
+            resendBtn.disabled = false;
+          }, 3000);
+        } catch (e) {
+          resendBtn.textContent = 'Error';
+          setTimeout(() => {
+            resendBtn.textContent = '[ Resend Code ]';
+            resendBtn.disabled = false;
+          }, 3000);
+        }
+      });
+    }
+
+    // Start OTP Listener
+    const verifyBtn = widget.querySelector('#dpdpa-verify-btn');
+    if (verifyBtn) {
+      verifyBtn.addEventListener('click', async () => {
+        const otpInput = widget.querySelector('#dpdpa-otp-input');
+        const code = otpInput ? otpInput.value : null;
+
+        if (!code || code.length < 4) {
+          alert('Please enter a valid code');
+          return;
+        }
+
+        if (isVerifying) return; // Prevent double click
+        isVerifying = true;
+
+        // Simulate verification
+        verifyBtn.textContent = 'Verifying...';
+        verifyBtn.disabled = true;
+
+        try {
+          const apiBase = getApiUrl();
+          const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: userEmail || currentPrefilledEmail,
+              otpCode: code,
+              visitorId: consentID || getConsentID(),
+              widgetId: widgetId,
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            verifiedEmail = userEmail || currentPrefilledEmail;
+
+            // Handle Stable Consent ID
+            if (data.stableConsentId && data.stableConsentId !== consentID) {
+              console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
+              consentID = data.stableConsentId;
+              storeConsentID(consentID);
+            }
+
+            // Reveal Preferences UI
+            const prefsContainer = widget.querySelector('#dpdpa-preferences-container');
+            const notice = widget.querySelector('#dpdpa-verification-notice');
+
+            if (prefsContainer) prefsContainer.style.display = 'block';
+            if (notice) notice.style.display = 'none';
+
+            // Update confirm button
+            const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
+            if (confirmBtn) {
+              confirmBtn.textContent = 'Save Preferences';
+              confirmBtn.disabled = false;
+            }
+
+            verifyBtn.textContent = 'Verified';
+
+          } else {
+            alert('Invalid Verification Code');
+            verifyBtn.textContent = 'Verify';
+            verifyBtn.disabled = false;
+          }
+        } catch (e) {
+          console.error('Verification error', e);
+          alert('Verification failed');
+          verifyBtn.textContent = 'Verify';
+          verifyBtn.disabled = false;
+        } finally {
+          isVerifying = false;
+        }
+      });
+    }
+
+    // DigiLocker Age Verification Button
+    const digilockerVerifyBtn = widget.querySelector('#dpdpa-digilocker-verify-btn');
+    if (digilockerVerifyBtn) {
+      // Store original button text for restoration
+      const originalBtnText = digilockerVerifyBtn.textContent || 'Verify with DigiLocker';
+
+      digilockerVerifyBtn.addEventListener('click', async () => {
+        const errorDiv = widget.querySelector('#dpdpa-digilocker-error');
+
+        try {
+          digilockerVerifyBtn.textContent = 'Verifying...';
+          digilockerVerifyBtn.disabled = true;
+
+          // Build return URL - strip any existing verification params to avoid loops
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.delete('age_verification_session');
+          currentUrl.searchParams.delete('age_verification_status');
+          const cleanReturnUrl = currentUrl.toString();
+
+          // Initiate age verification
+          await initiateAgeVerification(cleanReturnUrl);
+
+        } catch (e) {
+          console.error('[Consently DPDPA] DigiLocker verification error:', e);
+          if (errorDiv) {
+            errorDiv.textContent = e.message || 'Verification failed. Please try again.';
+            errorDiv.style.display = 'block';
+          }
+          digilockerVerifyBtn.textContent = 'Retry Verification';
+          digilockerVerifyBtn.disabled = false;
         }
       });
 
-      // Handle cookie preference buttons
-      document.getElementById('accept-all-cookies')?.addEventListener('click', () => {
-        // Enable all toggles except necessary (which is always on)
-        const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]:not([disabled])');
-        toggles.forEach(toggle => {
-          toggle.checked = true;
-          updateToggleVisual(toggle, true);
+      // Check existing verification status on load
+      if (checkExistingAgeVerification() || ageVerificationStatus) {
+        // Get translations from config language for UI update
+        getTranslation(config && config.language ? config.language : 'en').then(translations => {
+          updateDigiLockerUI(widget, translations);
         });
+      }
+    }
+
+    // Checkboxes for activities with enhanced visual feedback (table view)
+    const checkboxes = widget.querySelectorAll('.activity-checkbox');
+    checkboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', function (e) {
+        const activityId = this.getAttribute('data-activity-id');
+        const item = this.closest('.dpdpa-activity-item');
+        const checkboxVisual = this.parentElement.querySelector('.checkbox-visual');
+        const checkmark = checkboxVisual?.querySelector('svg');
+        const activity = activities.find(a => a.id === activityId);
+        const activityName = activity?.activity_name || 'this activity';
+
+        if (this.checked) {
+          setActivityConsent(activityId, 'accepted');
+          item.style.borderColor = primaryColor;
+          item.style.borderWidth = '2px';
+          item.style.background = '#f0f9ff';
+          item.style.boxShadow = '0 4px 12px rgba(59,130,246,0.25)';
+          item.style.borderLeftWidth = '4px';
+
+          // Update checkbox visual
+          if (checkboxVisual) {
+            checkboxVisual.style.background = primaryColor;
+            checkboxVisual.style.borderColor = primaryColor;
+          }
+          if (checkmark) {
+            checkmark.style.opacity = '1';
+            checkmark.style.transform = 'scale(1)';
+          }
+
+          // Remove warning if exists
+          const warning = item.querySelector('.revocation-warning');
+          if (warning) warning.remove();
+        } else {
+          // Show confirmation dialog before revoking consent
+          const confirmed = confirm(
+            `⚠️ Withdraw Consent?\n\n` +
+            `You are about to withdraw your consent for "${activityName}".\n\n` +
+            `This may affect:\n` +
+            `• Your personalized experience on this website\n` +
+            `• Features that rely on this data processing\n` +
+            `• Services that require your consent to function\n\n` +
+            `Under DPDPA 2023, you have the right to withdraw consent at any time.\n\n` +
+            `Click OK to withdraw consent, or Cancel to keep it.`
+          );
+
+          if (!confirmed) {
+            // User cancelled - revert the checkbox
+            e.preventDefault();
+            this.checked = true;
+            return;
+          }
+
+          setActivityConsent(activityId, 'rejected');
+          item.style.borderColor = '#e5e7eb';
+          item.style.borderWidth = '1px';
+          item.style.background = 'white';
+          item.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+          item.style.borderLeftWidth = '2px';
+
+          // Update checkbox visual
+          if (checkboxVisual) {
+            checkboxVisual.style.background = 'white';
+            checkboxVisual.style.borderColor = '#d1d5db';
+          }
+          if (checkmark) {
+            checkmark.style.opacity = '0';
+            checkmark.style.transform = 'scale(0.8)';
+          }
+        }
       });
+    });
 
-      document.getElementById('reject-all-cookies')?.addEventListener('click', () => {
-        // Disable all toggles except necessary (which is always on)
-        const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]:not([disabled])');
-        toggles.forEach(toggle => {
-          toggle.checked = false;
-          updateToggleVisual(toggle, false);
-        });
-      });
+    // Restore saved widget state to DOM after returning from DigiLocker redirect
+    applyRestoredStateToDom(widget);
 
-      document.getElementById('save-cookie-preferences')?.addEventListener('click', async () => {
-        const preferences = {};
-        const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]');
+    // Confirm & Submit Button
+    const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', async () => {
+        // DigiLocker Age Verification Check (DPDPA 2023)
+        // Uses verificationOutcome (server-enforced) as primary guard,
+        // with ageVerificationStatus as fallback for backward compatibility.
+        if (config.requireAgeVerification) {
+          const errorDiv = widget.querySelector('#dpdpa-digilocker-error');
 
-        const categoryInfo = {
-          necessary: 'Necessary Cookies',
-          functional: 'Functional Cookies',
-          analytics: 'Analytics Cookies',
-          advertising: 'Advertising Cookies',
-          social: 'Functional Cookies',
-          preferences: 'Preference Cookies'
-        };
+          // Block if outcome explicitly disallows consent
+          if (verificationOutcome === 'blocked_minor') {
+            if (overlay) overlay.remove();
+            showMinorBlockScreen();
+            return;
+          }
 
-        toggles.forEach(toggle => {
-          const categoryElement = toggle.closest('[style*="border"]');
-          if (categoryElement) {
-            const categoryName = Object.keys(categoryInfo).find(key =>
-              categoryInfo[key] === categoryElement.querySelector('h3')?.textContent?.split(' (')[0]
-            );
-            if (categoryName) {
-              preferences[categoryName] = toggle.checked;
+          // Check if age is verified (consent-permitted outcomes)
+          const consentPermitted = ['verified_adult', 'limited_access'];
+          const hasPermittedOutcome = verificationOutcome && consentPermitted.includes(verificationOutcome);
+
+          if (!hasPermittedOutcome && ageVerificationStatus !== 'verified') {
+            if (errorDiv) {
+              errorDiv.textContent = t.ageVerificationRequired || 'Please verify your age to continue.';
+              errorDiv.style.display = 'block';
+            }
+
+            // Scroll to verification section
+            const digiSection = widget.querySelector('#dpdpa-digilocker-section');
+            if (digiSection) {
+              digiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+          }
+
+          // Legacy fallback: check rejected status
+          if (ageVerificationStatus === 'rejected') {
+            if (overlay) overlay.remove();
+            showMinorBlockScreen();
+            return;
+          }
+
+          if (errorDiv) errorDiv.style.display = 'none';
+        }
+
+        // Legacy Age Gate Check (Only if DigiLocker not enabled)
+        if (!config.requireAgeVerification && config.enableAgeGate) {
+          const ageCheckbox = widget.querySelector('#dpdpa-age-checkbox');
+          const ageYearSelect = widget.querySelector('#dpdpa-age-birthyear-integrated');
+          const ageError = widget.querySelector('#age-gate-err-msg-main');
+
+          if (ageCheckbox && !ageCheckbox.checked) {
+            if (ageError) ageError.style.display = 'block';
+            return;
+          }
+
+          if (ageYearSelect) {
+            const ageYearValue = ageYearSelect.value;
+            if (!ageYearValue) {
+              if (ageError) {
+                ageError.textContent = 'Please select your year of birth';
+                ageError.style.display = 'block';
+              }
+              return;
+            }
+            const age = calculateAgeFromBirthYear(ageYearValue);
+            if (age < (config.ageGateThreshold || 18)) {
+              setMinorCookie();
+              if (overlay) overlay.remove();
+              showMinorBlockScreen();
+              return;
             }
           }
-        });
+          if (ageError) ageError.style.display = 'none';
+        }
 
-        // Save preferences to localStorage
-        ConsentStorage.set(`consently_cookie_preferences_${widgetId}`, preferences, 365);
+        // Check if already verified
+        if (verifiedEmail) {
+          console.log('[Consently DPDPA] Email verified, saving preferences...');
+          handleAcceptSelected(overlay);
+          return;
+        }
 
-        // Show success message
-        const successMsg = document.createElement('div');
-        successMsg.style.cssText = `
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          background: #10b981;
-          color: white;
-          padding: 12px 20px;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          z-index: 1000000;
-          font-size: 14px;
-          font-weight: 500;
-        `;
-        successMsg.textContent = 'Cookie preferences saved successfully';
-        document.body.appendChild(successMsg);
+        // Check if OTP is entered
+        const otpInput = widget.querySelector('#dpdpa-otp-input');
+        const otp = otpInput ? otpInput.value.replace(/\s/g, '') : null;
+        const emailToVerify = userEmail || currentPrefilledEmail;
 
-        setTimeout(() => {
-          successMsg.remove();
-        }, 3000);
+        if (otp && otp.length >= 4) {
+          if (isVerifying) return; // Prevent double submission
+          isVerifying = true;
+
+          // Verify OTP first
+          const originalText = confirmBtn.textContent;
+          confirmBtn.textContent = 'Verifying...';
+          confirmBtn.disabled = true;
+
+          try {
+            const apiBase = getApiUrl();
+            const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: emailToVerify, // Use global or prefilled
+                otpCode: otp,
+                visitorId: consentID || getConsentID(),
+                widgetId: widgetId,
+              }),
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+
+              // Verification success
+              verifiedEmail = emailToVerify;
+
+              // Handle Stable Consent ID
+              if (data.stableConsentId && data.stableConsentId !== consentID) {
+                console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
+                consentID = data.stableConsentId;
+                storeConsentID(consentID);
+              }
+
+              // Reveal Preferences UI
+              const prefsContainer = widget.querySelector('#dpdpa-preferences-container');
+              const notice = widget.querySelector('#dpdpa-verification-notice');
+
+              if (prefsContainer) prefsContainer.style.display = 'block';
+              if (notice) notice.style.display = 'none';
+
+              confirmBtn.textContent = 'Save Preferences';
+              confirmBtn.disabled = false;
+
+              // Optional: Scroll to preferences
+              if (prefsContainer) prefsContainer.scrollIntoView({ behavior: 'smooth' });
+
+            } else {
+              alert('Invalid Verification Code');
+              confirmBtn.textContent = originalText;
+              confirmBtn.disabled = false;
+            }
+          } catch (e) {
+            console.error('Verification error', e);
+            alert('Verification failed. Please try again.');
+            confirmBtn.textContent = originalText;
+            confirmBtn.disabled = false;
+          } finally {
+            isVerifying = false;
+          }
+        } else {
+          // No OTP and not verified
+          alert('Please verify your email to manage your consent preferences.');
+
+          // Highlight email input if visible
+          const emailInput = widget.querySelector('#dpdpa-email-input');
+          if (emailInput) {
+            emailInput.focus();
+            emailInput.style.borderColor = '#ef4444';
+            setTimeout(() => {
+              emailInput.style.borderColor = '#cbd5e1';
+            }, 2000);
+          }
+        }
       });
 
-      // Helper function to update toggle visual state
-      function updateToggleVisual(toggle, isChecked) {
-        const span = toggle.nextElementSibling;
-        if (span) {
-          span.style.backgroundColor = isChecked ? primaryColor : '#ccc';
-          const innerSpan = span.querySelector('span');
-          if (innerSpan) {
-            innerSpan.style.transform = `translateX(${isChecked ? '20px' : '0'})`;
-          }
+      // Enhanced hover effects
+      confirmBtn.addEventListener('mouseenter', () => {
+        confirmBtn.style.transform = 'translateY(-2px)';
+        confirmBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
+      });
+      confirmBtn.addEventListener('mouseleave', () => {
+        confirmBtn.style.transform = 'translateY(0)';
+        confirmBtn.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
+      });
+      // Integrated Age Gate Change Listeners
+      if (config.enableAgeGate) {
+        const yearSelect = widget.querySelector('#dpdpa-age-birthyear-integrated');
+        if (yearSelect) {
+          yearSelect.addEventListener('change', () => {
+            const age = calculateAgeFromBirthYear(yearSelect.value);
+            if (age < (config.ageGateThreshold || 18)) {
+              setMinorCookie();
+              if (overlay) overlay.remove();
+              showMinorBlockScreen();
+            }
+          });
         }
       }
 
-      // Add toggle change listeners
-      const toggles = modalOverlay.querySelectorAll('input[type="checkbox"]:not([disabled])');
-      toggles.forEach(toggle => {
-        toggle.addEventListener('change', (e) => {
-          updateToggleVisual(e.target, e.target.checked);
-        });
+    }
+
+
+    // Grievance link
+    const grievanceLink = widget.querySelector('#dpdpa-grievance-link');
+    if (grievanceLink) {
+      grievanceLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openGrievanceForm();
+      });
+    }
+
+    // DPB link
+    const dpbLink = widget.querySelector('#dpdpa-dpb-link');
+    if (dpbLink) {
+      dpbLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.open('https://dataprotection.gov.in', '_blank');
+      });
+    }
+
+    // Manage Preferences button with enhanced hover effects
+    const managePrefsBtn = widget.querySelector('#dpdpa-manage-preferences');
+    if (managePrefsBtn) {
+      // Enhanced hover effects
+      managePrefsBtn.addEventListener('mouseenter', () => {
+        managePrefsBtn.style.background = primaryColor;
+        managePrefsBtn.style.color = 'white';
+        managePrefsBtn.style.transform = 'translateY(-2px)';
+        managePrefsBtn.style.boxShadow = '0 6px 12px rgba(59,130,246,0.4)';
+      });
+      managePrefsBtn.addEventListener('mouseleave', () => {
+        managePrefsBtn.style.background = 'white';
+        managePrefsBtn.style.color = primaryColor;
+        managePrefsBtn.style.transform = 'translateY(0)';
+        managePrefsBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
       });
 
+      managePrefsBtn.addEventListener('click', () => {
+        openPrivacyCentre();
+      });
+    }
+
+    // Enhanced hover effects for activity table rows
+    const activityItems = widget.querySelectorAll('.dpdpa-activity-item');
+    activityItems.forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        item.style.borderColor = primaryColor;
+        item.style.boxShadow = '0 4px 12px rgba(59,130,246,0.15)';
+        item.style.transform = 'translateX(2px)';
+        item.style.background = 'linear-gradient(to bottom, #f0f9ff, #e0f2fe)';
+      });
+      item.addEventListener('mouseleave', () => {
+        const checkbox = item.querySelector('.activity-checkbox');
+        if (!checkbox.checked) {
+          item.style.borderColor = '#e5e7eb';
+          item.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+          item.style.transform = 'translateX(0)';
+          item.style.background = 'linear-gradient(to bottom, #ffffff, #fafbfc)';
+        }
+      });
+    });
+
+    // Overlay click disabled - users must take an action (accept/reject) to proceed
+    // overlay.addEventListener('click', (e) => {
+    //   if (e.target === overlay) {
+    //     hideWidget(overlay);
+    //   }
+    // });
+  }
+
+  // Set consent for individual activity
+  function setActivityConsent(activityId, status) {
+    activityConsents[activityId] = {
+      status: status,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // Update activity UI
+  function updateActivityUI(activityId, status) {
+    const activityItems = document.querySelectorAll('.dpdpa-activity-item');
+    activityItems.forEach(item => {
+      const acceptBtn = item.querySelector(`[data-activity-id="${activityId}"].dpdpa-activity-accept`);
+      const rejectBtn = item.querySelector(`[data-activity-id="${activityId}"].dpdpa-activity-reject`);
+
+      if (acceptBtn && rejectBtn) {
+        if (status === 'accepted') {
+          item.style.borderColor = '#10b981';
+          acceptBtn.style.opacity = '1';
+          rejectBtn.style.opacity = '0.5';
+        } else if (status === 'rejected') {
+          item.style.borderColor = '#ef4444';
+          acceptBtn.style.opacity = '0.5';
+          rejectBtn.style.opacity = '1';
+        }
+      }
+    });
+  }
+
+  // Handle accept selected (only checked activities)
+  async function handleAcceptSelected(overlay) {
+    // First check if there are any activities at all
+    if (!activities || activities.length === 0) {
+      console.error('[Consently DPDPA] No activities available to consent to');
+      alert('No activities available. Please contact the website administrator.');
+      return;
+    }
+
+    const checkboxes = document.querySelectorAll('.activity-checkbox:checked');
+    if (checkboxes.length === 0) {
+      alert('Please select at least one activity');
+      return;
+    }
+
+    // Accept only checked activities, reject others
+    activities.forEach(activity => {
+      const checkbox = document.querySelector(`.activity-checkbox[data-activity-id="${activity.id}"]`);
+      if (checkbox && checkbox.checked) {
+        setActivityConsent(activity.id, 'accepted');
+      } else {
+        setActivityConsent(activity.id, 'rejected');
+      }
+    });
+    await saveConsent('partial', overlay);
+  }
+
+  // Handle accept all
+  async function handleAcceptAll(overlay) {
+    // First check if there are any activities at all
+    if (!activities || activities.length === 0) {
+      console.error('[Consently DPDPA] No activities available to consent to');
+      alert('No activities available. Please contact the website administrator.');
+      return;
+    }
+
+    // Check all checkboxes first
+    const checkboxes = document.querySelectorAll('.activity-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = true;
+      const item = cb.closest('.dpdpa-activity-item');
+      if (item) {
+        item.style.borderColor = config.theme.primaryColor || '#3b82f6';
+        item.style.background = `${config.theme.primaryColor || '#3b82f6'}08`;
+      }
+    });
+
+    activities.forEach(activity => {
+      setActivityConsent(activity.id, 'accepted');
+    });
+    await saveConsent('accepted', overlay);
+  }
+
+  // Save consent
+  async function saveConsent(overallStatus, overlay) {
+    // Validate that we have activities to save consent for
+    if (!activities || activities.length === 0) {
+      console.error('[Consently DPDPA] Cannot save consent: No activities available');
+      alert('Cannot save consent. No activities available. Please contact the website administrator.');
+      return;
+    }
+
+    const acceptedActivities = [];
+    const rejectedActivities = [];
+    const acceptedPurposeConsents = {}; // Track accepted purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
+    const rejectedPurposeConsents = {}; // Track rejected purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
+
+    Object.keys(activityConsents).forEach(activityId => {
+      const activity = activities.find(a => a.id === activityId);
+
+      if (activityConsents[activityId].status === 'accepted') {
+        acceptedActivities.push(activityId);
+
+        // Track purposes for this accepted activity
+        if (activity && activity.purposes && Array.isArray(activity.purposes)) {
+          // Store consented purpose IDs for this activity
+          // Use purposeId (the actual purpose UUID) not id (which is activity_purpose join table ID)
+          acceptedPurposeConsents[activityId] = activity.purposes
+            .map(p => p.purposeId || p.id) // Fallback to id if purposeId not available
+            .filter(id => id); // Remove any undefined/null values
+        }
+      } else if (activityConsents[activityId].status === 'rejected') {
+        rejectedActivities.push(activityId);
+
+        // Track purposes for this rejected activity (NEW)
+        if (activity && activity.purposes && Array.isArray(activity.purposes)) {
+          // Store rejected purpose IDs for this activity
+          rejectedPurposeConsents[activityId] = activity.purposes
+            .map(p => p.purposeId || p.id)
+            .filter(id => id);
+        }
+      }
+    });
+
+    // Determine final status based on actual activity arrays
+    // This must match the database constraint: valid_consent_activities
+    let finalStatus;
+    if (acceptedActivities.length > 0 && rejectedActivities.length > 0) {
+      finalStatus = 'partial';
+    } else if (acceptedActivities.length > 0) {
+      finalStatus = 'accepted';
+    } else if (rejectedActivities.length > 0) {
+      finalStatus = 'rejected';
+    } else {
+      // No activities - this shouldn't happen due to earlier validation, but handle it
+      console.error('[Consently DPDPA] No activities consented or rejected');
+      alert('Please select at least one activity to save your preferences.');
+      return;
+    }
+
+    // Include rule context if a rule was matched
+    const ruleContext = config._matchedRule ? {
+      ruleId: config._matchedRule.id,
+      ruleName: config._matchedRule.rule_name,
+      urlPattern: config._matchedRule.url_pattern,
+      pageUrl: window.location.pathname
+    } : undefined;
+
+    // Get or generate Consent ID
+    if (!consentID) {
+      consentID = getConsentID();
+    }
+
+    const consentData = {
+      widgetId: widgetId,
+      visitorId: consentID,
+      consentStatus: finalStatus,
+      acceptedActivities: acceptedActivities,
+      ruleContext: ruleContext, // Track which rule triggered this consent
+      rejectedActivities: rejectedActivities,
+      activityConsents: activityConsents,
+      visitorEmail: verifiedEmail || undefined, // Send verified email if available (convert null to undefined)
+      acceptedPurposeConsents: Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined, // Track accepted purpose-level consent
+      rejectedPurposeConsents: Object.keys(rejectedPurposeConsents).length > 0 ? rejectedPurposeConsents : undefined, // Track rejected purpose-level consent
+      // DEPRECATED: Keep for backward compatibility, will be removed in v2.0
+      activityPurposeConsents: Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined,
+      metadata: {
+        language: navigator.language || 'en',
+        referrer: document.referrer || null,
+        currentUrl: window.location.href,
+        pageTitle: document.title
+      },
+      consentDuration: config.consentDuration || 365
+    };
+
+    try {
+      const result = await recordConsent(consentData);
+
+      // Store Consent ID
+      storeConsentID(consentID);
+
+      // Store consent locally
+      const storageData = {
+        status: finalStatus,
+        acceptedActivities: acceptedActivities,
+        rejectedActivities: rejectedActivities,
+        activityConsents: activityConsents,
+        timestamp: new Date().toISOString(),
+        expiresAt: result.expiresAt,
+        verifiedEmail: verifiedEmail
+      };
+
+      ConsentStorage.set(
+        `consently_dpdpa_consent_${widgetId}`,
+        storageData,
+        config.consentDuration || 365
+      );
+
+      // Apply consent
+      applyConsent(storageData);
+
+      // Track consent event for analytics
+      trackConsentEvent(consentData, config._matchedRule || null);
+
+      // Show floating preference centre button
+      showFloatingPreferenceButton();
+
+      // Hide widget immediately
+      hideWidget(overlay);
+
+      // Show success modal with email/ID display and privacy notice download
+      showConsentSuccessModal(consentID);
+
+      console.log('[Consently DPDPA] Consent saved successfully');
     } catch (error) {
-      console.error('Error showing cookie details:', error);
-      alert('Failed to load cookie details. Please try again later.');
+      console.error('[Consently DPDPA] Failed to save consent:', error);
+      alert('Failed to save your consent preferences. Please try again.');
     }
   }
+
+  // Show premium notification toast
+  function showPremiumNotification(status, consentData) {
+    // Remove existing toast if any
+    const existingToast = document.getElementById('dpdpa-premium-toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    const theme = config.theme || {};
+    const primaryColor = theme.primaryColor || '#3b82f6';
+    const textColor = theme.textColor || '#1f2937';
+
+    const toast = document.createElement('div');
+    toast.id = 'dpdpa-premium-toast';
+
+    // Glassmorphism styles
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 16px 20px;
+      border-radius: 16px;
+      box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 10px 15px -3px rgba(0, 0, 0, 0.05),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transform: translateY(100px) scale(0.95);
+      opacity: 0;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: ${theme.fontFamily || 'system-ui, -apple-system, sans-serif'};
+      max-width: 380px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    `;
+
+    // Success Icon
+    const iconHtml = `
+      <div style="
+        width: 40px; 
+        height: 40px; 
+        border-radius: 12px; 
+        background: linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd); 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        box-shadow: 0 4px 12px ${primaryColor}40;
+        flex-shrink: 0;
+      ">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"></path>
+        </svg>
+      </div>
+    `;
+
+    // Content
+    const contentHtml = `
+      <div style="flex: 1;">
+        <h4 style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">Preferences Saved</h4>
+        <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 500;">Your privacy choices are active.</p>
+      </div>
+    `;
+
+    // Action Button (Download Receipt)
+    const buttonHtml = `
+      <button id="dpdpa-toast-download" style="
+        padding: 8px 12px; 
+        background: #f1f5f9; 
+        color: #475569; 
+        border: none; 
+        border-radius: 8px; 
+        font-size: 12px; 
+        font-weight: 600; 
+        cursor: pointer; 
+        transition: all 0.2s; 
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      ">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Receipt
+      </button>
+    `;
+
+    // Close Button
+    const closeHtml = `
+      <button id="dpdpa-toast-close" style="
+        padding: 4px; 
+        background: transparent; 
+        border: none; 
+        color: #94a3b8; 
+        cursor: pointer; 
+        margin-left: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background 0.2s;
+      ">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    `;
+
+    toast.innerHTML = iconHtml + contentHtml + buttonHtml + closeHtml;
+    document.body.appendChild(toast);
+
+    // Add hover effect for download button
+    const downloadBtn = toast.querySelector('#dpdpa-toast-download');
+    downloadBtn.addEventListener('mouseenter', () => {
+      downloadBtn.style.background = '#e2e8f0';
+      downloadBtn.style.color = '#1e293b';
+    });
+    downloadBtn.addEventListener('mouseleave', () => {
+      downloadBtn.style.background = '#f1f5f9';
+      downloadBtn.style.color = '#475569';
+    });
+    downloadBtn.addEventListener('click', () => {
+      downloadConsentReceipt(consentData);
+    });
+
+    // Close button handler
+    const closeBtn = toast.querySelector('#dpdpa-toast-close');
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.background = '#f1f5f9';
+      closeBtn.style.color = '#64748b';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.background = 'transparent';
+      closeBtn.style.color = '#94a3b8';
+    });
+    closeBtn.addEventListener('click', () => {
+      hideToast();
+    });
+
+    // Animate in
+    requestAnimationFrame(() => {
+      toast.style.transform = 'translateY(0) scale(1)';
+      toast.style.opacity = '1';
+    });
+
+    // Auto dismiss after 5 seconds
+    const timeoutId = setTimeout(() => {
+      hideToast();
+    }, 5000);
+
+    function hideToast() {
+      clearTimeout(timeoutId);
+      if (toast && document.body.contains(toast)) {
+        toast.style.transform = 'translateY(20px) scale(0.95)';
+        toast.style.opacity = '0';
+        setTimeout(() => {
+          if (document.body.contains(toast)) {
+            toast.remove();
+          }
+        }, 400);
+      }
+    }
+  }
+
+  // Hide widget
+  function hideWidget(overlay) {
+    const widget = overlay.querySelector('#consently-dpdpa-widget');
+    overlay.style.opacity = '0';
+    if (widget) {
+      widget.style.transform = 'scale(0.9)';
+      widget.style.opacity = '0';
+    }
+
+    // Cleanup: Remove global click handler
+    if (globalClickHandler) {
+      document.removeEventListener('click', globalClickHandler);
+      globalClickHandler = null;
+    }
+
+    setTimeout(() => {
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+    }, 300);
+  }
+
+  // Escape HTML to prevent XSS
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+
+  function downloadConsentReceipt(consent) {
+    const visitorId = consentID || getConsentID();
+    const receiptData = {
+      widgetId,
+      visitorId,
+      privacyCentreUrl: window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId,
+      ...consent
+    };
+    const blob = new Blob([JSON.stringify(receiptData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'consent-receipt-' + visitorId + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function openPrivacyCentre() {
+    const visitorId = consentID || getConsentID();
+    window.open(window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId, '_blank');
+  }
+
+  // Show cookie details modal
 
   function showFloatingPreferenceButton() {
     if (document.getElementById('dpdpa-floating-btn')) return;
