@@ -221,6 +221,7 @@ export default function DPDPAWidgetPage() {
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [previewAgeVerified, setPreviewAgeVerified] = useState(false);
 
   // Color utility function to convert hex color to RGBA variants
   const getColorVariants = (primaryColor: string) => {
@@ -283,6 +284,11 @@ export default function DPDPAWidgetPage() {
       setHasUnsavedChanges(true);
     }
   }, [config]);
+
+  // Reset preview age verification when the setting changes
+  useEffect(() => {
+    setPreviewAgeVerified(false);
+  }, [config.requireAgeVerification]);
 
   // Initialize notifications
   const initializeNotifications = () => {
@@ -3603,8 +3609,34 @@ export default function DPDPAWidgetPage() {
                   </div>
                 </div>
 
+                {/* Step Flow Indicator (shown when age verification is enabled) */}
+                {config.requireAgeVerification && (
+                  <div className="flex items-center justify-center gap-2 mb-4 px-4">
+                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${previewAgeVerified ? 'bg-green-100 text-green-700' : 'text-white'}`}
+                      style={!previewAgeVerified ? { backgroundColor: config.theme.primaryColor } : undefined}>
+                      {previewAgeVerified ? (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                      ) : (
+                        <span className="w-3.5 h-3.5 rounded-full border-2 border-current flex items-center justify-center text-[8px]">1</span>
+                      )}
+                      Age
+                    </div>
+                    <div className="w-4 h-px bg-gray-300" />
+                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${previewAgeVerified ? 'text-white' : 'bg-gray-100 text-gray-400'}`}
+                      style={previewAgeVerified ? { backgroundColor: config.theme.primaryColor } : undefined}>
+                      <span className="w-3.5 h-3.5 rounded-full border-2 border-current flex items-center justify-center text-[8px]">2</span>
+                      Consent
+                    </div>
+                    <div className="w-4 h-px bg-gray-300" />
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-400">
+                      <span className="w-3.5 h-3.5 rounded-full border-2 border-current flex items-center justify-center text-[8px]">3</span>
+                      Email
+                    </div>
+                  </div>
+                )}
+
                 <div
-                  className="shadow-2xl max-w-md mx-auto overflow-hidden transition-all duration-300 hover:shadow-3xl"
+                  className="shadow-2xl max-w-md mx-auto overflow-hidden transition-all duration-300 hover:shadow-3xl relative"
                   style={{
                     backgroundColor: config.theme.backgroundColor === '#ffffff' ? 'rgba(255, 255, 255, 0.95)' : config.theme.backgroundColor,
                     color: config.theme.textColor,
@@ -3810,33 +3842,50 @@ export default function DPDPAWidgetPage() {
                     </div>
                   </div>
 
-                  {/* DigiLocker Age Verification Section - Preview Mode */}
-                  {config.requireAgeVerification && (
-                    <div className="p-4 border-t border-b -mx-5 mb-0" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg50, borderColor: getColorVariants(config.theme.primaryColor).border200 }}>
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg100 }}>
-                          <Shield className="h-4 w-4" style={{ color: getColorVariants(config.theme.primaryColor).text600 }} />
+                  {/* DigiLocker Age Verification Section - Interactive Preview */}
+                  {config.requireAgeVerification && !previewAgeVerified && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[24px] overflow-hidden">
+                      {/* Blurred backdrop */}
+                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm" />
+                      {/* Verification card */}
+                      <div className="relative z-20 text-center px-8 py-6 max-w-[320px]">
+                        <div className="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center"
+                          style={{ background: `linear-gradient(135deg, ${config.theme.primaryColor}, ${config.theme.primaryColor}cc)` }}>
+                          <Shield className="h-7 w-7 text-white" />
                         </div>
-                        <div className="flex-1">
-                          <p className="text-[13px] font-bold m-0 leading-tight" style={{ color: getColorVariants(config.theme.primaryColor).text900 }}>Age Verification Required</p>
-                          <p className="text-[11px] m-0 mt-1 leading-relaxed" style={{ color: getColorVariants(config.theme.primaryColor).text700 }}>
-                            To proceed, you must verify your age ({config.ageVerificationThreshold || 18}+ years) via DigiLocker using your government-issued ID.
-                          </p>
-                          <button
-                            className="mt-2 px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5"
-                            style={{
-                              backgroundColor: config.theme.primaryColor,
-                              color: 'white'
-                            }}
-                            disabled
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                            </svg>
-                            Verify with DigiLocker
-                          </button>
-                        </div>
+                        <h3 className="text-base font-bold text-gray-900 mb-1">Age Verification Required</h3>
+                        <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                          Users must verify their age ({config.ageVerificationThreshold || 18}+) via DigiLocker before seeing consent activities.
+                        </p>
+                        <button
+                          onClick={() => setPreviewAgeVerified(true)}
+                          className="w-full px-4 py-2.5 text-xs font-bold rounded-lg text-white transition-all hover:opacity-90 flex items-center justify-center gap-2"
+                          style={{ backgroundColor: config.theme.primaryColor }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            <path d="M9 12l2 2 4-4" />
+                          </svg>
+                          Verify with DigiLocker (Preview)
+                        </button>
+                        <p className="text-[10px] text-gray-400 mt-3">Click to simulate verification and see the consent flow</p>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Verified badge + Reset (shown after preview verification) */}
+                  {config.requireAgeVerification && previewAgeVerified && (
+                    <div className="flex items-center justify-between px-5 py-2 border-b" style={{ backgroundColor: getColorVariants(config.theme.primaryColor).bg50, borderColor: getColorVariants(config.theme.primaryColor).border200 }}>
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: getColorVariants(config.theme.primaryColor).text700 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-600"><path d="M20 6L9 17l-5-5" /></svg>
+                        Age Verified
+                      </span>
+                      <button
+                        onClick={() => setPreviewAgeVerified(false)}
+                        className="text-[10px] font-medium text-gray-400 hover:text-gray-600 underline"
+                      >
+                        Reset Preview
+                      </button>
                     </div>
                   )}
 

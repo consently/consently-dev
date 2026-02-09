@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
 
   // Protected and Public routes
   const protectedPaths = ['/dashboard', '/setup', '/settings'];
-  const publicPaths = ['/', '/pricing', '/login', '/signup', '/guides'];
+  const publicPaths = ['/', '/pricing', '/login', '/signup', '/guides', '/verify-age'];
   const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
   const isPublicPath = publicPaths.some((path) => path === request.nextUrl.pathname || (path !== '/' && request.nextUrl.pathname.startsWith(path)));
 

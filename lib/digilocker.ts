@@ -221,7 +221,8 @@ export async function generatePKCEAsync(): Promise<PKCEPair> {
 export function buildAuthorizationUrl(
   codeChallenge: string,
   state: string,
-  purpose: 'kyc' | 'verification' | 'compliance' | 'availing_services' | 'educational' = 'kyc'
+  purpose: 'kyc' | 'verification' | 'compliance' | 'availing_services' | 'educational' = 'kyc',
+  redirectUriOverride?: string
 ): string {
   const config = getDigiLockerConfig();
   const baseUrl = getBaseUrl();
@@ -230,7 +231,7 @@ export function buildAuthorizationUrl(
   // IMPORTANT: scope must be exactly "openid profile" (space-separated, no commas, no quotes)
   // 'profile' is REQUIRED to get DOB (date of birth) from the user
   const scope = config.scope || 'openid profile';
-  
+
   // NSSO canonical ACR value - REQUIRED for MeriPehchaan integration
   // This ensures the authentication follows NSSO standards
   const acr = config.acr || 'digilocker';
@@ -238,7 +239,7 @@ export function buildAuthorizationUrl(
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: config.clientId,
-    redirect_uri: config.redirectUri,
+    redirect_uri: redirectUriOverride || config.redirectUri,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state: state,
@@ -269,7 +270,8 @@ export function buildAuthorizationUrl(
  */
 export async function exchangeCodeForToken(
   code: string,
-  codeVerifier: string
+  codeVerifier: string,
+  redirectUriOverride?: string
 ): Promise<DigiLockerTokenResponse> {
   const config = getDigiLockerConfig();
   const baseUrl = getBaseUrl();
@@ -283,7 +285,7 @@ export async function exchangeCodeForToken(
     grant_type: 'authorization_code',
     client_id: config.clientId,
     client_secret: config.clientSecret,
-    redirect_uri: config.redirectUri,
+    redirect_uri: redirectUriOverride || config.redirectUri,
     code_verifier: codeVerifier,
   });
 

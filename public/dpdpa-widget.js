@@ -247,6 +247,11 @@
   // Values: 'verified_adult' | 'blocked_minor' | 'limited_access' | 'expired'
   let verificationOutcome = null;
 
+  // Age Verification (DigiLocker popup flow)
+  let ageVerificationToken = null;
+  let ageVerificationPopup = null;
+  const AGE_VERIFY_KEY_PREFIX = 'consently_age_verified_';
+
   // LocalStorage manager for consent persistence
   const ConsentStorage = {
     set: function (key, value, expirationDays) {
@@ -345,6 +350,227 @@
   function calculateAgeFromBirthYear(birthYear) {
     const currentYear = new Date().getFullYear();
     return currentYear - parseInt(birthYear, 10);
+  }
+
+  // ============================================================================
+  // DIGILOCKER AGE VERIFICATION (Popup Flow)
+  // ============================================================================
+
+  // Get localStorage key for age verification token
+  function getAgeVerifyKey() {
+    return AGE_VERIFY_KEY_PREFIX + widgetId;
+  }
+
+  // Check for existing valid age verification in localStorage
+  function checkExistingAgeVerification() {
+    try {
+      var stored = localStorage.getItem(getAgeVerifyKey());
+      if (!stored) return null;
+
+      var data = JSON.parse(stored);
+      if (!data || !data.token) return null;
+
+      // Parse JWT payload (base64url decode middle segment)
+      var parts = data.token.split('.');
+      if (parts.length !== 3) return null;
+
+      var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+
+      // Check expiry
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        console.log('[Consently DPDPA] Age verification token expired');
+        localStorage.removeItem(getAgeVerifyKey());
+        return null;
+      }
+
+      // Check audience matches widgetId
+      var aud = Array.isArray(payload.aud) ? payload.aud[0] : payload.aud;
+      if (aud !== widgetId) {
+        console.log('[Consently DPDPA] Age verification token audience mismatch');
+        return null;
+      }
+
+      return { token: data.token, isAdult: data.isAdult };
+    } catch (e) {
+      console.warn('[Consently DPDPA] Error checking age verification:', e);
+      return null;
+    }
+  }
+
+  // Save age verification result to localStorage
+  function saveAgeVerificationResult(token, isAdult) {
+    try {
+      localStorage.setItem(getAgeVerifyKey(), JSON.stringify({
+        token: token,
+        isAdult: isAdult,
+        savedAt: new Date().toISOString()
+      }));
+    } catch (e) {
+      console.warn('[Consently DPDPA] Error saving age verification:', e);
+    }
+  }
+
+  // Show age verification screen (full overlay)
+  function showAgeVerificationScreen() {
+    var existing = document.getElementById('consently-age-verification-screen');
+    if (existing) existing.remove();
+
+    var themeColor = (config && config.theme && config.theme.primaryColor) || '#4c8bf5';
+    var apiBase = getApiUrl();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'consently-age-verification-screen';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:999999;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;padding:16px;';
+
+    overlay.innerHTML = '<div id="consently-age-verify-card" style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);text-align:center;">' +
+      '<!-- Shield Icon -->' +
+      '<div style="width:72px;height:72px;background:linear-gradient(135deg,' + themeColor + ' 0%,#2563eb 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(76,139,245,0.3);">' +
+        '<svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '</div>' +
+      '<h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:0 0 8px;">Age Verification Required</h2>' +
+      '<p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6;">Under DPDPA 2023, we must verify your age before processing your data.</p>' +
+      '<!-- Verify Button -->' +
+      '<button id="consently-verify-digilocker-btn" style="width:100%;padding:14px 24px;background:' + themeColor + ';color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:opacity 0.2s;">' +
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        'Verify with DigiLocker' +
+      '</button>' +
+      '<!-- How it works (collapsible) -->' +
+      '<details style="text-align:left;margin-bottom:16px;">' +
+        '<summary style="font-size:13px;color:#64748b;cursor:pointer;padding:8px 0;font-weight:500;">How does this work?</summary>' +
+        '<div style="padding:12px;background:#f8fafc;border-radius:8px;margin-top:4px;">' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;"><span style="background:' + themeColor + ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">1</span><span style="font-size:13px;color:#475569;">Click "Verify with DigiLocker" to open a secure popup.</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;"><span style="background:' + themeColor + ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">2</span><span style="font-size:13px;color:#475569;">Log in to DigiLocker with your credentials.</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;"><span style="background:' + themeColor + ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">3</span><span style="font-size:13px;color:#475569;">Your age is verified and the popup closes automatically.</span></div>' +
+        '</div>' +
+      '</details>' +
+      '<!-- Privacy note -->' +
+      '<p style="font-size:12px;color:#94a3b8;margin:0 0 16px;line-height:1.5;">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#94a3b8" stroke-width="2"/></svg>' +
+        'Only your age status is verified. No documents are stored.' +
+      '</p>' +
+      '<!-- Powered by -->' +
+      '<div style="font-size:11px;color:#cbd5e1;">Powered by Consently</div>' +
+    '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Button click handler - open popup
+    var btn = document.getElementById('consently-verify-digilocker-btn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        // Open popup
+        var popupUrl = apiBase + '/verify-age/' + widgetId;
+        ageVerificationPopup = window.open(popupUrl, 'consently-age-verify', 'width=500,height=700,scrollbars=yes');
+
+        if (!ageVerificationPopup || ageVerificationPopup.closed) {
+          // Popup blocked
+          var card = document.getElementById('consently-age-verify-card');
+          if (card) {
+            var blockedMsg = document.createElement('div');
+            blockedMsg.style.cssText = 'background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-top:12px;';
+            blockedMsg.innerHTML = '<p style="color:#92400e;font-size:13px;margin:0;line-height:1.5;"><strong>Popup blocked!</strong> Please allow popups for this site and try again.</p>';
+            btn.parentNode.insertBefore(blockedMsg, btn.nextSibling);
+          }
+          return;
+        }
+
+        // Update button to show waiting state
+        btn.innerHTML = '<div style="width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:consently-spin 0.8s linear infinite;"></div> Waiting for verification...';
+        btn.style.opacity = '0.7';
+        btn.style.pointerEvents = 'none';
+
+        // Inject spinner animation if not already present
+        if (!document.getElementById('consently-spin-style')) {
+          var styleEl = document.createElement('style');
+          styleEl.id = 'consently-spin-style';
+          styleEl.textContent = '@keyframes consently-spin { to { transform: rotate(360deg); } }';
+          document.head.appendChild(styleEl);
+        }
+
+        // Poll for popup close
+        var pollTimer = setInterval(function () {
+          if (ageVerificationPopup && ageVerificationPopup.closed) {
+            clearInterval(pollTimer);
+            ageVerificationPopup = null;
+            // Reset button if still in waiting state (no postMessage received)
+            if (btn && btn.style.opacity === '0.7') {
+              btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Verify with DigiLocker';
+              btn.style.opacity = '1';
+              btn.style.pointerEvents = 'auto';
+              // Show cancelled message
+              var card = document.getElementById('consently-age-verify-card');
+              if (card) {
+                var existing = document.getElementById('consently-verify-cancelled-msg');
+                if (existing) existing.remove();
+                var cancelledMsg = document.createElement('div');
+                cancelledMsg.id = 'consently-verify-cancelled-msg';
+                cancelledMsg.style.cssText = 'background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px;';
+                cancelledMsg.innerHTML = '<p style="color:#991b1b;font-size:13px;margin:0;">Verification cancelled. Click the button to try again.</p>';
+                btn.parentNode.insertBefore(cancelledMsg, btn.nextSibling);
+              }
+            }
+          }
+        }, 500);
+      });
+    }
+  }
+
+  // Set up postMessage listener for age verification result
+  function setupAgeVerificationListener() {
+    function handleAgeVerificationMessage(event) {
+      if (!event.data || event.data.type !== 'consently-age-verification') return;
+
+      console.log('[Consently DPDPA] Age verification result:', event.data.status);
+
+      // Remove listener after handling
+      window.removeEventListener('message', handleAgeVerificationMessage);
+
+      // Close popup if still open
+      if (ageVerificationPopup && !ageVerificationPopup.closed) {
+        ageVerificationPopup.close();
+      }
+      ageVerificationPopup = null;
+
+      if (event.data.status === 'success') {
+        // Save token
+        saveAgeVerificationResult(event.data.token, event.data.isAdult);
+
+        // Remove age verification screen
+        var screen = document.getElementById('consently-age-verification-screen');
+        if (screen) screen.remove();
+
+        if (event.data.isAdult) {
+          verificationOutcome = 'verified_adult';
+          showConsentWidget();
+        } else {
+          verificationOutcome = 'blocked_minor';
+          setMinorCookie();
+          showMinorBlockScreen();
+        }
+      } else {
+        // Error - show retry UI
+        var btn = document.getElementById('consently-verify-digilocker-btn');
+        if (btn) {
+          btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Verify with DigiLocker';
+          btn.style.opacity = '1';
+          btn.style.pointerEvents = 'auto';
+        }
+        var card = document.getElementById('consently-age-verify-card');
+        if (card) {
+          var existingErr = document.getElementById('consently-verify-error-msg');
+          if (existingErr) existingErr.remove();
+          var errMsg = document.createElement('div');
+          errMsg.id = 'consently-verify-error-msg';
+          errMsg.style.cssText = 'background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px;';
+          errMsg.innerHTML = '<p style="color:#991b1b;font-size:13px;margin:0;">' + (event.data.errorDescription || 'Verification failed. Please try again.') + '</p>';
+          if (btn) btn.parentNode.insertBefore(errMsg, btn.nextSibling);
+        }
+        // Re-listen for next attempt
+        setupAgeVerificationListener();
+      }
+    }
+
+    window.addEventListener('message', handleAgeVerificationMessage);
   }
 
   // ============================================================================
@@ -2886,6 +3112,40 @@ ${activitySections}
     if (config.respectDNT && navigator.doNotTrack === '1') {
       console.log('[Consently DPDPA] DNT enabled, respecting user preference');
       return;
+    }
+
+    // ====================================================================
+    // AGE VERIFICATION GATE (DigiLocker)
+    // Must pass BEFORE any consent UI is shown
+    // ====================================================================
+    if (config.requireAgeVerification) {
+      // Check minor cookie first (fastest check)
+      if (checkMinorCookie()) {
+        verificationOutcome = 'blocked_minor';
+        showMinorBlockScreen();
+        return;
+      }
+
+      // Check existing verification token in localStorage
+      var existingVerification = checkExistingAgeVerification();
+      if (existingVerification) {
+        if (existingVerification.isAdult) {
+          verificationOutcome = 'verified_adult';
+          console.log('[Consently DPDPA] Age verified (cached token) — proceeding to consent');
+          // Fall through to existing consent logic below
+        } else {
+          verificationOutcome = 'blocked_minor';
+          setMinorCookie();
+          showMinorBlockScreen();
+          return;
+        }
+      } else {
+        // No verification — show age verification screen and STOP
+        console.log('[Consently DPDPA] Age verification required — showing verification screen');
+        setupAgeVerificationListener();
+        showAgeVerificationScreen();
+        return; // Prevents activities + email OTP from showing
+      }
     }
 
     // Check if user has stored Consent ID

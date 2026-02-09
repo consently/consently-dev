@@ -175,6 +175,18 @@ export interface DPDPAWidgetConfig {
   // Display rules (NEW in v2.0)
   display_rules: DisplayRule[];
 
+  // Age Verification
+  requireAgeVerification?: boolean;
+  ageVerificationThreshold?: number;
+  ageVerificationProvider?: 'digilocker' | 'apisetu' | 'custom';
+  minorHandling?: 'block' | 'limited_access';
+  verificationValidityDays?: number;
+
+  // Legacy Age Gate (deprecated)
+  enableAgeGate?: boolean;
+  ageGateThreshold?: number;
+  ageGateMinorMessage?: string;
+
   // Metadata
   version: string;
 }
