@@ -4259,12 +4259,22 @@ ${activitySections}
         </div>
       </div>
       
-      <!-- Footer Links -->
+       <!-- Footer Links -->
       <div style="padding: 12px 24px; background: #ffffff; margin-bottom: 0;">
           <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
             ${t.grievanceText.replace('{here}', `<a href="#" id="dpdpa-grievance-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">${t.here}</a>`).replace('{here2}', `<a href="#" id="dpdpa-dpb-link" style="color: ${primaryColor}; text-decoration: underline; font-weight: 500;">${t.here}</a>`)}
           </p>
         </div>
+
+      <!-- Footer Actions -->
+      <div style="padding: 16px 24px 20px; background: #ffffff; border-top: 1px solid #e5e7eb; display: flex; gap: 12px;">
+        <button id="dpdpa-confirm-btn" style="flex: 1; padding: 14px 24px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px ${primaryColor}40;">
+          ${translatedConfig.acceptButtonText || 'Accept All'}
+        </button>
+        <button id="dpdpa-reject-btn" style="padding: 14px 20px; background: white; color: #64748b; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          ${translatedConfig.rejectButtonText || 'Reject All'}
+        </button>
+      </div>
       </div>
       `;
     }
@@ -4975,6 +4985,45 @@ ${activitySections}
         confirmBtn.style.transform = 'translateY(0)';
         confirmBtn.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
       });
+
+      // Reject All Button
+      const rejectBtn = widget.querySelector('#dpdpa-reject-btn');
+      if (rejectBtn) {
+        rejectBtn.addEventListener('click', async () => {
+          // DigiLocker Age Verification Check (DPDPA 2023)
+          if (config.requireAgeVerification) {
+            if (verificationOutcome === 'blocked_minor') {
+              if (overlay) overlay.remove();
+              showMinorBlockScreen();
+              return;
+            }
+
+            const consentPermitted = ['verified_adult', 'limited_access'];
+            if (!verificationOutcome || !consentPermitted.includes(verificationOutcome)) {
+              console.warn('[Consently DPDPA] Age verification not completed');
+              return;
+            }
+          }
+
+          // Reject all activities
+          activities.forEach((activity) => {
+            setActivityConsent(activity.id, 'rejected');
+          });
+
+          await saveConsent('rejected', overlay);
+        });
+
+        // Hover effects for reject button
+        rejectBtn.addEventListener('mouseenter', () => {
+          rejectBtn.style.transform = 'translateY(-2px)';
+          rejectBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        });
+        rejectBtn.addEventListener('mouseleave', () => {
+          rejectBtn.style.transform = 'translateY(0)';
+          rejectBtn.style.boxShadow = 'none';
+        });
+      }
+
       // Integrated Age Gate Change Listeners
       if (config.enableAgeGate) {
         const yearSelect = widget.querySelector('#dpdpa-age-birthyear-integrated');
