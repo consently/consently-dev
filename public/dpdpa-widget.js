@@ -404,9 +404,10 @@
     }
   }
 
-  // Save age verification result to localStorage
-  function saveAgeVerificationResult(token, isAdult) {
+  // Save age verification result to localStorage AND database
+  async function saveAgeVerificationResult(token, isAdult) {
     try {
+      // Save to localStorage first
       localStorage.setItem(
         getAgeVerifyKey(),
         JSON.stringify({
@@ -415,6 +416,36 @@
           savedAt: new Date().toISOString(),
         })
       );
+
+      // Save to database via API
+      try {
+        const apiBase = getApiUrl();
+        const response = await fetch(`${apiBase}/api/verify-age/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            widgetId: widgetId,
+            visitorId: consentID || getConsentID(),
+            verificationOutcome: isAdult ? 'verified_adult' : 'blocked_minor',
+            verifiedAge: isAdult ? 18 : null, // Set appropriate age
+            token: token,
+          }),
+        });
+
+        if (response.ok) {
+          console.log('[Consently DPDPA] Age verification saved to database');
+        } else {
+          console.warn(
+            '[Consently DPDPA] Failed to save age verification to database:',
+            response.status
+          );
+        }
+      } catch (apiError) {
+        console.warn('[Consently DPDPA] Error saving age verification to database:', apiError);
+        // Continue anyway - localStorage is the primary source
+      }
     } catch (e) {
       console.warn('[Consently DPDPA] Error saving age verification:', e);
     }
