@@ -621,6 +621,15 @@
           // Close the age verification modal overlay
           var ageOverlay = document.getElementById('consently-age-verification-screen');
           if (ageOverlay) ageOverlay.remove();
+
+          // Show the preferences container with activities and hide verification notice
+          var verificationNotice = document.getElementById('dpdpa-verification-notice');
+          var preferencesContainer = document.getElementById('dpdpa-preferences-container');
+          if (verificationNotice) verificationNotice.style.display = 'none';
+          if (preferencesContainer) {
+            preferencesContainer.style.display = 'block';
+            preferencesContainer.style.animation = 'fadeIn 0.5s ease';
+          }
         } else {
           verificationOutcome = 'blocked_minor';
           setMinorCookie();
