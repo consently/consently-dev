@@ -617,6 +617,10 @@
             ageVerificationResolve = null;
             ageVerificationReject = null;
           }
+
+          // Close the age verification modal overlay
+          var ageOverlay = document.getElementById('consently-age-verification-screen');
+          if (ageOverlay) ageOverlay.remove();
         } else {
           verificationOutcome = 'blocked_minor';
           setMinorCookie();
@@ -626,6 +630,10 @@
           var widgetBlocked = document.getElementById('dpdpa-age-verification-blocked');
           if (widgetPending) widgetPending.style.display = 'none';
           if (widgetBlocked) widgetBlocked.style.display = 'flex';
+
+          // Close the age verification modal overlay before showing minor block screen
+          var ageOverlay2 = document.getElementById('consently-age-verification-screen');
+          if (ageOverlay2) ageOverlay2.remove();
 
           showMinorBlockScreen();
           // Reject the promise if waiting
