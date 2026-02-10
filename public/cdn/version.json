@@ -1,6 +1,6 @@
 {
   "version": "3.0.0",
-  "buildDate": "2026-02-10T11:03:41.830Z",
+  "buildDate": "2026-02-10T11:11:44.626Z",
   "widgets": [
     {
       "name": "Cookie Widget",
@@ -12,9 +12,9 @@
     {
       "name": "DPDPA Widget",
       "file": "dpdpa-widget.js",
-      "fileSize": 159042,
-      "gzippedSize": 36217,
-      "integrity": "sha384-easol+M5xXZNs90uS161x3CW03iccUbq7TUo5BQLrPfBMQY+TVLkU63Mr47EG2Ay"
+      "fileSize": 157730,
+      "gzippedSize": 35967,
+      "integrity": "sha384-zM/xRhvW9HsjkaQLAsYlHGiV4CAGcoMTGt/3URjBZYDxqkdjnX8DWwk8h0WP8GFT"
     }
   ]
 }

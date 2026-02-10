@@ -611,46 +611,12 @@
           if (widgetPending) widgetPending.style.display = 'none';
           if (widgetSuccess) widgetSuccess.style.display = 'flex';
 
-          // Show success message before proceeding
-          var screen = document.getElementById('consently-age-verification-screen');
-          if (screen) {
-            var card = document.getElementById('consently-age-verify-card');
-            if (card) {
-              // Show success state
-              card.innerHTML = `
-                <div style="text-align:center;padding:20px;">
-                  <div style="width:72px;height:72px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(16,185,129,0.3);animation:consently-success-pop 0.5s ease;">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </div>
-                  <h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:0 0 8px;">Age Verified Successfully</h2>
-                  <p style="font-size:14px;color:#64748b;margin:0;line-height:1.5;">You're 18+ and eligible to proceed. Redirecting to consent...</p>
-                </div>
-                <style>
-                  @keyframes consently-success-pop {
-                    0% { transform: scale(0.5); opacity: 0; }
-                    70% { transform: scale(1.1); }
-                    100% { transform: scale(1); opacity: 1; }
-                  }
-                </style>
-              `;
-            }
+          // Resolve the promise if waiting (for form submit flows)
+          if (ageVerificationResolve) {
+            ageVerificationResolve({ success: true, isAdult: true });
+            ageVerificationResolve = null;
+            ageVerificationReject = null;
           }
-
-          // Wait a moment to show success message, then proceed
-          setTimeout(function () {
-            // Remove age verification screen
-            if (screen) screen.remove();
-
-            // Resolve the promise if waiting
-            if (ageVerificationResolve) {
-              ageVerificationResolve({ success: true, isAdult: true });
-              ageVerificationResolve = null;
-              ageVerificationReject = null;
-            } else {
-              // Fallback: show consent widget directly (for non-promise flows)
-              showConsentWidget();
-            }
-          }, 1500); // Show success message for 1.5 seconds
         } else {
           verificationOutcome = 'blocked_minor';
           setMinorCookie();
@@ -660,10 +626,6 @@
           var widgetBlocked = document.getElementById('dpdpa-age-verification-blocked');
           if (widgetPending) widgetPending.style.display = 'none';
           if (widgetBlocked) widgetBlocked.style.display = 'flex';
-
-          // Remove age verification screen
-          var screen = document.getElementById('consently-age-verification-screen');
-          if (screen) screen.remove();
 
           showMinorBlockScreen();
           // Reject the promise if waiting
@@ -3559,11 +3521,12 @@ ${activitySections}
           return;
         }
       } else {
-        // No verification — show age verification screen and STOP
-        console.log('[Consently DPDPA] Age verification required — showing verification screen');
-        setupAgeVerificationListener();
-        showAgeVerificationScreen();
-        return; // Prevents activities + email OTP from showing
+        // No verification — show widget with integrated age verification status
+        console.log(
+          '[Consently DPDPA] Age verification required — showing widget with verification status'
+        );
+        // Don't show separate screen, widget will handle it inline
+        // Fall through to show widget
       }
     } else if (config.requireAgeVerification && hasFormSubmitRule) {
       console.log('[Consently DPDPA] Age verification deferred - will check on form submission');
