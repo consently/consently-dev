@@ -2,7 +2,7 @@
  * Consently DPDPA Consent Widget v1.0
  * Production-ready embeddable widget for DPDPA 2023 compliance
  * Displays processing activities and collects granular consent
- * 
+ *
  * Usage: <script src="https://www.consently.in/dpdpa-widget.js" data-dpdpa-widget-id="YOUR_WIDGET_ID"></script>
  */
 
@@ -10,24 +10,28 @@
   'use strict';
 
   // Production mode: Suppress console.log/info/debug, keep console.error/warn for critical issues
-  const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
+  const isProduction =
+    window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
   const originalLog = console.log;
   const originalInfo = console.info;
   const originalDebug = console.debug;
 
   if (isProduction) {
-    console.log = function () { };
-    console.info = function () { };
-    console.debug = function () { };
+    console.log = function () {};
+    console.info = function () {};
+    console.debug = function () {};
   }
 
   // Get widget ID from script tag
-  const currentScript = document.currentScript || document.querySelector('script[data-dpdpa-widget-id]');
+  const currentScript =
+    document.currentScript || document.querySelector('script[data-dpdpa-widget-id]');
   const widgetId = currentScript ? currentScript.getAttribute('data-dpdpa-widget-id') : null;
 
   if (!widgetId) {
     console.error('[Consently DPDPA] Error: data-dpdpa-widget-id attribute is required');
-    console.error('[Consently DPDPA] Usage: <script src="https://www.consently.in/dpdpa-widget.js" data-dpdpa-widget-id="YOUR_WIDGET_ID"></script>');
+    console.error(
+      '[Consently DPDPA] Usage: <script src="https://www.consently.in/dpdpa-widget.js" data-dpdpa-widget-id="YOUR_WIDGET_ID"></script>'
+    );
     return;
   }
 
@@ -45,7 +49,8 @@
     proceedButton: 'Proceed to Consent',
     warningMessage: 'Please complete both requirements to proceed',
     processingActivities: 'Processing Activities',
-    processingDescription: 'We process your personal data for the following purposes. You can accept or reject each activity individually.',
+    processingDescription:
+      'We process your personal data for the following purposes. You can accept or reject each activity individually.',
     acceptButton: 'Accept',
     rejectButton: 'Reject',
     acceptAll: 'Accept All',
@@ -58,7 +63,8 @@
     purpose: 'Purpose',
     retentionPeriod: 'Retention Period',
     yourDataRights: 'Your Data Rights',
-    dataRightsText: 'Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.',
+    dataRightsText:
+      'Under DPDPA 2023, you have the right to access, correct, and delete your personal data. You can also withdraw your consent at any time.',
     withdrawConsent: 'Withdraw/Modify Consent',
     raiseGrievance: 'Raise Grievance',
     privacyNotice: 'Notice',
@@ -67,7 +73,8 @@
     changeSettingsAnytime: 'You can change these settings at any time',
     preferenceCentre: 'Preference Centre',
     revocationWarning: '⚠️ Warning: Revoking consent may affect service delivery.',
-    grievanceText: 'If you have any grievances with how we process your personal data click {here}. If we are unable to resolve your grievance, you can also make a complaint to the Data Protection Board by clicking {here2}.',
+    grievanceText:
+      'If you have any grievances with how we process your personal data click {here}. If we are unable to resolve your grievance, you can also make a complaint to the Data Protection Board by clicking {here2}.',
     here: 'here',
     poweredBy: 'Powered by',
     verifying: 'Verifying...',
@@ -107,8 +114,8 @@
         body: JSON.stringify({
           text: text,
           target: targetLang,
-          source: 'en'
-        })
+          source: 'en',
+        }),
       });
 
       if (response.ok) {
@@ -161,8 +168,8 @@
         body: JSON.stringify({
           texts: uncachedTexts, // Use 'texts' array, not 'text' string
           target: targetLang,
-          source: 'en'
-        })
+          source: 'en',
+        }),
       });
 
       if (response.ok) {
@@ -259,7 +266,7 @@
       expiresAt.setDate(expiresAt.getDate() + expirationDays);
       const data = {
         value: value,
-        expiresAt: expiresAt.toISOString()
+        expiresAt: expiresAt.toISOString(),
       };
       localStorage.setItem(key, JSON.stringify(data));
     },
@@ -286,7 +293,7 @@
 
     delete: function (key) {
       localStorage.removeItem(key);
-    }
+    },
   };
 
   // ============================================================================
@@ -400,11 +407,14 @@
   // Save age verification result to localStorage
   function saveAgeVerificationResult(token, isAdult) {
     try {
-      localStorage.setItem(getAgeVerifyKey(), JSON.stringify({
-        token: token,
-        isAdult: isAdult,
-        savedAt: new Date().toISOString()
-      }));
+      localStorage.setItem(
+        getAgeVerifyKey(),
+        JSON.stringify({
+          token: token,
+          isAdult: isAdult,
+          savedAt: new Date().toISOString(),
+        })
+      );
     } catch (e) {
       console.warn('[Consently DPDPA] Error saving age verification:', e);
     }
@@ -420,37 +430,49 @@
 
     var overlay = document.createElement('div');
     overlay.id = 'consently-age-verification-screen';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:999999;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;padding:16px;';
+    overlay.style.cssText =
+      'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:999999;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;padding:16px;';
 
-    overlay.innerHTML = '<div id="consently-age-verify-card" style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);text-align:center;">' +
+    overlay.innerHTML =
+      '<div id="consently-age-verify-card" style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);text-align:center;">' +
       '<!-- Shield Icon -->' +
-      '<div style="width:72px;height:72px;background:linear-gradient(135deg,' + themeColor + ' 0%,#2563eb 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(76,139,245,0.3);">' +
-        '<svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '<div style="width:72px;height:72px;background:linear-gradient(135deg,' +
+      themeColor +
+      ' 0%,#2563eb 100%);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(76,139,245,0.3);">' +
+      '<svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       '</div>' +
       '<h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:0 0 8px;">Age Verification Required</h2>' +
       '<p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6;">Under DPDPA 2023, we must verify your age before processing your data.</p>' +
       '<!-- Verify Button -->' +
-      '<button id="consently-verify-digilocker-btn" style="width:100%;padding:14px 24px;background:' + themeColor + ';color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:opacity 0.2s;">' +
-        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-        'Verify with DigiLocker' +
+      '<button id="consently-verify-digilocker-btn" style="width:100%;padding:14px 24px;background:' +
+      themeColor +
+      ';color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:opacity 0.2s;">' +
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      'Verify with DigiLocker' +
       '</button>' +
       '<!-- How it works (collapsible) -->' +
       '<details style="text-align:left;margin-bottom:16px;">' +
-        '<summary style="font-size:13px;color:#64748b;cursor:pointer;padding:8px 0;font-weight:500;">How does this work?</summary>' +
-        '<div style="padding:12px;background:#f8fafc;border-radius:8px;margin-top:4px;">' +
-          '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;"><span style="background:' + themeColor + ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">1</span><span style="font-size:13px;color:#475569;">Click "Verify with DigiLocker" to open a secure popup.</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;"><span style="background:' + themeColor + ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">2</span><span style="font-size:13px;color:#475569;">Log in to DigiLocker with your credentials.</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:flex-start;"><span style="background:' + themeColor + ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">3</span><span style="font-size:13px;color:#475569;">Your age is verified and the popup closes automatically.</span></div>' +
-        '</div>' +
+      '<summary style="font-size:13px;color:#64748b;cursor:pointer;padding:8px 0;font-weight:500;">How does this work?</summary>' +
+      '<div style="padding:12px;background:#f8fafc;border-radius:8px;margin-top:4px;">' +
+      '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;"><span style="background:' +
+      themeColor +
+      ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">1</span><span style="font-size:13px;color:#475569;">Click "Verify with DigiLocker" to open a secure popup.</span></div>' +
+      '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;"><span style="background:' +
+      themeColor +
+      ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">2</span><span style="font-size:13px;color:#475569;">Log in to DigiLocker with your credentials.</span></div>' +
+      '<div style="display:flex;gap:10px;align-items:flex-start;"><span style="background:' +
+      themeColor +
+      ';color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">3</span><span style="font-size:13px;color:#475569;">Your age is verified and the popup closes automatically.</span></div>' +
+      '</div>' +
       '</details>' +
       '<!-- Privacy note -->' +
       '<p style="font-size:12px;color:#94a3b8;margin:0 0 16px;line-height:1.5;">' +
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#94a3b8" stroke-width="2"/></svg>' +
-        'Only your age status is verified. No documents are stored.' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#94a3b8" stroke-width="2"/></svg>' +
+      'Only your age status is verified. No documents are stored.' +
       '</p>' +
       '<!-- Powered by -->' +
       '<div style="font-size:11px;color:#cbd5e1;">Powered by Consently</div>' +
-    '</div>';
+      '</div>';
 
     document.body.appendChild(overlay);
 
@@ -460,22 +482,29 @@
       btn.addEventListener('click', function () {
         // Open popup
         var popupUrl = apiBase + '/verify-age/' + widgetId;
-        ageVerificationPopup = window.open(popupUrl, 'consently-age-verify', 'width=500,height=700,scrollbars=yes');
+        ageVerificationPopup = window.open(
+          popupUrl,
+          'consently-age-verify',
+          'width=500,height=700,scrollbars=yes'
+        );
 
         if (!ageVerificationPopup || ageVerificationPopup.closed) {
           // Popup blocked
           var card = document.getElementById('consently-age-verify-card');
           if (card) {
             var blockedMsg = document.createElement('div');
-            blockedMsg.style.cssText = 'background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-top:12px;';
-            blockedMsg.innerHTML = '<p style="color:#92400e;font-size:13px;margin:0;line-height:1.5;"><strong>Popup blocked!</strong> Please allow popups for this site and try again.</p>';
+            blockedMsg.style.cssText =
+              'background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-top:12px;';
+            blockedMsg.innerHTML =
+              '<p style="color:#92400e;font-size:13px;margin:0;line-height:1.5;"><strong>Popup blocked!</strong> Please allow popups for this site and try again.</p>';
             btn.parentNode.insertBefore(blockedMsg, btn.nextSibling);
           }
           return;
         }
 
         // Update button to show waiting state
-        btn.innerHTML = '<div style="width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:consently-spin 0.8s linear infinite;"></div> Waiting for verification...';
+        btn.innerHTML =
+          '<div style="width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:consently-spin 0.8s linear infinite;"></div> Waiting for verification...';
         btn.style.opacity = '0.7';
         btn.style.pointerEvents = 'none';
 
@@ -494,7 +523,8 @@
             ageVerificationPopup = null;
             // Reset button if still in waiting state (no postMessage received)
             if (btn && btn.style.opacity === '0.7') {
-              btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Verify with DigiLocker';
+              btn.innerHTML =
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Verify with DigiLocker';
               btn.style.opacity = '1';
               btn.style.pointerEvents = 'auto';
               // Show cancelled message
@@ -504,8 +534,10 @@
                 if (existing) existing.remove();
                 var cancelledMsg = document.createElement('div');
                 cancelledMsg.id = 'consently-verify-cancelled-msg';
-                cancelledMsg.style.cssText = 'background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px;';
-                cancelledMsg.innerHTML = '<p style="color:#991b1b;font-size:13px;margin:0;">Verification cancelled. Click the button to try again.</p>';
+                cancelledMsg.style.cssText =
+                  'background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px;';
+                cancelledMsg.innerHTML =
+                  '<p style="color:#991b1b;font-size:13px;margin:0;">Verification cancelled. Click the button to try again.</p>';
                 btn.parentNode.insertBefore(cancelledMsg, btn.nextSibling);
               }
             }
@@ -514,6 +546,10 @@
       });
     }
   }
+
+  // Promise-based age verification for async/await support
+  let ageVerificationResolve = null;
+  let ageVerificationReject = null;
 
   // Set up postMessage listener for age verification result
   function setupAgeVerificationListener() {
@@ -541,17 +577,32 @@
 
         if (event.data.isAdult) {
           verificationOutcome = 'verified_adult';
-          showConsentWidget();
+          // Resolve the promise if waiting
+          if (ageVerificationResolve) {
+            ageVerificationResolve({ success: true, isAdult: true });
+            ageVerificationResolve = null;
+            ageVerificationReject = null;
+          } else {
+            // Fallback: show consent widget directly (for non-promise flows)
+            showConsentWidget();
+          }
         } else {
           verificationOutcome = 'blocked_minor';
           setMinorCookie();
           showMinorBlockScreen();
+          // Reject the promise if waiting
+          if (ageVerificationReject) {
+            ageVerificationReject({ success: true, isAdult: false, blocked: true });
+            ageVerificationResolve = null;
+            ageVerificationReject = null;
+          }
         }
       } else {
         // Error - show retry UI
         var btn = document.getElementById('consently-verify-digilocker-btn');
         if (btn) {
-          btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Verify with DigiLocker';
+          btn.innerHTML =
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Verify with DigiLocker';
           btn.style.opacity = '1';
           btn.style.pointerEvents = 'auto';
         }
@@ -561,8 +612,12 @@
           if (existingErr) existingErr.remove();
           var errMsg = document.createElement('div');
           errMsg.id = 'consently-verify-error-msg';
-          errMsg.style.cssText = 'background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px;';
-          errMsg.innerHTML = '<p style="color:#991b1b;font-size:13px;margin:0;">' + (event.data.errorDescription || 'Verification failed. Please try again.') + '</p>';
+          errMsg.style.cssText =
+            'background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px;';
+          errMsg.innerHTML =
+            '<p style="color:#991b1b;font-size:13px;margin:0;">' +
+            (event.data.errorDescription || 'Verification failed. Please try again.') +
+            '</p>';
           if (btn) btn.parentNode.insertBefore(errMsg, btn.nextSibling);
         }
         // Re-listen for next attempt
@@ -571,6 +626,53 @@
     }
 
     window.addEventListener('message', handleAgeVerificationMessage);
+  }
+
+  // Check age verification and perform if needed (returns Promise)
+  // This is used for deferred age verification (e.g., on form submit)
+  function checkAndPerformAgeVerification() {
+    return new Promise((resolve, reject) => {
+      // Check if age verification is required
+      if (!config.requireAgeVerification) {
+        resolve({ success: true, isAdult: true, notRequired: true });
+        return;
+      }
+
+      // Check minor cookie first (fastest check)
+      if (checkMinorCookie()) {
+        verificationOutcome = 'blocked_minor';
+        showMinorBlockScreen();
+        reject({ success: true, isAdult: false, blocked: true });
+        return;
+      }
+
+      // Check existing verification token in localStorage
+      var existingVerification = checkExistingAgeVerification();
+      if (existingVerification) {
+        if (existingVerification.isAdult) {
+          verificationOutcome = 'verified_adult';
+          console.log('[Consently DPDPA] Age verified (cached token) — proceeding');
+          resolve({ success: true, isAdult: true, cached: true });
+          return;
+        } else {
+          verificationOutcome = 'blocked_minor';
+          setMinorCookie();
+          showMinorBlockScreen();
+          reject({ success: true, isAdult: false, blocked: true });
+          return;
+        }
+      }
+
+      // No verification — show age verification screen
+      console.log('[Consently DPDPA] Age verification required — showing verification screen');
+
+      // Store promise handlers for callback
+      ageVerificationResolve = resolve;
+      ageVerificationReject = reject;
+
+      setupAgeVerificationListener();
+      showAgeVerificationScreen();
+    });
   }
 
   // ============================================================================
@@ -595,10 +697,10 @@
 
     for (let i = 0; i < normalized.length; i++) {
       const char = normalized.charCodeAt(i);
-      hash1 = ((hash1 << 5) + hash1) + char;
-      hash2 = ((hash2 << 5) + hash2) + (char * 31);
+      hash1 = (hash1 << 5) + hash1 + char;
+      hash2 = (hash2 << 5) + hash2 + char * 31;
       hash3 = ((hash3 << 5) + hash3) ^ char;
-      hash4 = ((hash4 << 5) + hash4) + (char * 17);
+      hash4 = (hash4 << 5) + hash4 + char * 17;
     }
 
     // Combine hashes and convert to 64-character hex string
@@ -624,7 +726,7 @@
         const hashBuffer = await crypto.subtle.digest('SHA-256', data);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         // Return full 64-character SHA-256 hex string
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
       } catch (e) {
         // Fallback to sync hash if crypto fails
         console.warn('[Consently DPDPA] Web Crypto API failed, using fallback hash:', e);
@@ -668,7 +770,7 @@
     // Timezone (stable for user's location)
     try {
       components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
-    } catch (e) { }
+    } catch (e) {}
 
     // Language (stable)
     if (navigator.language) {
@@ -713,7 +815,7 @@
         const canvasData = canvas.toDataURL();
         components.push(canvasData.substring(0, 50));
       }
-    } catch (e) { }
+    } catch (e) {}
 
     return components.join('|');
   }
@@ -798,8 +900,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           consentID: id,
-          widgetId: widgetId
-        })
+          widgetId: widgetId,
+        }),
       });
 
       return await response.json();
@@ -820,8 +922,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           emailHash: emailHash,
-          widgetId: widgetId
-        })
+          widgetId: widgetId,
+        }),
       });
 
       if (response.ok) {
@@ -837,7 +939,8 @@
   // Show error message to site owners (visible but non-intrusive)
   function showWidgetError(message, isCritical = false) {
     // Only show visible errors in development or if explicitly enabled
-    const isDevelopment = window.location.hostname === 'localhost' ||
+    const isDevelopment =
+      window.location.hostname === 'localhost' ||
       window.location.hostname.includes('127.0.0.1') ||
       window.location.hostname.includes('consently.in');
 
@@ -917,9 +1020,9 @@
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
         },
-        cache: 'no-store'
+        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -932,13 +1035,13 @@
             widgetId: widgetId,
             status: response.status,
             error: errorMessage,
-            hint: 'This widget may have been deleted. Please check your Consently dashboard and create a new widget if needed.'
+            hint: 'This widget may have been deleted. Please check your Consently dashboard and create a new widget if needed.',
           });
 
           // Show user-friendly error message
           showWidgetError(
             `Widget ID "${widgetId}" not found. This widget may have been deleted. ` +
-            `Please check your Consently dashboard or contact support if this persists.`,
+              `Please check your Consently dashboard or contact support if this persists.`,
             true
           );
 
@@ -965,7 +1068,7 @@
           hasPurposes: !!activities[0].purposes,
           hasDataAttributes: !!activities[0].data_attributes,
           purposesCount: activities[0].purposes?.length || 0,
-          dataAttributesCount: activities[0].data_attributes?.length || 0
+          dataAttributesCount: activities[0].data_attributes?.length || 0,
         });
       } else {
         console.warn('[Consently DPDPA] No activities found in configuration!');
@@ -1029,7 +1132,11 @@
             // Limit execution time by using test with timeout consideration
             return regex.test(url);
           } catch (e) {
-            console.error('[Consently DPDPA] Invalid regex pattern in rule:', rule.id || 'unknown', e);
+            console.error(
+              '[Consently DPDPA] Invalid regex pattern in rule:',
+              rule.id || 'unknown',
+              e
+            );
             return false;
           }
         default:
@@ -1068,12 +1175,33 @@
       return;
     }
 
-    element.addEventListener('click', (e) => {
-      e.preventDefault();
-      applyRule(rule);
-      trackRuleMatch(rule);
-      showConsentWidget();
-    }, { once: true });
+    element.addEventListener(
+      'click',
+      async (e) => {
+        e.preventDefault();
+
+        // Check Age Verification first (if required)
+        if (config.requireAgeVerification) {
+          try {
+            const ageVerificationResult = await checkAndPerformAgeVerification();
+            console.log('[Consently DPDPA] Age verification result:', ageVerificationResult);
+
+            if (!ageVerificationResult.success) {
+              console.log('[Consently DPDPA] Age verification failed or blocked - stopping');
+              return; // Stop here - age verification failed or user is minor
+            }
+          } catch (ageError) {
+            console.log('[Consently DPDPA] Age verification error or user blocked:', ageError);
+            return; // Stop here - age verification failed or user is minor
+          }
+        }
+
+        applyRule(rule);
+        trackRuleMatch(rule);
+        showConsentWidget();
+      },
+      { once: true }
+    );
   }
 
   // Setup form submit trigger with auto-detection
@@ -1102,7 +1230,7 @@
     // Store original form handlers to re-trigger after consent
     const formHandlers = new WeakMap();
 
-    targetForms.forEach(form => {
+    targetForms.forEach((form) => {
       const submitHandler = async (e) => {
         // Check if consent already given
         const existingConsent = ConsentStorage.get(`consently_dpdpa_consent_${widgetId}`);
@@ -1113,21 +1241,42 @@
           e.preventDefault();
           e.stopPropagation();
 
-          console.log('[Consently DPDPA] Form submission intercepted - showing consent widget');
+          console.log('[Consently DPDPA] Form submission intercepted - checking requirements');
 
-          // Smart Pre-fill Logic
+          // Step 1: Check Age Verification first (if required)
+          try {
+            const ageVerificationResult = await checkAndPerformAgeVerification();
+            console.log('[Consently DPDPA] Age verification result:', ageVerificationResult);
+
+            if (!ageVerificationResult.success) {
+              console.log(
+                '[Consently DPDPA] Age verification failed or blocked - stopping form submission'
+              );
+              return; // Stop here - age verification failed or user is minor
+            }
+          } catch (ageError) {
+            console.log('[Consently DPDPA] Age verification error or user blocked:', ageError);
+            return; // Stop here - age verification failed or user is minor
+          }
+
+          console.log('[Consently DPDPA] Age verification passed - proceeding to consent');
+
+          // Step 2: Smart Pre-fill Logic
           let prefilledEmail = null;
           let userStatus = 'new';
 
           // Scan for email field
           // Check if smart pre-fill is enabled
           if (!config.enableSmartPreFill) {
-            console.log('[Consently DPDPA] Smart pre-fill is disabled by site owner - using manual input');
+            console.log(
+              '[Consently DPDPA] Smart pre-fill is disabled by site owner - using manual input'
+            );
             prefilledEmail = null;
             userStatus = 'new';
           } else {
             // Parse custom selectors from config (fallback to defaults)
-            const selectors = config.emailFieldSelectors || 'input[type="email"], input[name*="email" i]';
+            const selectors =
+              config.emailFieldSelectors || 'input[type="email"], input[name*="email" i]';
 
             let emailInput = null;
             try {
@@ -1142,19 +1291,28 @@
 
             if (emailInput && emailInput.value) {
               prefilledEmail = emailInput.value;
-              console.log('[Consently DPDPA] ✓ Smart Pre-fill: Found email in form:', prefilledEmail);
+              console.log(
+                '[Consently DPDPA] ✓ Smart Pre-fill: Found email in form:',
+                prefilledEmail
+              );
 
               // Check user status
               const emailHash = await hashString(prefilledEmail);
               const statusResult = await checkUserStatus(emailHash);
               userStatus = statusResult.status || 'new';
-              console.log('[Consently DPDPA] User status:', userStatus, userStatus === 'verified' ? '(returning user)' : '(new user)');
+              console.log(
+                '[Consently DPDPA] User status:',
+                userStatus,
+                userStatus === 'verified' ? '(returning user)' : '(new user)'
+              );
             } else {
-              console.log('[Consently DPDPA] No email found, user will need to enter email manually');
+              console.log(
+                '[Consently DPDPA] No email found, user will need to enter email manually'
+              );
             }
           }
 
-          // Apply rule and show widget
+          // Step 3: Apply rule and show widget
           applyRule(rule);
           trackRuleMatch(rule);
 
@@ -1163,34 +1321,41 @@
           const submitButton = e.submitter || form.querySelector('[type="submit"]');
 
           // Show widget and handle consent
-          console.log('[Consently DPDPA] Showing widget with pre-filled email:', prefilledEmail || 'none');
+          console.log(
+            '[Consently DPDPA] Showing widget with pre-filled email:',
+            prefilledEmail || 'none'
+          );
           showConsentWidget(prefilledEmail, userStatus);
 
           // Listen for consent completion to resume form submission
-          window.addEventListener('consentlyDPDPAConsent', function handleConsent(consentEvent) {
-            console.log('[Consently DPDPA] Consent received, allowing form submission');
+          window.addEventListener(
+            'consentlyDPDPAConsent',
+            function handleConsent(consentEvent) {
+              console.log('[Consently DPDPA] Consent received, allowing form submission');
 
-            // Remove this listener
-            window.removeEventListener('consentlyDPDPAConsent', handleConsent);
+              // Remove this listener
+              window.removeEventListener('consentlyDPDPAConsent', handleConsent);
 
-            // Re-submit the form after a short delay
-            setTimeout(() => {
-              // Remove the submit listener temporarily to avoid recursion
-              form.removeEventListener('submit', submitHandler);
-
-              // Trigger form submission
-              if (submitButton) {
-                submitButton.click();
-              } else {
-                form.submit();
-              }
-
-              // Re-attach listener for future submissions
+              // Re-submit the form after a short delay
               setTimeout(() => {
-                form.addEventListener('submit', submitHandler, { capture: true });
-              }, 100);
-            }, 300);
-          }, { once: true });
+                // Remove the submit listener temporarily to avoid recursion
+                form.removeEventListener('submit', submitHandler);
+
+                // Trigger form submission
+                if (submitButton) {
+                  submitButton.click();
+                } else {
+                  form.submit();
+                }
+
+                // Re-attach listener for future submissions
+                setTimeout(() => {
+                  form.addEventListener('submit', submitHandler, { capture: true });
+                }, 100);
+              }, 300);
+            },
+            { once: true }
+          );
         } else {
           console.log('[Consently DPDPA] Consent already exists, allowing form submission');
         }
@@ -1198,7 +1363,10 @@
 
       // Use capture phase to intercept before other handlers
       form.addEventListener('submit', submitHandler, { capture: true });
-      console.log('[Consently DPDPA] Form submit listener attached:', form.id || form.name || 'unnamed form');
+      console.log(
+        '[Consently DPDPA] Form submit listener attached:',
+        form.id || form.name || 'unnamed form'
+      );
     });
   }
 
@@ -1208,7 +1376,12 @@
     const scrollThreshold = rule.scroll_threshold !== undefined ? rule.scroll_threshold : 50;
     let hasTriggered = false;
 
-    console.log('[Consently DPDPA] Setting up scroll trigger for rule:', rule.rule_name, 'Threshold:', scrollThreshold + '%');
+    console.log(
+      '[Consently DPDPA] Setting up scroll trigger for rule:',
+      rule.rule_name,
+      'Threshold:',
+      scrollThreshold + '%'
+    );
 
     // Calculate scroll percentage
     function getScrollPercentage() {
@@ -1243,22 +1416,41 @@
         console.log('[Consently DPDPA] Scroll threshold reached:', scrollPercent + '%');
         hasTriggered = true;
 
-        // Apply rule and show widget
-        applyRule(rule);
-
-        // Apply delay if specified
-        const delay = rule.trigger_delay || 0;
-        setTimeout(() => {
-          showConsentWidget();
-        }, delay);
-
-        // Track rule match for analytics
-        trackRuleMatch(rule);
-
-        // Remove listeners
+        // Remove listeners immediately to prevent multiple triggers
         window.removeEventListener('scroll', scrollHandler);
         window.removeEventListener('wheel', scrollHandler);
         window.removeEventListener('touchmove', scrollHandler);
+
+        // Handle age verification and widget display
+        (async () => {
+          // Check Age Verification first (if required)
+          if (config.requireAgeVerification) {
+            try {
+              const ageVerificationResult = await checkAndPerformAgeVerification();
+              console.log('[Consently DPDPA] Age verification result:', ageVerificationResult);
+
+              if (!ageVerificationResult.success) {
+                console.log('[Consently DPDPA] Age verification failed or blocked - stopping');
+                return; // Stop here - age verification failed or user is minor
+              }
+            } catch (ageError) {
+              console.log('[Consently DPDPA] Age verification error or user blocked:', ageError);
+              return; // Stop here - age verification failed or user is minor
+            }
+          }
+
+          // Apply rule and show widget
+          applyRule(rule);
+
+          // Apply delay if specified
+          const delay = rule.trigger_delay || 0;
+          setTimeout(() => {
+            showConsentWidget();
+          }, delay);
+
+          // Track rule match for analytics
+          trackRuleMatch(rule);
+        })();
       }
     };
 
@@ -1291,7 +1483,11 @@
 
       const rules = config.display_rules || [];
       // Prefer full URL (pathname + query) for matching; fall back to pathname
-      const currentUrlForMatching = (typeof window !== 'undefined' && window.location && (window.location.href || window.location.pathname)) || '/';
+      const currentUrlForMatching =
+        (typeof window !== 'undefined' &&
+          window.location &&
+          (window.location.href || window.location.pathname)) ||
+        '/';
 
       // Input validation
       if (typeof currentUrlForMatching !== 'string') {
@@ -1308,7 +1504,7 @@
       }
 
       // Validate and filter rules (security: prevent malformed rules)
-      const validRules = rules.filter(rule => {
+      const validRules = rules.filter((rule) => {
         if (!rule || typeof rule !== 'object') {
           console.warn('[Consently DPDPA] Invalid rule structure, skipping');
           return false;
@@ -1316,7 +1512,10 @@
 
         // Validate rule has required fields
         if (!rule.id || !rule.rule_name || !rule.url_pattern) {
-          console.warn('[Consently DPDPA] Rule missing required fields, skipping:', rule.id || 'unknown');
+          console.warn(
+            '[Consently DPDPA] Rule missing required fields, skipping:',
+            rule.id || 'unknown'
+          );
           return false;
         }
 
@@ -1357,7 +1556,11 @@
                   continue;
                 }
               } catch (selectorError) {
-                console.error('[Consently DPDPA] Invalid selector:', rule.element_selector, selectorError);
+                console.error(
+                  '[Consently DPDPA] Invalid selector:',
+                  rule.element_selector,
+                  selectorError
+                );
                 continue;
               }
             }
@@ -1400,10 +1603,19 @@
         console.error('[Consently DPDPA] ❌ Display rule matched for:', currentPath);
         console.error('[Consently DPDPA] ❌ Full URL:', currentHref);
         console.error('[Consently DPDPA] ❌ Rule:', rule.rule_name);
-        console.error('[Consently DPDPA] ❌ URL pattern:', rule.url_pattern, '| Match type:', rule.url_match_type || 'contains');
+        console.error(
+          '[Consently DPDPA] ❌ URL pattern:',
+          rule.url_pattern,
+          '| Match type:',
+          rule.url_match_type || 'contains'
+        );
         console.error('[Consently DPDPA] ❌ BUT rule does not specify which activities to show!');
-        console.error('[Consently DPDPA] ❌ Widget will NOT be shown to prevent showing all activities');
-        console.error('[Consently DPDPA] ❌ To fix: Add "activities" array to the display rule with only the activities you want to show');
+        console.error(
+          '[Consently DPDPA] ❌ Widget will NOT be shown to prevent showing all activities'
+        );
+        console.error(
+          '[Consently DPDPA] ❌ To fix: Add "activities" array to the display rule with only the activities you want to show'
+        );
         // Don't show widget if rule doesn't specify activities - this prevents accidental exposure
         return; // Exit early, don't show widget
       }
@@ -1416,36 +1628,41 @@
       console.log('[Consently DPDPA] Available activities before filter:', activities.length);
 
       // Debug: Log all activity IDs for comparison
-      console.log('[Consently DPDPA] Available activity IDs:', activities.map(a => ({
-        id: a.id,
-        name: a.activity_name || a.activityName
-      })));
+      console.log(
+        '[Consently DPDPA] Available activity IDs:',
+        activities.map((a) => ({
+          id: a.id,
+          name: a.activity_name || a.activityName,
+        }))
+      );
 
       // Store original activities
       const originalActivities = [...activities];
 
       // Get available activity IDs from widget
-      const availableActivityIds = activities.map(a => a.id);
+      const availableActivityIds = activities.map((a) => a.id);
 
       // Validate and filter rule activities to only include those that exist in widget
-      const validRuleActivityIds = rule.activities.filter(activityId =>
+      const validRuleActivityIds = rule.activities.filter((activityId) =>
         availableActivityIds.includes(activityId)
       );
 
       // Log mismatches for debugging
-      const invalidActivityIds = rule.activities.filter(activityId =>
-        !availableActivityIds.includes(activityId)
+      const invalidActivityIds = rule.activities.filter(
+        (activityId) => !availableActivityIds.includes(activityId)
       );
 
       if (invalidActivityIds.length > 0) {
         console.warn('[Consently DPDPA] ⚠️ Some rule activity IDs do not match widget activities');
         console.warn('[Consently DPDPA] Invalid activity IDs in rule:', invalidActivityIds);
         console.warn('[Consently DPDPA] Valid activity IDs in widget:', availableActivityIds);
-        console.warn('[Consently DPDPA] → Filtering out invalid IDs and continuing with valid ones');
+        console.warn(
+          '[Consently DPDPA] → Filtering out invalid IDs and continuing with valid ones'
+        );
       }
 
       // Filter activities based on validated rule activities
-      const filteredActivities = activities.filter(activity =>
+      const filteredActivities = activities.filter((activity) =>
         validRuleActivityIds.includes(activity.id)
       );
 
@@ -1462,7 +1679,9 @@
         console.warn('[Consently DPDPA] Rule activity IDs:', rule.activities);
         console.warn('[Consently DPDPA] Widget activity IDs:', availableActivityIds);
         console.warn('[Consently DPDPA] → Widget will show ZERO activities (correct behavior)');
-        console.warn('[Consently DPDPA] → Fix: Ensure rule activities are in widget\'s selected_activities list');
+        console.warn(
+          "[Consently DPDPA] → Fix: Ensure rule activities are in widget's selected_activities list"
+        );
       }
 
       // Update global activities array (used by widget) - ALWAYS filter
@@ -1480,8 +1699,12 @@
 
       // IMPORTANT: If no activities remain after filtering, don't show the widget
       if (filteredActivities.length === 0) {
-        console.warn('[Consently DPDPA] ⚠️ Not showing widget because no activities remain after display rule filtering');
-        console.warn('[Consently DPDPA] This is the correct behavior - fix by ensuring rule activities match widget activities');
+        console.warn(
+          '[Consently DPDPA] ⚠️ Not showing widget because no activities remain after display rule filtering'
+        );
+        console.warn(
+          '[Consently DPDPA] This is the correct behavior - fix by ensuring rule activities match widget activities'
+        );
         return; // Exit early, don't show widget
       }
     }
@@ -1492,19 +1715,22 @@
       console.log('[Consently DPDPA] Rule activity_purposes:', rule.activity_purposes);
 
       // Clean up activity_purposes object: remove entries for activities that don't exist in widget
-      const availableActivityIds = activities.map(a => a.id);
+      const availableActivityIds = activities.map((a) => a.id);
       const cleanedActivityPurposes = {};
-      Object.keys(rule.activity_purposes).forEach(activityId => {
+      Object.keys(rule.activity_purposes).forEach((activityId) => {
         if (availableActivityIds.includes(activityId)) {
           cleanedActivityPurposes[activityId] = rule.activity_purposes[activityId];
         } else {
-          console.warn('[Consently DPDPA] Removing activity_purposes entry for non-existent activity:', activityId);
+          console.warn(
+            '[Consently DPDPA] Removing activity_purposes entry for non-existent activity:',
+            activityId
+          );
         }
       });
       rule.activity_purposes = cleanedActivityPurposes;
 
       // Filter purposes for each activity
-      activities.forEach(activity => {
+      activities.forEach((activity) => {
         const allowedPurposeIds = rule.activity_purposes[activity.id];
 
         // Only filter if:
@@ -1513,7 +1739,12 @@
         // 3. allowedPurposeIds has at least one element (non-empty array)
         // If activity is not in activity_purposes, or array is empty, show all purposes
         if (allowedPurposeIds && Array.isArray(allowedPurposeIds) && allowedPurposeIds.length > 0) {
-          console.log('[Consently DPDPA] Filtering purposes for activity:', activity.id, 'Allowed purposes:', allowedPurposeIds);
+          console.log(
+            '[Consently DPDPA] Filtering purposes for activity:',
+            activity.id,
+            'Allowed purposes:',
+            allowedPurposeIds
+          );
 
           // Filter purposes within this activity
           if (activity.purposes && Array.isArray(activity.purposes)) {
@@ -1521,34 +1752,58 @@
 
             // DEBUG: Log all purposes before filtering
             console.log('[Consently DPDPA] DEBUG - Purposes before filter:');
-            activity.purposes.forEach(p => {
+            activity.purposes.forEach((p) => {
               console.log(`  - Purpose: ${p.purposeName}, purposeId: ${p.purposeId}, id: ${p.id}`);
-              console.log(`    Allowed? ${allowedPurposeIds.includes(p.purposeId)} (purposeId) or ${allowedPurposeIds.includes(p.id)} (id)`);
+              console.log(
+                `    Allowed? ${allowedPurposeIds.includes(p.purposeId)} (purposeId) or ${allowedPurposeIds.includes(p.id)} (id)`
+              );
             });
 
             // CRITICAL FIX: Use purposeId (the actual purpose UUID), NOT id (activity_purposes join table ID)
-            activity.purposes = activity.purposes.filter(purpose => {
+            activity.purposes = activity.purposes.filter((purpose) => {
               // purposeId is the actual purpose UUID from purposes table
               // id is the activity_purposes join table ID (wrong field to use)
               const matches = allowedPurposeIds.includes(purpose.purposeId);
               if (!matches) {
-                console.log('[Consently DPDPA] DEBUG - Filtering out purpose:', purpose.purposeName, 'purposeId:', purpose.purposeId);
+                console.log(
+                  '[Consently DPDPA] DEBUG - Filtering out purpose:',
+                  purpose.purposeName,
+                  'purposeId:',
+                  purpose.purposeId
+                );
               }
               return matches;
             });
 
-            console.log('[Consently DPDPA] Filtered purposes for activity:', activity.id, 'from', originalPurposeCount, 'to', activity.purposes.length);
+            console.log(
+              '[Consently DPDPA] Filtered purposes for activity:',
+              activity.id,
+              'from',
+              originalPurposeCount,
+              'to',
+              activity.purposes.length
+            );
 
             // Warn if filtering results in no purposes
             if (activity.purposes.length === 0) {
-              console.warn('[Consently DPDPA] Warning: Activity', activity.id, 'has no purposes after filtering!');
+              console.warn(
+                '[Consently DPDPA] Warning: Activity',
+                activity.id,
+                'has no purposes after filtering!'
+              );
               console.warn('[Consently DPDPA] Allowed purpose IDs:', allowedPurposeIds);
-              console.warn('[Consently DPDPA] Check that purpose IDs in activity_purposes match actual purpose UUIDs');
+              console.warn(
+                '[Consently DPDPA] Check that purpose IDs in activity_purposes match actual purpose UUIDs'
+              );
             }
           }
         } else {
           // Activity not in activity_purposes or empty array = show all purposes
-          console.log('[Consently DPDPA] Showing all purposes for activity:', activity.id, '(no purpose filtering specified)');
+          console.log(
+            '[Consently DPDPA] Showing all purposes for activity:',
+            activity.id,
+            '(no purpose filtering specified)'
+          );
         }
       });
     }
@@ -1565,12 +1820,18 @@
         config.privacyNoticeHTML = notice.html;
       } else {
         // Regenerate detailed notice based on the activities filtered by this rule
-        config.privacyNoticeHTML = generatePrivacyNoticeFromActivities(activities, config.domain || window.location.hostname);
+        config.privacyNoticeHTML = generatePrivacyNoticeFromActivities(
+          activities,
+          config.domain || window.location.hostname
+        );
       }
     } else {
       // No notice content in rule, but activities might have been filtered
       // Regenerate to reflect only the activities matched by this rule
-      config.privacyNoticeHTML = generatePrivacyNoticeFromActivities(activities, config.domain || window.location.hostname);
+      config.privacyNoticeHTML = generatePrivacyNoticeFromActivities(
+        activities,
+        config.domain || window.location.hostname
+      );
     }
   }
 
@@ -1603,7 +1864,7 @@
         const delay = initialDelay * Math.pow(2, attempt - 1);
         console.log(`[Consently DPDPA] Retry attempt ${attempt}/${maxRetries} in ${delay}ms...`);
 
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
@@ -1644,8 +1905,8 @@
       // Filter to only valid UUIDs
       if (consentData.acceptedActivities) {
         const originalLength = consentData.acceptedActivities.length;
-        consentData.acceptedActivities = consentData.acceptedActivities.filter(id =>
-          typeof id === 'string' && uuidRegex.test(id)
+        consentData.acceptedActivities = consentData.acceptedActivities.filter(
+          (id) => typeof id === 'string' && uuidRegex.test(id)
         );
         if (consentData.acceptedActivities.length !== originalLength) {
           console.warn('[Consently DPDPA] Filtered out invalid UUIDs from acceptedActivities');
@@ -1654,8 +1915,8 @@
 
       if (consentData.rejectedActivities) {
         const originalLength = consentData.rejectedActivities.length;
-        consentData.rejectedActivities = consentData.rejectedActivities.filter(id =>
-          typeof id === 'string' && uuidRegex.test(id)
+        consentData.rejectedActivities = consentData.rejectedActivities.filter(
+          (id) => typeof id === 'string' && uuidRegex.test(id)
         );
         if (consentData.rejectedActivities.length !== originalLength) {
           console.warn('[Consently DPDPA] Filtered out invalid UUIDs from rejectedActivities');
@@ -1663,15 +1924,20 @@
       }
 
       // Validate and filter activityPurposeConsents
-      if (consentData.activityPurposeConsents && typeof consentData.activityPurposeConsents === 'object') {
+      if (
+        consentData.activityPurposeConsents &&
+        typeof consentData.activityPurposeConsents === 'object'
+      ) {
         const filtered = {};
-        for (const [activityId, purposeIds] of Object.entries(consentData.activityPurposeConsents)) {
+        for (const [activityId, purposeIds] of Object.entries(
+          consentData.activityPurposeConsents
+        )) {
           // Validate activity ID is UUID
           if (typeof activityId === 'string' && uuidRegex.test(activityId)) {
             // Validate purpose IDs are UUIDs
             if (Array.isArray(purposeIds)) {
-              const validPurposeIds = purposeIds.filter(id =>
-                typeof id === 'string' && uuidRegex.test(id)
+              const validPurposeIds = purposeIds.filter(
+                (id) => typeof id === 'string' && uuidRegex.test(id)
               );
               if (validPurposeIds.length > 0) {
                 filtered[activityId] = validPurposeIds;
@@ -1679,7 +1945,8 @@
             }
           }
         }
-        consentData.activityPurposeConsents = Object.keys(filtered).length > 0 ? filtered : undefined;
+        consentData.activityPurposeConsents =
+          Object.keys(filtered).length > 0 ? filtered : undefined;
       }
 
       // Limit activity array sizes (security: prevent abuse)
@@ -1709,7 +1976,10 @@
             // Try to create a URL object to validate
             new URL(consentData.metadata.currentUrl);
           } catch (e) {
-            console.warn('[Consently DPDPA] Invalid currentUrl, removing:', consentData.metadata.currentUrl);
+            console.warn(
+              '[Consently DPDPA] Invalid currentUrl, removing:',
+              consentData.metadata.currentUrl
+            );
             consentData.metadata.currentUrl = undefined;
           }
         }
@@ -1733,74 +2003,85 @@
       const apiUrl = `${apiBase}/api/dpdpa/consent-record`;
 
       // Wrap fetch call with retry logic (3 attempts with exponential backoff)
-      const result = await retryWithBackoff(async () => {
-        // Add timeout to prevent hanging requests
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const result = await retryWithBackoff(
+        async () => {
+          // Add timeout to prevent hanging requests
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        try {
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(consentData),
-            signal: controller.signal
-          });
+          try {
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(consentData),
+              signal: controller.signal,
+            });
 
-          clearTimeout(timeoutId);
+            clearTimeout(timeoutId);
 
-          if (!response.ok) {
-            // Try to get error details from response
-            let errorMessage = 'Failed to record consent';
-            let validationDetails = null;
-            try {
-              const errorData = await response.json();
-              errorMessage = errorData.error || errorMessage;
+            if (!response.ok) {
+              // Try to get error details from response
+              let errorMessage = 'Failed to record consent';
+              let validationDetails = null;
+              try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
 
-              // Log validation details if available
-              if (errorData.details && Array.isArray(errorData.details)) {
-                validationDetails = errorData.details;
-                console.error('[Consently DPDPA] Validation errors:', validationDetails);
-                console.error('[Consently DPDPA] Full error response:', errorData);
-              } else {
-                console.error('[Consently DPDPA] API error response:', errorData);
+                // Log validation details if available
+                if (errorData.details && Array.isArray(errorData.details)) {
+                  validationDetails = errorData.details;
+                  console.error('[Consently DPDPA] Validation errors:', validationDetails);
+                  console.error('[Consently DPDPA] Full error response:', errorData);
+                } else {
+                  console.error('[Consently DPDPA] API error response:', errorData);
+                }
+              } catch (e) {
+                // Ignore JSON parse errors
+                console.error('[Consently DPDPA] Failed to parse error response:', e);
               }
-            } catch (e) {
-              // Ignore JSON parse errors
-              console.error('[Consently DPDPA] Failed to parse error response:', e);
+
+              // Include validation details in error message for debugging
+              if (validationDetails && validationDetails.length > 0) {
+                const detailMessages = validationDetails
+                  .map((d) => `${d.field}: ${d.message}`)
+                  .join('; ');
+                throw new Error(
+                  errorMessage + ' (HTTP ' + response.status + ') - ' + detailMessages
+                );
+              } else {
+                throw new Error(errorMessage + ' (HTTP ' + response.status + ')');
+              }
             }
 
-            // Include validation details in error message for debugging
-            if (validationDetails && validationDetails.length > 0) {
-              const detailMessages = validationDetails.map(d => `${d.field}: ${d.message}`).join('; ');
-              throw new Error(errorMessage + ' (HTTP ' + response.status + ') - ' + detailMessages);
-            } else {
-              throw new Error(errorMessage + ' (HTTP ' + response.status + ')');
+            const result = await response.json();
+            console.log('[Consently DPDPA] Consent recorded successfully');
+            return result;
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+
+            if (fetchError.name === 'AbortError') {
+              throw new Error('Request timeout: Could not record consent');
             }
+            throw fetchError;
           }
-
-          const result = await response.json();
-          console.log('[Consently DPDPA] Consent recorded successfully');
-          return result;
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-
-          if (fetchError.name === 'AbortError') {
-            throw new Error('Request timeout: Could not record consent');
-          }
-          throw fetchError;
-        }
-      }, 3, 1000); // 3 retries, starting with 1 second delay
+        },
+        3,
+        1000
+      ); // 3 retries, starting with 1 second delay
 
       return result;
     } catch (error) {
       console.error('[Consently DPDPA] Failed to record consent:', error);
 
       // Don't expose internal error details to user
-      const userFriendlyError = error instanceof Error
-        ? (error.message.includes('timeout') ? error.message : 'Failed to save consent. Please try again.')
-        : 'Failed to save consent. Please try again.';
+      const userFriendlyError =
+        error instanceof Error
+          ? error.message.includes('timeout')
+            ? error.message
+            : 'Failed to save consent. Please try again.'
+          : 'Failed to save consent. Please try again.';
 
       throw new Error(userFriendlyError);
     }
@@ -1835,7 +2116,9 @@
 
       // Detect device type
       const userAgent = navigator.userAgent || '';
-      const deviceType = /mobile|iphone|ipod|blackberry|windows phone|android.*mobile/i.test(userAgent)
+      const deviceType = /mobile|iphone|ipod|blackberry|windows phone|android.*mobile/i.test(
+        userAgent
+      )
         ? 'Mobile'
         : /tablet|ipad|playbook|silk|android(?!.*mobi)/i.test(userAgent)
           ? 'Tablet'
@@ -1853,7 +2136,7 @@
         userAgent: userAgent,
         deviceType: deviceType,
         language: navigator.language || 'en',
-        country: undefined // Can be set via IP geolocation on server
+        country: undefined, // Can be set via IP geolocation on server
       };
 
       // Send analytics event (fire and forget - don't block UI)
@@ -1861,8 +2144,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(matchEvent),
-        keepalive: true // Important for page unload scenarios
-      }).catch(error => {
+        keepalive: true, // Important for page unload scenarios
+      }).catch((error) => {
         console.error('[Consently DPDPA] Failed to track rule match:', error);
       });
 
@@ -1895,7 +2178,9 @@
 
       // Detect device type
       const userAgent = navigator.userAgent || '';
-      const deviceType = /mobile|iphone|ipod|blackberry|windows phone|android.*mobile/i.test(userAgent)
+      const deviceType = /mobile|iphone|ipod|blackberry|windows phone|android.*mobile/i.test(
+        userAgent
+      )
         ? 'Mobile'
         : /tablet|ipad|playbook|silk|android(?!.*mobi)/i.test(userAgent)
           ? 'Tablet'
@@ -1913,7 +2198,7 @@
         userAgent: userAgent,
         deviceType: deviceType,
         language: navigator.language || 'en',
-        country: undefined // Can be set via IP geolocation on server
+        country: undefined, // Can be set via IP geolocation on server
       };
 
       // Send analytics event (fire and forget - don't block UI)
@@ -1921,8 +2206,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(consentEvent),
-        keepalive: true // Important for page unload scenarios
-      }).catch(error => {
+        keepalive: true, // Important for page unload scenarios
+      }).catch((error) => {
         console.error('[Consently DPDPA] Failed to track consent event:', error);
       });
 
@@ -1960,9 +2245,10 @@
 
     // Get custom message or default
     const t = await getTranslation(config && config.language ? config.language : 'en');
-    const minorMessage = config && config.ageGateMinorMessage
-      ? config.ageGateMinorMessage
-      : t.ageGateDefaultMinorMessage;
+    const minorMessage =
+      config && config.ageGateMinorMessage
+        ? config.ageGateMinorMessage
+        : t.ageGateDefaultMinorMessage;
 
     const modal = document.createElement('div');
     modal.id = 'dpdpa-minor-block-modal';
@@ -2111,7 +2397,7 @@
 
     const handleVerify = async () => {
       const otp = otpInput.value.replace(/\s/g, '');
-      
+
       if (!otp || otp.length < 4) {
         errorDiv.textContent = 'Please enter a valid verification code';
         errorDiv.style.display = 'block';
@@ -2295,7 +2581,9 @@
           </div>
 
           <!-- Age Gate Checkbox (Integrated) -->
-          ${config.enableAgeGate ? `
+          ${
+            config.enableAgeGate
+              ? `
           <div style="background:#fffbeb;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #fef3c7;">
             <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
               <input type="checkbox" id="dpdpa-verif-age-checkbox" style="width:18px;height:18px;margin-top:2px;accent-color:#4F76F6;" />
@@ -2312,7 +2600,9 @@
             </label>
             <div id="age-gate-err-verifer" style="color:#dc2626;margin-top:8px;font-size:12px;display:none;font-weight:600;">Please verify your age to proceed.</div>
           </div>
-          ` : ''}
+          `
+              : ''
+          }
           
           <!-- Divider - Compact -->
           <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
@@ -2410,7 +2700,8 @@
           }
 
           const originalSendBtnHTML = sendBtn.innerHTML;
-          sendBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><div style="width:16px;height:16px;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"></div>Sending...</span>';
+          sendBtn.innerHTML =
+            '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><div style="width:16px;height:16px;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"></div>Sending...</span>';
           sendBtn.disabled = true;
           errorDiv.style.display = 'none';
 
@@ -2450,7 +2741,6 @@
                 visitorId: consentID || getConsentID(),
                 widgetId: widgetId,
               }),
-
             });
 
             const data = await response.json();
@@ -2458,7 +2748,8 @@
             if (!response.ok) {
               errorDiv.textContent = data.error || 'Failed to send code';
               errorDiv.style.display = 'block';
-              sendBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Send Verification Code</span>';
+              sendBtn.innerHTML =
+                '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Send Verification Code</span>';
               sendBtn.disabled = false;
               return;
             }
@@ -2467,12 +2758,12 @@
             // IMPORTANT: Do NOT show consent widget yet - user must verify OTP first
             modal.remove();
             showOtpVerificationModal(email);
-
           } catch (error) {
             console.error('[Email Verification] Send OTP error:', error);
             errorDiv.textContent = 'Failed to send code. Please try again.';
             errorDiv.style.display = 'block';
-            sendBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Send Verification Code</span>';
+            sendBtn.innerHTML =
+              '<span style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Send Verification Code</span>';
             sendBtn.disabled = false;
           }
         });
@@ -2552,21 +2843,25 @@
           Download Privacy Notice
         </button>
         
-        ${displayEmail ? `
+        ${
+          displayEmail
+            ? `
         <!-- Email Confirmation Notice -->
         <div style="background:#ecfdf5;border-left:3px solid #10b981;padding:12px;border-radius:8px;margin-bottom:16px;text-align:left;">
           <p style="color:#065f46;font-size:12px;margin:0;line-height:1.5;">
             <strong style="color:#047857;">Email linked!</strong> You can manage your preferences anytime using this email.
           </p>
         </div>
-        ` : `
+        `
+            : `
         <!-- Consent ID Notice -->
         <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:12px;border-radius:8px;margin-bottom:16px;text-align:left;">
           <p style="color:#78350f;font-size:12px;margin:0;line-height:1.5;">
             <strong style="color:#92400e;">Keep this ID safe!</strong> Use it to manage your preferences across devices.
           </p>
         </div>
-        `}
+        `
+        }
         
         <!-- Action Button -->
         <button 
@@ -2591,53 +2886,59 @@
 
   // Copy Consent ID to clipboard
   window.copyConsentID = function (id) {
-    navigator.clipboard.writeText(id).then(() => {
-      showToast('📋 Consent ID copied to clipboard!', 'success');
-    }).catch(() => {
-      // Fallback for older browsers
-      const textarea = document.createElement('textarea');
-      textarea.value = id;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      showToast('📋 Consent ID copied!', 'success');
-    });
+    navigator.clipboard
+      .writeText(id)
+      .then(() => {
+        showToast('📋 Consent ID copied to clipboard!', 'success');
+      })
+      .catch(() => {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = id;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('📋 Consent ID copied!', 'success');
+      });
   };
 
   // Generate privacy notice HTML from activities (fallback when config.privacyNoticeHTML is not available)
   function generatePrivacyNoticeFromActivities(activitiesList, domainName) {
     const companyName = domainName || window.location.hostname;
 
-    const activitySections = activitiesList.map((activity, index) => {
-      let purposesList = '';
-      let allDataCategories = [];
-      let retentionText = 'N/A';
+    const activitySections = activitiesList
+      .map((activity, index) => {
+        let purposesList = '';
+        let allDataCategories = [];
+        let retentionText = 'N/A';
 
-      if (activity.purposes && activity.purposes.length > 0) {
-        purposesList = activity.purposes.map(p => {
-          const dataCategories = p.dataCategories?.map(cat => cat.categoryName) || [];
-          allDataCategories.push(...dataCategories);
+        if (activity.purposes && activity.purposes.length > 0) {
+          purposesList = activity.purposes
+            .map((p) => {
+              const dataCategories = p.dataCategories?.map((cat) => cat.categoryName) || [];
+              allDataCategories.push(...dataCategories);
 
-          const retentionPeriods = p.dataCategories?.map(cat =>
-            `${cat.categoryName}: ${cat.retentionPeriod}`
-          ) || [];
+              const retentionPeriods =
+                p.dataCategories?.map((cat) => `${cat.categoryName}: ${cat.retentionPeriod}`) || [];
 
-          if (retentionPeriods.length > 0) {
-            retentionText = retentionPeriods.join(', ');
-          }
+              if (retentionPeriods.length > 0) {
+                retentionText = retentionPeriods.join(', ');
+              }
 
-          return `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis?.replace('-', ' ') || 'consent')})</li>`;
-        }).join('');
-      } else {
-        purposesList = '<li>No purposes defined</li>';
-      }
+              return `<li>${escapeHtml(p.purposeName)} (${escapeHtml(p.legalBasis?.replace('-', ' ') || 'consent')})</li>`;
+            })
+            .join('');
+        } else {
+          purposesList = '<li>No purposes defined</li>';
+        }
 
-      const dataCategoriesText = allDataCategories.length > 0
-        ? allDataCategories.map(c => escapeHtml(c)).join(', ')
-        : 'N/A';
+        const dataCategoriesText =
+          allDataCategories.length > 0
+            ? allDataCategories.map((c) => escapeHtml(c)).join(', ')
+            : 'N/A';
 
-      return `
+        return `
     <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 8px;">
       <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 600;">
         ${index + 1}. ${escapeHtml(activity.activity_name || activity.activityName || 'Activity')}
@@ -2661,7 +2962,8 @@
       </div>
     </div>
   `;
-    }).join('');
+      })
+      .join('');
 
     return `
 <h1 style="color: #111827; font-size: 32px; margin-bottom: 16px;">Privacy Notice</h1>
@@ -2723,7 +3025,7 @@ ${activitySections}
         body: JSON.stringify({
           activities: activities,
           domain: domain,
-          companyName: config.name || domain
+          companyName: config.name || domain,
         }),
       });
 
@@ -2760,18 +3062,23 @@ ${activitySections}
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
 
     // Handle both string ID and full consent data object
-    let consentID, acceptedActivities = [], rejectedActivities = [], email = null;
+    let consentID,
+      acceptedActivities = [],
+      rejectedActivities = [],
+      email = null;
 
     if (typeof consentDataOrID === 'string') {
       consentID = consentDataOrID;
     } else if (consentDataOrID && typeof consentDataOrID === 'object') {
       consentID = consentDataOrID.consentId || consentDataOrID.consent_id || getConsentID();
-      acceptedActivities = consentDataOrID.acceptedActivities || consentDataOrID.consented_activities || [];
-      rejectedActivities = consentDataOrID.rejectedActivities || consentDataOrID.rejected_activities || [];
+      acceptedActivities =
+        consentDataOrID.acceptedActivities || consentDataOrID.consented_activities || [];
+      rejectedActivities =
+        consentDataOrID.rejectedActivities || consentDataOrID.rejected_activities || [];
       email = consentDataOrID.email || consentDataOrID.visitor_email || null;
     } else {
       consentID = getConsentID();
@@ -2780,30 +3087,36 @@ ${activitySections}
     // Get activity names from cached config
     const activityMap = {};
     if (activities && activities.length > 0) {
-      activities.forEach(a => {
+      activities.forEach((a) => {
         activityMap[a.id] = a.activity_name || a.name || 'Unknown Activity';
       });
     } else if (allActivities && allActivities.length > 0) {
-      allActivities.forEach(a => {
+      allActivities.forEach((a) => {
         activityMap[a.id] = a.activity_name || a.name || 'Unknown Activity';
       });
     }
 
     // Build accepted activities HTML
-    const acceptedHTML = acceptedActivities.length > 0
-      ? acceptedActivities.map(id => {
-        const name = activityMap[id] || id;
-        return `<li style="padding: 8px 12px; background: #dcfce7; border-radius: 6px; margin-bottom: 6px; color: #166534; font-weight: 500;">✓ ${escapeHtml(name)}</li>`;
-      }).join('')
-      : '<li style="padding: 8px 12px; color: #6b7280; font-style: italic;">No activities accepted</li>';
+    const acceptedHTML =
+      acceptedActivities.length > 0
+        ? acceptedActivities
+            .map((id) => {
+              const name = activityMap[id] || id;
+              return `<li style="padding: 8px 12px; background: #dcfce7; border-radius: 6px; margin-bottom: 6px; color: #166534; font-weight: 500;">✓ ${escapeHtml(name)}</li>`;
+            })
+            .join('')
+        : '<li style="padding: 8px 12px; color: #6b7280; font-style: italic;">No activities accepted</li>';
 
     // Build rejected activities HTML
-    const rejectedHTML = rejectedActivities.length > 0
-      ? rejectedActivities.map(id => {
-        const name = activityMap[id] || id;
-        return `<li style="padding: 8px 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 6px; color: #991b1b; font-weight: 500;">✗ ${escapeHtml(name)}</li>`;
-      }).join('')
-      : '';
+    const rejectedHTML =
+      rejectedActivities.length > 0
+        ? rejectedActivities
+            .map((id) => {
+              const name = activityMap[id] || id;
+              return `<li style="padding: 8px 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 6px; color: #991b1b; font-weight: 500;">✗ ${escapeHtml(name)}</li>`;
+            })
+            .join('')
+        : '';
 
     const domain = config.domain || window.location.hostname;
     const widgetName = config.name || 'DPDPA Consent Widget';
@@ -2862,12 +3175,16 @@ ${activitySections}
           <p style="margin: 0 0 4px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Website</p>
           <p style="margin: 0; font-size: 14px; color: #1e293b; font-weight: 600;">${escapeHtml(domain)}</p>
         </div>
-        ${email ? `
+        ${
+          email
+            ? `
         <div style="background: #f8fafc; padding: 16px; border-radius: 10px; grid-column: span 2;">
           <p style="margin: 0 0 4px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Verified Email</p>
           <p style="margin: 0; font-size: 14px; color: #1e293b; font-weight: 600;">${escapeHtml(email)}</p>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
 
       <!-- Accepted Activities -->
@@ -2881,7 +3198,9 @@ ${activitySections}
         </ul>
       </div>
 
-      ${rejectedActivities.length > 0 ? `
+      ${
+        rejectedActivities.length > 0
+          ? `
       <!-- Rejected Activities -->
       <div style="margin-bottom: 20px;">
         <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #991b1b; font-weight: 700; display: flex; align-items: center; gap: 8px;">
@@ -2892,7 +3211,9 @@ ${activitySections}
           ${rejectedHTML}
         </ul>
       </div>
-      ` : ''}
+      `
+          : ''
+      }
 
       <!-- Your Rights -->
       <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-radius: 12px; padding: 20px; margin-top: 24px;">
@@ -2983,14 +3304,18 @@ ${activitySections}
     // Get activity IDs from existing consent (both accepted and rejected)
     const consentedActivityIds = [
       ...(existingConsent.acceptedActivities || []),
-      ...(existingConsent.rejectedActivities || [])
+      ...(existingConsent.rejectedActivities || []),
     ];
 
     // If user has consented to ANY activities, consider it valid
     // This prevents the banner from showing again on different pages on the same device
     // Users have given their consent once, we respect that across all pages
     if (consentedActivityIds.length > 0) {
-      console.log('[Consently DPDPA] User has existing valid consent for', consentedActivityIds.length, 'activities');
+      console.log(
+        '[Consently DPDPA] User has existing valid consent for',
+        consentedActivityIds.length,
+        'activities'
+      );
       return true;
     }
 
@@ -3024,13 +3349,17 @@ ${activitySections}
         headers: {
           'Content-Type': 'application/json',
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.warn('[Consently DPDPA] API consent check failed:', response.status, response.statusText);
+        console.warn(
+          '[Consently DPDPA] API consent check failed:',
+          response.status,
+          response.statusText
+        );
         return null;
       }
 
@@ -3039,8 +3368,12 @@ ${activitySections}
       if (data.hasConsent && data.consent) {
         // Check if this consent was found via cross-device sync
         if (data.consent.foundByPrincipalId) {
-          console.log('[Consently DPDPA] ✅ Valid consent found via cross-device sync (principal_id)!');
-          console.log('[Consently DPDPA] This means user already consented on another device with the same email.');
+          console.log(
+            '[Consently DPDPA] ✅ Valid consent found via cross-device sync (principal_id)!'
+          );
+          console.log(
+            '[Consently DPDPA] This means user already consented on another device with the same email.'
+          );
         } else {
           console.log('[Consently DPDPA] Valid consent found via API (same device):', data.consent);
         }
@@ -3055,14 +3388,14 @@ ${activitySections}
           activityConsents: {}, // Will be populated from accepted/rejected activities if needed
           foundByPrincipalId: data.consent.foundByPrincipalId || false,
           verifiedEmail: data.consent.visitorEmail || null,
-          stableConsentId: data.stableConsentId || null
+          stableConsentId: data.stableConsentId || null,
         };
 
         // Adopt stable consent ID if returned (for verified users)
         if (data.stableConsentId && data.stableConsentId !== consentID) {
           console.log('[Consently DPDPA] 🔄 Adopting stable Consent ID from API:', {
             old: consentID,
-            new: data.stableConsentId
+            new: data.stableConsentId,
           });
           consentID = data.stableConsentId;
           storeConsentID(consentID);
@@ -3097,7 +3430,10 @@ ${activitySections}
         return;
       } else {
         // Other errors
-        console.error('[Consently DPDPA] Failed to initialize widget:', result?.error || 'Unknown error');
+        console.error(
+          '[Consently DPDPA] Failed to initialize widget:',
+          result?.error || 'Unknown error'
+        );
         if (result && result.error === 'NETWORK_ERROR') {
           // Network error - retry once after delay
           console.warn('[Consently DPDPA] Network error, retrying in 3 seconds...');
@@ -3114,11 +3450,18 @@ ${activitySections}
       return;
     }
 
+    // Check if display rules have form submit trigger - age verification will be deferred
+    const hasFormSubmitRule =
+      config.display_rules &&
+      config.display_rules.some((r) => r.trigger_type === 'onFormSubmit' && r.is_active !== false);
+
     // ====================================================================
     // AGE VERIFICATION GATE (DigiLocker)
     // Must pass BEFORE any consent UI is shown
+    // DEFERRED: If form submit trigger is configured, age verification happens on form submit
+    // IMMEDIATE: Otherwise, age verification happens on page load
     // ====================================================================
-    if (config.requireAgeVerification) {
+    if (config.requireAgeVerification && !hasFormSubmitRule) {
       // Check minor cookie first (fastest check)
       if (checkMinorCookie()) {
         verificationOutcome = 'blocked_minor';
@@ -3146,6 +3489,8 @@ ${activitySections}
         showAgeVerificationScreen();
         return; // Prevents activities + email OTP from showing
       }
+    } else if (config.requireAgeVerification && hasFormSubmitRule) {
+      console.log('[Consently DPDPA] Age verification deferred - will check on form submission');
     }
 
     // Check if user has stored Consent ID
@@ -3175,7 +3520,7 @@ ${activitySections}
             activityConsents: apiConsent.activityConsents,
             timestamp: apiConsent.timestamp,
             expiresAt: apiConsent.expiresAt,
-            verifiedEmail: apiConsent.verifiedEmail
+            verifiedEmail: apiConsent.verifiedEmail,
           },
           config.consentDuration || 365
         );
@@ -3199,13 +3544,21 @@ ${activitySections}
             }
           } else {
             // No expiration date, check by duration
-            const consentAge = (Date.now() - new Date(localStorageConsent.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+            const consentAge =
+              (Date.now() - new Date(localStorageConsent.timestamp).getTime()) /
+              (1000 * 60 * 60 * 24);
             const consentDuration = config.consentDuration || 365;
             if (consentAge < consentDuration) {
               existingConsent = localStorageConsent;
-              console.log('[Consently DPDPA] Found valid consent in localStorage (age: ' + Math.round(consentAge) + ' days)');
+              console.log(
+                '[Consently DPDPA] Found valid consent in localStorage (age: ' +
+                  Math.round(consentAge) +
+                  ' days)'
+              );
             } else {
-              console.log('[Consently DPDPA] localStorage consent expired by duration, clearing...');
+              console.log(
+                '[Consently DPDPA] localStorage consent expired by duration, clearing...'
+              );
               ConsentStorage.delete(`consently_dpdpa_consent_${widgetId}`);
               existingConsent = null;
             }
@@ -3232,12 +3585,12 @@ ${activitySections}
           // For onClick triggers, check consent against all activities (rule applies when clicked)
           if (existingConsent && existingConsent.timestamp) {
             // Check consent against all activities for now
-            const allActivityIds = activities.map(a => a.id);
+            const allActivityIds = activities.map((a) => a.id);
             const consentedActivityIds = [
               ...(existingConsent.acceptedActivities || []),
-              ...(existingConsent.rejectedActivities || [])
+              ...(existingConsent.rejectedActivities || []),
             ];
-            const allConsented = allActivityIds.every(id => consentedActivityIds.includes(id));
+            const allConsented = allActivityIds.every((id) => consentedActivityIds.includes(id));
             if (allConsented) {
               applyConsent(existingConsent);
             }
@@ -3249,12 +3602,12 @@ ${activitySections}
           // For onFormSubmit triggers, check consent against all activities (rule applies when submitted)
           if (existingConsent && existingConsent.timestamp) {
             // Check consent against all activities for now
-            const allActivityIds = activities.map(a => a.id);
+            const allActivityIds = activities.map((a) => a.id);
             const consentedActivityIds = [
               ...(existingConsent.acceptedActivities || []),
-              ...(existingConsent.rejectedActivities || [])
+              ...(existingConsent.rejectedActivities || []),
             ];
-            const allConsented = allActivityIds.every(id => consentedActivityIds.includes(id));
+            const allConsented = allActivityIds.every((id) => consentedActivityIds.includes(id));
             if (allConsented) {
               applyConsent(existingConsent);
             }
@@ -3265,12 +3618,12 @@ ${activitySections}
           // For onScroll triggers, check consent against all activities (rule applies when scrolled)
           if (existingConsent && existingConsent.timestamp) {
             // Check consent against all activities for now
-            const allActivityIds = activities.map(a => a.id);
+            const allActivityIds = activities.map((a) => a.id);
             const consentedActivityIds = [
               ...(existingConsent.acceptedActivities || []),
-              ...(existingConsent.rejectedActivities || [])
+              ...(existingConsent.rejectedActivities || []),
             ];
-            const allConsented = allActivityIds.every(id => consentedActivityIds.includes(id));
+            const allConsented = allActivityIds.every((id) => consentedActivityIds.includes(id));
             if (allConsented) {
               applyConsent(existingConsent);
             }
@@ -3296,7 +3649,9 @@ ${activitySections}
           applyConsent(existingConsent);
           return;
         } else {
-          console.log('[Consently DPDPA] Consent exists but does not cover all activities for this page');
+          console.log(
+            '[Consently DPDPA] Consent exists but does not cover all activities for this page'
+          );
         }
       }
 
@@ -3307,20 +3662,31 @@ ${activitySections}
         // Rule matched, show widget with rule-specific content
         showNoticeForRule(matchedRule);
       } else if (!matchedRule) {
-        const hasRulesConfigured = Array.isArray(config.display_rules) && config.display_rules.length > 0;
+        const hasRulesConfigured =
+          Array.isArray(config.display_rules) && config.display_rules.length > 0;
         if (hasRulesConfigured) {
           // Check if any rule has formSubmit trigger - if so, set it up globally
-          const formSubmitRule = config.display_rules.find(r => r.trigger_type === 'onFormSubmit');
+          const formSubmitRule = config.display_rules.find(
+            (r) => r.trigger_type === 'onFormSubmit'
+          );
           if (formSubmitRule) {
-            console.log('[Consently DPDPA] Setting up global form submit trigger (no page-specific rule matched)');
+            console.log(
+              '[Consently DPDPA] Setting up global form submit trigger (no page-specific rule matched)'
+            );
             setupFormSubmitTrigger(formSubmitRule);
             return;
           }
 
           // STRICT: Do not show widget when rules exist but none matched
-          const currentPath = (typeof window !== 'undefined' && window.location && window.location.pathname) || '/';
-          console.warn('[Consently DPDPA] ⚠️ Display rules configured but none matched for:', currentPath);
-          console.warn('[Consently DPDPA] ⚠️ Widget will not be shown to avoid mixing purposes. Configure a rule for this page or disable autoShow.');
+          const currentPath =
+            (typeof window !== 'undefined' && window.location && window.location.pathname) || '/';
+          console.warn(
+            '[Consently DPDPA] ⚠️ Display rules configured but none matched for:',
+            currentPath
+          );
+          console.warn(
+            '[Consently DPDPA] ⚠️ Widget will not be shown to avoid mixing purposes. Configure a rule for this page or disable autoShow.'
+          );
           return;
         }
         if (config.autoShow) {
@@ -3337,7 +3703,12 @@ ${activitySections}
     } else {
       // No stored Consent ID - check if we have a non-onPageLoad trigger that should wait
       const matchedRule = evaluateDisplayRules();
-      if (matchedRule && (matchedRule.trigger_type === 'onClick' || matchedRule.trigger_type === 'onFormSubmit' || matchedRule.trigger_type === 'onScroll')) {
+      if (
+        matchedRule &&
+        (matchedRule.trigger_type === 'onClick' ||
+          matchedRule.trigger_type === 'onFormSubmit' ||
+          matchedRule.trigger_type === 'onScroll')
+      ) {
         // For non-onPageLoad triggers, set them up but don't show verification screen immediately
         if (matchedRule.trigger_type === 'onClick' && matchedRule.element_selector) {
           setupClickTrigger(matchedRule);
@@ -3350,11 +3721,14 @@ ${activitySections}
       }
 
       // No rule matched - check if we have form submit rules configured globally
-      const hasRulesConfigured = Array.isArray(config.display_rules) && config.display_rules.length > 0;
+      const hasRulesConfigured =
+        Array.isArray(config.display_rules) && config.display_rules.length > 0;
       if (hasRulesConfigured) {
-        const formSubmitRule = config.display_rules.find(r => r.trigger_type === 'onFormSubmit');
+        const formSubmitRule = config.display_rules.find((r) => r.trigger_type === 'onFormSubmit');
         if (formSubmitRule) {
-          console.log('[Consently DPDPA] Setting up global form submit trigger for new user (no page-specific rule matched)');
+          console.log(
+            '[Consently DPDPA] Setting up global form submit trigger for new user (no page-specific rule matched)'
+          );
           setupFormSubmitTrigger(formSubmitRule);
           return;
         }
@@ -3374,8 +3748,8 @@ ${activitySections}
         acceptedActivities: consent.acceptedActivities || [],
         rejectedActivities: consent.rejectedActivities || [],
         activityConsents: consent.activityConsents || {},
-        timestamp: consent.timestamp
-      }
+        timestamp: consent.timestamp,
+      },
     });
     window.dispatchEvent(event);
 
@@ -3387,7 +3761,7 @@ ${activitySections}
   async function prefetchTranslations() {
     const supportedLanguages = config.supportedLanguages || ['en'];
     // Prefetch top 5 languages (excluding English which is already cached)
-    const languagesToPrefetch = supportedLanguages.filter(lang => lang !== 'en').slice(0, 5);
+    const languagesToPrefetch = supportedLanguages.filter((lang) => lang !== 'en').slice(0, 5);
 
     // Prefetch in background without blocking - includes base UI + activity translations
     languagesToPrefetch.forEach(async (lang) => {
@@ -3397,18 +3771,24 @@ ${activitySections}
 
         // Batch prefetch all activity content in ONE API call (optimized)
         const textsToTranslate = [
-          ...activities.map(activity => activity.activity_name),
-          ...activities.flatMap(activity => {
+          ...activities.map((activity) => activity.activity_name),
+          ...activities.flatMap((activity) => {
             // Handle new structure
-            if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
-              return activity.purposes.flatMap(p => [
-                p.purposeName || '',
-                ...(p.dataCategories || []).map(cat => cat.categoryName || '')
-              ]).filter(Boolean);
+            if (
+              activity.purposes &&
+              Array.isArray(activity.purposes) &&
+              activity.purposes.length > 0
+            ) {
+              return activity.purposes
+                .flatMap((p) => [
+                  p.purposeName || '',
+                  ...(p.dataCategories || []).map((cat) => cat.categoryName || ''),
+                ])
+                .filter(Boolean);
             }
             // Fallback to legacy
             return activity.data_attributes || [];
-          })
+          }),
         ];
 
         await batchTranslate(textsToTranslate, lang);
@@ -3426,7 +3806,7 @@ ${activitySections}
     console.log('[Consently DPDPA] showConsentWidget called with:', {
       prefilledEmail: prefilledEmail || 'none',
       userStatus: userStatus,
-      smartPreFillActive: !!prefilledEmail
+      smartPreFillActive: !!prefilledEmail,
     });
 
     if (document.getElementById('consently-dpdpa-widget')) {
@@ -3440,7 +3820,9 @@ ${activitySections}
     // Validate that there are activities to show
     if (!activities || activities.length === 0) {
       console.error('[Consently DPDPA] Cannot show widget: No activities available');
-      console.error('[Consently DPDPA] This may be due to display rules filtering out all activities');
+      console.error(
+        '[Consently DPDPA] This may be due to display rules filtering out all activities'
+      );
       console.error('[Consently DPDPA] Check your widget configuration and display rules');
       return; // Don't show widget if no activities
     }
@@ -3468,10 +3850,12 @@ ${activitySections}
     // Initially translate config values if language is not English
     let translatedConfig = {
       title: config.title || 'Your Data Privacy Rights',
-      message: config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+      message:
+        config.message ||
+        'We process your personal data with your consent. Please review the activities below and choose your preferences.',
       acceptButtonText: config.acceptButtonText || 'Accept All',
       rejectButtonText: config.rejectButtonText || 'Reject All',
-      customizeButtonText: config.customizeButtonText || 'Manage Preferences'
+      customizeButtonText: config.customizeButtonText || 'Manage Preferences',
     };
 
     // Translate config values and activities on initial load if language is not English
@@ -3481,23 +3865,25 @@ ${activitySections}
         translatedConfig.message,
         translatedConfig.acceptButtonText,
         translatedConfig.rejectButtonText,
-        translatedConfig.customizeButtonText
+        translatedConfig.customizeButtonText,
       ];
 
       // Collect activity texts from new or legacy structure
       const activityTexts = [
-        ...activities.map(a => a.activity_name),
-        ...activities.flatMap(a => {
+        ...activities.map((a) => a.activity_name),
+        ...activities.flatMap((a) => {
           // Try new structure first
           if (a.purposes && Array.isArray(a.purposes) && a.purposes.length > 0) {
-            return a.purposes.flatMap(p => [
-              p.purposeName || '',
-              ...(p.dataCategories || []).map(cat => cat.categoryName || '')
-            ]).filter(Boolean);
+            return a.purposes
+              .flatMap((p) => [
+                p.purposeName || '',
+                ...(p.dataCategories || []).map((cat) => cat.categoryName || ''),
+              ])
+              .filter(Boolean);
           }
           // Fallback to legacy
           return a.data_attributes || [];
-        })
+        }),
       ];
 
       // Batch translate all in one API call
@@ -3511,18 +3897,18 @@ ${activitySections}
         message: translatedAll[textIndex++],
         acceptButtonText: translatedAll[textIndex++],
         rejectButtonText: translatedAll[textIndex++],
-        customizeButtonText: translatedAll[textIndex++]
+        customizeButtonText: translatedAll[textIndex++],
       };
 
       // Update activity translations
-      const translatedActivities = activities.map(activity => {
+      const translatedActivities = activities.map((activity) => {
         const translatedName = translatedAll[textIndex++];
         const translatedAttrs = activity.data_attributes.map(() => translatedAll[textIndex++]);
 
         return {
           ...activity,
           activity_name: translatedName,
-          data_attributes: translatedAttrs
+          data_attributes: translatedAttrs,
         };
       });
       activities = translatedActivities;
@@ -3532,7 +3918,8 @@ ${activitySections}
     prefetchTranslations();
 
     // Get privacy notice HTML from config
-    const fullNoticeHTML = config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
+    const fullNoticeHTML =
+      config.privacyNoticeHTML || '<p style="color:#6b7280;">Privacy notice content...</p>';
 
     // Extract just the body content from the full HTML document
     let noticeHTML = fullNoticeHTML;
@@ -3594,13 +3981,17 @@ ${activitySections}
       <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; background: #ffffff;">
         <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            ${config.theme.logoUrl ? `
+            ${
+              config.theme.logoUrl
+                ? `
               <img src="${escapeHtml(config.theme.logoUrl)}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
-            ` : `
+            `
+                : `
               <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; font-weight: 700; font-size: 18px; box-shadow: 0 4px 8px rgba(59,130,246,0.3);">
                 C
               </div>
-            `}
+            `
+            }
             <div>
               <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: ${textColor}; letter-spacing: -0.01em;">${escapeHtml(translatedConfig.title)}</h2>
               <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">${escapeHtml(t.compliantWith)}</p>
@@ -3622,12 +4013,16 @@ ${activitySections}
               </button>
               <div id="dpdpa-lang-menu" style="display: none; position: absolute; right: 0; margin-top: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); padding: 8px; z-index: 10; min-width: 200px; max-height: 320px; overflow-y: auto;">
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
-                  ${(config.supportedLanguages || ['en']).map(code => `
+                  ${(config.supportedLanguages || ['en'])
+                    .map(
+                      (code) => `
                     <button data-lang="${code}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 6px; border: none; background: ${code === selectedLanguage ? '#dbeafe' : '#f9fafb'}; border-radius: 6px; cursor: pointer; transition: all 0.15s; position: relative;">
                       ${code === selectedLanguage ? '<span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: ' + primaryColor + '; border-radius: 50%;"></span>' : ''}
                       <span style="font-size: 11px; font-weight: ${code === selectedLanguage ? '600' : '500'}; color: ${code === selectedLanguage ? primaryColor : '#6b7280'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${languageLabel(code)}</span>
                     </button>
-                  `).join('')}
+                  `
+                    )
+                    .join('')}
                 </div>
               </div>
             </div>
@@ -3652,9 +4047,11 @@ ${activitySections}
             </div>
             <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: ${textColor};">Verification Required</h3>
             <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
-                ${config.requireAgeVerification
-                  ? 'Please verify your age below to view and manage your consent preferences.'
-                  : 'Please verify your email below to view and manage your consent preferences.'}
+                ${
+                  config.requireAgeVerification
+                    ? 'Please verify your age below to view and manage your consent preferences.'
+                    : 'Please verify your email below to view and manage your consent preferences.'
+                }
             </p>
         </div>
 
@@ -3670,43 +4067,55 @@ ${activitySections}
 
           <!-- Table Body -->
           <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-            ${activities.map((activity) => {
-        // Extract data categories from new or legacy structure
-        let dataCategories = [];
-        let purposesList = [];
-        let hasMandatoryPurpose = false;
-        const mandatoryPurposes = config.mandatoryPurposes || [];
+            ${activities
+              .map((activity) => {
+                // Extract data categories from new or legacy structure
+                let dataCategories = [];
+                let purposesList = [];
+                let hasMandatoryPurpose = false;
+                const mandatoryPurposes = config.mandatoryPurposes || [];
 
-        // Check if new structure with purposes array exists
-        if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
-          // New structure: extract purposes and their data categories
-          activity.purposes.forEach(purpose => {
-            purposesList.push(purpose.purposeName || 'Unknown Purpose');
-            // Check if this purpose is mandatory
-            if (mandatoryPurposes.includes(purpose.purposeId) || mandatoryPurposes.includes(purpose.id)) {
-              hasMandatoryPurpose = true;
-            }
-            if (purpose.dataCategories && Array.isArray(purpose.dataCategories)) {
-              purpose.dataCategories.forEach(cat => {
-                if (cat.categoryName && !dataCategories.includes(cat.categoryName)) {
-                  dataCategories.push(cat.categoryName);
+                // Check if new structure with purposes array exists
+                if (
+                  activity.purposes &&
+                  Array.isArray(activity.purposes) &&
+                  activity.purposes.length > 0
+                ) {
+                  // New structure: extract purposes and their data categories
+                  activity.purposes.forEach((purpose) => {
+                    purposesList.push(purpose.purposeName || 'Unknown Purpose');
+                    // Check if this purpose is mandatory
+                    if (
+                      mandatoryPurposes.includes(purpose.purposeId) ||
+                      mandatoryPurposes.includes(purpose.id)
+                    ) {
+                      hasMandatoryPurpose = true;
+                    }
+                    if (purpose.dataCategories && Array.isArray(purpose.dataCategories)) {
+                      purpose.dataCategories.forEach((cat) => {
+                        if (cat.categoryName && !dataCategories.includes(cat.categoryName)) {
+                          dataCategories.push(cat.categoryName);
+                        }
+                      });
+                    }
+                  });
                 }
-              });
-            }
-          });
-        }
 
-        // Fallback to legacy structure
-        if (dataCategories.length === 0 && activity.data_attributes && Array.isArray(activity.data_attributes)) {
-          dataCategories = activity.data_attributes;
-        }
+                // Fallback to legacy structure
+                if (
+                  dataCategories.length === 0 &&
+                  activity.data_attributes &&
+                  Array.isArray(activity.data_attributes)
+                ) {
+                  dataCategories = activity.data_attributes;
+                }
 
-        // If still no data categories, show placeholder
-        if (dataCategories.length === 0) {
-          dataCategories = ['Personal Data'];
-        }
+                // If still no data categories, show placeholder
+                if (dataCategories.length === 0) {
+                  dataCategories = ['Personal Data'];
+                }
 
-        return `
+                return `
               <div class="dpdpa-activity-item" data-activity-id="${activity.id}" style="display: flex; gap: 16px; align-items: flex-start; padding: 16px; border: 1px solid ${hasMandatoryPurpose ? primaryColor + '40' : '#e5e7eb'}; border-radius: 12px; background: ${hasMandatoryPurpose ? primaryColor + '08' : '#ffffff'}; transition: all 0.2s ease; margin-bottom: 12px;">
                 <!-- Checkbox -->
                 <label style="display: flex; align-items: center; ${hasMandatoryPurpose ? 'cursor: not-allowed;' : 'cursor: pointer;'} padding-top: 2px;">
@@ -3731,14 +4140,15 @@ ${activitySections}
                     <span style="color: #9ca3af;">Purpose:</span> ${purposesList.length > 0 ? escapeHtml(purposesList.join(', ')) : escapeHtml(activity.activity_description || 'Process data')}
                   </div>
                   <div style="font-size: 13px; color: #6b7280; line-height: 1.5; margin-top: 2px;">
-                    <span style="color: #9ca3af;">Data:</span> ${dataCategories.map(c => escapeHtml(c)).join(', ')}
+                    <span style="color: #9ca3af;">Data:</span> ${dataCategories.map((c) => escapeHtml(c)).join(', ')}
                   </div>
                 </div>
                 
                 <input type="hidden" class="activity-consent-status" data-activity-id="${activity.id}" value="${hasMandatoryPurpose ? 'accepted' : ''}">
               </div>
             `;
-      }).join('')}
+              })
+              .join('')}
           </div>
         </div>
 
@@ -3780,13 +4190,17 @@ ${activitySections}
             <span style="font-size: 10px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Optional</span>
         </div>
         <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
-          ${userStatus === 'verified'
-          ? `We've sent a code to <strong style="color:${primaryColor}">${escapeHtml(prefilledEmail)}</strong> to manage your consents.`
-          : `We'll send a code to ${prefilledEmail ? `<strong style="color:${primaryColor}">${escapeHtml(prefilledEmail)}</strong>` : 'your email'} to manage all your consents.`}
+          ${
+            userStatus === 'verified'
+              ? `We've sent a code to <strong style="color:${primaryColor}">${escapeHtml(prefilledEmail)}</strong> to manage your consents.`
+              : `We'll send a code to ${prefilledEmail ? `<strong style="color:${primaryColor}">${escapeHtml(prefilledEmail)}</strong>` : 'your email'} to manage all your consents.`
+          }
         </p>
 
         <div class="dpdpa-secure-flex" style="display: flex; gap: 10px; align-items: center;">
-          ${userStatus === 'verified' ? `
+          ${
+            userStatus === 'verified'
+              ? `
             <!-- OTP Input for Verified User -->
             <div class="dpdpa-secure-input-group dpdpa-otp-section" style="display: flex; gap: 12px; flex: 1; align-items: flex-start; flex-wrap: wrap;">
               <div class="dpdpa-otp-input-wrapper" style="flex: 1; min-width: 180px; position: relative;">
@@ -3798,7 +4212,8 @@ ${activitySections}
               </div>
               <button id="dpdpa-verify-btn" style="display: none;">Sync</button>
             </div>
-          ` : `
+          `
+              : `
             <!-- Email Input for New User -->
             <div class="dpdpa-secure-input-group" style="display: flex; gap: 8px; flex: 1;">
               <input type="email" id="dpdpa-email-input" value="${escapeHtml(prefilledEmail || '')}" placeholder="name@example.com" style="flex: 1; padding: 12px 16px; border: ${prefilledEmail ? `2px solid ${primaryColor}` : '1px solid #cbd5e1'}; border-radius: 12px; font-size: 14px; outline: none; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); ${prefilledEmail ? `background: linear-gradient(to right, ${primaryColor}08, transparent);` : 'background: white;'}" />
@@ -3806,7 +4221,8 @@ ${activitySections}
                 ${prefilledEmail ? '✓ Send Code' : 'Send Code'}
               </button>
             </div>
-          `}
+          `
+          }
         </div>
       </div>
       
@@ -3836,7 +4252,7 @@ ${activitySections}
         ml: 'മലയാളം',
         or: 'ଓଡ଼ିଆ',
         ur: 'اردو',
-        as: 'অসমীয়া'
+        as: 'অসমীয়া',
       };
       return map[code] || code;
     }
@@ -3854,7 +4270,7 @@ ${activitySections}
         kn: '🇮🇳',
         ml: '🇮🇳',
         or: '🇮🇳',
-        ur: '🇮🇳'
+        ur: '🇮🇳',
       };
       return map[code] || '🌐';
     }
@@ -3926,10 +4342,12 @@ ${activitySections}
         if (selectedLanguage === 'en') {
           translatedConfig = {
             title: config.title || 'Your Data Privacy Rights',
-            message: config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+            message:
+              config.message ||
+              'We process your personal data with your consent. Please review the activities below and choose your preferences.',
             acceptButtonText: config.acceptButtonText || 'Accept All',
             rejectButtonText: config.rejectButtonText || 'Reject All',
-            customizeButtonText: config.customizeButtonText || 'Manage Preferences'
+            customizeButtonText: config.customizeButtonText || 'Manage Preferences',
           };
           // Restore original activities
           activities = JSON.parse(JSON.stringify(originalActivities));
@@ -3941,23 +4359,26 @@ ${activitySections}
           const textsToTranslate = [
             // Config values - use original English
             config.title || 'Your Data Privacy Rights',
-            config.message || 'We process your personal data with your consent. Please review the activities below and choose your preferences.',
+            config.message ||
+              'We process your personal data with your consent. Please review the activities below and choose your preferences.',
             config.acceptButtonText || 'Accept All',
             config.rejectButtonText || 'Reject All',
             config.customizeButtonText || 'Manage Preferences',
             // Activity content - use original English activities
-            ...originalActivitiesForTranslation.map(a => a.activity_name),
-            ...originalActivitiesForTranslation.flatMap(a => {
+            ...originalActivitiesForTranslation.map((a) => a.activity_name),
+            ...originalActivitiesForTranslation.flatMap((a) => {
               // Handle new structure with purposes
               if (a.purposes && Array.isArray(a.purposes) && a.purposes.length > 0) {
-                return a.purposes.flatMap(p => [
-                  p.purposeName || '',
-                  ...(p.dataCategories || []).map(cat => cat.categoryName || '')
-                ]).filter(Boolean);
+                return a.purposes
+                  .flatMap((p) => [
+                    p.purposeName || '',
+                    ...(p.dataCategories || []).map((cat) => cat.categoryName || ''),
+                  ])
+                  .filter(Boolean);
               }
               // Fallback to legacy
               return a.data_attributes || [];
-            })
+            }),
           ];
 
           // Batch translate ALL content in ONE API call instead of multiple
@@ -3970,38 +4391,46 @@ ${activitySections}
             message: translatedTexts[textIndex++],
             acceptButtonText: translatedTexts[textIndex++],
             rejectButtonText: translatedTexts[textIndex++],
-            customizeButtonText: translatedTexts[textIndex++]
+            customizeButtonText: translatedTexts[textIndex++],
           };
 
-          const translatedActivities = originalActivitiesForTranslation.map(activity => {
+          const translatedActivities = originalActivitiesForTranslation.map((activity) => {
             const translatedName = translatedTexts[textIndex++];
             // Handle both new structure (purposes) and legacy (data_attributes)
-            if (activity.purposes && Array.isArray(activity.purposes) && activity.purposes.length > 0) {
+            if (
+              activity.purposes &&
+              Array.isArray(activity.purposes) &&
+              activity.purposes.length > 0
+            ) {
               // New structure - translate purposes and data categories
-              const translatedPurposes = activity.purposes.map(purpose => {
+              const translatedPurposes = activity.purposes.map((purpose) => {
                 const translatedPurposeName = translatedTexts[textIndex++];
-                const translatedDataCategories = (purpose.dataCategories || []).map(() => translatedTexts[textIndex++]);
+                const translatedDataCategories = (purpose.dataCategories || []).map(
+                  () => translatedTexts[textIndex++]
+                );
                 return {
                   ...purpose,
                   purposeName: translatedPurposeName,
                   dataCategories: purpose.dataCategories.map((cat, idx) => ({
                     ...cat,
-                    categoryName: translatedDataCategories[idx] || cat.categoryName
-                  }))
+                    categoryName: translatedDataCategories[idx] || cat.categoryName,
+                  })),
                 };
               });
               return {
                 ...activity,
                 activity_name: translatedName,
-                purposes: translatedPurposes
+                purposes: translatedPurposes,
               };
             } else {
               // Legacy structure - translate data_attributes
-              const translatedAttrs = (activity.data_attributes || []).map(() => translatedTexts[textIndex++]);
+              const translatedAttrs = (activity.data_attributes || []).map(
+                () => translatedTexts[textIndex++]
+              );
               return {
                 ...activity,
                 activity_name: translatedName,
-                data_attributes: translatedAttrs
+                data_attributes: translatedAttrs,
               };
             }
           });
@@ -4049,7 +4478,8 @@ ${activitySections}
       // Toggle menu
       langBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        langMenu.style.display = langMenu.style.display === 'none' || !langMenu.style.display ? 'block' : 'none';
+        langMenu.style.display =
+          langMenu.style.display === 'none' || !langMenu.style.display ? 'block' : 'none';
       });
 
       // Close on outside click - Store reference to remove later
@@ -4060,7 +4490,7 @@ ${activitySections}
       };
       document.addEventListener('click', globalClickHandler);
 
-      langMenu.querySelectorAll('button[data-lang]').forEach(b => {
+      langMenu.querySelectorAll('button[data-lang]').forEach((b) => {
         // Hover effects
         b.addEventListener('mouseenter', () => {
           if (b.getAttribute('data-lang') !== selectedLanguage) {
@@ -4084,7 +4514,6 @@ ${activitySections}
     // Initial setup
     setupGatedInteractions();
   }
-
 
   // Attach event listeners
   function attachEventListeners(overlay, widget) {
@@ -4124,7 +4553,9 @@ ${activitySections}
 
           if (response.ok) {
             // Switch to OTP view
-            const secureSection = widget.querySelector('#dpdpa-email-input').closest('div').parentElement;
+            const secureSection = widget
+              .querySelector('#dpdpa-email-input')
+              .closest('div').parentElement;
             secureSection.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                       <div style="width: 36px; height: 36px; background: linear-gradient(135deg, ${buttonPrimaryColor}20, ${buttonPrimaryColor}10); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
@@ -4243,7 +4674,10 @@ ${activitySections}
 
             // Handle Stable Consent ID
             if (data.stableConsentId && data.stableConsentId !== consentID) {
-              console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
+              console.log(
+                '[Consently DPDPA] Switching to stable Consent ID:',
+                data.stableConsentId
+              );
               consentID = data.stableConsentId;
               storeConsentID(consentID);
             }
@@ -4263,7 +4697,6 @@ ${activitySections}
             }
 
             verifyBtn.textContent = 'Verified';
-
           } else {
             alert('Invalid Verification Code');
             verifyBtn.textContent = 'Verify';
@@ -4285,13 +4718,13 @@ ${activitySections}
 
     // Checkboxes for activities with enhanced visual feedback (table view)
     const checkboxes = widget.querySelectorAll('.activity-checkbox');
-    checkboxes.forEach(checkbox => {
+    checkboxes.forEach((checkbox) => {
       checkbox.addEventListener('change', function (e) {
         const activityId = this.getAttribute('data-activity-id');
         const item = this.closest('.dpdpa-activity-item');
         const checkboxVisual = this.parentElement.querySelector('.checkbox-visual');
         const checkmark = checkboxVisual?.querySelector('svg');
-        const activity = activities.find(a => a.id === activityId);
+        const activity = activities.find((a) => a.id === activityId);
         const activityName = activity?.activity_name || 'this activity';
 
         if (this.checked) {
@@ -4319,13 +4752,13 @@ ${activitySections}
           // Show confirmation dialog before revoking consent
           const confirmed = confirm(
             `⚠️ Withdraw Consent?\n\n` +
-            `You are about to withdraw your consent for "${activityName}".\n\n` +
-            `This may affect:\n` +
-            `• Your personalized experience on this website\n` +
-            `• Features that rely on this data processing\n` +
-            `• Services that require your consent to function\n\n` +
-            `Under DPDPA 2023, you have the right to withdraw consent at any time.\n\n` +
-            `Click OK to withdraw consent, or Cancel to keep it.`
+              `You are about to withdraw your consent for "${activityName}".\n\n` +
+              `This may affect:\n` +
+              `• Your personalized experience on this website\n` +
+              `• Features that rely on this data processing\n` +
+              `• Services that require your consent to function\n\n` +
+              `Under DPDPA 2023, you have the right to withdraw consent at any time.\n\n` +
+              `Click OK to withdraw consent, or Cancel to keep it.`
           );
 
           if (!confirmed) {
@@ -4451,7 +4884,10 @@ ${activitySections}
 
               // Handle Stable Consent ID
               if (data.stableConsentId && data.stableConsentId !== consentID) {
-                console.log('[Consently DPDPA] Switching to stable Consent ID:', data.stableConsentId);
+                console.log(
+                  '[Consently DPDPA] Switching to stable Consent ID:',
+                  data.stableConsentId
+                );
                 consentID = data.stableConsentId;
                 storeConsentID(consentID);
               }
@@ -4468,7 +4904,6 @@ ${activitySections}
 
               // Optional: Scroll to preferences
               if (prefsContainer) prefsContainer.scrollIntoView({ behavior: 'smooth' });
-
             } else {
               alert('Invalid Verification Code');
               confirmBtn.textContent = originalText;
@@ -4521,9 +4956,7 @@ ${activitySections}
           });
         }
       }
-
     }
-
 
     // Grievance link
     const grievanceLink = widget.querySelector('#dpdpa-grievance-link');
@@ -4567,7 +5000,7 @@ ${activitySections}
 
     // Enhanced hover effects for activity table rows
     const activityItems = widget.querySelectorAll('.dpdpa-activity-item');
-    activityItems.forEach(item => {
+    activityItems.forEach((item) => {
       item.addEventListener('mouseenter', () => {
         item.style.borderColor = primaryColor;
         item.style.boxShadow = '0 4px 12px rgba(59,130,246,0.15)';
@@ -4597,16 +5030,20 @@ ${activitySections}
   function setActivityConsent(activityId, status) {
     activityConsents[activityId] = {
       status: status,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
   // Update activity UI
   function updateActivityUI(activityId, status) {
     const activityItems = document.querySelectorAll('.dpdpa-activity-item');
-    activityItems.forEach(item => {
-      const acceptBtn = item.querySelector(`[data-activity-id="${activityId}"].dpdpa-activity-accept`);
-      const rejectBtn = item.querySelector(`[data-activity-id="${activityId}"].dpdpa-activity-reject`);
+    activityItems.forEach((item) => {
+      const acceptBtn = item.querySelector(
+        `[data-activity-id="${activityId}"].dpdpa-activity-accept`
+      );
+      const rejectBtn = item.querySelector(
+        `[data-activity-id="${activityId}"].dpdpa-activity-reject`
+      );
 
       if (acceptBtn && rejectBtn) {
         if (status === 'accepted') {
@@ -4638,8 +5075,10 @@ ${activitySections}
     }
 
     // Accept only checked activities, reject others
-    activities.forEach(activity => {
-      const checkbox = document.querySelector(`.activity-checkbox[data-activity-id="${activity.id}"]`);
+    activities.forEach((activity) => {
+      const checkbox = document.querySelector(
+        `.activity-checkbox[data-activity-id="${activity.id}"]`
+      );
       if (checkbox && checkbox.checked) {
         setActivityConsent(activity.id, 'accepted');
       } else {
@@ -4660,7 +5099,7 @@ ${activitySections}
 
     // Check all checkboxes first
     const checkboxes = document.querySelectorAll('.activity-checkbox');
-    checkboxes.forEach(cb => {
+    checkboxes.forEach((cb) => {
       cb.checked = true;
       const item = cb.closest('.dpdpa-activity-item');
       if (item) {
@@ -4669,7 +5108,7 @@ ${activitySections}
       }
     });
 
-    activities.forEach(activity => {
+    activities.forEach((activity) => {
       setActivityConsent(activity.id, 'accepted');
     });
     await saveConsent('accepted', overlay);
@@ -4680,7 +5119,9 @@ ${activitySections}
     // Validate that we have activities to save consent for
     if (!activities || activities.length === 0) {
       console.error('[Consently DPDPA] Cannot save consent: No activities available');
-      alert('Cannot save consent. No activities available. Please contact the website administrator.');
+      alert(
+        'Cannot save consent. No activities available. Please contact the website administrator.'
+      );
       return;
     }
 
@@ -4689,8 +5130,8 @@ ${activitySections}
     const acceptedPurposeConsents = {}; // Track accepted purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
     const rejectedPurposeConsents = {}; // Track rejected purpose-level consent: { activity_id: [purpose_id_1, purpose_id_2] }
 
-    Object.keys(activityConsents).forEach(activityId => {
-      const activity = activities.find(a => a.id === activityId);
+    Object.keys(activityConsents).forEach((activityId) => {
+      const activity = activities.find((a) => a.id === activityId);
 
       if (activityConsents[activityId].status === 'accepted') {
         acceptedActivities.push(activityId);
@@ -4700,8 +5141,8 @@ ${activitySections}
           // Store consented purpose IDs for this activity
           // Use purposeId (the actual purpose UUID) not id (which is activity_purpose join table ID)
           acceptedPurposeConsents[activityId] = activity.purposes
-            .map(p => p.purposeId || p.id) // Fallback to id if purposeId not available
-            .filter(id => id); // Remove any undefined/null values
+            .map((p) => p.purposeId || p.id) // Fallback to id if purposeId not available
+            .filter((id) => id); // Remove any undefined/null values
         }
       } else if (activityConsents[activityId].status === 'rejected') {
         rejectedActivities.push(activityId);
@@ -4710,8 +5151,8 @@ ${activitySections}
         if (activity && activity.purposes && Array.isArray(activity.purposes)) {
           // Store rejected purpose IDs for this activity
           rejectedPurposeConsents[activityId] = activity.purposes
-            .map(p => p.purposeId || p.id)
-            .filter(id => id);
+            .map((p) => p.purposeId || p.id)
+            .filter((id) => id);
         }
       }
     });
@@ -4733,12 +5174,14 @@ ${activitySections}
     }
 
     // Include rule context if a rule was matched
-    const ruleContext = config._matchedRule ? {
-      ruleId: config._matchedRule.id,
-      ruleName: config._matchedRule.rule_name,
-      urlPattern: config._matchedRule.url_pattern,
-      pageUrl: window.location.pathname
-    } : undefined;
+    const ruleContext = config._matchedRule
+      ? {
+          ruleId: config._matchedRule.id,
+          ruleName: config._matchedRule.rule_name,
+          urlPattern: config._matchedRule.url_pattern,
+          pageUrl: window.location.pathname,
+        }
+      : undefined;
 
     // Get or generate Consent ID
     if (!consentID) {
@@ -4754,17 +5197,20 @@ ${activitySections}
       rejectedActivities: rejectedActivities,
       activityConsents: activityConsents,
       visitorEmail: verifiedEmail || undefined, // Send verified email if available (convert null to undefined)
-      acceptedPurposeConsents: Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined, // Track accepted purpose-level consent
-      rejectedPurposeConsents: Object.keys(rejectedPurposeConsents).length > 0 ? rejectedPurposeConsents : undefined, // Track rejected purpose-level consent
+      acceptedPurposeConsents:
+        Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined, // Track accepted purpose-level consent
+      rejectedPurposeConsents:
+        Object.keys(rejectedPurposeConsents).length > 0 ? rejectedPurposeConsents : undefined, // Track rejected purpose-level consent
       // DEPRECATED: Keep for backward compatibility, will be removed in v2.0
-      activityPurposeConsents: Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined,
+      activityPurposeConsents:
+        Object.keys(acceptedPurposeConsents).length > 0 ? acceptedPurposeConsents : undefined,
       metadata: {
         language: navigator.language || 'en',
         referrer: document.referrer || null,
         currentUrl: window.location.href,
-        pageTitle: document.title
+        pageTitle: document.title,
       },
-      consentDuration: config.consentDuration || 365
+      consentDuration: config.consentDuration || 365,
     };
 
     try {
@@ -4781,7 +5227,7 @@ ${activitySections}
         activityConsents: activityConsents,
         timestamp: new Date().toISOString(),
         expiresAt: result.expiresAt,
-        verifiedEmail: verifiedEmail
+        verifiedEmail: verifiedEmail,
       };
 
       ConsentStorage.set(
@@ -5013,14 +5459,14 @@ ${activitySections}
     return div.innerHTML;
   }
 
-
   function downloadConsentReceipt(consent) {
     const visitorId = consentID || getConsentID();
     const receiptData = {
       widgetId,
       visitorId,
-      privacyCentreUrl: window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId,
-      ...consent
+      privacyCentreUrl:
+        window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId,
+      ...consent,
     };
     const blob = new Blob([JSON.stringify(receiptData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -5035,7 +5481,10 @@ ${activitySections}
 
   function openPrivacyCentre() {
     const visitorId = consentID || getConsentID();
-    window.open(window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId, '_blank');
+    window.open(
+      window.location.origin + '/privacy-centre/' + widgetId + '?visitorId=' + visitorId,
+      '_blank'
+    );
   }
 
   // Show cookie details modal
@@ -5046,7 +5495,8 @@ ${activitySections}
     const btn = document.createElement('button');
     btn.id = 'dpdpa-floating-btn';
     btn.title = 'Manage Privacy Preferences';
-    btn.style.cssText = 'position: fixed; ' +
+    btn.style.cssText =
+      'position: fixed; ' +
       'bottom: 20px; ' +
       'left: 20px; ' +
       'width: 50px; ' +
@@ -5062,7 +5512,10 @@ ${activitySections}
       'justify-content: center; ' +
       'transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);';
 
-    btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="' + primaryColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    btn.innerHTML =
+      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="' +
+      primaryColor +
+      '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' +
       '</svg>';
 
@@ -5091,7 +5544,8 @@ ${activitySections}
   function openGrievanceForm() {
     const visitorId = consentID || getConsentID();
     // Use the configured grievance URL or default to privacy centre grievance tab
-    const grievanceUrl = window.location.origin + '/privacy-centre/' + widgetId + '/grievance?visitorId=' + visitorId;
+    const grievanceUrl =
+      window.location.origin + '/privacy-centre/' + widgetId + '/grievance?visitorId=' + visitorId;
     window.open(grievanceUrl, '_blank');
   }
 
@@ -5113,7 +5567,7 @@ ${activitySections}
       if (window.downloadPrivacyNotice) {
         window.downloadPrivacyNotice();
       }
-    }
+    },
   };
 
   // Auto-init
@@ -5122,5 +5576,4 @@ ${activitySections}
   } else {
     init();
   }
-
 })();
