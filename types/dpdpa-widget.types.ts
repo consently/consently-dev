@@ -75,7 +75,14 @@ export interface DisplayRule {
  * Display rule validation schema (Zod)
  */
 export const displayRuleSchema = z.object({
-  id: z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/, 'ID must contain only alphanumeric characters, hyphens, and underscores'),
+  id: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      'ID must contain only alphanumeric characters, hyphens, and underscores'
+    ),
   rule_name: z.string().min(1).max(200),
   url_pattern: z.string().min(1).max(500),
   url_match_type: z.enum(['exact', 'contains', 'startsWith', 'regex']),
@@ -85,11 +92,13 @@ export const displayRuleSchema = z.object({
   scroll_threshold: z.number().int().min(0).max(100).optional(), // Scroll percentage (0-100)
   activities: z.array(z.string().uuid()).optional(),
   activity_purposes: z.record(z.string().uuid(), z.array(z.string().uuid())).optional(), // { activity_id: [purpose_id_1, purpose_id_2] }
-  notice_content: z.object({
-    title: z.string().max(200).optional(),
-    message: z.string().max(2000).optional(),
-    html: z.string().max(50000).optional(),
-  }).optional(),
+  notice_content: z
+    .object({
+      title: z.string().max(200).optional(),
+      message: z.string().max(2000).optional(),
+      html: z.string().max(50000).optional(),
+    })
+    .optional(),
   priority: z.number().int().min(0).max(1000),
   is_active: z.boolean(),
   notice_id: z.string().max(100).optional(),
@@ -98,7 +107,9 @@ export const displayRuleSchema = z.object({
 /**
  * Display rules array validation schema
  */
-export const displayRulesSchema = z.array(displayRuleSchema).max(50, 'Maximum 50 display rules allowed');
+export const displayRulesSchema = z
+  .array(displayRuleSchema)
+  .max(50, 'Maximum 50 display rules allowed');
 
 // ============================================================================
 // Widget Configuration Types
@@ -289,7 +300,6 @@ export interface ConsentDetails {
   metadata: ConsentMetadata;
 }
 
-
 // ============================================================================
 // Validation Schemas
 // ============================================================================
@@ -301,34 +311,43 @@ export const consentRecordRequestSchema = z.object({
   widgetId: z.string().min(1).max(100),
   visitorId: z.string().min(1).max(200), // User-visible Consent ID
   consentStatus: z.enum(['accepted', 'rejected', 'partial', 'revoked']),
-  acceptedActivities: z.array(z.string().uuid()),
-  rejectedActivities: z.array(z.string().uuid()),
-  activityConsents: z.record(z.string(), z.object({
-    status: z.string(),
-    timestamp: z.string(),
-  })), // z.record(keySchema, valueSchema) - keys can be any string (including UUIDs)
+  acceptedActivities: z.array(z.string().uuid()).default([]),
+  rejectedActivities: z.array(z.string().uuid()).default([]),
+  activityConsents: z
+    .record(
+      z.string(),
+      z.object({
+        status: z.string(),
+        timestamp: z.string(),
+      })
+    )
+    .default({}), // z.record(keySchema, valueSchema) - keys can be any string (including UUIDs)
   activityPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // DEPRECATED: use acceptedPurposeConsents
   acceptedPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // NEW: accepted purposes per activity
   rejectedPurposeConsents: z.record(z.string(), z.array(z.string().uuid())).optional(), // NEW: rejected purposes per activity
-  ruleContext: z.object({
-    ruleId: z.string().optional(),
-    ruleName: z.string().optional(),
-    urlPattern: z.string().optional(),
-    pageUrl: z.string().optional(),
-    matchedAt: z.string().optional(),
-  }).optional(),
-  metadata: z.object({
-    ipAddress: z.string().optional(),
-    userAgent: z.string().optional(),
-    deviceType: z.enum(['Desktop', 'Mobile', 'Tablet', 'Unknown']).optional(),
-    browser: z.string().optional(),
-    os: z.string().optional(),
-    country: z.string().optional(),
-    language: z.string().optional(),
-    referrer: z.string().optional(),
-    currentUrl: z.string().optional(), // Removed strict .url() validation to allow edge cases
-    pageTitle: z.string().optional(),
-  }).optional(),
+  ruleContext: z
+    .object({
+      ruleId: z.string().optional(),
+      ruleName: z.string().optional(),
+      urlPattern: z.string().optional(),
+      pageUrl: z.string().optional(),
+      matchedAt: z.string().optional(),
+    })
+    .optional(),
+  metadata: z
+    .object({
+      ipAddress: z.string().optional(),
+      userAgent: z.string().optional(),
+      deviceType: z.enum(['Desktop', 'Mobile', 'Tablet', 'Unknown']).optional(),
+      browser: z.string().optional(),
+      os: z.string().optional(),
+      country: z.string().optional(),
+      language: z.string().optional(),
+      referrer: z.string().optional(),
+      currentUrl: z.string().optional(), // Removed strict .url() validation to allow edge cases
+      pageTitle: z.string().optional(),
+    })
+    .optional(),
   consentDuration: z.number().int().min(1).max(3650).optional(),
   revocationReason: z.string().max(500).optional(), // Optional reason for revocation
   visitorEmail: z.string().email().max(255).nullish(), // Optional: for cross-device consent management (will be hashed) - accepts null or undefined
@@ -338,10 +357,12 @@ export const consentRecordRequestSchema = z.object({
 /**
  * Widget configuration update schema
  */
-export const widgetConfigUpdateSchema = z.object({
-  display_rules: displayRulesSchema.optional(),
-  // Add other updatable fields as needed
-}).passthrough();
+export const widgetConfigUpdateSchema = z
+  .object({
+    display_rules: displayRulesSchema.optional(),
+    // Add other updatable fields as needed
+  })
+  .passthrough();
 
 // ============================================================================
 // Error Types

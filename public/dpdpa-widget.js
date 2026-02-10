@@ -605,6 +605,12 @@
         if (event.data.isAdult) {
           verificationOutcome = 'verified_adult';
 
+          // Update widget's integrated age verification status
+          var widgetPending = document.getElementById('dpdpa-age-verification-pending');
+          var widgetSuccess = document.getElementById('dpdpa-age-verification-success');
+          if (widgetPending) widgetPending.style.display = 'none';
+          if (widgetSuccess) widgetSuccess.style.display = 'flex';
+
           // Show success message before proceeding
           var screen = document.getElementById('consently-age-verification-screen');
           if (screen) {
@@ -648,6 +654,12 @@
         } else {
           verificationOutcome = 'blocked_minor';
           setMinorCookie();
+
+          // Update widget's integrated age verification status
+          var widgetPending = document.getElementById('dpdpa-age-verification-pending');
+          var widgetBlocked = document.getElementById('dpdpa-age-verification-blocked');
+          if (widgetPending) widgetPending.style.display = 'none';
+          if (widgetBlocked) widgetBlocked.style.display = 'flex';
 
           // Remove age verification screen
           var screen = document.getElementById('consently-age-verification-screen');
@@ -4119,6 +4131,55 @@ ${activitySections}
             </p>
         </div>
 
+        ${
+          config.requireAgeVerification
+            ? `
+        <!-- Age Verification Status (Integrated into Widget) -->
+        <div id="dpdpa-age-verification-section" style="padding: 16px; background: linear-gradient(to right, #fefce8, #fef9c3); border: 1px solid #fde047; border-radius: 12px; margin-bottom: 20px;">
+          
+          <div id="dpdpa-age-verification-pending" style="display: ${!verificationOutcome ? 'flex' : 'none'}; align-items: flex-start; gap: 12px;">
+            <div style="width: 36px; height: 36px; background: #facc15; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#713f12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div style="flex: 1;">
+              <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: #713f12;">Age Verification Required</h3>
+              <p style="margin: 0; font-size: 12px; color: #854d0e; line-height: 1.5;">
+                Please complete the DigiLocker verification that opened in a new window.
+              </p>
+            </div>
+          </div>
+          
+          <div id="dpdpa-age-verification-success" style="display: ${verificationOutcome === 'verified_adult' ? 'flex' : 'none'}; align-items: center; gap: 10px;">
+            <div style="width: 28px; height: 28px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div>
+              <p style="margin: 0; font-size: 14px; font-weight: 600; color: #14532d;">Age Verified Successfully</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #166534;">You can now manage your consent preferences.</p>
+            </div>
+          </div>
+          
+          <div id="dpdpa-age-verification-blocked" style="display: ${verificationOutcome === 'blocked_minor' ? 'flex' : 'none'}; align-items: center; gap: 10px;">
+            <div style="width: 28px; height: 28px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
+            <div>
+              <p style="margin: 0; font-size: 14px; font-weight: 600; color: #7f1d1d;">Age Verification Required</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #991b1b;">You must be 18+ to provide consent. Parental consent required for minors.</p>
+            </div>
+          </div>
+        </div>
+        `
+            : ''
+        }
+
         <!-- Preferences Container (Hidden until verified) -->
         <div id="dpdpa-preferences-container" style="display: ${userStatus === 'verified' ? 'block' : 'none'}; animation: fadeIn 0.5s ease;">
             <!-- Processing Activities Table View - Enhanced Design -->
@@ -4298,12 +4359,9 @@ ${activitySections}
         </div>
 
       <!-- Footer Actions -->
-      <div style="padding: 16px 24px 20px; background: #ffffff; border-top: 1px solid #e5e7eb; display: flex; gap: 12px;">
-        <button id="dpdpa-confirm-btn" style="flex: 1; padding: 14px 24px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px ${primaryColor}40;">
-          ${translatedConfig.acceptButtonText || 'Accept All'}
-        </button>
-        <button id="dpdpa-reject-btn" style="padding: 14px 20px; background: white; color: #64748b; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-          ${translatedConfig.rejectButtonText || 'Reject All'}
+      <div style="padding: 16px 24px 20px; background: #ffffff; border-top: 1px solid #e5e7eb;">
+        <button id="dpdpa-save-btn" style="width: 100%; padding: 14px 24px; background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px ${primaryColor}40;">
+          Save Preferences
         </button>
       </div>
       </div>
@@ -4865,12 +4923,11 @@ ${activitySections}
     // Note: applyRestoredStateToDom was removed with the old redirect-based DigiLocker flow.
     // The new popup-based flow does not require state restoration.
 
-    // Confirm & Submit Button
-    const confirmBtn = widget.querySelector('#dpdpa-confirm-btn');
-    if (confirmBtn) {
-      confirmBtn.addEventListener('click', async () => {
+    // Save Preferences Button - Simple flow without Accept All/Reject All
+    const saveBtn = widget.querySelector('#dpdpa-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
         // DigiLocker Age Verification Check (DPDPA 2023)
-        // The popup-based flow sets verificationOutcome before the widget renders.
         if (config.requireAgeVerification) {
           if (verificationOutcome === 'blocked_minor') {
             if (overlay) overlay.remove();
@@ -4916,144 +4973,97 @@ ${activitySections}
           if (ageError) ageError.style.display = 'none';
         }
 
-        // Check if already verified
-        if (verifiedEmail) {
-          console.log('[Consently DPDPA] Email verified, saving preferences...');
-          handleAcceptSelected(overlay);
+        // Check if email verification is required but not completed
+        if (config.requireEmailVerification && !verifiedEmail) {
+          // Check if OTP is entered
+          const otpInput = widget.querySelector('#dpdpa-otp-input');
+          const otp = otpInput ? otpInput.value.replace(/\s/g, '') : null;
+          const emailToVerify = userEmail || currentPrefilledEmail;
+
+          if (otp && otp.length >= 4) {
+            if (isVerifying) return; // Prevent double submission
+            isVerifying = true;
+
+            // Verify OTP first
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = 'Verifying...';
+            saveBtn.disabled = true;
+
+            try {
+              const apiBase = getApiUrl();
+              const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: emailToVerify,
+                  otpCode: otp,
+                  visitorId: consentID || getConsentID(),
+                  widgetId: widgetId,
+                }),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                verifiedEmail = emailToVerify;
+
+                // Handle Stable Consent ID
+                if (data.stableConsentId && data.stableConsentId !== consentID) {
+                  console.log(
+                    '[Consently DPDPA] Switching to stable Consent ID:',
+                    data.stableConsentId
+                  );
+                  consentID = data.stableConsentId;
+                  storeConsentID(consentID);
+                }
+
+                // Now save the preferences
+                saveBtn.textContent = 'Save Preferences';
+                saveBtn.disabled = false;
+                await handleAcceptSelected(overlay);
+              } else {
+                alert('Invalid Verification Code');
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+              }
+            } catch (e) {
+              console.error('Verification error', e);
+              alert('Verification failed. Please try again.');
+              saveBtn.textContent = originalText;
+              saveBtn.disabled = false;
+            } finally {
+              isVerifying = false;
+            }
+          } else {
+            // No OTP and not verified
+            alert('Please verify your email to save your consent preferences.');
+
+            // Highlight email input if visible
+            const emailInput = widget.querySelector('#dpdpa-email-input');
+            if (emailInput) {
+              emailInput.focus();
+              emailInput.style.borderColor = '#ef4444';
+              setTimeout(() => {
+                emailInput.style.borderColor = '#cbd5e1';
+              }, 2000);
+            }
+          }
           return;
         }
 
-        // Check if OTP is entered
-        const otpInput = widget.querySelector('#dpdpa-otp-input');
-        const otp = otpInput ? otpInput.value.replace(/\s/g, '') : null;
-        const emailToVerify = userEmail || currentPrefilledEmail;
-
-        if (otp && otp.length >= 4) {
-          if (isVerifying) return; // Prevent double submission
-          isVerifying = true;
-
-          // Verify OTP first
-          const originalText = confirmBtn.textContent;
-          confirmBtn.textContent = 'Verifying...';
-          confirmBtn.disabled = true;
-
-          try {
-            const apiBase = getApiUrl();
-            const response = await fetch(`${apiBase}/api/privacy-centre/verify-otp`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: emailToVerify, // Use global or prefilled
-                otpCode: otp,
-                visitorId: consentID || getConsentID(),
-                widgetId: widgetId,
-              }),
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-
-              // Verification success
-              verifiedEmail = emailToVerify;
-
-              // Handle Stable Consent ID
-              if (data.stableConsentId && data.stableConsentId !== consentID) {
-                console.log(
-                  '[Consently DPDPA] Switching to stable Consent ID:',
-                  data.stableConsentId
-                );
-                consentID = data.stableConsentId;
-                storeConsentID(consentID);
-              }
-
-              // Reveal Preferences UI
-              const prefsContainer = widget.querySelector('#dpdpa-preferences-container');
-              const notice = widget.querySelector('#dpdpa-verification-notice');
-
-              if (prefsContainer) prefsContainer.style.display = 'block';
-              if (notice) notice.style.display = 'none';
-
-              confirmBtn.textContent = 'Save Preferences';
-              confirmBtn.disabled = false;
-
-              // Optional: Scroll to preferences
-              if (prefsContainer) prefsContainer.scrollIntoView({ behavior: 'smooth' });
-            } else {
-              alert('Invalid Verification Code');
-              confirmBtn.textContent = originalText;
-              confirmBtn.disabled = false;
-            }
-          } catch (e) {
-            console.error('Verification error', e);
-            alert('Verification failed. Please try again.');
-            confirmBtn.textContent = originalText;
-            confirmBtn.disabled = false;
-          } finally {
-            isVerifying = false;
-          }
-        } else {
-          // No OTP and not verified
-          alert('Please verify your email to manage your consent preferences.');
-
-          // Highlight email input if visible
-          const emailInput = widget.querySelector('#dpdpa-email-input');
-          if (emailInput) {
-            emailInput.focus();
-            emailInput.style.borderColor = '#ef4444';
-            setTimeout(() => {
-              emailInput.style.borderColor = '#cbd5e1';
-            }, 2000);
-          }
-        }
+        // Save selected preferences
+        console.log('[Consently DPDPA] Saving individual preferences...');
+        await handleAcceptSelected(overlay);
       });
 
       // Enhanced hover effects
-      confirmBtn.addEventListener('mouseenter', () => {
-        confirmBtn.style.transform = 'translateY(-2px)';
-        confirmBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
+      saveBtn.addEventListener('mouseenter', () => {
+        saveBtn.style.transform = 'translateY(-2px)';
+        saveBtn.style.boxShadow = '0 6px 16px rgba(59,130,246,0.5)';
       });
-      confirmBtn.addEventListener('mouseleave', () => {
-        confirmBtn.style.transform = 'translateY(0)';
-        confirmBtn.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
+      saveBtn.addEventListener('mouseleave', () => {
+        saveBtn.style.transform = 'translateY(0)';
+        saveBtn.style.boxShadow = '0 4px 12px rgba(59,130,246,0.3)';
       });
-
-      // Reject All Button
-      const rejectBtn = widget.querySelector('#dpdpa-reject-btn');
-      if (rejectBtn) {
-        rejectBtn.addEventListener('click', async () => {
-          // DigiLocker Age Verification Check (DPDPA 2023)
-          if (config.requireAgeVerification) {
-            if (verificationOutcome === 'blocked_minor') {
-              if (overlay) overlay.remove();
-              showMinorBlockScreen();
-              return;
-            }
-
-            const consentPermitted = ['verified_adult', 'limited_access'];
-            if (!verificationOutcome || !consentPermitted.includes(verificationOutcome)) {
-              console.warn('[Consently DPDPA] Age verification not completed');
-              return;
-            }
-          }
-
-          // Reject all activities
-          activities.forEach((activity) => {
-            setActivityConsent(activity.id, 'rejected');
-          });
-
-          await saveConsent('rejected', overlay);
-        });
-
-        // Hover effects for reject button
-        rejectBtn.addEventListener('mouseenter', () => {
-          rejectBtn.style.transform = 'translateY(-2px)';
-          rejectBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-        });
-        rejectBtn.addEventListener('mouseleave', () => {
-          rejectBtn.style.transform = 'translateY(0)';
-          rejectBtn.style.boxShadow = 'none';
-        });
-      }
 
       // Integrated Age Gate Change Listeners
       if (config.enableAgeGate) {
