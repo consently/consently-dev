@@ -4098,17 +4098,17 @@ ${activitySections}
           config.requireAgeVerification
             ? `
         <!-- Age Verification Status (Integrated into Widget) -->
-        <div id="dpdpa-age-verification-section" style="padding: 16px; background: linear-gradient(to right, #fefce8, #fef9c3); border: 1px solid #fde047; border-radius: 12px; margin-bottom: 20px;">
+        <div id="dpdpa-age-verification-section" style="padding: 16px; background: ${primaryColor}08; border: 1px solid ${primaryColor}30; border-radius: 12px; margin-bottom: 20px;">
           
           <div id="dpdpa-age-verification-pending" style="display: ${!verificationOutcome ? 'flex' : 'none'}; align-items: flex-start; gap: 12px;">
-            <div style="width: 36px; height: 36px; background: #facc15; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#713f12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <div style="width: 36px; height: 36px; background: ${primaryColor}15; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${primaryColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               </svg>
             </div>
             <div style="flex: 1;">
-              <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: #713f12;">Age Verification Required</h3>
-              <p style="margin: 0; font-size: 12px; color: #854d0e; line-height: 1.5;">
+              <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: ${textColor};">Age Verification Required</h3>
+              <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
                 Please complete the DigiLocker verification that opened in a new window.
               </p>
             </div>
@@ -4121,8 +4121,8 @@ ${activitySections}
               </svg>
             </div>
             <div>
-              <p style="margin: 0; font-size: 14px; font-weight: 600; color: #14532d;">Age Verified Successfully</p>
-              <p style="margin: 2px 0 0 0; font-size: 12px; color: #166534;">You can now manage your consent preferences.</p>
+              <p style="margin: 0; font-size: 14px; font-weight: 600; color: #15803d;">Age Verified Successfully</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #16a34a;">You can now manage your consent preferences.</p>
             </div>
           </div>
           
@@ -4134,8 +4134,8 @@ ${activitySections}
               </svg>
             </div>
             <div>
-              <p style="margin: 0; font-size: 14px; font-weight: 600; color: #7f1d1d;">Age Verification Required</p>
-              <p style="margin: 2px 0 0 0; font-size: 12px; color: #991b1b;">You must be 18+ to provide consent. Parental consent required for minors.</p>
+              <p style="margin: 0; font-size: 14px; font-weight: 600; color: #b91c1c;">Age Verification Required</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px; color: #dc2626;">You must be 18+ to provide consent. Parental consent required for minors.</p>
             </div>
           </div>
         </div>

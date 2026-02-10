@@ -356,6 +356,28 @@ CREATE TABLE public.data_sources (
   CONSTRAINT data_sources_pkey PRIMARY KEY (id),
   CONSTRAINT data_sources_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES public.processing_activities(id)
 );
+CREATE TABLE public.digilocker_verifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  digilocker_id character varying NOT NULL UNIQUE,
+  name character varying NOT NULL,
+  dob_raw character varying NOT NULL,
+  date_of_birth date NOT NULL,
+  age_at_verification integer NOT NULL,
+  is_adult boolean NOT NULL,
+  gender character CHECK (gender = ANY (ARRAY['M'::bpchar, 'F'::bpchar, 'T'::bpchar, 'O'::bpchar])),
+  access_token_encrypted text NOT NULL,
+  refresh_token_encrypted text NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  consent_valid_till timestamp with time zone,
+  reference_key character varying,
+  eaadhaar_linked boolean DEFAULT false,
+  issuer_id character varying DEFAULT 'in.consently'::character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT digilocker_verifications_pkey PRIMARY KEY (id),
+  CONSTRAINT digilocker_verifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.dpdp_rights_requests (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   visitor_id text NOT NULL,
@@ -522,6 +544,14 @@ CREATE TABLE public.dpdpa_widget_configs (
   otp_expiration_minutes integer DEFAULT 10 CHECK (otp_expiration_minutes >= 1 AND otp_expiration_minutes <= 60),
   dpo_email text,
   mandatory_purposes ARRAY DEFAULT ARRAY[]::uuid[] CHECK (array_length(mandatory_purposes, 1) IS NULL OR array_length(mandatory_purposes, 1) <= 100),
+  enable_age_gate boolean DEFAULT false,
+  age_gate_threshold integer DEFAULT 18 CHECK (age_gate_threshold >= 13 AND age_gate_threshold <= 21),
+  age_gate_minor_message text DEFAULT 'This content requires adult supervision. Please ask a parent or guardian to assist you.'::text,
+  require_age_verification boolean DEFAULT false,
+  age_verification_threshold integer DEFAULT 18 CHECK (age_verification_threshold >= 13 AND age_verification_threshold <= 21),
+  age_verification_provider text DEFAULT 'digilocker'::text CHECK (age_verification_provider = ANY (ARRAY['digilocker'::text, 'apisetu'::text, 'custom'::text])),
+  minor_handling text DEFAULT 'block'::text CHECK (minor_handling = ANY (ARRAY['block'::text, 'limited_access'::text])),
+  verification_validity_days integer DEFAULT 365 CHECK (verification_validity_days >= 1 AND verification_validity_days <= 3650),
   CONSTRAINT dpdpa_widget_configs_pkey PRIMARY KEY (id),
   CONSTRAINT dpdpa_widget_configs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
