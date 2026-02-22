@@ -5219,6 +5219,23 @@ ${activitySections}
 
   // Save consent
   async function saveConsent(overallStatus, overlay) {
+    // ENFORCE: Email OTP verification is required before consent can be saved
+    if (config.requireEmailVerification && !verifiedEmail) {
+      console.warn('[Consently DPDPA] Email verification required but not completed');
+      alert('Please verify your email before saving consent preferences.');
+
+      // Try to focus the email input if visible
+      const emailInput = document.querySelector('#dpdpa-email-input');
+      if (emailInput) {
+        emailInput.focus();
+        emailInput.style.borderColor = '#ef4444';
+        setTimeout(() => {
+          emailInput.style.borderColor = '#cbd5e1';
+        }, 2000);
+      }
+      return;
+    }
+
     // Validate that we have activities to save consent for
     if (!activities || activities.length === 0) {
       console.error('[Consently DPDPA] Cannot save consent: No activities available');

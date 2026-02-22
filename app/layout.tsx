@@ -4,7 +4,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import Script from "next/script";
 import "./globals.css";
 import ConsentlyCookieWidget from "@/components/cookie/ConsentlyCookieWidget";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SkipLink } from "@/components/ui/SkipLink";
 // Suppress console output in production (client-side)
 import '@/lib/console-suppress';
@@ -38,10 +37,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#2563eb" },
-    { media: "(prefers-color-scheme: dark)", color: "#1e40af" },
-  ],
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
@@ -59,7 +55,7 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+    <html lang="en" className="scroll-smooth">
       {/* Google Analytics */}
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
@@ -74,20 +70,12 @@ export default function RootLayout({
         `}
       </Script>
       <body className={`${inter.className} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-          storageKey="consently-theme"
-        >
-          <SkipLink />
-          <main id="main-content" className="min-h-screen">
-            {children}
-          </main>
-          <ConsentlyCookieWidget />
-          <SpeedInsights />
-        </ThemeProvider>
+        <SkipLink />
+        <main id="main-content" className="min-h-screen">
+          {children}
+        </main>
+        <ConsentlyCookieWidget />
+        <SpeedInsights />
       </body>
     </html>
   );

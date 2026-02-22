@@ -69,19 +69,17 @@ export async function translateWithGoogle(
   }
 
   try {
-    const params = new URLSearchParams({
-      key: apiKey,
-      q: text,
-      target: targetLanguage,
-      source: sourceLanguage,
-      format: 'text',
-    });
-
-    const response = await fetch(`${GOOGLE_TRANSLATE_API_URL}?${params.toString()}`, {
+    const response = await fetch(`${GOOGLE_TRANSLATE_API_URL}?key=${encodeURIComponent(apiKey)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        q: text,
+        target: targetLanguage,
+        source: sourceLanguage,
+        format: 'text',
+      }),
     });
 
     if (!response.ok) {
@@ -121,23 +119,17 @@ export async function translateBatchGoogle(
   }
 
   try {
-    const params = new URLSearchParams({
-      key: apiKey,
-      target: targetLanguage,
-      source: sourceLanguage,
-      format: 'text',
-    });
-
-    // Add multiple 'q' parameters for batch translation
-    texts.forEach(text => {
-      params.append('q', text);
-    });
-
-    const response = await fetch(`${GOOGLE_TRANSLATE_API_URL}?${params.toString()}`, {
+    const response = await fetch(`${GOOGLE_TRANSLATE_API_URL}?key=${encodeURIComponent(apiKey)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        q: texts,
+        target: targetLanguage,
+        source: sourceLanguage,
+        format: 'text',
+      }),
     });
 
     if (!response.ok) {

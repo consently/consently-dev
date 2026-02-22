@@ -186,6 +186,9 @@ export interface DPDPAWidgetConfig {
   // Display rules (NEW in v2.0)
   display_rules: DisplayRule[];
 
+  // Email Verification
+  requireEmailVerification: boolean;
+
   // Age Verification
   requireAgeVerification?: boolean;
   ageVerificationThreshold?: number;

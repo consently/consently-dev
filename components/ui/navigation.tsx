@@ -33,12 +33,12 @@ export function Navigation() {
   }, [mobileMenuOpen, isMobile]);
 
   return (
-    <nav className="border-b border-blue-100 bg-white/80 dark:bg-gray-900/80 dark:border-gray-700 backdrop-blur-sm sticky top-0 z-40">
+    <nav className="border-b border-blue-100 bg-white/80 backdrop-blur-sm sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center space-x-2">
             <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600" />
-            <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Consently</span>
+            <span className="text-xl sm:text-2xl font-bold text-gray-900">Consently</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -75,7 +75,7 @@ export function Navigation() {
 
       {/* Mobile Menu Slide-in Panel */}
       <div
-        className={`fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-in-out md:hidden ${
           mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{
@@ -83,10 +83,10 @@ export function Navigation() {
         }}
       >
         {/* Mobile Menu Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <Link href="/" className="flex items-center space-x-2" onClick={() => setMobileMenuOpen(false)}>
             <Shield className="h-7 w-7 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">Consently</span>
+            <span className="text-xl font-bold text-gray-900">Consently</span>
           </Link>
           <button
             onClick={() => setMobileMenuOpen(false)}
@@ -101,14 +101,14 @@ export function Navigation() {
         <div className="flex flex-col h-full overflow-y-auto">
           <div className="flex-1 p-4 space-y-2">
             <Link href="/consulting" onClick={() => setMobileMenuOpen(false)} className="group">
-              <div className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <div className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Shield className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-white">Consulting Services</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Expert compliance guidance</div>
+                    <div className="font-medium text-gray-900">Consulting Services</div>
+                    <div className="text-sm text-gray-500">Expert compliance guidance</div>
                   </div>
                 </div>
                 <Badge className="h-5 px-1.5 text-[10px] bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-md shadow-blue-500/20">
@@ -117,14 +117,14 @@ export function Navigation() {
               </div>
             </Link>
 
-            <div className="border-t border-gray-100 dark:border-gray-700 my-2" />
+            <div className="border-t border-gray-100 my-2" />
 
             <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="group">
-              <div className="flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                  <span className="text-lg font-medium text-gray-600 dark:text-gray-400">→</span>
+              <div className="flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <span className="text-lg font-medium text-gray-600">→</span>
                 </div>
-                <span className="font-medium text-gray-900 dark:text-white">Login</span>
+                <span className="font-medium text-gray-900">Login</span>
               </div>
             </Link>
 
@@ -139,8 +139,8 @@ export function Navigation() {
           </div>
 
           {/* Mobile Menu Footer */}
-          <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-            <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="p-4 border-t border-gray-100">
+            <div className="text-center text-sm text-gray-500">
               © 2024 Consently. All rights reserved.
             </div>
           </div>

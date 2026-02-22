@@ -439,6 +439,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ===== EMAIL VERIFICATION GUARD =====
+    // Email verification is always required - consent cannot be recorded without a verified email
+    if (!body.visitorEmail) {
+      console.warn('[Consent Record API] Email verification required but no verified email provided:', {
+        widgetId: body.widgetId,
+        visitorId: body.visitorId,
+      });
+      return NextResponse.json(
+        {
+          error: 'Email verification is required before consent can be recorded',
+          code: 'EMAIL_VERIFICATION_REQUIRED',
+        },
+        {
+          status: 403,
+          headers: { 'Access-Control-Allow-Origin': '*' },
+        }
+      );
+    }
+
+    // Verify that the email was actually verified via OTP (check email_verification_otps table)
+    const emailHash = hashEmail(body.visitorEmail);
+    const { data: verifiedEmailRecord } = await supabase
+      .from('email_verification_otps')
+      .select('id, verified')
+      .eq('email_hash', emailHash)
+      .eq('verified', true)
+      .limit(1)
+      .single();
+
+    if (!verifiedEmailRecord) {
+      console.warn('[Consent Record API] Email not verified via OTP:', {
+        widgetId: body.widgetId,
+        visitorId: body.visitorId,
+        emailHash: emailHash.substring(0, 10) + '...',
+      });
+      return NextResponse.json(
+        {
+          error: 'Email must be verified via OTP before consent can be recorded',
+          code: 'EMAIL_NOT_VERIFIED',
+        },
+        {
+          status: 403,
+          headers: { 'Access-Control-Allow-Origin': '*' },
+        }
+      );
+    }
+
     // ===== AGE VERIFICATION POLICY GUARD =====
     // If widget requires age verification, enforce policy before accepting consent.
     // This is the server-side enforcement layer — widget-side checks are defensive only.

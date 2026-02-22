@@ -230,6 +230,9 @@ export async function GET(
       // NEW: Display rules for page-specific notices (filter inactive rules and validate)
       display_rules: filterAndValidateDisplayRules(widgetConfig.display_rules),
 
+      // Email Verification - always required for DPDPA compliance
+      requireEmailVerification: true,
+
       // Age Verification
       requireAgeVerification: widgetConfig.require_age_verification ?? false,
       ageVerificationThreshold: widgetConfig.age_verification_threshold ?? 18,
